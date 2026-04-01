@@ -1,3 +1,5 @@
+import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { useFonts } from 'expo-font';
 import {
   Orbitron_400Regular,
@@ -11,10 +13,9 @@ import {
   Exo2_400Regular,
   Exo2_700Bold,
 } from '@expo-google-fonts/exo-2';
-import { View, ActivityIndicator } from 'react-native';
-import RootNavigator from '../src/navigation/RootNavigator';
+import RootNavigator from './src/navigation/RootNavigator';
 
-export default function RootLayout() {
+export default function App() {
   const [fontsLoaded] = useFonts({
     Orbitron: Orbitron_400Regular,
     'Orbitron-Bold': Orbitron_700Bold,
