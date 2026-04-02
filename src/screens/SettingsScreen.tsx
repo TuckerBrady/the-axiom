@@ -15,13 +15,13 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { TabParamList } from '../navigation/TabNavigator';
 import StarField from '../components/StarField';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Settings'>;
+  navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
 };
 
 function SectionHeader({ title, delay }: { title: string; delay: number }) {
@@ -119,7 +119,7 @@ function TapRow({
   );
 }
 
-export default function SettingsScreen({ navigation }: Props) {
+export default function SettingsScreen(_: Props) {
   const [sfx, setSfx] = useState(true);
   const [music, setMusic] = useState(true);
   const [haptics, setHaptics] = useState(true);
@@ -147,13 +147,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.header, headerRevealStyle]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
+          <View style={styles.backBtn} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerLabel}>AXIOM SYSTEM</Text>
             <Text style={styles.headerTitle}>SETTINGS</Text>
@@ -233,7 +227,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.cogsCredEmoji}>🤖</Text>
             <Text style={styles.cogsCredText}>
               Cogs AI v2.1 · All systems nominal.{'\n'}
-              <Text style={styles.cogsCredSub}>The Tinkerer · Build 0.1.0</Text>
+              <Text style={styles.cogsCredSub}>The Axiom · Build 0.1.0</Text>
             </Text>
           </Animated.View>
         </ScrollView>

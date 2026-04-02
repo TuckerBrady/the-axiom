@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "TheTinkerer",
-    "slug": "TheTinkerer",
+    "name": "The Axiom",
+    "slug": "TheAxiom",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "thetinkerer",
+    "scheme": "theaxiom",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -32,9 +32,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#06090f",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#06090f"
           }
         }
       ]

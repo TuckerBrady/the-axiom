@@ -1,3 +1,12 @@
+// ─── Game Identity ─────────────────────────────────────────────────────────────
+export const Game = {
+  name: 'The Axiom',
+  tagline: 'Not all damage is structural',
+  cogsDesignation: 'C.O.G.S Unit 7',
+  cogsFullName: 'Cognitive Operations and Guidance System',
+} as const;
+
+// ─── Colours ───────────────────────────────────────────────────────────────────
 export const Colors = {
   void: '#06090f',
   navy: '#0a1628',
