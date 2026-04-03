@@ -39,8 +39,16 @@ const { width: W, height: H } = Dimensions.get('window');
 
 const CELL_SIZE = 34;
 const DOT_R = 1.5;
-const PIECE_SIZE = 30;
-const PIECE_RADIUS = 6;
+const PIECE_SIZE_PRE = 52;
+const PIECE_SIZE_PLAYER = 44;
+const PIECE_RADIUS = 12;
+
+const VOID_QUOTES = [
+  '"The signal did not reach Output. I observed the exact moment it failed."',
+  '"Void state. I could explain why. You should already know."',
+  '"The machine did not lock. Review your connections."',
+  '"Signal lost. The configuration was incorrect. Adjust and retry."',
+];
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Gameplay'>;
@@ -183,6 +191,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showVoid, setShowVoid] = useState(false);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showSystemRestored, setShowSystemRestored] = useState<string | null>(null);
+  const [showCompletionScene, setShowCompletionScene] = useState(false);
+  const [completionText, setCompletionText] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
   const [animatingStep, setAnimatingStep] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -333,6 +343,32 @@ export default function GameplayScreen({ navigation }: Props) {
       } else {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
+
+      // A1-8 completion scene — check if all 8 Axiom levels are now done
+      if (level.id === 'A1-8' && isFirst) {
+        const { getSectorCompletedCount } = useProgressionStore.getState();
+        if (getSectorCompletedCount('A1-') >= 8) {
+          setShowCompletionScene(true);
+          const lines = [
+            'The Axiom is fully operational.',
+            'For the first time since I can remember.',
+            '',
+            'You did that.',
+            '',
+            'I will not say that again.',
+          ];
+          const delays = [1200, 2400, 3600, 4400, 5200, 5800];
+          for (let i = 0; i < lines.length; i++) {
+            await new Promise(resolve => setTimeout(resolve, i === 0 ? delays[0] : delays[i] - delays[i - 1]));
+            setCompletionText(lines.slice(0, i + 1).join('\n'));
+          }
+          await new Promise(resolve => setTimeout(resolve, 1200));
+          setShowCompletionScene(false);
+          navigation.navigate('Tabs');
+          return;
+        }
+      }
+
       setShowResults(true);
     } else {
       // Red flash 3 times
@@ -397,8 +433,8 @@ export default function GameplayScreen({ navigation }: Props) {
           </TouchableOpacity>
           <View style={styles.topBarCenter}>
             <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
-            <Text style={styles.levelTag}>MISSION {level.id}</Text>
-            <Text style={styles.levelName}>{level.name}</Text>
+            <Text style={styles.levelTag}>{level.id}</Text>
+            <Text style={styles.levelName}>{level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}</Text>
           </View>
           <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7}>
             <Svg width={18} height={18} viewBox="0 0 24 24">
@@ -528,15 +564,15 @@ export default function GameplayScreen({ navigation }: Props) {
 
               {/* Placed pieces */}
               {pieces.map(piece => {
-                const px = piece.gridX * CELL_SIZE + (CELL_SIZE - PIECE_SIZE) / 2;
-                const py = piece.gridY * CELL_SIZE + (CELL_SIZE - PIECE_SIZE) / 2;
+                const pSize = piece.isPrePlaced ? PIECE_SIZE_PRE : PIECE_SIZE_PLAYER;
+                const px = piece.gridX * CELL_SIZE + (CELL_SIZE - pSize) / 2;
+                const py = piece.gridY * CELL_SIZE + (CELL_SIZE - pSize) / 2;
                 const isSelected = selectedPlacedPiece === piece.id;
                 const pieceColor = getPieceColor(piece.type);
                 const isSource = piece.type === 'source';
                 const isOutput = piece.type === 'output';
                 const isPrePlaced = piece.isPrePlaced;
-                const pieceSize = isPrePlaced ? PIECE_SIZE + 4 : PIECE_SIZE;
-                const offset = isPrePlaced ? -2 : 0;
+                const pieceSize = isPrePlaced ? PIECE_SIZE_PRE : PIECE_SIZE_PLAYER;
 
                 // Animation state
                 const isAnimStep = animatingStep >= 0 &&
@@ -559,8 +595,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     style={[
                       styles.piece,
                       {
-                        left: px + offset,
-                        top: py + offset,
+                        left: px,
+                        top: py,
                         width: pieceSize,
                         height: pieceSize,
                         borderColor: debugColor || (isAnimStep ? Colors.green : isSelected ? Colors.starWhite : pieceColor),
@@ -591,10 +627,10 @@ export default function GameplayScreen({ navigation }: Props) {
                         style={[
                           styles.ghostCell,
                           {
-                            left: x * CELL_SIZE + (CELL_SIZE - PIECE_SIZE) / 2,
-                            top: y * CELL_SIZE + (CELL_SIZE - PIECE_SIZE) / 2,
-                            width: PIECE_SIZE,
-                            height: PIECE_SIZE,
+                            left: x * CELL_SIZE,
+                            top: y * CELL_SIZE,
+                            width: CELL_SIZE,
+                            height: CELL_SIZE,
                           },
                         ]}
                         onPress={() => handleCanvasTap(x, y)}
@@ -830,7 +866,7 @@ export default function GameplayScreen({ navigation }: Props) {
               <View style={styles.cogsResultRow}>
                 <CogsAvatar size="small" state="damaged" />
                 <Text style={styles.voidQuote}>
-                  "The signal vanished into nothing. This is what happens when you don't think it through."
+                  {VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]}
                 </Text>
               </View>
               <View style={styles.voidActions}>
@@ -927,6 +963,16 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
       </SafeAreaView>
+
+      {/* ── A1-8 Completion Scene ── */}
+      {showCompletionScene && (
+        <View style={styles.completionScene}>
+          <View style={styles.completionInner}>
+            <CogsAvatar size="medium" state="online" />
+            <Text style={styles.completionText}>{completionText}</Text>
+          </View>
+        </View>
+      )}
     </Animated.View>
   );
 }
@@ -1348,5 +1394,27 @@ const styles = StyleSheet.create({
   },
   voidBtnText: {
     fontFamily: Fonts.orbitron, fontSize: 10, color: Colors.red, letterSpacing: 1,
+  },
+
+  // A1-8 Completion scene
+  completionScene: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: Colors.void,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 300,
+  },
+  completionInner: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xxxl,
+    gap: Spacing.xl,
+  },
+  completionText: {
+    fontFamily: Fonts.exo2,
+    fontSize: FontSizes.lg,
+    color: Colors.starWhite,
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 28,
   },
 });
