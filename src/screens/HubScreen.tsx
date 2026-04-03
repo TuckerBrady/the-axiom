@@ -131,8 +131,13 @@ function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
 }
 
 export default function HubScreen({ navigation }: Props) {
-  const { lives } = useLivesStore();
+  const { lives, regenerate } = useLivesStore();
   const todayCogsLine = HUB_COGS_LINES[new Date().getDay() % HUB_COGS_LINES.length];
+
+  // Regenerate lives on mount (app foreground)
+  useEffect(() => {
+    regenerate();
+  }, []);
 
   const screenOpacity = useSharedValue(0);
   const headerReveal = useSharedValue(0);
@@ -141,6 +146,26 @@ export default function HubScreen({ navigation }: Props) {
   const cogsReveal = useSharedValue(0);
   const missionReveal = useSharedValue(0);
   const shipFloat = useSharedValue(0);
+
+  // Lives pulse when full
+  const livesPulse = useSharedValue(1);
+  useEffect(() => {
+    if (lives >= MAX_LIVES_COUNT) {
+      livesPulse.value = withRepeat(
+        withSequence(
+          withTiming(1.06, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+          withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      livesPulse.value = withTiming(1, { duration: 200 });
+    }
+  }, [lives]);
+  const livesPulseStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: livesPulse.value }],
+  }));
 
   // Container height for the HUD bracket area (approximate)
   const HUD_HEIGHT = H * 0.22;
@@ -234,11 +259,11 @@ export default function HubScreen({ navigation }: Props) {
           {/* ── Lives row ── */}
           <Animated.View style={[styles.livesRow, cogsRevealStyle]}>
             <Text style={styles.livesLabel}>LIVES</Text>
-            <View style={styles.heartsRow}>
+            <Animated.View style={[styles.heartsRow, livesPulseStyle]}>
               {Array.from({ length: MAX_LIVES_COUNT }, (_, i) => (
                 <HeartIcon key={i} filled={i < lives} size={18} />
               ))}
-            </View>
+            </Animated.View>
           </Animated.View>
 
           {/* ── Active mission card ── */}
