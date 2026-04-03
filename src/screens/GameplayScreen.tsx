@@ -29,6 +29,7 @@ import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
+import { useLivesStore } from '../store/livesStore';
 import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -173,9 +174,12 @@ export default function GameplayScreen({ navigation }: Props) {
     debugPrev,
   } = useGameStore();
 
+  const { lives, loseLife, refillLives, circuits } = useLivesStore();
+
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
+  const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [animatingStep, setAnimatingStep] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [signalDot, setSignalDot] = useState<{ x: number; y: number } | null>(null);
@@ -794,7 +798,15 @@ export default function GameplayScreen({ navigation }: Props) {
               <View style={styles.voidActions}>
                 <TouchableOpacity
                   style={styles.voidBtn}
-                  onPress={handleReset}
+                  onPress={() => {
+                    if (lives <= 0) {
+                      setShowVoid(false);
+                      setShowOutOfLives(true);
+                    } else {
+                      loseLife();
+                      handleReset();
+                    }
+                  }}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.voidBtnText}>TRY AGAIN</Text>
@@ -814,6 +826,65 @@ export default function GameplayScreen({ navigation }: Props) {
                   <Text style={[styles.voidBtnText, { color: Colors.muted }]}>BACK TO MAP</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Out of Lives Overlay ── */}
+        {showOutOfLives && (
+          <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
+            <LinearGradient
+              colors={['rgba(6,9,15,0.96)', 'rgba(10,22,40,0.98)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.overlayContent}>
+              <Svg width={48} height={48} viewBox="0 0 24 24" style={{ marginBottom: Spacing.lg }}>
+                <Path
+                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                  fill={Colors.dim}
+                  stroke={Colors.muted}
+                  strokeWidth="1"
+                />
+              </Svg>
+              <Text style={styles.resultsTitle}>OUT OF LIVES</Text>
+              <View style={[styles.cogsResultRow, { marginTop: Spacing.md }]}>
+                <CogsAvatar size="small" state="online" />
+                <Text style={styles.resultsQuote}>
+                  "You are out of lives. I could tell you to wait. But there is an alternative."
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.resultsPrimaryBtn, { width: '100%', marginBottom: Spacing.sm }]}
+                onPress={() => {
+                  const ok = refillLives();
+                  if (ok) {
+                    setShowOutOfLives(false);
+                    handleReset();
+                  }
+                }}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={circuits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
+                  style={styles.resultsPrimaryGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.resultsPrimaryText}>
+                    {circuits >= 30 ? 'REFILL LIVES · 30 CIRCUITS' : `NEED ${30 - circuits} MORE CIRCUITS`}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.resultsSecondaryBtn, { width: '100%' }]}
+                onPress={() => {
+                  setShowOutOfLives(false);
+                  navigation.goBack();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.resultsSecondaryText}>MAYBE LATER</Text>
+              </TouchableOpacity>
             </View>
           </Animated.View>
         )}

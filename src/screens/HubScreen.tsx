@@ -18,93 +18,145 @@ import Animated, {
   withDelay,
   Easing,
 } from 'react-native-reanimated';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { TabParamList } from '../navigation/TabNavigator';
+import Svg, { Path } from 'react-native-svg';
+import StarField from '../components/StarField';
+import AxiomShipSVG from '../components/icons/AxiomShipSVG';
+import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
 
-const { width: W, height: H } = Dimensions.get('window');
+const { height: H } = Dimensions.get('window');
 
-const STARS = Array.from({ length: 20 }, (_, i) => ({
-  id: i,
-  x: (i * 97.3 + 43) % (W - 4),
-  y: (i * 163.7 + i * i * 7.1) % (H * 0.88),
-  size: i % 3 === 0 ? 2 : i % 3 === 1 ? 1.5 : 2.5,
-  delay: (i * 310) % 4000,
-  duration: 1100 + (i * 211) % 1600,
-}));
+// ─── HUD corner bracket ──────────────────────────────────────────────────────
 
-type StarProps = (typeof STARS)[0];
+const BRACKET_SIZE = 14;
+const BRACKET_THICKNESS = 1.5;
+const BRACKET_COLOR = 'rgba(74,158,255,0.4)';
 
-function Star({ x, y, size, delay, duration }: StarProps) {
-  const opacity = useSharedValue(0.15);
+function TopLeftBracket() {
+  return (
+    <View style={styles.bracketTopLeft}>
+      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR }]} />
+    </View>
+  );
+}
+
+function TopRightBracket() {
+  return (
+    <View style={styles.bracketTopRight}>
+      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR, alignSelf: 'flex-end' }]} />
+    </View>
+  );
+}
+
+function BottomLeftBracket() {
+  return (
+    <View style={styles.bracketBottomLeft}>
+      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+    </View>
+  );
+}
+
+function BottomRightBracket() {
+  return (
+    <View style={styles.bracketBottomRight}>
+      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR, alignSelf: 'flex-end' }]} />
+      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+    </View>
+  );
+}
+
+// ─── Scanning line ────────────────────────────────────────────────────────────
+
+function ScanLine({ containerHeight }: { containerHeight: number }) {
+  const translateY = useSharedValue(0);
   useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.85, { duration }),
-          withTiming(0.2, { duration }),
-        ),
-        -1,
-        false,
-      ),
+    translateY.value = withRepeat(
+      withTiming(containerHeight, { duration: 3000, easing: Easing.linear }),
+      -1,
+      false,
     );
-  }, []);
-  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  }, [containerHeight]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+  }));
   return (
     <Animated.View
-      style={[
-        {
-          position: 'absolute',
-          left: x,
-          top: y,
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: Colors.starWhite,
-        },
-        style,
-      ]}
+      pointerEvents="none"
+      style={[styles.scanLine, style]}
     />
   );
 }
 
-type NavItem = {
-  label: string;
-  emoji: string;
-  screen: keyof RootStackParamList;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { label: 'Ship', emoji: '🚀', screen: 'Hub' },
-  { label: 'Sectors', emoji: '🗺️', screen: 'SectorMap' },
-  { label: 'Workshop', emoji: '⚙️', screen: 'FreeBuild' },
-  { label: 'Engineer', emoji: '🤖', screen: 'Settings' },
-];
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'Hub'>;
+  navigation: CompositeNavigationProp<
+    BottomTabNavigationProp<TabParamList, 'Hub'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 };
 
+const HUB_COGS_LINES = [
+  'Kepler Station grid is failing. They asked for help. I told them you are on your way. You are welcome.',
+  'Nova Fringe is showing unusual energy readings. I have flagged it in the mission queue.',
+  'All systems nominal. That is not a common status on this vessel. Noted.',
+  'The Codex has new entries since your last session. I recommend reviewing them.',
+  'Three missions in Kepler Belt remain incomplete. I am not reminding you. I am informing you.',
+  'Ship maintenance is current. I handled it while you were away.',
+  'Long range sensors are picking up something in the Deep Void. Classification pending.',
+  'You have been away for some time. The Axiom managed. As it tends to.',
+];
+
+function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+        fill={filled ? Colors.blue : 'transparent'}
+        stroke={filled ? Colors.blue : Colors.dim}
+        strokeWidth="1.5"
+        opacity={filled ? 1 : 0.5}
+      />
+    </Svg>
+  );
+}
+
 export default function HubScreen({ navigation }: Props) {
-  const shipFloat = useSharedValue(0);
+  const { lives } = useLivesStore();
+  const todayCogsLine = HUB_COGS_LINES[new Date().getDay() % HUB_COGS_LINES.length];
+
   const screenOpacity = useSharedValue(0);
   const headerReveal = useSharedValue(0);
+  const hudReveal = useSharedValue(0);
   const shipReveal = useSharedValue(0);
   const cogsReveal = useSharedValue(0);
   const missionReveal = useSharedValue(0);
+  const shipFloat = useSharedValue(0);
+
+  // Container height for the HUD bracket area (approximate)
+  const HUD_HEIGHT = H * 0.22;
 
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 300 });
     headerReveal.value = withTiming(1, { duration: 600 });
-    shipReveal.value = withDelay(150, withTiming(1, { duration: 600 }));
-    cogsReveal.value = withDelay(300, withTiming(1, { duration: 600 }));
-    missionReveal.value = withDelay(450, withTiming(1, { duration: 600 }));
+    hudReveal.value = withDelay(150, withTiming(1, { duration: 600 }));
+    shipReveal.value = withDelay(300, withTiming(1, { duration: 600 }));
+    cogsReveal.value = withDelay(450, withTiming(1, { duration: 600 }));
+    missionReveal.value = withDelay(600, withTiming(1, { duration: 600 }));
 
     shipFloat.value = withRepeat(
       withSequence(
-        withTiming(-9, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(-10, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
       false,
@@ -112,33 +164,34 @@ export default function HubScreen({ navigation }: Props) {
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
-  const shipFloatStyle = useAnimatedStyle(() => ({
+  const headerRevealStyle = useAnimatedStyle(() => ({ opacity: headerReveal.value }));
+  const hudRevealStyle = useAnimatedStyle(() => ({ opacity: hudReveal.value }));
+  const shipRevealStyle = useAnimatedStyle(() => ({
+    opacity: shipReveal.value,
     transform: [{ translateY: shipFloat.value }],
   }));
-  const headerRevealStyle = useAnimatedStyle(() => ({ opacity: headerReveal.value }));
-  const shipRevealStyle = useAnimatedStyle(() => ({ opacity: shipReveal.value }));
   const cogsRevealStyle = useAnimatedStyle(() => ({ opacity: cogsReveal.value }));
   const missionRevealStyle = useAnimatedStyle(() => ({ opacity: missionReveal.value }));
 
   return (
     <Animated.View style={[styles.root, screenStyle]}>
-      {/* Starfield */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
-        {STARS.map((s) => (
-          <Star key={s.id} {...s} />
-        ))}
-      </View>
+      <StarField seed={1} />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+        {/* ── Header ── */}
         <Animated.View style={[styles.header, headerRevealStyle]}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerLabel}>COMMAND DECK</Text>
             <Text style={styles.headerTitle}>THE AXIOM</Text>
           </View>
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>ONLINE</Text>
+          <View style={styles.headerRight}>
+            <View style={styles.livesBadge}>
+              <HeartIcon filled={lives > 0} size={12} />
+              <Text style={[styles.livesCount, lives <= 1 && { color: Colors.red }]}>{lives}</Text>
+            </View>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>● ONLINE</Text>
+            </View>
           </View>
         </Animated.View>
 
@@ -146,38 +199,58 @@ export default function HubScreen({ navigation }: Props) {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Spacecraft */}
-          <Animated.View style={[styles.shipContainer, shipRevealStyle, shipFloatStyle]}>
-            <Text style={styles.shipEmoji}>🛸</Text>
-            <View style={styles.shipGlow} />
+          {/* ── HUD brackets + scanning line + ship ── */}
+          <Animated.View
+            style={[styles.hudContainer, { height: HUD_HEIGHT }, hudRevealStyle]}
+          >
+            {/* Corner brackets */}
+            <TopLeftBracket />
+            <TopRightBracket />
+            <BottomLeftBracket />
+            <BottomRightBracket />
+
+            {/* Scanning line */}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <ScanLine containerHeight={HUD_HEIGHT} />
+            </View>
+
+            {/* Spacecraft */}
+            <Animated.View style={[styles.shipInner, shipRevealStyle]}>
+              <AxiomShipSVG width={120} height={80} />
+            </Animated.View>
           </Animated.View>
 
-          {/* Cogs briefing */}
+          {/* ── Cogs speech bubble ── */}
           <Animated.View style={[styles.cogsBubble, cogsRevealStyle]}>
             <View style={styles.cogsHeader}>
               <View style={styles.cogsAvatar}>
-                <Text style={styles.cogsAvatarEmoji}>🤖</Text>
+                <CogsAvatar size="small" state="online" />
               </View>
-              <View>
-                <Text style={styles.cogsName}>COGS · AI UNIT</Text>
-                <Text style={styles.cogsBriefingLabel}>MISSION BRIEFING</Text>
-              </View>
+              <Text style={styles.cogsName}>COGS · AI UNIT</Text>
             </View>
-            <Text style={styles.cogsSpeech}>
-              {'"'}Sensor array is nominal. Kepler Belt anomalies await your
-              attention — three configurations unsolved, one with a bounty
-              marker. Your move, Commander.{'"'}
-            </Text>
+            <Text style={styles.cogsSpeech}>{todayCogsLine}</Text>
           </Animated.View>
 
-          {/* Current mission card */}
+          {/* ── Lives row ── */}
+          <Animated.View style={[styles.livesRow, cogsRevealStyle]}>
+            <Text style={styles.livesLabel}>LIVES</Text>
+            <View style={styles.heartsRow}>
+              {Array.from({ length: MAX_LIVES_COUNT }, (_, i) => (
+                <HeartIcon key={i} filled={i < lives} size={18} />
+              ))}
+            </View>
+          </Animated.View>
+
+          {/* ── Active mission card ── */}
           <Animated.View style={[styles.missionCard, missionRevealStyle]}>
             <LinearGradient
-              colors={['rgba(26,58,92,0.9)', 'rgba(10,22,40,0.95)']}
+              colors={['rgba(26,58,92,0.85)', 'rgba(10,18,30,0.95)']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
             />
+            {/* Corner accent */}
+            <View style={styles.missionCornerAccent} />
             <View style={styles.missionCardInner}>
               <View style={styles.missionCardLeft}>
                 <Text style={styles.missionCardLabel}>ACTIVE MISSION</Text>
@@ -185,77 +258,29 @@ export default function HubScreen({ navigation }: Props) {
                 <Text style={styles.missionCardSub}>Level 2-4</Text>
               </View>
               <TouchableOpacity
-                style={styles.missionBtn}
-                onPress={() => navigation.navigate('LevelSelect')}
+                style={styles.launchBtn}
+                onPress={() => navigation.navigate('SectorMap')}
                 activeOpacity={0.85}
               >
                 <LinearGradient
                   colors={[Colors.copper, Colors.amber]}
-                  style={styles.missionBtnGradient}
+                  style={styles.launchBtnGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  <Text style={styles.missionBtnText}>LAUNCH</Text>
+                  <Text style={styles.launchBtnText}>LAUNCH</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
-            {/* Decorative corner */}
-            <View style={styles.missionCorner} />
-          </Animated.View>
-
-          {/* Quick actions */}
-          <Animated.View style={[styles.quickActions, missionRevealStyle]}>
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigation.navigate('SectorMap')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.quickEmoji}>🗺️</Text>
-              <Text style={styles.quickLabel}>Sector Map</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigation.navigate('FreeBuild')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.quickEmoji}>⚙️</Text>
-              <Text style={styles.quickLabel}>Workshop</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.quickCard}
-              onPress={() => navigation.navigate('Store')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.quickEmoji}>🛒</Text>
-              <Text style={styles.quickLabel}>Store</Text>
-            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
 
-        {/* Bottom nav */}
-        <View style={styles.bottomNav}>
-          {NAV_ITEMS.map((item) => {
-            const active = item.screen === 'Hub';
-            return (
-              <TouchableOpacity
-                key={item.label}
-                style={styles.navItem}
-                onPress={() => !active && navigation.navigate(item.screen)}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.navEmoji}>{item.emoji}</Text>
-                <Text style={[styles.navLabel, active && styles.navLabelActive]}>
-                  {item.label}
-                </Text>
-                {active && <View style={styles.navActiveDot} />}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </SafeAreaView>
     </Animated.View>
   );
 }
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   root: {
@@ -265,6 +290,8 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -288,22 +315,35 @@ const styles = StyleSheet.create({
     color: Colors.starWhite,
     letterSpacing: 2,
   },
-  statusBadge: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  livesBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(74,158,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.25)',
+    borderRadius: 20,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+  },
+  livesCount: {
+    fontFamily: Fonts.orbitron,
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: Colors.blue,
+  },
+  statusBadge: {
     backgroundColor: 'rgba(78,203,141,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(78,203,141,0.3)',
     borderRadius: 20,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
-    gap: 5,
-  },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.green,
   },
   statusText: {
     fontFamily: Fonts.spaceMono,
@@ -311,30 +351,85 @@ const styles = StyleSheet.create({
     color: Colors.green,
     letterSpacing: 1,
   },
+
+  // Scroll
   scroll: {
     flexGrow: 1,
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.lg,
     paddingTop: Spacing.xl,
+    gap: Spacing.lg,
   },
-  shipContainer: {
+
+  // HUD + ship container
+  hudContainer: {
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: Spacing.xxl,
+    position: 'relative',
+  },
+  shipInner: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   shipEmoji: {
-    fontSize: 80,
-    zIndex: 1,
+    fontSize: 88,
   },
-  shipGlow: {
+
+  // HUD corner brackets
+  bracketTopLeft: {
     position: 'absolute',
-    width: 100,
-    height: 40,
-    bottom: -10,
-    backgroundColor: 'rgba(74,158,255,0.15)',
-    borderRadius: 50,
+    top: 0,
+    left: 0,
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
   },
+  bracketTopRight: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
+  },
+  bracketBottomLeft: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
+    justifyContent: 'flex-end',
+  },
+  bracketBottomRight: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
+    justifyContent: 'flex-end',
+  },
+  bracketH: {
+    width: BRACKET_SIZE,
+    height: BRACKET_THICKNESS,
+  },
+  bracketV: {
+    width: BRACKET_THICKNESS,
+    height: BRACKET_SIZE,
+    position: 'absolute',
+    top: 0,
+  },
+
+  // Scanning line
+  scanLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(74,158,255,0.25)',
+  },
+
+  // Cogs speech bubble
   cogsBubble: {
     width: '100%',
     backgroundColor: 'rgba(10,18,30,0.92)',
@@ -342,7 +437,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(74,158,255,0.2)',
     borderRadius: 14,
     padding: 14,
-    marginBottom: Spacing.lg,
   },
   cogsHeader: {
     flexDirection: 'row',
@@ -351,43 +445,76 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   cogsAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1.5,
     borderColor: Colors.blue,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  cogsAvatarEmoji: { fontSize: 16 },
+  cogsAvatarEmoji: {
+    fontSize: 16,
+  },
   cogsName: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
     color: Colors.blue,
     letterSpacing: 1,
   },
-  cogsBriefingLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.copper,
-    letterSpacing: 1,
-  },
   cogsSpeech: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
+    fontSize: 13,
     color: Colors.starWhite,
     fontStyle: 'italic',
     lineHeight: 20,
   },
+
+  // Lives row
+  livesRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(10,18,30,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.12)',
+    borderRadius: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  livesLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.muted,
+    letterSpacing: 1.5,
+  },
+  heartsRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+
+  // Active mission card
   missionCard: {
     width: '100%',
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(74,158,255,0.25)',
-    marginBottom: Spacing.lg,
     minHeight: 90,
+  },
+  missionCornerAccent: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: 0,
+    height: 0,
+    borderStyle: 'solid',
+    borderTopWidth: 28,
+    borderLeftWidth: 28,
+    borderTopColor: 'rgba(74,158,255,0.3)',
+    borderLeftColor: 'transparent',
   },
   missionCardInner: {
     flexDirection: 'row',
@@ -395,7 +522,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     padding: Spacing.lg,
   },
-  missionCardLeft: { flex: 1 },
+  missionCardLeft: {
+    flex: 1,
+  },
   missionCardLabel: {
     fontFamily: Fonts.spaceMono,
     fontSize: 8,
@@ -415,83 +544,21 @@ const styles = StyleSheet.create({
     color: Colors.copperLight,
     marginTop: 2,
   },
-  missionBtn: {
+  launchBtn: {
     borderRadius: 10,
     overflow: 'hidden',
   },
-  missionBtnGradient: {
+  launchBtnGradient: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.sm,
     alignItems: 'center',
   },
-  missionBtnText: {
+  launchBtnText: {
     fontFamily: Fonts.orbitron,
     fontSize: 10,
     fontWeight: 'bold',
     letterSpacing: 2,
     color: Colors.void,
   },
-  missionCorner: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 0,
-    height: 0,
-    borderStyle: 'solid',
-    borderTopWidth: 24,
-    borderLeftWidth: 24,
-    borderTopColor: 'rgba(74,158,255,0.3)',
-    borderLeftColor: 'transparent',
-  },
-  quickActions: {
-    width: '100%',
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  quickCard: {
-    flex: 1,
-    backgroundColor: 'rgba(26,58,92,0.4)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.15)',
-    borderRadius: 12,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    gap: 4,
-  },
-  quickEmoji: { fontSize: 22 },
-  quickLabel: {
-    fontFamily: Fonts.exo2,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  bottomNav: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(74,158,255,0.15)',
-    backgroundColor: 'rgba(6,9,15,0.95)',
-    paddingBottom: Spacing.sm,
-    paddingTop: Spacing.sm,
-  },
-  navItem: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.xs,
-    gap: 3,
-  },
-  navEmoji: { fontSize: 20 },
-  navLabel: {
-    fontFamily: Fonts.exo2,
-    fontSize: 10,
-    color: Colors.dim,
-  },
-  navLabelActive: {
-    color: Colors.copper,
-  },
-  navActiveDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.copper,
-  },
+
 });
