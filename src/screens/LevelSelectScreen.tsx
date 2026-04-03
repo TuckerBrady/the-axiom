@@ -719,7 +719,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
   const openSheet = useCallback((mission: Mission) => {
     setDisplayedMission(mission);
     setSheetOpen(true);
-    sheetY.value = withTiming(H * 0.34, { duration: 370, easing: Easing.out(Easing.cubic) });
+    sheetY.value = withTiming(H * 0.22, { duration: 370, easing: Easing.out(Easing.cubic) });
     backdropOpacity.value = withTiming(0.7, { duration: 300 });
   }, []);
 
@@ -1159,7 +1159,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: H * 0.66,
+    height: H * 0.78,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: 'hidden',
