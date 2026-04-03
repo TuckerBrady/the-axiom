@@ -34,33 +34,41 @@ import { useProgressionStore } from '../store/progressionStore';
 
 const { width: W, height: H } = Dimensions.get('window');
 
-// ─── Map geometry ──────────────────────────────────────────────────────────────
+// ─── Map geometry (dynamic for any level count) ─────────────────────────────
 
 const NODE_R = 22;
 const COL_GAP = 88;
 const ROW_GAP = 80;
+const COLS_PER_ROW = 3;
 const COLS = [NODE_R, NODE_R + COL_GAP, NODE_R + 2 * COL_GAP]; // [22, 110, 198]
-const ROWS = [NODE_R, NODE_R + ROW_GAP, NODE_R + 2 * ROW_GAP, NODE_R + 3 * ROW_GAP]; // [22,102,182,262]
 const MAP_W = COLS[2] + NODE_R; // 220
-const MAP_H = ROWS[3] + NODE_R; // 284
 
-// Snake: [col, row] for each node id 1-12
-const NODE_CR: [number, number][] = [
-  [0,0],[1,0],[2,0],
-  [2,1],[1,1],[0,1],
-  [0,2],[1,2],[2,2],
-  [2,3],[1,3],[0,3],
-];
+function buildSnakeLayout(count: number): { positions: { x: number; y: number }[]; segments: [number, number][]; mapH: number } {
+  const positions: { x: number; y: number }[] = [];
+  const segments: [number, number][] = [];
+  const rowCount = Math.ceil(count / COLS_PER_ROW);
 
-function nxy(id: number) {
-  const [c, r] = NODE_CR[id - 1];
-  return { x: COLS[c], y: ROWS[r] };
+  for (let i = 0; i < count; i++) {
+    const row = Math.floor(i / COLS_PER_ROW);
+    const colInRow = i % COLS_PER_ROW;
+    // Snake: even rows L→R, odd rows R→L
+    const col = row % 2 === 0 ? colInRow : (COLS_PER_ROW - 1 - colInRow);
+    const x = COLS[col];
+    const y = NODE_R + row * ROW_GAP;
+    positions.push({ x, y });
+    if (i > 0) {
+      segments.push([i, i + 1]); // 1-indexed pair
+    }
+  }
+
+  const mapH = NODE_R + (rowCount - 1) * ROW_GAP + NODE_R;
+  return { positions, segments, mapH };
 }
 
-const SEGMENTS: [number, number][] = [
-  [1,2],[2,3],[3,4],[4,5],[5,6],
-  [6,7],[7,8],[8,9],[9,10],[10,11],[11,12],
-];
+// nxy now takes positions array
+function nxyFrom(positions: { x: number; y: number }[], id: number) {
+  return positions[id - 1] ?? { x: 0, y: 0 };
+}
 
 // ─── Mission data ──────────────────────────────────────────────────────────────
 
@@ -216,11 +224,6 @@ function getState(id: number): NodeState {
   return 'locked';
 }
 
-function lockedOpacity(id: number): number {
-  if (id < 7) return 1;
-  return Math.max(0.22, 1 - (id - 7) * 0.13);
-}
-
 // ─── HUD corner brackets ───────────────────────────────────────────────────────
 
 const BS = 14;
@@ -342,17 +345,17 @@ function Crosshairs() {
 
 // ─── Signal dot ────────────────────────────────────────────────────────────────
 
-function SignalDot({ completedCount }: { completedCount: number }) {
+function SignalDot({ completedCount, positions }: { completedCount: number; positions: { x: number; y: number }[] }) {
   // No ball if nothing completed (active level is 1)
   if (completedCount <= 0) return null;
 
   // Build waypoints from node 1 through completedCount+1 (the active node)
-  const waypointCount = Math.min(completedCount + 1, 12);
+  const waypointCount = Math.min(completedCount + 1, positions.length);
   const wpX: number[] = [];
   const wpY: number[] = [];
   const wpT: number[] = [];
   for (let i = 0; i < waypointCount; i++) {
-    const pos = nxy(i + 1);
+    const pos = positions[i];
     wpX.push(pos.x);
     wpY.push(pos.y);
     wpT.push(i);
@@ -385,9 +388,9 @@ function SignalDot({ completedCount }: { completedCount: number }) {
 
 const ENERGIZED_COLOR = '#00D4FF';
 
-function PathSegment({ from, to, getNodeState }: { from: number; to: number; getNodeState?: (id: number) => NodeState }) {
-  const fc = nxy(from);
-  const tc = nxy(to);
+function PathSegment({ from, to, getNodeState, positions }: { from: number; to: number; getNodeState?: (id: number) => NodeState; positions: { x: number; y: number }[] }) {
+  const fc = nxyFrom(positions, from);
+  const tc = nxyFrom(positions, to);
   const isH = fc.y === tc.y;
   const fromState = getNodeState ? getNodeState(from) : getState(from);
 
@@ -427,12 +430,14 @@ type NodeProps = {
   mission: Mission;
   onPress: (m: Mission) => void;
   getStateOverride?: (id: number) => NodeState;
+  positions: { x: number; y: number }[];
 };
 
-function MissionNode({ mission, onPress, getStateOverride }: NodeProps) {
+function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProps) {
   const state = getStateOverride ? getStateOverride(mission.id) : getState(mission.id);
-  const { x, y } = nxy(mission.id);
-  const opacity = lockedOpacity(mission.id);
+  const { x, y } = nxyFrom(positions, mission.id);
+  const isLockedNode = state === 'locked';
+  const opacity = isLockedNode ? 0.4 : 1;
 
   const isCompleted = state === 'completed';
   const isActive = state === 'active';
@@ -590,6 +595,20 @@ export default function LevelSelectScreen({ navigation }: Props) {
     return 'locked';
   };
 
+  // ── Real-time stats ──
+  const getNodeState = isAxiom ? getAxiomState : getState;
+  const totalLevels = dynamicMissions.length;
+  const completedLevels = dynamicMissions.filter((_, i) => {
+    const state = getNodeState(i + 1);
+    return state === 'completed';
+  }).length;
+  const remainingLevels = totalLevels - completedLevels;
+  const totalStarsEarned = dynamicMissions.reduce((sum, m) => sum + m.stars, 0);
+  const progressPercent = totalLevels > 0 ? Math.round((completedLevels / totalLevels) * 100) : 0;
+
+  // ── Dynamic node map geometry ──
+  const { positions, segments: nodeSegments, mapH } = buildSnakeLayout(totalLevels);
+
   const screenOpacity = useSharedValue(0);
   const contentReveal = useSharedValue(0);
   const mapReveal = useSharedValue(0);
@@ -663,19 +682,19 @@ export default function LevelSelectScreen({ navigation }: Props) {
               end={{ x: 1, y: 0 }}
             />
             <View style={s.statItem}>
-              <Text style={s.statItemVal}>4</Text>
+              <Text style={s.statItemVal}>{completedLevels}</Text>
               <Text style={s.statItemKey}>COMPLETE</Text>
             </View>
             <View style={[s.statItem, s.statItemBorder]}>
-              <Text style={s.statItemVal}>8</Text>
+              <Text style={s.statItemVal}>{remainingLevels}</Text>
               <Text style={s.statItemKey}>REMAINING</Text>
             </View>
             <View style={[s.statItem, s.statItemBorder]}>
-              <Text style={[s.statItemVal, { color: Colors.amber }]}>11</Text>
+              <Text style={[s.statItemVal, { color: Colors.amber }]}>{totalStarsEarned}</Text>
               <Text style={s.statItemKey}>STARS</Text>
             </View>
             <View style={[s.statItem, s.statItemBorder]}>
-              <Text style={[s.statItemVal, { color: Colors.blue }]}>33%</Text>
+              <Text style={[s.statItemVal, { color: Colors.blue }]}>{progressPercent}%</Text>
               <Text style={s.statItemKey}>PROGRESS</Text>
             </View>
           </Animated.View>
@@ -683,11 +702,11 @@ export default function LevelSelectScreen({ navigation }: Props) {
           {/* ── Progress bar ── */}
           <Animated.View style={[s.progressBarWrap, contentStyle]}>
             <View style={s.progressBarTrack}>
-              <View style={s.progressBarFill}>
+              <View style={[s.progressBarFill, { width: `${progressPercent}%` as any }]}>
                 <View style={s.progressBarGlow} />
               </View>
             </View>
-            <Text style={s.progressBarLabel}>33% COMPLETE</Text>
+            <Text style={s.progressBarLabel}>{progressPercent}% COMPLETE</Text>
           </Animated.View>
 
           {/* ── Cogs brief bubble ── */}
@@ -703,23 +722,20 @@ export default function LevelSelectScreen({ navigation }: Props) {
 
           {/* ── Winding path map ── */}
           <Animated.View style={[s.mapWrapper, mapStyle]}>
-            <View style={{ width: MAP_W, height: MAP_H }}>
+            <View style={{ width: MAP_W, height: mapH }}>
               {/* Path segments */}
-              {SEGMENTS.map(([f, t]) => (
-                <PathSegment key={`${f}-${t}`} from={f} to={t} getNodeState={isAxiom ? getAxiomState : undefined} />
+              {nodeSegments.map(([f, t]) => (
+                <PathSegment key={`${f}-${t}`} from={f} to={t} getNodeState={getNodeState} positions={positions} />
               ))}
 
               {/* Signal dot — travels along completed path only */}
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <SignalDot completedCount={isAxiom
-                  ? dynamicMissions.filter((_, i) => isLevelCompleted(`A1-${i + 1}`)).length
-                  : 4 /* hardcoded Kepler completed count */
-                } />
+                <SignalDot completedCount={completedLevels} positions={positions} />
               </View>
 
               {/* Nodes */}
-              {dynamicMissions.slice(0, 12).map(m => (
-                <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={isAxiom ? getAxiomState : undefined} />
+              {dynamicMissions.map(m => (
+                <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={isAxiom ? getAxiomState : undefined} positions={positions} />
               ))}
             </View>
           </Animated.View>
@@ -891,7 +907,6 @@ const s = StyleSheet.create({
     overflow: 'hidden',
   },
   progressBarFill: {
-    width: '33%',
     height: '100%',
     backgroundColor: Colors.blue,
     borderRadius: 3,
