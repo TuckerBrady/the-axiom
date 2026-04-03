@@ -182,7 +182,7 @@ export default function HubScreen({ navigation }: Props) {
   }));
 
   // Container height for the HUD bracket area (approximate)
-  const HUD_HEIGHT = H * 0.22;
+  const HUD_HEIGHT = H * 0.26;
 
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 300 });
@@ -255,7 +255,7 @@ export default function HubScreen({ navigation }: Props) {
 
             {/* Spacecraft */}
             <Animated.View style={[styles.shipInner, shipRevealStyle]}>
-              <ShipRepairProgress width={140} height={96} />
+              <ShipRepairProgress width={280} height={140} />
             </Animated.View>
           </Animated.View>
 

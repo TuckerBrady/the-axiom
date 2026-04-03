@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import Svg, {
-  Path, Rect, Ellipse, Line, G, Defs, RadialGradient, Stop,
+  Path, Rect, Ellipse, Line, G, Circle, Text as SvgText,
 } from 'react-native-svg';
 import Animated, {
   useSharedValue,
-  useAnimatedProps,
+  useAnimatedStyle,
   withTiming,
   withDelay,
   withRepeat,
@@ -15,210 +15,181 @@ import Animated, {
 import { Colors } from '../theme/tokens';
 import { useProgressionStore, SHIP_SYSTEMS } from '../store/progressionStore';
 
-const AnimatedG = Animated.createAnimatedComponent(G);
-const AnimatedRect = Animated.createAnimatedComponent(Rect);
-const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
-
 interface Props {
   width?: number;
   height?: number;
 }
 
-// ─── Zone opacity hook ───────────────────────────────────────────────────────
+// ─── Animated pulse wrapper ──────────────────────────────────────────────────
 
-function useZoneOpacity(repaired: boolean, index: number) {
-  const opacity = useSharedValue(repaired ? 0.8 : 0.08);
-  const strokeOpacity = useSharedValue(repaired ? 0.9 : 0.15);
-
+function usePulse(active: boolean) {
+  const opacity = useSharedValue(active ? 0.3 : 0.3);
   useEffect(() => {
-    if (repaired) {
-      // Flicker on effect — like flicking a switch
-      opacity.value = withDelay(
-        index * 80,
+    if (active) {
+      opacity.value = withRepeat(
         withSequence(
-          withTiming(0.9, { duration: 60 }),
-          withTiming(0.2, { duration: 80 }),
-          withTiming(0.85, { duration: 100 }),
-          withTiming(0.5, { duration: 60 }),
-          withTiming(0.8, { duration: 150 }),
-          // Subtle pulse once lit
-          withRepeat(
-            withSequence(
-              withTiming(0.65, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-              withTiming(0.8, { duration: 2000, easing: Easing.inOut(Easing.sin) }),
-            ),
-            -1,
-            false,
-          ),
+          withTiming(0.5, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.3, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
         ),
+        -1,
+        false,
       );
-      strokeOpacity.value = withDelay(
-        index * 80,
-        withTiming(0.9, { duration: 400 }),
-      );
-    } else {
-      opacity.value = withTiming(0.08, { duration: 300 });
-      strokeOpacity.value = withTiming(0.15, { duration: 300 });
     }
-  }, [repaired]);
-
-  return { opacity, strokeOpacity };
+  }, [active]);
+  return useAnimatedStyle(() => ({ opacity: opacity.value }));
 }
 
-// ─── Ship SVG with repair zones ──────────────────────────────────────────────
+function useRunningLight(delay: number) {
+  const opacity = useSharedValue(0.4);
+  useEffect(() => {
+    opacity.value = withDelay(
+      delay,
+      withRepeat(
+        withSequence(
+          withTiming(0.9, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      ),
+    );
+  }, []);
+  return useAnimatedStyle(() => ({ opacity: opacity.value }));
+}
 
-export default function ShipRepairProgress({ width = 140, height = 96 }: Props) {
+// ─── Zone visibility helper ──────────────────────────────────────────────────
+
+function zo(repaired: boolean, litVal: number, darkVal: number): number {
+  return repaired ? litVal : darkVal;
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export default function ShipRepairProgress({ width = 280, height = 140 }: Props) {
   const { isLevelCompleted } = useProgressionStore();
 
-  const repaired = SHIP_SYSTEMS.map((_, i) => isLevelCompleted(`A1-${i + 1}`));
-  const allRepaired = repaired.every(Boolean);
+  const r = SHIP_SYSTEMS.map((_, i) => isLevelCompleted(`A1-${i + 1}`));
+  const allDone = r.every(Boolean);
 
-  // Zone hooks
-  const z0 = useZoneOpacity(repaired[0], 0); // Emergency Power → engine pods
-  const z1 = useZoneOpacity(repaired[1], 1); // Life Support → lower hull mid
-  const z2 = useZoneOpacity(repaired[2], 2); // Navigation Array → command tower
-  const z3 = useZoneOpacity(repaired[3], 3); // Propulsion Core → thruster housing
-  const z4 = useZoneOpacity(repaired[4], 4); // Communication Array → antenna
-  const z5 = useZoneOpacity(repaired[5], 5); // Sensor Grid → upper hull panels
-  const z6 = useZoneOpacity(repaired[6], 6); // Weapons Lock → forward hull
-  const z7 = useZoneOpacity(repaired[7], 7); // Bridge Systems → full ship glow
+  const B = '#4a9eff';   // blue
+  const D = '#0a1828';   // dark fill
+  const H = '#0c1e36';   // hull fill
+  const S = '#1e3a5c';   // stroke
+  const DS = '#152235';   // divider stroke
+  const HS = '#1a3050';   // hull secondary stroke
+  const C = '#c87941';   // copper
 
-  // Full ship glow when all complete
-  const fullGlow = useSharedValue(0);
-  useEffect(() => {
-    if (allRepaired) {
-      fullGlow.value = withDelay(
-        700,
-        withRepeat(
-          withSequence(
-            withTiming(0.35, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
-            withTiming(0.15, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
-          ),
-          -1,
-          false,
-        ),
-      );
-    }
-  }, [allRepaired]);
-
-  const R = Colors.blue; // repair color
-  const D = '#0a1628';   // dark base
+  const enginePulse = usePulse(r[0]);
+  const sensorPulse = usePulse(r[4]);
+  const portLight = useRunningLight(0);
+  const starboardLight = useRunningLight(500);
 
   return (
     <View style={{ width, height }}>
-      <Svg width={width} height={height} viewBox="0 0 140 96" fill="none">
-        <Defs>
-          <RadialGradient id="repairGlow" cx="50%" cy="100%" r="60%">
-            <Stop offset="0%" stopColor={R} stopOpacity="0.5" />
-            <Stop offset="100%" stopColor={R} stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="fullShipGlow" cx="50%" cy="50%" r="80%">
-            <Stop offset="0%" stopColor={R} stopOpacity="0.3" />
-            <Stop offset="100%" stopColor={R} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
+      <Svg width={width} height={height} viewBox="0 0 320 160" fill="none">
 
-        {/* Full ship glow when all repaired */}
-        {allRepaired && (
-          <Ellipse cx="70" cy="48" rx="65" ry="45" fill="url(#fullShipGlow)" />
-        )}
+        {/* ── Engine wash trails ── */}
+        <Line x1="28" y1="95" x2="8" y2="118" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.18, 0.03)} />
+        <Line x1="36" y1="98" x2="18" y2="124" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.12, 0.02)} />
+        <Line x1="44" y1="95" x2="28" y2="118" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.08, 0.01)} />
+        <Line x1="52" y1="85" x2="36" y2="106" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.14, 0.02)} />
+        <Line x1="60" y1="88" x2="44" y2="112" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.09, 0.01)} />
 
-        {/* Engine glow underneath */}
-        <Ellipse cx="70" cy="86" rx="45" ry="14" fill="url(#repairGlow)" />
+        {/* ── Zone 0: Engine cluster — 3 pods ── */}
+        <Rect x="18" y="82" width="20" height="14" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
+        <Rect x="40" y="78" width="22" height="18" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
+        <Rect x="64" y="80" width="18" height="16" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
+        {/* Engine glow bars */}
+        <Rect x="18" y="91" width="20" height="4" rx="2" fill={B} opacity={zo(r[0], 0.3, 0.04)} />
+        <Rect x="40" y="91" width="22" height="4" rx="2" fill={B} opacity={zo(r[0], 0.4, 0.05)} />
+        <Rect x="64" y="91" width="18" height="4" rx="2" fill={B} opacity={zo(r[0], 0.3, 0.04)} />
 
-        {/* ── Zone 0: Emergency Power — engine pods ── */}
-        {/* Left engine */}
+        {/* ── Zone 1: Ventral cargo pod (Life Support) ── */}
+        <Rect x="80" y="108" width="160" height="28" rx="6" fill="#081420" stroke={HS} strokeWidth="1" strokeOpacity={zo(r[1], 0.7, 0.15)} />
+        <Line x1="120" y1="108" x2="120" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
+        <Line x1="160" y1="108" x2="160" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
+        <Line x1="200" y1="108" x2="200" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
+        <Rect x="88" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
+        <Rect x="128" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
+        <Rect x="168" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
+        <Rect x="208" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
+
+        {/* ── Main hull ── */}
         <Path
-          d="M26 60 L22 62 L22 78 L32 78 L32 62 L28 60"
-          stroke={R}
-          strokeWidth="1"
-          fill={repaired[0] ? R : D}
-          fillOpacity={repaired[0] ? 0.25 : 1}
-          strokeOpacity={repaired[0] ? 0.8 : 0.15}
+          d="M82,40 L240,36 L278,52 L278,102 L240,108 L82,108 L60,96 L60,52 Z"
+          fill={H}
+          stroke={S}
+          strokeWidth="1.5"
+          strokeOpacity={allDone ? 0.9 : 0.4}
         />
-        <Rect x="23" y="74" width="8" height="5" rx="1" fill={R} opacity={repaired[0] ? 0.4 : 0.06} />
-        {/* Right engine */}
-        <Path
-          d="M108 60 L104 62 L104 78 L114 78 L114 62 L112 60"
-          stroke={R}
-          strokeWidth="1"
-          fill={repaired[0] ? R : D}
-          fillOpacity={repaired[0] ? 0.25 : 1}
-          strokeOpacity={repaired[0] ? 0.8 : 0.15}
-        />
-        <Rect x="105" y="74" width="8" height="5" rx="1" fill={R} opacity={repaired[0] ? 0.4 : 0.06} />
 
-        {/* Engine exhaust lines */}
-        <Line x1="25" y1="79" x2="25" y2="88" stroke={R} strokeWidth="1.5" opacity={repaired[0] ? 0.3 : 0.04} />
-        <Line x1="29" y1="79" x2="29" y2="90" stroke={R} strokeWidth="1" opacity={repaired[0] ? 0.2 : 0.03} />
-        <Line x1="107" y1="79" x2="107" y2="88" stroke={R} strokeWidth="1.5" opacity={repaired[0] ? 0.3 : 0.04} />
-        <Line x1="111" y1="79" x2="111" y2="90" stroke={R} strokeWidth="1" opacity={repaired[0] ? 0.2 : 0.03} />
-
-        {/* ── Zone 1: Life Support — lower hull mid-section ── */}
-        <Path
-          d="M35 58 L105 58 L108 60 L32 60 Z"
-          fill={repaired[1] ? R : D}
-          fillOpacity={repaired[1] ? 0.2 : 0.8}
-          stroke={R}
-          strokeWidth="0.8"
-          strokeOpacity={repaired[1] ? 0.7 : 0.1}
-        />
+        {/* Hull section dividers */}
+        <Line x1="110" y1="40" x2="108" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
+        <Line x1="160" y1="38" x2="158" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
+        <Line x1="214" y1="37" x2="212" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
+        <Line x1="60" y1="76" x2="278" y2="74" stroke={DS} strokeWidth="0.8" opacity={0.4} />
 
         {/* ── Zone 5: Sensor Grid — upper hull panels ── */}
-        <Line x1="38" y1="46" x2="58" y2="46" stroke={R} strokeWidth="0.8" opacity={repaired[5] ? 0.6 : 0.1} />
-        <Line x1="82" y1="46" x2="102" y2="46" stroke={R} strokeWidth="0.8" opacity={repaired[5] ? 0.6 : 0.1} />
-        <Rect x="40" y="42" width="14" height="3" rx="1" fill={R} opacity={repaired[5] ? 0.2 : 0.03} />
-        <Rect x="86" y="42" width="14" height="3" rx="1" fill={R} opacity={repaired[5] ? 0.2 : 0.03} />
+        <Rect x="112" y="42" width="46" height="30" rx="2" fill={B} fillOpacity={zo(r[5], 0.06, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[5], 0.3, 0.05)} />
+        <Rect x="162" y="40" width="48" height="32" rx="2" fill={B} fillOpacity={zo(r[5], 0.06, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[5], 0.3, 0.05)} />
 
-        {/* ── Main hull (always visible, dims based on overall state) ── */}
+        {/* ── Zone 3: Propulsion Core — center hull ── */}
+        <Rect x="84" y="76" width="126" height="30" rx="2" fill={B} fillOpacity={zo(r[3], 0.05, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[3], 0.25, 0.04)} />
+
+        {/* ── Crew portholes ── */}
+        <Circle cx="132" cy="60" r="4" fill="#061428" stroke={S} strokeWidth="1" />
+        <Circle cx="132" cy="60" r="2" fill={B} opacity={zo(r[5], 0.3, 0.05)} />
+        <Circle cx="148" cy="60" r="4" fill="#061428" stroke={S} strokeWidth="1" />
+        <Circle cx="148" cy="60" r="2" fill={B} opacity={zo(r[5], 0.25, 0.04)} />
+        <Circle cx="132" cy="88" r="3" fill="#061428" stroke={HS} strokeWidth="0.8" />
+        <Circle cx="148" cy="88" r="3" fill="#061428" stroke={HS} strokeWidth="0.8" />
+
+        {/* ── Zone 2: Forward command bridge (Navigation Array) ── */}
         <Path
-          d="M70 10 L118 42 L112 60 L28 60 L22 42 Z"
-          stroke={R}
-          strokeWidth="1.5"
+          d="M214,16 L268,20 L278,36 L278,52 L240,52 L210,52 L206,36 Z"
           fill={D}
-          strokeOpacity={allRepaired ? 0.9 : 0.25}
+          stroke={B}
+          strokeWidth="1.5"
+          strokeOpacity={zo(r[2], 0.8, 0.15)}
         />
+        {/* Bridge windows */}
+        <Rect x="218" y="22" width="14" height="8" rx="2" fill={B} opacity={zo(r[2], 0.5, 0.05)} />
+        <Rect x="236" y="20" width="18" height="9" rx="2" fill={B} opacity={zo(r[2], 0.5, 0.06)} />
+        <Rect x="258" y="22" width="14" height="8" rx="2" fill={B} opacity={zo(r[2], 0.35, 0.04)} />
+        {/* Bridge panel line */}
+        <Line x1="214" y1="38" x2="278" y2="38" stroke={S} strokeWidth="0.8" opacity={zo(r[2], 0.6, 0.1)} />
 
-        {/* ── Zone 6: Weapons Lock — forward hull ── */}
-        <Path
-          d="M70 10 L85 24 L55 24 Z"
-          fill={repaired[6] ? R : 'transparent'}
-          fillOpacity={repaired[6] ? 0.18 : 0}
-          stroke={R}
-          strokeWidth="0.8"
-          strokeOpacity={repaired[6] ? 0.7 : 0.08}
-        />
+        {/* ── Zone 4: Port sensor/comms array (Communication Array) ── */}
+        <Rect x="60" y="56" width="8" height="20" rx="2" fill={D} stroke={B} strokeWidth="1" strokeOpacity={zo(r[4], 0.7, 0.12)} />
+        <Circle cx="64" cy="52" r="3" fill={D} stroke={B} strokeWidth="1" strokeOpacity={zo(r[4], 0.7, 0.12)} />
+        <Line x1="64" y1="49" x2="64" y2="44" stroke={allDone ? Colors.green : B} strokeWidth="1" opacity={zo(r[4], 0.7, 0.1)} />
+        <Line x1="64" y1="44" x2="58" y2="40" stroke={allDone ? Colors.green : B} strokeWidth="0.8" opacity={zo(r[4], 0.5, 0.06)} />
+        <Line x1="64" y1="44" x2="70" y2="40" stroke={allDone ? Colors.green : B} strokeWidth="0.8" opacity={zo(r[4], 0.5, 0.06)} />
+        {/* Pulse dot */}
+        <Circle cx="64" cy="52" r="1.5" fill={B} opacity={zo(r[4], 0.6, 0.05)} />
 
-        {/* ── Zone 2: Navigation Array — command tower ── */}
-        <Path
-          d="M60 18 L80 18 L77 36 L63 36 Z"
-          stroke={R}
-          strokeWidth="1"
-          fill={repaired[2] ? R : '#0e1f36'}
-          fillOpacity={repaired[2] ? 0.3 : 1}
-          strokeOpacity={repaired[2] ? 0.8 : 0.2}
-        />
-        {/* Tower window */}
-        <Rect x="66" y="22" width="8" height="4" rx="1" fill={R} opacity={repaired[2] ? 0.5 : 0.08} />
+        {/* ── Zone 6: Weapons Lock — dorsal turret ── */}
+        <Rect x="155" y="30" width="16" height="10" rx="3" fill={D} stroke={S} strokeWidth="1" strokeOpacity={zo(r[6], 0.6, 0.1)} />
+        <Rect x="159" y="22" width="8" height="10" rx="2" fill={D} stroke={S} strokeWidth="1" strokeOpacity={zo(r[6], 0.6, 0.1)} />
+        <Line x1="163" y1="18" x2="163" y2="22" stroke={S} strokeWidth="1.5" opacity={zo(r[6], 0.5, 0.08)} />
 
-        {/* ── Zone 4: Communication Array — antenna/sensor on hull ── */}
-        <Line x1="70" y1="6" x2="70" y2="10" stroke={allRepaired ? Colors.green : R} strokeWidth="1" opacity={repaired[4] ? 0.7 : 0.1} />
-        <Line x1="60" y1="8" x2="80" y2="8" stroke={allRepaired ? Colors.green : R} strokeWidth="0.8" opacity={repaired[4] ? 0.6 : 0.08} />
-        <Rect x="65" y="4" width="10" height="3" rx="1" fill={allRepaired ? Colors.green : R} opacity={repaired[4] ? 0.3 : 0.04} />
+        {/* ── Zone 7: Bridge Systems — AX-MOD docking port ── */}
+        <Rect x="268" y="72" width="14" height="20" rx="3" fill={D} stroke={C} strokeWidth="1.2" strokeOpacity={zo(r[7], 0.8, 0.15)} />
+        <Circle cx="275" cy="82" r="4" fill={D} stroke={C} strokeWidth="1" strokeOpacity={zo(r[7], 0.7, 0.12)} />
+        <SvgText x="275" y="97" fill={C} opacity={zo(r[7], 0.5, 0.08)} fontSize="4" fontFamily="monospace" textAnchor="middle">AX-MOD</SvgText>
 
-        {/* ── Zone 3: Propulsion Core — main thruster housing ── */}
-        <Rect x="30" y="56" width="80" height="5" rx="1" fill={repaired[3] ? R : D} fillOpacity={repaired[3] ? 0.15 : 0.6} stroke={R} strokeWidth="0.5" strokeOpacity={repaired[3] ? 0.5 : 0.08} />
+        {/* ── Battle damage ── */}
+        <Line x1="88" y1="48" x2="94" y2="58" stroke={C} strokeWidth="0.8" opacity={0.4} />
+        <Line x1="90" y1="50" x2="84" y2="56" stroke={C} strokeWidth="0.5" opacity={0.25} />
+        <Line x1="220" y1="80" x2="226" y2="88" stroke={C} strokeWidth="0.8" opacity={0.3} />
 
-        {/* ── Hull detail lines ── */}
-        <Line x1="40" y1="50" x2="60" y2="50" stroke={Colors.dim} strokeWidth="0.5" opacity={0.3} />
-        <Line x1="80" y1="50" x2="100" y2="50" stroke={Colors.dim} strokeWidth="0.5" opacity={0.3} />
+        {/* ── Hull designation ── */}
+        <SvgText x="178" y="94" fill={B} opacity={0.18} fontSize="7" fontFamily="monospace" textAnchor="middle">THE AXIOM</SvgText>
 
-        {/* Copper accent stripe */}
-        <Line x1="30" y1="57" x2="110" y2="57" stroke={Colors.copper} strokeWidth="1" opacity={0.5} />
+        {/* ── Running lights ── */}
+        <Circle cx="82" cy="76" r="2" fill={Colors.green} opacity={0.7} />
+        <Circle cx="278" cy="76" r="2" fill={Colors.red} opacity={0.7} />
 
-        {/* Battle damage scratches */}
-        <Line x1="48" y1="34" x2="54" y2="42" stroke={Colors.dim} strokeWidth="0.5" opacity={0.2} />
-        <Line x1="92" y1="38" x2="96" y2="46" stroke={Colors.dim} strokeWidth="0.5" opacity={0.18} />
       </Svg>
     </View>
   );
