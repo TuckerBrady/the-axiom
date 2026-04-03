@@ -255,7 +255,7 @@ export default function HubScreen({ navigation }: Props) {
 
             {/* Spacecraft */}
             <Animated.View style={[styles.shipInner, shipRevealStyle]}>
-              <ShipRepairProgress width={280} height={140} />
+              <ShipRepairProgress width={300} height={160} />
             </Animated.View>
           </Animated.View>
 

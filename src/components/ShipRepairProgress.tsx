@@ -1,57 +1,38 @@
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import Svg, {
-  Path, Rect, Ellipse, Line, G, Circle, Text as SvgText,
+  Polygon, Path, Rect, Ellipse, Line, Circle, Text as SvgText,
 } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  withDelay,
   withRepeat,
   withSequence,
+  withTiming,
   Easing,
 } from 'react-native-reanimated';
 import { Colors } from '../theme/tokens';
 import { useProgressionStore, SHIP_SYSTEMS } from '../store/progressionStore';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface Props {
   width?: number;
   height?: number;
 }
 
-// ─── Animated pulse wrapper ──────────────────────────────────────────────────
+// ─── Beacon pulse hook ──────────────────────────────────────────────────────
 
-function usePulse(active: boolean) {
-  const opacity = useSharedValue(active ? 0.3 : 0.3);
+function useBeaconPulse() {
+  const opacity = useSharedValue(0.7);
   useEffect(() => {
-    if (active) {
-      opacity.value = withRepeat(
-        withSequence(
-          withTiming(0.5, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.3, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1,
-        false,
-      );
-    }
-  }, [active]);
-  return useAnimatedStyle(() => ({ opacity: opacity.value }));
-}
-
-function useRunningLight(delay: number) {
-  const opacity = useSharedValue(0.4);
-  useEffect(() => {
-    opacity.value = withDelay(
-      delay,
-      withRepeat(
-        withSequence(
-          withTiming(0.9, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1,
-        false,
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1.0, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0.7, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
       ),
+      -1,
+      false,
     );
   }, []);
   return useAnimatedStyle(() => ({ opacity: opacity.value }));
@@ -63,132 +44,198 @@ function zo(repaired: boolean, litVal: number, darkVal: number): number {
   return repaired ? litVal : darkVal;
 }
 
-// ─── Main Component ──────────────────────────────────────────────────────────
+// ─── Military Scout Ship ─────────────────────────────────────────────────────
 
-export default function ShipRepairProgress({ width = 280, height = 140 }: Props) {
+export default function ShipRepairProgress({ width = 300, height = 160 }: Props) {
   const { isLevelCompleted } = useProgressionStore();
 
   const r = SHIP_SYSTEMS.map((_, i) => isLevelCompleted(`A1-${i + 1}`));
   const allDone = r.every(Boolean);
 
-  const B = '#4a9eff';   // blue
-  const D = '#0a1828';   // dark fill
-  const H = '#0c1e36';   // hull fill
-  const S = '#1e3a5c';   // stroke
-  const DS = '#152235';   // divider stroke
-  const HS = '#1a3050';   // hull secondary stroke
-  const C = '#c87941';   // copper
-
-  const enginePulse = usePulse(r[0]);
-  const sensorPulse = usePulse(r[4]);
-  const portLight = useRunningLight(0);
-  const starboardLight = useRunningLight(500);
+  const wingPulse = useBeaconPulse();
+  const sensorPulse = useBeaconPulse();
 
   return (
     <View style={{ width, height }}>
-      <Svg width={width} height={height} viewBox="0 0 320 160" fill="none">
+      <Svg width={width} height={height} viewBox="180 195 415 165" fill="none">
 
-        {/* ── Engine wash trails ── */}
-        <Line x1="28" y1="95" x2="8" y2="118" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.18, 0.03)} />
-        <Line x1="36" y1="98" x2="18" y2="124" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.12, 0.02)} />
-        <Line x1="44" y1="95" x2="28" y2="118" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.08, 0.01)} />
-        <Line x1="52" y1="85" x2="36" y2="106" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.14, 0.02)} />
-        <Line x1="60" y1="88" x2="44" y2="112" stroke={B} strokeWidth="1" opacity={zo(r[0], 0.09, 0.01)} />
+        {/* ═══ ENGINE WASH ═══ */}
+        <Ellipse cx="195" cy="320" rx="32" ry="10" fill="#4a9eff" opacity={zo(r[0], 0.05, 0.01)} />
+        <Line x1="178" y1="326" x2="104" y2="362" stroke="#4a9eff" strokeWidth="1.2" opacity={zo(r[0], 0.09, 0.015)} />
+        <Line x1="188" y1="329" x2="116" y2="366" stroke="#4a9eff" strokeWidth="1.2" opacity={zo(r[0], 0.07, 0.012)} />
+        <Line x1="200" y1="330" x2="128" y2="368" stroke="#4a9eff" strokeWidth="1.2" opacity={zo(r[0], 0.06, 0.01)} />
+        <Line x1="212" y1="328" x2="140" y2="365" stroke="#4a9eff" strokeWidth="1.2" opacity={zo(r[0], 0.07, 0.012)} />
 
-        {/* ── Zone 0: Engine cluster — 3 pods ── */}
-        <Rect x="18" y="82" width="20" height="14" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
-        <Rect x="40" y="78" width="22" height="18" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
-        <Rect x="64" y="80" width="18" height="16" rx="4" fill={D} stroke={B} strokeWidth="1.5" strokeOpacity={zo(r[0], 0.8, 0.15)} />
-        {/* Engine glow bars */}
-        <Rect x="18" y="91" width="20" height="4" rx="2" fill={B} opacity={zo(r[0], 0.3, 0.04)} />
-        <Rect x="40" y="91" width="22" height="4" rx="2" fill={B} opacity={zo(r[0], 0.4, 0.05)} />
-        <Rect x="64" y="91" width="18" height="4" rx="2" fill={B} opacity={zo(r[0], 0.3, 0.04)} />
-
-        {/* ── Zone 1: Ventral cargo pod (Life Support) ── */}
-        <Rect x="80" y="108" width="160" height="28" rx="6" fill="#081420" stroke={HS} strokeWidth="1" strokeOpacity={zo(r[1], 0.7, 0.15)} />
-        <Line x1="120" y1="108" x2="120" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
-        <Line x1="160" y1="108" x2="160" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
-        <Line x1="200" y1="108" x2="200" y2="136" stroke="#0f2240" strokeWidth="1" opacity={zo(r[1], 0.5, 0.1)} />
-        <Rect x="88" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
-        <Rect x="128" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
-        <Rect x="168" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
-        <Rect x="208" y="114" width="24" height="14" rx="2" fill={D} stroke={HS} strokeWidth="0.8" strokeOpacity={zo(r[1], 0.6, 0.1)} />
-
-        {/* ── Main hull ── */}
-        <Path
-          d="M82,40 L240,36 L278,52 L278,102 L240,108 L82,108 L60,96 L60,52 Z"
-          fill={H}
-          stroke={S}
-          strokeWidth="1.5"
-          strokeOpacity={allDone ? 0.9 : 0.4}
+        {/* ═══ MAIN HULL (Zone 1: Life Support — lower hull) ═══ */}
+        <Polygon
+          points="245,345 540,345 574,318 574,286 245,286"
+          fill="#08121e"
+          stroke="#1a2e48"
+          strokeWidth="1"
+          strokeOpacity={zo(r[1], 0.8, 0.3)}
         />
 
-        {/* Hull section dividers */}
-        <Line x1="110" y1="40" x2="108" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
-        <Line x1="160" y1="38" x2="158" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
-        <Line x1="214" y1="37" x2="212" y2="108" stroke={DS} strokeWidth="1.2" opacity={0.5} />
-        <Line x1="60" y1="76" x2="278" y2="74" stroke={DS} strokeWidth="0.8" opacity={0.4} />
-
-        {/* ── Zone 5: Sensor Grid — upper hull panels ── */}
-        <Rect x="112" y="42" width="46" height="30" rx="2" fill={B} fillOpacity={zo(r[5], 0.06, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[5], 0.3, 0.05)} />
-        <Rect x="162" y="40" width="48" height="32" rx="2" fill={B} fillOpacity={zo(r[5], 0.06, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[5], 0.3, 0.05)} />
-
-        {/* ── Zone 3: Propulsion Core — center hull ── */}
-        <Rect x="84" y="76" width="126" height="30" rx="2" fill={B} fillOpacity={zo(r[3], 0.05, 0)} stroke={B} strokeWidth="0.5" strokeOpacity={zo(r[3], 0.25, 0.04)} />
-
-        {/* ── Crew portholes ── */}
-        <Circle cx="132" cy="60" r="4" fill="#061428" stroke={S} strokeWidth="1" />
-        <Circle cx="132" cy="60" r="2" fill={B} opacity={zo(r[5], 0.3, 0.05)} />
-        <Circle cx="148" cy="60" r="4" fill="#061428" stroke={S} strokeWidth="1" />
-        <Circle cx="148" cy="60" r="2" fill={B} opacity={zo(r[5], 0.25, 0.04)} />
-        <Circle cx="132" cy="88" r="3" fill="#061428" stroke={HS} strokeWidth="0.8" />
-        <Circle cx="148" cy="88" r="3" fill="#061428" stroke={HS} strokeWidth="0.8" />
-
-        {/* ── Zone 2: Forward command bridge (Navigation Array) ── */}
-        <Path
-          d="M214,16 L268,20 L278,36 L278,52 L240,52 L210,52 L206,36 Z"
-          fill={D}
-          stroke={B}
+        {/* ═══ MAIN HULL upper (Zone 5: Sensor Grid — upper hull panels) ═══ */}
+        <Polygon
+          points="245,286 268,232 540,232 574,286"
+          fill="#0c1e36"
+          stroke="#1e3a5c"
           strokeWidth="1.5"
-          strokeOpacity={zo(r[2], 0.8, 0.15)}
+          strokeOpacity={zo(r[5], 0.9, 0.35)}
         />
-        {/* Bridge windows */}
-        <Rect x="218" y="22" width="14" height="8" rx="2" fill={B} opacity={zo(r[2], 0.5, 0.05)} />
-        <Rect x="236" y="20" width="18" height="9" rx="2" fill={B} opacity={zo(r[2], 0.5, 0.06)} />
-        <Rect x="258" y="22" width="14" height="8" rx="2" fill={B} opacity={zo(r[2], 0.35, 0.04)} />
-        {/* Bridge panel line */}
-        <Line x1="214" y1="38" x2="278" y2="38" stroke={S} strokeWidth="0.8" opacity={zo(r[2], 0.6, 0.1)} />
 
-        {/* ── Zone 4: Port sensor/comms array (Communication Array) ── */}
-        <Rect x="60" y="56" width="8" height="20" rx="2" fill={D} stroke={B} strokeWidth="1" strokeOpacity={zo(r[4], 0.7, 0.12)} />
-        <Circle cx="64" cy="52" r="3" fill={D} stroke={B} strokeWidth="1" strokeOpacity={zo(r[4], 0.7, 0.12)} />
-        <Line x1="64" y1="49" x2="64" y2="44" stroke={allDone ? Colors.green : B} strokeWidth="1" opacity={zo(r[4], 0.7, 0.1)} />
-        <Line x1="64" y1="44" x2="58" y2="40" stroke={allDone ? Colors.green : B} strokeWidth="0.8" opacity={zo(r[4], 0.5, 0.06)} />
-        <Line x1="64" y1="44" x2="70" y2="40" stroke={allDone ? Colors.green : B} strokeWidth="0.8" opacity={zo(r[4], 0.5, 0.06)} />
-        {/* Pulse dot */}
-        <Circle cx="64" cy="52" r="1.5" fill={B} opacity={zo(r[4], 0.6, 0.05)} />
+        {/* ═══ MAIN HULL starboard face (Zone 3: Propulsion Core) ═══ */}
+        <Polygon
+          points="540,232 574,286 574,318 540,345 582,312 582,260"
+          fill="#0f2438"
+          stroke="#243a5a"
+          strokeWidth="1"
+          strokeOpacity={zo(r[3], 0.8, 0.3)}
+        />
+        <Line x1="540" y1="232" x2="582" y2="260" stroke="#2a4a6a" strokeWidth="2" opacity={zo(r[3], 0.6, 0.2)} />
 
-        {/* ── Zone 6: Weapons Lock — dorsal turret ── */}
-        <Rect x="155" y="30" width="16" height="10" rx="3" fill={D} stroke={S} strokeWidth="1" strokeOpacity={zo(r[6], 0.6, 0.1)} />
-        <Rect x="159" y="22" width="8" height="10" rx="2" fill={D} stroke={S} strokeWidth="1" strokeOpacity={zo(r[6], 0.6, 0.1)} />
-        <Line x1="163" y1="18" x2="163" y2="22" stroke={S} strokeWidth="1.5" opacity={zo(r[6], 0.5, 0.08)} />
+        {/* ═══ HULL PANEL SEAMS ═══ */}
+        <Line x1="318" y1="232" x2="324" y2="345" stroke="#1a3050" strokeWidth="0.7" opacity={0.6} />
+        <Line x1="392" y1="232" x2="400" y2="345" stroke="#1a3050" strokeWidth="0.7" opacity={0.6} />
+        <Line x1="466" y1="232" x2="478" y2="345" stroke="#1a3050" strokeWidth="0.7" opacity={0.6} />
+        <Line x1="268" y1="268" x2="574" y2="268" stroke="#1a3050" strokeWidth="0.7" opacity={0.6} />
+        <Line x1="260" y1="308" x2="574" y2="308" stroke="#1a3050" strokeWidth="0.7" opacity={0.6} />
 
-        {/* ── Zone 7: Bridge Systems — AX-MOD docking port ── */}
-        <Rect x="268" y="72" width="14" height="20" rx="3" fill={D} stroke={C} strokeWidth="1.2" strokeOpacity={zo(r[7], 0.8, 0.15)} />
-        <Circle cx="275" cy="82" r="4" fill={D} stroke={C} strokeWidth="1" strokeOpacity={zo(r[7], 0.7, 0.12)} />
-        <SvgText x="275" y="97" fill={C} opacity={zo(r[7], 0.5, 0.08)} fontSize="4" fontFamily="monospace" textAnchor="middle">AX-MOD</SvgText>
+        {/* ═══ HULL DESIGNATION ═══ */}
+        <SvgText fontFamily="monospace" fontSize="12" fill="#4a9eff" opacity={0.15}
+          x="352" y="295" letterSpacing={7} textAnchor="start">THE AXIOM</SvgText>
 
-        {/* ── Battle damage ── */}
-        <Line x1="88" y1="48" x2="94" y2="58" stroke={C} strokeWidth="0.8" opacity={0.4} />
-        <Line x1="90" y1="50" x2="84" y2="56" stroke={C} strokeWidth="0.5" opacity={0.25} />
-        <Line x1="220" y1="80" x2="226" y2="88" stroke={C} strokeWidth="0.8" opacity={0.3} />
+        {/* ═══ COMMAND SECTION (Zone 2: Navigation Array) ═══ */}
+        <Polygon
+          points="540,232 582,260 582,285 574,286 574,264 552,240"
+          fill="#0f2438"
+          stroke="#243a5a"
+          strokeWidth="1"
+          strokeOpacity={zo(r[2], 0.8, 0.3)}
+        />
+        <Polygon
+          points="552,240 578,263 578,281 570,278 570,266 556,246"
+          fill="#061828"
+          stroke="#4a9eff"
+          strokeWidth="1.5"
+          strokeOpacity={zo(r[2], 0.9, 0.15)}
+        />
+        <Polygon
+          points="556,246 576,267 576,278 568,276 568,264 560,250"
+          fill="#4a9eff"
+          opacity={zo(r[2], 0.12, 0.02)}
+        />
+        <Line x1="566" y1="250" x2="568" y2="278" stroke="#4a9eff" strokeWidth="0.8" opacity={zo(r[2], 0.45, 0.06)} />
+        <Polygon
+          points="552,240 578,263 578,281 570,278 570,266 556,246"
+          fill="none"
+          stroke="#c87941"
+          strokeWidth="1"
+          opacity={zo(r[2], 0.55, 0.08)}
+        />
 
-        {/* ── Hull designation ── */}
-        <SvgText x="178" y="94" fill={B} opacity={0.18} fontSize="7" fontFamily="monospace" textAnchor="middle">THE AXIOM</SvgText>
+        {/* ═══ FORWARD SENSOR WING (Zone 4: Communication Array) ═══ */}
+        <Polygon
+          points="314,248 340,232 388,225 382,237 338,242"
+          fill="#08121e"
+          stroke="#1a3050"
+          strokeWidth="1"
+          strokeOpacity={zo(r[4], 0.7, 0.2)}
+        />
+        <Polygon
+          points="388,225 464,202 484,212 428,236 382,237"
+          fill="#0f2438"
+          stroke="#1e3a5c"
+          strokeWidth="1.5"
+          strokeOpacity={zo(r[4], 0.9, 0.2)}
+        />
+        <Polygon
+          points="382,237 428,236 484,212 476,222 422,244"
+          fill="#08121e"
+          stroke="#152232"
+          strokeWidth="1"
+          strokeOpacity={zo(r[4], 0.6, 0.15)}
+        />
+        {/* Sensor array panel */}
+        <Rect x="402" y="212" width="60" height="20" rx="3"
+          fill="#061428" stroke="#4a9eff" strokeWidth="1.2"
+          strokeOpacity={zo(r[4], 0.9, 0.12)} />
+        <Line x1="416" y1="212" x2="416" y2="232" stroke="#4a9eff" strokeWidth="0.6" opacity={zo(r[4], 0.4, 0.05)} />
+        <Line x1="430" y1="212" x2="430" y2="232" stroke="#4a9eff" strokeWidth="0.6" opacity={zo(r[4], 0.4, 0.05)} />
+        <Line x1="444" y1="212" x2="444" y2="232" stroke="#4a9eff" strokeWidth="0.6" opacity={zo(r[4], 0.4, 0.05)} />
+        <Line x1="458" y1="212" x2="458" y2="232" stroke="#4a9eff" strokeWidth="0.6" opacity={zo(r[4], 0.4, 0.05)} />
+        {/* Sensor dots */}
+        <Circle cx="409" cy="222" r="2.5" fill="#4a9eff" opacity={zo(r[4], 0.8, 0.08)} />
+        <Circle cx="423" cy="220" r="2" fill="#4a9eff" opacity={zo(r[4], 0.65, 0.06)} />
+        <Circle cx="437" cy="219" r="2.5" fill="#4a9eff" opacity={zo(r[4], 0.8, 0.08)} />
+        <Circle cx="451" cy="220" r="2" fill="#4a9eff" opacity={zo(r[4], 0.65, 0.06)} />
+        <Circle cx="462" cy="221" r="2.5" fill="#4a9eff" opacity={zo(r[4], 0.75, 0.07)} />
+        {/* Wing tip beacon (animated) */}
+        <Circle cx="480" cy="213" r="4" fill="#4a9eff" opacity={zo(r[4], 0.9, 0.08)} />
+        <Circle cx="480" cy="213" r="8" fill="none" stroke="#4a9eff" strokeWidth="1" opacity={zo(r[4], 0.3, 0.03)} />
+        {/* Copper accent line */}
+        <Line x1="388" y1="225" x2="484" y2="212" stroke="#c87941" strokeWidth="1.2" opacity={zo(r[4], 0.55, 0.08)} />
 
-        {/* ── Running lights ── */}
-        <Circle cx="82" cy="76" r="2" fill={Colors.green} opacity={0.7} />
-        <Circle cx="278" cy="76" r="2" fill={Colors.red} opacity={0.7} />
+        {/* ═══ SENSOR MAST (Zone 4 detail) ═══ */}
+        <Rect x="457" y="218" width="5" height="16" rx="1.5" fill="#0a1828"
+          stroke="#1e3a5c" strokeWidth="1" strokeOpacity={zo(r[4], 0.7, 0.15)} />
+        <Circle cx="459" cy="217" r="4" fill="#0a1828"
+          stroke={allDone ? '#4ecb8d' : '#4ecb8d'} strokeWidth="1.2"
+          strokeOpacity={zo(r[4], 0.9, 0.12)} />
+        <Circle cx="459" cy="217" r="2" fill="#4ecb8d" opacity={zo(r[4], 0.75, 0.06)} />
+
+        {/* ═══ ENGINE SECTION (Zone 0: Emergency Power) ═══ */}
+        <Rect x="218" y="293" width="66" height="38" rx="7"
+          fill="#0c1e36" stroke="#1e3a5c" strokeWidth="1.5"
+          strokeOpacity={zo(r[0], 0.8, 0.2)} />
+        <Rect x="223" y="298" width="56" height="28" rx="5"
+          fill="#08121e" stroke="#1a2e48" strokeWidth="1"
+          strokeOpacity={zo(r[0], 0.6, 0.15)} />
+        {/* Primary engine nozzle */}
+        <Ellipse cx="222" cy="312" rx="12" ry="18"
+          fill="#061428" stroke="#4a9eff" strokeWidth="1.8"
+          strokeOpacity={zo(r[0], 0.9, 0.15)} />
+        <Ellipse cx="222" cy="312" rx="7" ry="12" fill="#4a9eff" opacity={zo(r[0], 0.28, 0.03)} />
+        <Ellipse cx="222" cy="312" rx="3.5" ry="7" fill="#4a9eff" opacity={zo(r[0], 0.55, 0.05)} />
+        {/* Secondary engine */}
+        <Rect x="236" y="296" width="38" height="24" rx="5"
+          fill="#0a1624" stroke="#1a2e48" strokeWidth="1"
+          strokeOpacity={zo(r[0], 0.6, 0.12)} />
+        <Rect x="237" y="297" width="36" height="22" rx="4"
+          fill="none" stroke="#c87941" strokeWidth="0.7" opacity={zo(r[0], 0.35, 0.05)} />
+        <Ellipse cx="242" cy="312" rx="8" ry="10"
+          fill="#061428" stroke="#4a9eff" strokeWidth="1.3"
+          strokeOpacity={zo(r[0], 0.8, 0.12)} />
+        <Ellipse cx="242" cy="312" rx="4.5" ry="6" fill="#4a9eff" opacity={zo(r[0], 0.18, 0.02)} />
+        <Ellipse cx="242" cy="312" rx="2" ry="3.5" fill="#4a9eff" opacity={zo(r[0], 0.38, 0.04)} />
+        {/* Engine status panel */}
+        <Rect x="255" y="275" width="46" height="12" rx="3"
+          fill="#061428" stroke="#1e3a5c" strokeWidth="0.8"
+          strokeOpacity={zo(r[0], 0.6, 0.1)} />
+        <Circle cx="262" cy="281" r="2.2" fill="#4a9eff" opacity={zo(r[0], 0.6, 0.06)} />
+        <Circle cx="271" cy="281" r="2.2" fill="#4ecb8d" opacity={zo(r[0], 0.6, 0.06)} />
+        <Circle cx="280" cy="281" r="2.2" fill="#c87941" opacity={zo(r[0], 0.65, 0.06)} />
+        <Circle cx="289" cy="281" r="2.2" fill="#4a9eff" opacity={zo(r[0], 0.4, 0.04)} />
+
+        {/* ═══ AX-MOD PORT (Zone 7: Bridge Systems) ═══ */}
+        <Rect x="348" y="268" width="14" height="18" rx="3"
+          fill="#061428" stroke="#c87941" strokeWidth="1.5"
+          strokeOpacity={zo(r[7], 0.9, 0.15)} />
+        <Circle cx="355" cy="277" r="4" fill="#c87941" opacity={zo(r[7], 0.5, 0.05)} />
+
+        {/* ═══ LANDING GEAR BAYS (Zone 6: Weapons Lock) ═══ */}
+        <Rect x="316" y="334" width="36" height="9" rx="2.5"
+          fill="#061428" stroke="#1a2e48" strokeWidth="0.8"
+          strokeOpacity={zo(r[6], 0.6, 0.15)} />
+        <Rect x="436" y="334" width="36" height="9" rx="2.5"
+          fill="#061428" stroke="#1a2e48" strokeWidth="0.8"
+          strokeOpacity={zo(r[6], 0.6, 0.15)} />
+
+        {/* ═══ HULL DAMAGE (copper) ═══ */}
+        <Path d="M 370,252 L 378,264 L 373,274" stroke="#c87941" strokeWidth="0.9" fill="none" opacity={0.45} />
+        <Path d="M 373,255 L 381,260" stroke="#c87941" strokeWidth="0.6" fill="none" opacity={0.3} />
+        <Path d="M 504,272 L 510,282 L 506,289" stroke="#c87941" strokeWidth="0.8" fill="none" opacity={0.3} />
+        <Line x1="292" y1="286" x2="306" y2="296" stroke="#c87941" strokeWidth="0.8" opacity={0.22} />
 
       </Svg>
     </View>
