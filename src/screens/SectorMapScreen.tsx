@@ -48,17 +48,18 @@ type Sector = {
 
 // ─── Sector data ──────────────────────────────────────────────────────────────
 
-const SECTORS: Sector[] = [
+// Static base data for sectors after Axiom (Kepler onwards)
+const SECTORS_AFTER_AXIOM: Sector[] = [
   {
     id: 'kepler',
     name: 'Kepler Belt',
     subtitle: 'Asteroid fields & relay stations',
     iconType: 'kepler',
-    levelsCompleted: 8,
+    levelsCompleted: 0,
     levelsTotal: 8,
-    status: 'completed',
-    borderColor: 'rgba(78,203,141,0.4)',
-    accentColor: Colors.green,
+    status: 'locked',
+    borderColor: 'rgba(58,80,112,0.3)',
+    accentColor: Colors.dim,
     glowColor: null,
   },
   {
@@ -66,12 +67,12 @@ const SECTORS: Sector[] = [
     name: 'Nova Fringe',
     subtitle: 'Stellar nursery & plasma storms',
     iconType: 'nova',
-    levelsCompleted: 3,
+    levelsCompleted: 0,
     levelsTotal: 10,
-    status: 'active',
-    borderColor: 'rgba(200,121,65,0.5)',
-    accentColor: Colors.copper,
-    glowColor: 'rgba(200,121,65,0.18)',
+    status: 'locked',
+    borderColor: 'rgba(58,80,112,0.3)',
+    accentColor: Colors.dim,
+    glowColor: null,
   },
   {
     id: 'rift',
@@ -334,11 +335,21 @@ export default function SectorMapScreen({ navigation }: Props) {
   };
 
   // Kepler unlocks after Axiom is complete
-  const keplerStatus: SectorStatus = axiomDone ? 'active' : 'locked';
   const dynamicSectors: Sector[] = [
     axiomSector,
-    { ...SECTORS[0], status: keplerStatus, borderColor: axiomDone ? 'rgba(200,121,65,0.5)' : 'rgba(58,80,112,0.3)', accentColor: axiomDone ? Colors.copper : Colors.dim, glowColor: axiomDone ? 'rgba(200,121,65,0.18)' : null, levelsCompleted: axiomDone ? getSectorCompletedCount('2-') : 0 },
-    ...SECTORS.slice(1),
+    ...SECTORS_AFTER_AXIOM.map(sector => {
+      if (sector.id === 'kepler' && axiomDone) {
+        return {
+          ...sector,
+          status: 'active' as SectorStatus,
+          borderColor: 'rgba(200,121,65,0.5)',
+          accentColor: Colors.copper,
+          glowColor: 'rgba(200,121,65,0.18)',
+          levelsCompleted: getSectorCompletedCount('2-'),
+        };
+      }
+      return sector;
+    }),
   ];
 
   const screenOpacity = useSharedValue(0);
