@@ -27,6 +27,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
+import { BackButton } from '../components/BackButton';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
@@ -212,9 +213,7 @@ export default function GameplayScreen({ navigation }: Props) {
       <View style={styles.root}>
         <SafeAreaView style={styles.safeArea}>
           <Text style={styles.errorText}>No level loaded</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backArrow}>{'<'} BACK</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
         </SafeAreaView>
       </View>
     );
@@ -423,13 +422,7 @@ export default function GameplayScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safeArea}>
         {/* ── Top Bar ── */}
         <View style={styles.topBar}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backArrow}>{'<'}</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <View style={styles.topBarCenter}>
             <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
             <Text style={styles.levelTag}>{level.id}</Text>

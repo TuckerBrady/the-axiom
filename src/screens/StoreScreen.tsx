@@ -20,6 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
+import { BackButton } from '../components/BackButton';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
 
@@ -173,13 +174,7 @@ export default function StoreScreen({ navigation }: Props) {
       <SafeAreaView style={st.safeArea}>
         {/* Header */}
         <Animated.View style={[st.header, headerRevealStyle]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={st.backBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={st.backArrow}>←</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <View style={st.headerCenter}>
             <Text style={st.headerLabel}>AXIOM SYSTEMS</Text>
             <Text style={st.headerTitle}>STORE</Text>

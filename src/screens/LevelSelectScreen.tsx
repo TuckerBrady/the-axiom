@@ -27,6 +27,7 @@ import Svg, { Path, Circle, Line, Rect } from 'react-native-svg';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
+import { BackButton } from '../components/BackButton';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -749,9 +750,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
       <SafeAreaView style={s.safeArea} edges={['top']}>
         {/* ── Header ── */}
         <Animated.View style={[s.header, contentStyle]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} activeOpacity={0.7}>
-            <Text style={s.backArrow}>←</Text>
-          </TouchableOpacity>
+          <BackButton onPress={() => navigation.goBack()} />
           <View style={s.headerCenter}>
             <Text style={s.headerTitle}>{sectorTitle}</Text>
           </View>
