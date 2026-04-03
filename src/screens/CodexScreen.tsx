@@ -14,10 +14,7 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withRepeat,
-  withSequence,
   withDelay,
-  Easing,
 } from 'react-native-reanimated';
 import Svg, { Rect, Circle, Path, G, Line } from 'react-native-svg';
 import CogsAvatar from '../components/CogsAvatar';
@@ -63,7 +60,7 @@ const PIECES: PieceEntry[] = [
     description: 'Primary input node. The origin of all signal flow aboard the vessel. It does not ask where the signal is going.',
     function: 'Emits a continuous signal from its output port. Always active. Cannot be switched off.',
     importance: 'Every circuit begins here. The Source is the heartbeat. Without it, nothing moves.',
-    cogsNote: '"The Source never questions. I try to learn from it."',
+    cogsNote: '"Every machine starts somewhere. The Source is that somewhere. Simple. Important. Often forgotten."',
     timesUsed: 18, levelsPlayed: 4, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 01',
     seenIn: ['First Contact', 'Signal Drift', 'Relay Breach', 'Ion Cascade'],
@@ -73,7 +70,7 @@ const PIECES: PieceEntry[] = [
     description: 'Terminal destination node. Accepts the final signal and confirms circuit completion. Lights up on receipt.',
     function: 'Receives a signal at its input port and marks the circuit as complete. One-way. Final.',
     importance: 'Without a destination, the signal is noise. The Output gives the circuit its purpose.',
-    cogsNote: '"Every journey needs somewhere to end. I have found this to be true more than once."',
+    cogsNote: '"Reach the Output. The path between Source and Output is where the actual engineering happens."',
     timesUsed: 18, levelsPlayed: 4, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 01',
     seenIn: ['First Contact', 'Signal Drift', 'Relay Breach', 'Ion Cascade'],
@@ -83,7 +80,7 @@ const PIECES: PieceEntry[] = [
     description: 'A rotational transmission component. Accepts signal from one direction and redirects it ninety degrees.',
     function: 'Changes the direction of signal flow by 90°. Can be placed in four orientations.',
     importance: 'Circuits are rarely straight. The Gear is what makes corners possible.',
-    cogsNote: '"Turning things around is sometimes the only way forward. I have had to explain this to several operators."',
+    cogsNote: '"The Conveyor moves things forward. The Gear decides where forward is. There is a meaningful difference."',
     timesUsed: 9, levelsPlayed: 3, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 03',
     seenIn: ['Relay Breach', 'Ion Cascade', 'Flux Resonance'],
@@ -93,7 +90,7 @@ const PIECES: PieceEntry[] = [
     description: 'Divides a single signal path into two parallel streams without amplification loss.',
     function: 'Takes one input and produces two outputs. Both carry the full signal. Neither is diminished.',
     importance: 'When a circuit must reach two destinations simultaneously, the Splitter is the only option.',
-    cogsNote: '"Two problems, one piece. Efficient. I approve."',
+    cogsNote: '"One becomes two. Straightforward conceptually. Less straightforward when you have to plan both paths simultaneously."',
     timesUsed: 5, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 04',
     seenIn: ['Ion Cascade', 'Flux Resonance'],
@@ -104,7 +101,7 @@ const PIECES: PieceEntry[] = [
     description: 'A programmable routing node that modifies the behaviour of adjacent components based on set parameters.',
     function: 'Applies a configuration to downstream pieces. Changes can include delay, inversion, or conditional routing.',
     importance: 'Static circuits have limits. The Config Node is what makes circuits intelligent.',
-    cogsNote: '"Configuration is not control. It is suggestion. Most components listen. Some do not."',
+    cogsNote: '"This is the piece most engineers underestimate on first encounter. I do not underestimate things. You should not either."',
     timesUsed: 7, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 02',
     seenIn: ['Signal Drift', 'Ion Cascade'],
@@ -114,7 +111,7 @@ const PIECES: PieceEntry[] = [
     description: 'Reads the state of a connected piece and broadcasts its status to any listening nodes on the circuit.',
     function: 'Monitors an adjacent piece and reports ACTIVE, IDLE, or ERROR via its output port.',
     importance: 'You cannot fix what you cannot see. The Scanner makes the invisible visible.',
-    cogsNote: '"I have run diagnostics on my own systems 4,247 times. The Scanner understands this."',
+    cogsNote: '"Think of it as paying attention. Something I recommend highly."',
     timesUsed: 6, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 02',
     seenIn: ['Signal Drift', 'Relay Breach'],
@@ -124,7 +121,7 @@ const PIECES: PieceEntry[] = [
     description: 'Broadcasts a signal wirelessly across non-adjacent grid positions to a designated receiver.',
     function: 'Sends a signal from its location to any Receiver piece on the same grid, regardless of distance or obstacles.',
     importance: 'Some gaps cannot be bridged with physical pieces. The Transmitter ignores those constraints.',
-    cogsNote: '"It reaches further than it should. I find this either admirable or alarming. Possibly both."',
+    cogsNote: '"The Scanner reads. The Transmitter writes. Between those two things, a machine can think. I find that remarkable."',
     timesUsed: 4, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'KEPLER BELT — Mission 03',
     seenIn: ['Relay Breach', 'Ion Cascade'],
@@ -478,36 +475,31 @@ function DetailView({
   entry: PieceEntry;
   onBack: () => void;
 }) {
-  const iconFloat = useSharedValue(0);
-  const glowPulse = useSharedValue(0.3);
   const reveal = useSharedValue(0);
+
+  const isPhysics = entry.type === 'Physics';
+  const accent = isPhysics
+    ? { bg: 'rgba(74,158,255,0.08)', border: 'rgba(74,158,255,0.28)', text: Colors.blue }
+    : { bg: 'rgba(200,121,65,0.08)', border: 'rgba(200,121,65,0.28)', text: Colors.copper };
+  const atmosphereColor = isPhysics ? 'rgba(74,158,255,0.06)' : 'rgba(200,121,65,0.06)';
 
   useEffect(() => {
     reveal.value = withTiming(1, { duration: 400 });
-    iconFloat.value = withRepeat(
-      withSequence(
-        withTiming(-6, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
-    glowPulse.value = withRepeat(
-      withSequence(
-        withTiming(0.65, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0.15, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
-  const iconStyle = useAnimatedStyle(() => ({ transform: [{ translateY: iconFloat.value }] }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glowPulse.value }));
 
   return (
     <Animated.View style={[{ flex: 1 }, screenStyle]}>
+      {/* Subtle top atmosphere gradient */}
+      <LinearGradient
+        colors={[atmosphereColor, 'transparent']}
+        style={cs.atmosphereGradient}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+      />
+
       <ScrollView contentContainerStyle={cs.detailScroll} showsVerticalScrollIndicator={false}>
         {/* Back */}
         <TouchableOpacity onPress={onBack} style={cs.detailBackBtn} activeOpacity={0.7}>
@@ -517,31 +509,23 @@ function DetailView({
 
         {/* Hero */}
         <View style={cs.detailHero}>
-          <Animated.View style={[cs.glowRing, glowStyle]} />
-          <Animated.View style={iconStyle}>
-            <PieceIcon id={entry.id} size={80} />
-          </Animated.View>
+          <View
+            style={[
+              cs.detailIconBox,
+              { backgroundColor: accent.bg, borderColor: accent.border },
+            ]}
+          >
+            <PieceIcon id={entry.id} size={32} />
+          </View>
           <Text style={cs.detailName}>{entry.name.toUpperCase()}</Text>
           <View
             style={[
               cs.detailTypeBadge,
-              {
-                backgroundColor: entry.type === 'Physics'
-                  ? 'rgba(200,121,65,0.12)'
-                  : 'rgba(167,139,250,0.12)',
-                borderColor: entry.type === 'Physics'
-                  ? 'rgba(200,121,65,0.35)'
-                  : 'rgba(167,139,250,0.35)',
-              },
+              { backgroundColor: accent.bg, borderColor: accent.border },
             ]}
           >
-            <Text
-              style={[
-                cs.detailTypeBadgeText,
-                { color: entry.type === 'Physics' ? Colors.copper : Colors.circuit },
-              ]}
-            >
-              {entry.type === 'Physics' ? '⚙' : '◈'}  {entry.type.toUpperCase()} PIECE
+            <Text style={[cs.detailTypeBadgeText, { color: accent.text }]}>
+              {isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE'}
             </Text>
           </View>
         </View>
@@ -886,21 +870,26 @@ const cs = StyleSheet.create({
     color: Colors.muted,
     letterSpacing: 1,
   },
+  atmosphereGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '30%',
+  },
   detailHero: {
     alignItems: 'center',
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.xl,
     gap: Spacing.md,
-    position: 'relative',
   },
-  glowRing: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: Colors.copper,
-    opacity: 0.06,
-    top: 0,
+  detailIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   detailName: {
     fontFamily: Fonts.orbitron,
