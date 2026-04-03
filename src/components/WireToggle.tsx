@@ -4,7 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
+  withTiming,
+  Easing,
   interpolate,
   interpolateColor,
 } from 'react-native-reanimated';
@@ -23,7 +24,7 @@ export function WireToggle({ value, onValueChange }: Props) {
   const progress = useSharedValue(value ? 1 : 0);
 
   useEffect(() => {
-    progress.value = withSpring(value ? 1 : 0, { damping: 18, stiffness: 160 });
+    progress.value = withTiming(value ? 1 : 0, { duration: 220, easing: Easing.out(Easing.cubic) });
   }, [value]);
 
   // Wire color: amber when ON, dim when OFF
