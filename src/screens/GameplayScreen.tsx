@@ -57,76 +57,75 @@ type Props = {
 // ─── Piece SVG Icons ──────────────────────────────────────────────────────────
 
 function PieceIcon({ type, size = 20, color }: { type: PieceType; size?: number; color: string }) {
-  const s = size;
-  const half = s / 2;
+  const sw = 1.5;
 
   switch (type) {
     case 'source':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Circle cx="12" cy="12" r="5" fill="none" stroke={color} strokeWidth="2" />
-          <Line x1="12" y1="2" x2="12" y2="6" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Line x1="12" y1="18" x2="12" y2="22" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Line x1="2" y1="12" x2="6" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Line x1="18" y1="12" x2="22" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Circle cx="14" cy="14" r="6" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="14" y1="4" x2="14" y2="2" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="14" y1="26" x2="14" y2="24" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="4" y1="14" x2="2" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="26" y1="14" x2="24" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
     case 'output':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Path d="M12 2 L22 12 L12 22 L2 12 Z" fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" />
-          <Circle cx="12" cy="12" r="3" fill={color} opacity={0.6} />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Circle cx="14" cy="14" r="7" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Path d="M10 14L14 10L18 14L14 18Z" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     case 'conveyor':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Rect x="4" y="7" width="16" height="10" rx="2" fill="none" stroke={color} strokeWidth="2" />
-          <Path d="M10 12 L16 12 M14 9 L17 12 L14 15" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Rect x="3" y="10" width="22" height="8" rx="3" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Path d="M17 9L23 14L17 19" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" />
         </Svg>
       );
     case 'gear':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Circle cx="12" cy="12" r="5" fill="none" stroke={color} strokeWidth="2" />
-          <Rect x="10" y="1" width="4" height="5" rx="1" fill={color} />
-          <Rect x="10" y="18" width="4" height="5" rx="1" fill={color} />
-          <Rect x="1" y="10" width="5" height="4" rx="1" fill={color} />
-          <Rect x="18" y="10" width="5" height="4" rx="1" fill={color} />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Circle cx="14" cy="14" r="5" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Rect x="12.5" y="3" width="3" height="5" rx="1" fill="none" stroke={color} strokeWidth={sw} />
+          <Rect x="12.5" y="20" width="3" height="5" rx="1" fill="none" stroke={color} strokeWidth={sw} />
+          <Rect x="3" y="12.5" width="5" height="3" rx="1" fill="none" stroke={color} strokeWidth={sw} />
+          <Rect x="20" y="12.5" width="5" height="3" rx="1" fill="none" stroke={color} strokeWidth={sw} />
         </Svg>
       );
     case 'splitter':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Path d="M4 12 L12 12" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Path d="M12 12 L20 6" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Path d="M12 12 L20 18" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Circle cx="12" cy="12" r="3" fill={color} opacity={0.4} />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Path d="M4 14L14 14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Path d="M14 14L24 8" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Path d="M14 14L24 20" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Circle cx="14" cy="14" r="3" fill="none" stroke={color} strokeWidth={sw} />
         </Svg>
       );
     case 'configNode':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke={color} strokeWidth="2" />
-          <Circle cx="12" cy="12" r="3" fill={color} opacity={0.7} />
-          <Line x1="1" y1="12" x2="4" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
-          <Line x1="20" y1="12" x2="23" y2="12" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Rect x="4" y="8" width="20" height="12" rx="4" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Circle cx="14" cy="14" r="3" fill="none" stroke={color} strokeWidth={sw} />
+          <Line x1="0" y1="14" x2="4" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Line x1="24" y1="14" x2="28" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
     case 'scanner':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke={color} strokeWidth="2" />
-          <Path d="M8 14 L12 8 L16 14" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Line x1="12" y1="14" x2="12" y2="18" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Rect x="3" y="9" width="22" height="10" rx="3" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Rect x="10" y="11" width="7" height="6" rx="1.5" fill="none" stroke={color} strokeWidth={sw} />
+          <Line x1="0" y1="14" x2="3" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
     case 'transmitter':
       return (
-        <Svg width={s} height={s} viewBox="0 0 24 24">
-          <Rect x="4" y="4" width="16" height="16" rx="3" fill="none" stroke={color} strokeWidth="2" />
-          <Path d="M8 10 L12 16 L16 10" stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <Line x1="12" y1="6" x2="12" y2="10" stroke={color} strokeWidth="2" strokeLinecap="round" />
+        <Svg width={size} height={size} viewBox="0 0 28 28">
+          <Rect x="3" y="9" width="22" height="10" rx="3" fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
+          <Rect x="11" y="11" width="7" height="6" rx="1.5" fill="none" stroke={color} strokeWidth={sw} />
+          <Line x1="25" y1="14" x2="28" y2="14" stroke={color} strokeWidth={sw} strokeLinecap="round" />
         </Svg>
       );
   }
