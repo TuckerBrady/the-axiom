@@ -396,7 +396,7 @@ export default function GameplayScreen({ navigation }: Props) {
             <Text style={styles.backArrow}>{'<'}</Text>
           </TouchableOpacity>
           <View style={styles.topBarCenter}>
-            <Text style={styles.sectorTag}>{level.sector.toUpperCase()}</Text>
+            <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
             <Text style={styles.levelTag}>MISSION {level.id}</Text>
             <Text style={styles.levelName}>{level.name}</Text>
           </View>
