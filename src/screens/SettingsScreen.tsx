@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,15 +13,164 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
+  interpolate,
+  interpolateColor,
 } from 'react-native-reanimated';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigation/TabNavigator';
 import StarField from '../components/StarField';
+import CogsAvatar from '../components/CogsAvatar';
+import {
+  VolumeIcon,
+  MusicIcon,
+  HapticIcon,
+  NotificationIcon,
+  GlobeIcon,
+  CloudIcon,
+  GamepadIcon,
+  ClipboardIcon,
+  ScrollDocIcon,
+  BulbIcon,
+} from '../components/icons/SettingsIcons';
+import { ShieldIcon } from '../components/icons/PartIcons';
+import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
 type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
 };
+
+// ─── Custom Animated Toggle ──────────────────────────────────────────────────
+
+const TOGGLE_WIDTH = 48;
+const TOGGLE_HEIGHT = 26;
+const THUMB_SIZE = 20;
+const WIRE_NODE_SIZE = 8;
+const THUMB_TRAVEL = TOGGLE_WIDTH - THUMB_SIZE - 6; // 3px padding each side
+
+function CircuitToggle({
+  value,
+  onValueChange,
+}: {
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  const progress = useSharedValue(value ? 1 : 0);
+
+  useEffect(() => {
+    progress.value = withTiming(value ? 1 : 0, { duration: 280 });
+  }, [value]);
+
+  const trackStyle = useAnimatedStyle(() => {
+    const bgColor = interpolateColor(
+      progress.value,
+      [0, 1],
+      ['transparent', Colors.blue],
+    );
+    return {
+      backgroundColor: bgColor,
+      borderWidth: interpolate(progress.value, [0, 1], [0, 1.5]),
+      borderColor: interpolateColor(
+        progress.value,
+        [0, 1],
+        ['transparent', 'rgba(74,158,255,0.4)'],
+      ),
+      opacity: progress.value,
+    };
+  });
+
+  // The dead circuit wire (visible when OFF)
+  const wireStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
+  }));
+
+  // Wire node (left dot visible when OFF)
+  const nodeStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 0.4], [1, 0]),
+    transform: [
+      { scale: interpolate(progress.value, [0, 0.4], [1, 0.5]) },
+    ],
+  }));
+
+  const thumbStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(progress.value, [0, 1], [0, THUMB_TRAVEL]) },
+    ],
+    backgroundColor: interpolateColor(
+      progress.value,
+      [0, 1],
+      ['rgba(58,80,112,0.6)', '#ffffff'],
+    ),
+    width: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE, THUMB_SIZE]),
+    height: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE, THUMB_SIZE]),
+    borderRadius: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE / 2, THUMB_SIZE / 2]),
+  }));
+
+  return (
+    <TouchableOpacity
+      onPress={() => onValueChange(!value)}
+      activeOpacity={0.8}
+      style={toggleStyles.container}
+    >
+      {/* Dead circuit wire line (OFF state) */}
+      <Animated.View style={[toggleStyles.wireLine, wireStyle]} />
+
+      {/* Wire node (OFF state left dot) */}
+      <Animated.View style={[toggleStyles.wireNode, nodeStyle]} />
+
+      {/* Filled track (ON state) */}
+      <Animated.View style={[toggleStyles.track, trackStyle]} />
+
+      {/* Thumb / node */}
+      <Animated.View style={[toggleStyles.thumb, thumbStyle]} />
+    </TouchableOpacity>
+  );
+}
+
+const toggleStyles = StyleSheet.create({
+  container: {
+    width: TOGGLE_WIDTH,
+    height: TOGGLE_HEIGHT,
+    justifyContent: 'center',
+  },
+  wireLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1.5,
+    backgroundColor: 'rgba(58,80,112,0.6)',
+    top: (TOGGLE_HEIGHT - 1.5) / 2,
+  },
+  wireNode: {
+    position: 'absolute',
+    left: 3,
+    top: (TOGGLE_HEIGHT - WIRE_NODE_SIZE) / 2,
+    width: WIRE_NODE_SIZE,
+    height: WIRE_NODE_SIZE,
+    borderRadius: WIRE_NODE_SIZE / 2,
+    backgroundColor: 'rgba(58,80,112,0.4)',
+  },
+  track: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: TOGGLE_HEIGHT / 2,
+  },
+  thumb: {
+    position: 'absolute',
+    left: 3,
+    top: (TOGGLE_HEIGHT - THUMB_SIZE) / 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+});
+
+// ─── Section Header ──────────────────────────────────────────────────────────
 
 function SectionHeader({ title, delay }: { title: string; delay: number }) {
   const reveal = useSharedValue(0);
@@ -36,14 +184,14 @@ function SectionHeader({ title, delay }: { title: string; delay: number }) {
 }
 
 function ToggleRow({
-  emoji,
+  icon,
   label,
   sub,
   value,
   onChange,
   delay,
 }: {
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   sub?: string;
   value: boolean;
@@ -60,23 +208,18 @@ function ToggleRow({
   }));
   return (
     <Animated.View style={[styles.settingRow, style]}>
-      <Text style={styles.rowEmoji}>{emoji}</Text>
+      <View style={styles.rowIconWrap}>{icon}</View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowLabel}>{label}</Text>
         {sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: Colors.steel, true: Colors.copper }}
-        thumbColor={value ? Colors.amber : Colors.muted}
-      />
+      <CircuitToggle value={value} onValueChange={onChange} />
     </Animated.View>
   );
 }
 
 function TapRow({
-  emoji,
+  icon,
   label,
   sub,
   value,
@@ -84,7 +227,7 @@ function TapRow({
   delay,
   onPress,
 }: {
-  emoji: string;
+  icon: React.ReactNode;
   label: string;
   sub?: string;
   value?: string;
@@ -107,7 +250,7 @@ function TapRow({
         onPress={onPress}
         activeOpacity={onPress ? 0.7 : 1}
       >
-        <Text style={styles.rowEmoji}>{emoji}</Text>
+        <View style={styles.rowIconWrap}>{icon}</View>
         <View style={styles.rowInfo}>
           <Text style={styles.rowLabel}>{label}</Text>
           {sub && <Text style={styles.rowSub}>{sub}</Text>}
@@ -165,7 +308,7 @@ export default function SettingsScreen(_: Props) {
           />
           <View style={styles.profileBorder} />
           <View style={styles.profileAvatar}>
-            <Text style={styles.profileAvatarEmoji}>👨‍🚀</Text>
+            <CogsAvatar size="small" state="online" />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>Commander</Text>
@@ -183,48 +326,48 @@ export default function SettingsScreen(_: Props) {
           {/* Audio */}
           <SectionHeader title="AUDIO" delay={100} />
           <View style={styles.settingGroup}>
-            <ToggleRow emoji="🔊" label="Sound Effects" value={sfx} onChange={setSfx} delay={150} />
+            <ToggleRow icon={<VolumeIcon size={18} color={Colors.blue} />} label="Sound Effects" value={sfx} onChange={setSfx} delay={150} />
             <View style={styles.divider} />
-            <ToggleRow emoji="🎵" label="Background Music" value={music} onChange={setMusic} delay={200} />
+            <ToggleRow icon={<MusicIcon size={18} color={Colors.blue} />} label="Background Music" value={music} onChange={setMusic} delay={200} />
             <View style={styles.divider} />
-            <ToggleRow emoji="📳" label="Haptic Feedback" sub="Vibration on interactions" value={haptics} onChange={setHaptics} delay={250} />
+            <ToggleRow icon={<HapticIcon size={18} color={Colors.blue} />} label="Haptic Feedback" sub="Vibration on interactions" value={haptics} onChange={setHaptics} delay={250} />
           </View>
 
           {/* Gameplay */}
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
-            <ToggleRow emoji="🤖" label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
+            <ToggleRow icon={<CogsAvatar size="small" state="online" />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
             <View style={styles.divider} />
-            <ToggleRow emoji="✨" label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
+            <ToggleRow icon={<BulbIcon size={18} color={Colors.amber} />} label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
             <View style={styles.divider} />
-            <TapRow emoji="🌐" label="Language" value="English" chevron delay={450} />
+            <TapRow icon={<GlobeIcon size={18} color={Colors.blue} />} label="Language" value="English" chevron delay={450} />
             <View style={styles.divider} />
-            <TapRow emoji="🎮" label="Control Scheme" value="Standard" chevron delay={500} />
+            <TapRow icon={<GamepadIcon size={18} color={Colors.blue} />} label="Control Scheme" value="Standard" chevron delay={500} />
           </View>
 
           {/* Account */}
           <SectionHeader title="ACCOUNT" delay={550} />
           <View style={styles.settingGroup}>
-            <ToggleRow emoji="🔔" label="Push Notifications" value={notifications} onChange={setNotifications} delay={600} />
+            <ToggleRow icon={<NotificationIcon size={18} color={Colors.amber} />} label="Push Notifications" value={notifications} onChange={setNotifications} delay={600} />
             <View style={styles.divider} />
-            <TapRow emoji="☁️" label="Cloud Save" sub="Last synced: just now" chevron delay={650} />
+            <TapRow icon={<CloudIcon size={18} color={Colors.blue} />} label="Cloud Save" sub="Last synced: just now" chevron delay={650} />
             <View style={styles.divider} />
-            <TapRow emoji="🔒" label="Privacy Settings" chevron delay={700} />
+            <TapRow icon={<PadlockIcon size={18} color={Colors.blue} />} label="Privacy Settings" chevron delay={700} />
           </View>
 
           {/* About */}
           <SectionHeader title="ABOUT" delay={750} />
           <View style={styles.settingGroup}>
-            <TapRow emoji="📋" label="Version" value="v0.1.0 (dev)" delay={800} />
+            <TapRow icon={<ClipboardIcon size={18} color={Colors.blue} />} label="Version" value="v0.1.0 (dev)" delay={800} />
             <View style={styles.divider} />
-            <TapRow emoji="📜" label="Terms of Service" chevron delay={850} />
+            <TapRow icon={<ScrollDocIcon size={18} color={Colors.blue} />} label="Terms of Service" chevron delay={850} />
             <View style={styles.divider} />
-            <TapRow emoji="🛡️" label="Privacy Policy" chevron delay={900} />
+            <TapRow icon={<ShieldIcon size={18} color={Colors.blue} />} label="Privacy Policy" chevron delay={900} />
           </View>
 
           {/* Cogs credit */}
           <Animated.View style={[styles.cogsCredit, cogsRevealStyle]}>
-            <Text style={styles.cogsCredEmoji}>🤖</Text>
+            <CogsAvatar size="small" state="online" />
             <Text style={styles.cogsCredText}>
               Cogs AI v2.1 · All systems nominal.{'\n'}
               <Text style={styles.cogsCredSub}>The Axiom · Build 0.1.0</Text>
@@ -339,7 +482,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  rowEmoji: { fontSize: 18, width: 26, textAlign: 'center' },
+  rowIconWrap: { width: 26, alignItems: 'center', justifyContent: 'center' },
   rowInfo: { flex: 1 },
   rowLabel: {
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.starWhite,
