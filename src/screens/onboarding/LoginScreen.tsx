@@ -20,6 +20,7 @@ import Svg, { Path, G, Circle } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
+import AxiomShipSVG from '../../components/icons/AxiomShipSVG';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 
 type Props = {
@@ -71,7 +72,7 @@ function FloatingSaucer() {
   }));
   return (
     <Animated.View style={[style]}>
-      <Text style={{ fontSize: 72 }}>🛸</Text>
+      <AxiomShipSVG width={80} height={54} />
     </Animated.View>
   );
 }

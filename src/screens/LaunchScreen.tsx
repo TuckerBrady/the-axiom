@@ -22,6 +22,8 @@ import Animated, {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import CogsAvatar from '../components/CogsAvatar';
+import ShipIcon from '../components/icons/ShipIcon';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -148,9 +150,9 @@ export default function LaunchScreen({ navigation }: Props) {
           <Animated.View style={[styles.planetContainer, planetRevealStyle]}>
             <Animated.View style={[styles.planetWrapper, planetFloatStyle]}>
               {/* Robot - top left */}
-              <Animated.Text style={[styles.robotEmoji, robotFloatStyle]}>
-                🤖
-              </Animated.Text>
+              <Animated.View style={[styles.robotEmoji, robotFloatStyle]}>
+                <CogsAvatar size="small" state="online" />
+              </Animated.View>
 
               {/* Planet */}
               <View style={styles.planetOuter}>
@@ -165,15 +167,15 @@ export default function LaunchScreen({ navigation }: Props) {
               </View>
 
               {/* Ship - bottom right */}
-              <Animated.Text style={[styles.shipEmoji, shipFloatStyle]}>
-                🚀
-              </Animated.Text>
+              <Animated.View style={[styles.shipEmoji, shipFloatStyle]}>
+                <ShipIcon size={48} color={Colors.copper} />
+              </Animated.View>
             </Animated.View>
           </Animated.View>
 
           {/* Logo */}
           <Animated.View style={[styles.logoContainer, logoRevealStyle]}>
-            <Text style={styles.logoText}>TINKERER</Text>
+            <Text style={styles.logoText}>THE AXIOM</Text>
           </Animated.View>
 
           {/* Tagline */}
@@ -185,7 +187,7 @@ export default function LaunchScreen({ navigation }: Props) {
           <Animated.View style={[styles.cogsBubble, cogsRevealStyle]}>
             <View style={styles.cogsHeader}>
               <View style={styles.cogsAvatar}>
-                <Text style={styles.cogsAvatarEmoji}>🤖</Text>
+                <CogsAvatar size="small" state="online" />
               </View>
               <Text style={styles.cogsName}>COGS · AI UNIT</Text>
             </View>
@@ -199,7 +201,7 @@ export default function LaunchScreen({ navigation }: Props) {
           <Animated.View style={[styles.buttonsContainer, buttonsRevealStyle]}>
             <TouchableOpacity
               style={styles.primaryBtn}
-              onPress={() => navigation.navigate('Hub')}
+              onPress={() => navigation.navigate('Tabs')}
               activeOpacity={0.85}
             >
               <LinearGradient
@@ -271,13 +273,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 14,
     left: 8,
-    fontSize: 26,
   },
   shipEmoji: {
     position: 'absolute',
     bottom: 14,
     right: 8,
-    fontSize: 26,
   },
   logoContainer: {
     marginBottom: Spacing.sm,
@@ -324,9 +324,7 @@ const styles = StyleSheet.create({
     marginRight: Spacing.sm,
     overflow: 'hidden',
   },
-  cogsAvatarEmoji: {
-    fontSize: 16,
-  },
+  cogsAvatarEmoji: {},
   cogsName: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,

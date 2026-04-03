@@ -104,8 +104,6 @@ export default function CodexEntryScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(0);
   const iconReveal = useSharedValue(0);
   const iconFloat = useSharedValue(0);
-  const glowPulse = useSharedValue(0.3);
-
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 400 });
     iconReveal.value = withDelay(200, withTiming(1, { duration: 700, easing: Easing.out(Easing.cubic) }));
@@ -114,15 +112,6 @@ export default function CodexEntryScreen({ navigation }: Props) {
       withSequence(
         withTiming(-8, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
         withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
-      ),
-      -1,
-      false,
-    );
-
-    glowPulse.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0.2, { duration: 1400, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
       false,
@@ -137,11 +126,6 @@ export default function CodexEntryScreen({ navigation }: Props) {
       { scale: 0.8 + iconReveal.value * 0.2 },
     ],
   }));
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowPulse.value,
-    transform: [{ scale: 1 + glowPulse.value * 0.3 }],
-  }));
-
   return (
     <Animated.View style={[s.root, screenStyle]}>
       {/* Header */}
@@ -152,8 +136,6 @@ export default function CodexEntryScreen({ navigation }: Props) {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Piece icon hero */}
         <View style={s.heroSection}>
-          {/* Glow ring */}
-          <Animated.View style={[s.glowRing, glowStyle]} />
           <Animated.View style={iconStyle}>
             <ConveyorIcon size={100} />
           </Animated.View>
@@ -163,7 +145,7 @@ export default function CodexEntryScreen({ navigation }: Props) {
 
           {/* Type badge */}
           <View style={s.typeBadge}>
-            <Text style={s.typeBadgeText}>⚙  PHYSICS PIECE</Text>
+            <Text style={s.typeBadgeText}>PHYSICS PIECE</Text>
           </View>
         </View>
 
@@ -222,15 +204,6 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.xl,
     gap: Spacing.md,
     position: 'relative',
-  },
-  glowRing: {
-    position: 'absolute',
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    backgroundColor: Colors.copper,
-    top: Spacing.xxl - 30,
-    opacity: 0.08,
   },
   pieceTitle: {
     fontFamily: Fonts.orbitron,

@@ -14,20 +14,22 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { TabParamList } from '../navigation/TabNavigator';
 import StarField from '../components/StarField';
+import CogsAvatar from '../components/CogsAvatar';
+import { BatteryIcon, ShieldIcon, GearIcon, ScannerIcon, RailgunIcon } from '../components/icons/PartIcons';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'FreeBuild'>;
+  navigation: BottomTabNavigationProp<TabParamList, 'FreeBuild'>;
 };
 
 type Component = {
   id: string;
   name: string;
   type: string;
-  emoji: string;
+  icon: string;
   description: string;
   rarity: 'Common' | 'Rare' | 'Epic' | 'Legendary';
 };
@@ -40,13 +42,25 @@ const RARITY_COLOR: Record<string, string> = {
 };
 
 const COMPONENTS: Component[] = [
-  { id: 'pwr1', name: 'Power Cell Mk.I', type: 'Power', emoji: '🔋', description: 'Basic energy storage unit', rarity: 'Common' },
-  { id: 'shld1', name: 'Deflector Array', type: 'Defense', emoji: '🛡️', description: 'Redirects incoming energy beams', rarity: 'Rare' },
-  { id: 'eng1', name: 'Ion Engine', type: 'Propulsion', emoji: '⚙️', description: 'Efficient low-thrust drive', rarity: 'Common' },
-  { id: 'scan1', name: 'Quantum Scanner', type: 'Sensor', emoji: '📡', description: 'Detects anomalies across sectors', rarity: 'Rare' },
-  { id: 'rail1', name: 'Rail Cannon', type: 'Weapon', emoji: '🔫', description: 'Electromagnetic projectile launcher', rarity: 'Epic' },
-  { id: 'ai1', name: 'Cogs Neural Core', type: 'AI', emoji: '🤖', description: 'Advanced reasoning module', rarity: 'Legendary' },
+  { id: 'pwr1', name: 'Power Cell Mk.I', type: 'Power', icon: 'battery', description: 'Basic energy storage unit', rarity: 'Common' },
+  { id: 'shld1', name: 'Deflector Array', type: 'Defense', icon: 'shield', description: 'Redirects incoming energy beams', rarity: 'Rare' },
+  { id: 'eng1', name: 'Ion Engine', type: 'Propulsion', icon: 'gear', description: 'Efficient low-thrust drive', rarity: 'Common' },
+  { id: 'scan1', name: 'Quantum Scanner', type: 'Sensor', icon: 'scanner', description: 'Detects anomalies across sectors', rarity: 'Rare' },
+  { id: 'rail1', name: 'Rail Cannon', type: 'Weapon', icon: 'railgun', description: 'Electromagnetic projectile launcher', rarity: 'Epic' },
+  { id: 'ai1', name: 'Cogs Neural Core', type: 'AI', icon: 'cogs', description: 'Advanced reasoning module', rarity: 'Legendary' },
 ];
+
+function CompIcon({ icon, color }: { icon: string; color: string }) {
+  switch (icon) {
+    case 'battery': return <BatteryIcon size={24} color={color} />;
+    case 'shield': return <ShieldIcon size={24} color={color} />;
+    case 'gear': return <GearIcon size={24} color={color} />;
+    case 'scanner': return <ScannerIcon size={24} color={color} />;
+    case 'railgun': return <RailgunIcon size={24} color={color} />;
+    case 'cogs': return <CogsAvatar size="small" state="online" />;
+    default: return <GearIcon size={24} color={color} />;
+  }
+}
 
 type Category = 'All' | 'Power' | 'Defense' | 'Propulsion' | 'Sensor' | 'Weapon' | 'AI';
 const CATEGORIES: Category[] = ['All', 'Power', 'Defense', 'Propulsion', 'Sensor', 'Weapon', 'AI'];
@@ -73,7 +87,7 @@ function ComponentCard({ comp, delay }: { comp: Component; delay: number }) {
       <View style={[styles.compBorder, { borderColor: `${rarityColor}33` }]} />
       <View style={styles.compInner}>
         <View style={[styles.compIconBox, { backgroundColor: `${rarityColor}15` }]}>
-          <Text style={styles.compEmoji}>{comp.emoji}</Text>
+          <CompIcon icon={comp.icon} color={rarityColor} />
         </View>
         <View style={styles.compInfo}>
           <Text style={styles.compName}>{comp.name}</Text>
@@ -95,7 +109,7 @@ function ComponentCard({ comp, delay }: { comp: Component; delay: number }) {
   );
 }
 
-export default function FreeBuildScreen({ navigation }: Props) {
+export default function FreeBuildScreen(_: Props) {
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const screenOpacity = useSharedValue(0);
   const headerReveal = useSharedValue(0);
@@ -118,13 +132,7 @@ export default function FreeBuildScreen({ navigation }: Props) {
 
       <SafeAreaView style={styles.safeArea}>
         <Animated.View style={[styles.header, headerRevealStyle]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
+          <View style={styles.backBtn} />
           <View style={styles.headerCenter}>
             <Text style={styles.headerLabel}>AXIOM WORKSHOP</Text>
             <Text style={styles.headerTitle}>FREE BUILD</Text>
@@ -143,7 +151,7 @@ export default function FreeBuildScreen({ navigation }: Props) {
               <View key={i} style={styles.gridCell} />
             ))}
           </View>
-          <Text style={styles.canvasLabel}>⚙️  BLUEPRINT CANVAS</Text>
+          <Text style={styles.canvasLabel}>BLUEPRINT CANVAS</Text>
           <Text style={styles.canvasSub}>Drag components from inventory to design your ship</Text>
         </Animated.View>
 
@@ -294,7 +302,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  compEmoji: { fontSize: 24 },
+  compEmoji: {},
   compInfo: { flex: 1 },
   compName: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.sm, fontWeight: 'bold',

@@ -114,9 +114,9 @@ function GridCell({
   }));
 
   const label =
-    type === 'source' ? '⚡\nSOURCE'
-    : type === 'output' ? '◎\nOUTPUT'
-    : type === 'conveyor' ? '▶▶\nCONVEYOR'
+    type === 'source' ? 'SRC\nSOURCE'
+    : type === 'output' ? 'OUT\nOUTPUT'
+    : type === 'conveyor' ? '>>\nCONVEYOR'
     : isTarget ? '+' : '';
 
   const labelColor =
