@@ -120,7 +120,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="MissionDossier"
           component={MissionDossierScreen}
-          options={{ animation: 'slide_from_bottom', presentation: 'modal', headerShown: false }}
+          options={{ animation: 'slide_from_bottom', headerShown: false }}
         />
         <Stack.Screen
           name="Gameplay"
