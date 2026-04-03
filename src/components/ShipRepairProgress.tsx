@@ -202,9 +202,9 @@ export default function ShipRepairProgress({ width = 140, height = 96 }: Props) 
         <Rect x="66" y="22" width="8" height="4" rx="1" fill={R} opacity={repaired[2] ? 0.5 : 0.08} />
 
         {/* ── Zone 4: Communication Array — antenna/sensor on hull ── */}
-        <Line x1="70" y1="6" x2="70" y2="10" stroke={R} strokeWidth="1" opacity={repaired[4] ? 0.7 : 0.1} />
-        <Line x1="60" y1="8" x2="80" y2="8" stroke={R} strokeWidth="0.8" opacity={repaired[4] ? 0.6 : 0.08} />
-        <Rect x="65" y="4" width="10" height="3" rx="1" fill={R} opacity={repaired[4] ? 0.3 : 0.04} />
+        <Line x1="70" y1="6" x2="70" y2="10" stroke={allRepaired ? Colors.green : R} strokeWidth="1" opacity={repaired[4] ? 0.7 : 0.1} />
+        <Line x1="60" y1="8" x2="80" y2="8" stroke={allRepaired ? Colors.green : R} strokeWidth="0.8" opacity={repaired[4] ? 0.6 : 0.08} />
+        <Rect x="65" y="4" width="10" height="3" rx="1" fill={allRepaired ? Colors.green : R} opacity={repaired[4] ? 0.3 : 0.04} />
 
         {/* ── Zone 3: Propulsion Core — main thruster housing ── */}
         <Rect x="30" y="56" width="80" height="5" rx="1" fill={repaired[3] ? R : D} fillOpacity={repaired[3] ? 0.15 : 0.6} stroke={R} strokeWidth="0.5" strokeOpacity={repaired[3] ? 0.5 : 0.08} />
