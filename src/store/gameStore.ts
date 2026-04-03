@@ -34,6 +34,7 @@ interface GameState {
   placePiece: (type: PieceType, gridX: number, gridY: number) => void;
   movePiece: (pieceId: string, gridX: number, gridY: number) => void;
   deletePiece: (pieceId: string) => void;
+  rotatePiece: (pieceId: string) => void;
   selectFromTray: (type: PieceType | null) => void;
   selectPlaced: (pieceId: string | null) => void;
   engage: () => ExecutionStep[];
@@ -163,6 +164,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       machineState: { ...machineState, pieces, wires },
       selectedPlacedPiece: null,
     });
+  },
+
+  rotatePiece: (pieceId) => {
+    const { machineState } = get();
+    const pieces = machineState.pieces.map(p =>
+      p.id === pieceId && !p.isPrePlaced
+        ? { ...p, rotation: (p.rotation + 90) % 360 }
+        : p,
+    );
+    const wires = autoConnectPhysicsPieces(pieces);
+    set({ machineState: { ...machineState, pieces, wires } });
   },
 
   selectFromTray: (type) => {

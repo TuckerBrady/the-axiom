@@ -173,6 +173,7 @@ export default function GameplayScreen({ navigation }: Props) {
     placePiece,
     movePiece,
     deletePiece,
+    rotatePiece,
     selectFromTray,
     selectPlaced,
     engage,
@@ -269,12 +270,9 @@ export default function GameplayScreen({ navigation }: Props) {
     if (isExecuting || showResults || showVoid) return;
     if (piece.isPrePlaced) return;
 
-    if (selectedPlacedPiece === piece.id) {
-      selectPlaced(null); // Deselect
-    } else {
-      selectPlaced(piece.id);
-    }
-  }, [selectedPlacedPiece, isExecuting, showResults, showVoid, selectPlaced]);
+    // Tap on placed piece rotates it 90°
+    rotatePiece(piece.id);
+  }, [isExecuting, showResults, showVoid, rotatePiece]);
 
   // ── Long press for delete ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
@@ -578,6 +576,22 @@ export default function GameplayScreen({ navigation }: Props) {
                   }
                 }
 
+                // Placed (non-fixed) pieces: no border, transparent bg
+                // Fixed pieces (Source/Output): keep existing card style
+                const isPlayerPlaced = !isPrePlaced;
+                const containerStyle = isPlayerPlaced
+                  ? {
+                      borderWidth: 0,
+                      backgroundColor: 'transparent' as const,
+                    }
+                  : {
+                      borderColor: debugColor || (isAnimStep ? Colors.green : pieceColor),
+                      borderWidth: 1,
+                      backgroundColor: isAnimStep
+                        ? `${pieceColor}40`
+                        : `${Colors.navy}cc`,
+                    };
+
                 return (
                   <Pressable
                     key={piece.id}
@@ -588,18 +602,16 @@ export default function GameplayScreen({ navigation }: Props) {
                         top: py,
                         width: pieceSize,
                         height: pieceSize,
-                        borderColor: debugColor || (isAnimStep ? Colors.green : isSelected ? Colors.starWhite : pieceColor),
-                        borderWidth: isSelected ? 2 : 1,
-                        backgroundColor: isAnimStep
-                          ? `${pieceColor}40`
-                          : `${Colors.navy}cc`,
                       },
+                      containerStyle,
                     ]}
                     onPress={() => handlePieceTap(piece)}
                     onLongPress={() => handlePieceLongPress(piece)}
                     delayLongPress={500}
                   >
-                    <PieceIcon type={piece.type} size={pieceSize * 0.55} color={pieceColor} />
+                    <View style={{ transform: [{ rotate: `${isPlayerPlaced ? piece.rotation : 0}deg` }] }}>
+                      <PieceIcon type={piece.type} size={pieceSize * 0.55} color={pieceColor} />
+                    </View>
                   </Pressable>
                 );
               })}
