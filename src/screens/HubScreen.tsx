@@ -29,6 +29,8 @@ import ShipRepairProgress from '../components/ShipRepairProgress';
 import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
+import { useProgressionStore, AXIOM_TOTAL_LEVELS, SHIP_SYSTEMS } from '../store/progressionStore';
+import { AXIOM_LEVELS } from '../game/levels';
 
 const { height: H } = Dimensions.get('window');
 
@@ -132,7 +134,19 @@ function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
 
 export default function HubScreen({ navigation }: Props) {
   const { lives, regenerate } = useLivesStore();
-  const todayCogsLine = HUB_COGS_LINES[new Date().getDay() % HUB_COGS_LINES.length];
+  const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
+
+  const axiomCompleted = getSectorCompletedCount('A1-');
+  const axiomDone = axiomCompleted >= AXIOM_TOTAL_LEVELS;
+
+  // Determine next mission
+  const nextAxiomIdx = AXIOM_LEVELS.findIndex((_, i) => !isLevelCompleted(`A1-${i + 1}`));
+  const nextAxiomLevel = nextAxiomIdx >= 0 ? AXIOM_LEVELS[nextAxiomIdx] : null;
+
+  // COGS line: special if ship fully repaired, otherwise daily rotation
+  const todayCogsLine = axiomDone
+    ? 'The Axiom is fully operational. For the first time since I can remember. You did that. I will not say that again.'
+    : HUB_COGS_LINES[new Date().getDay() % HUB_COGS_LINES.length];
 
   // Regenerate lives on mount (app foreground)
   useEffect(() => {
@@ -269,7 +283,9 @@ export default function HubScreen({ navigation }: Props) {
           {/* ── Active mission card ── */}
           <Animated.View style={[styles.missionCard, missionRevealStyle]}>
             <LinearGradient
-              colors={['rgba(26,58,92,0.85)', 'rgba(10,18,30,0.95)']}
+              colors={axiomDone
+                ? ['rgba(78,203,141,0.15)', 'rgba(10,22,40,0.95)']
+                : ['rgba(26,58,92,0.85)', 'rgba(10,18,30,0.95)']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
@@ -278,9 +294,19 @@ export default function HubScreen({ navigation }: Props) {
             <View style={styles.missionCornerAccent} />
             <View style={styles.missionCardInner}>
               <View style={styles.missionCardLeft}>
-                <Text style={styles.missionCardLabel}>ACTIVE MISSION</Text>
-                <Text style={styles.missionCardTitle}>Kepler Belt</Text>
-                <Text style={styles.missionCardSub}>Level 2-4</Text>
+                <Text style={styles.missionCardLabel}>
+                  {axiomDone ? 'SHIP STATUS' : 'ACTIVE MISSION'}
+                </Text>
+                <Text style={styles.missionCardTitle}>
+                  {axiomDone ? 'Fully Operational' : 'The Axiom'}
+                </Text>
+                <Text style={styles.missionCardSub}>
+                  {axiomDone
+                    ? `${axiomCompleted}/${AXIOM_TOTAL_LEVELS} Systems Online`
+                    : nextAxiomLevel
+                    ? `${nextAxiomLevel.id} · ${nextAxiomLevel.name}`
+                    : `${axiomCompleted}/${AXIOM_TOTAL_LEVELS} Repaired`}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.launchBtn}
@@ -288,16 +314,31 @@ export default function HubScreen({ navigation }: Props) {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={[Colors.copper, Colors.amber]}
+                  colors={axiomDone ? [Colors.green, '#3aad75'] : [Colors.copper, Colors.amber]}
                   style={styles.launchBtnGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
-                  <Text style={styles.launchBtnText}>LAUNCH</Text>
+                  <Text style={styles.launchBtnText}>
+                    {axiomDone ? 'SECTORS' : 'LAUNCH'}
+                  </Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
           </Animated.View>
+
+          {/* ── Ship repair progress ── */}
+          {!axiomDone && (
+            <Animated.View style={[styles.repairProgress, missionRevealStyle]}>
+              <Text style={styles.repairProgressLabel}>REPAIR PROGRESS</Text>
+              <View style={styles.repairProgressBar}>
+                <View style={[styles.repairProgressFill, { width: `${Math.round(axiomCompleted / AXIOM_TOTAL_LEVELS * 100)}%` as any }]} />
+              </View>
+              <Text style={styles.repairProgressText}>
+                {axiomCompleted}/{AXIOM_TOTAL_LEVELS} systems repaired
+              </Text>
+            </Animated.View>
+          )}
         </ScrollView>
 
       </SafeAreaView>
@@ -584,6 +625,41 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     letterSpacing: 2,
     color: Colors.void,
+  },
+
+  // Repair progress
+  repairProgress: {
+    width: '100%',
+    backgroundColor: 'rgba(10,18,30,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.12)',
+    borderRadius: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 6,
+  },
+  repairProgressLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.muted,
+    letterSpacing: 1.5,
+  },
+  repairProgressBar: {
+    height: 4,
+    backgroundColor: 'rgba(74,158,255,0.12)',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  repairProgressFill: {
+    height: 4,
+    backgroundColor: Colors.blue,
+    borderRadius: 2,
+  },
+  repairProgressText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.blue,
+    letterSpacing: 1,
   },
 
 });
