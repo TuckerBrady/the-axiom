@@ -27,6 +27,8 @@ import SectorsIcon from '../components/icons/SectorsIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS } from '../store/progressionStore';
 
+const SECTORS_AHEAD_VISIBLE = 1;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SectorStatus = 'completed' | 'active' | 'locked';
@@ -389,18 +391,27 @@ export default function SectorMapScreen({ navigation }: Props) {
             <Text style={styles.galaxyCoords}>47.2N · 183.5E</Text>
           </Animated.View>
 
-          {/* ── Sector cards ── */}
-          {dynamicSectors.map((sector, i) => (
-            <SectorCard
-              key={sector.id}
-              sector={sector}
-              delay={i * 120}
-              onPress={() => {
-                setActiveSector(sector.id === 'axiom' ? 'A1' : sector.id === 'kepler' ? 'K' : sector.id);
-                navigation.navigate('LevelSelect');
-              }}
-            />
-          ))}
+          {/* ── Sector cards (gated visibility) ── */}
+          {(() => {
+            // Find the index of the first locked sector
+            const firstLockedIdx = dynamicSectors.findIndex(sec => sec.status === 'locked');
+            // Show: all completed/active + up to SECTORS_AHEAD_VISIBLE locked teasers
+            const visibleCount = firstLockedIdx < 0
+              ? dynamicSectors.length
+              : firstLockedIdx + SECTORS_AHEAD_VISIBLE;
+
+            return dynamicSectors.slice(0, visibleCount).map((sector, i) => (
+              <SectorCard
+                key={sector.id}
+                sector={sector}
+                delay={i * 120}
+                onPress={() => {
+                  setActiveSector(sector.id === 'axiom' ? 'A1' : sector.id === 'kepler' ? 'K' : sector.id);
+                  navigation.navigate('LevelSelect');
+                }}
+              />
+            ));
+          })()}
         </ScrollView>
       </SafeAreaView>
     </Animated.View>

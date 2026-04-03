@@ -117,7 +117,11 @@ export default function RootNavigator() {
         <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen name="Launch" component={LaunchScreen} />
         <Stack.Screen name="LevelSelect" component={LevelSelectScreen} />
-        <Stack.Screen name="MissionDossier" component={MissionDossierScreen} />
+        <Stack.Screen
+          name="MissionDossier"
+          component={MissionDossierScreen}
+          options={{ animation: 'slide_from_bottom', presentation: 'modal' }}
+        />
         <Stack.Screen
           name="Gameplay"
           component={GameplayScreen}

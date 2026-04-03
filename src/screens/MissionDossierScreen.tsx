@@ -217,7 +217,9 @@ const st = StyleSheet.create({
   heroArea: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.xxxl,
+    paddingTop: 60,
+    paddingBottom: Spacing.xxxl,
+    overflow: 'visible',
   },
   heroGlow: {
     position: 'absolute',

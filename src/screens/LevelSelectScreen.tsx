@@ -590,6 +590,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
 
   const handleNodePress = useCallback((mission: Mission) => {
     const state = isAxiom ? getAxiomState(mission.id) : getState(mission.id);
+    if (state === 'locked') return;
     navigation.navigate('MissionDossier', {
       missionId: mission.id,
       missionName: mission.name,
