@@ -8,6 +8,7 @@ import LaunchScreen from '../screens/LaunchScreen';
 import LevelSelectScreen from '../screens/LevelSelectScreen';
 import GameplayScreen from '../screens/GameplayScreen';
 import StoreScreen from '../screens/StoreScreen';
+import DailyRewardScreen from '../screens/DailyRewardScreen';
 import TabNavigator from './TabNavigator';
 
 // Onboarding
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   Discipline: undefined;
   Login: undefined;
   // Main app
+  DailyReward: undefined;
   Tabs: undefined;
   Launch: undefined;
   LevelSelect: undefined;
@@ -43,14 +45,35 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const ONBOARDING_KEY = '@axiom_onboarding_complete';
+const DAILY_REWARD_KEY = '@axiom_last_daily_reward_date';
+
+function getTodayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 export default function RootNavigator() {
-  const [initialRoute, setInitialRoute] = useState<'Boot' | 'Tabs' | null>(null);
+  const [initialRoute, setInitialRoute] = useState<'Boot' | 'DailyReward' | 'Tabs' | null>(null);
 
   useEffect(() => {
-    AsyncStorage.getItem(ONBOARDING_KEY)
-      .then(val => setInitialRoute(val === 'true' ? 'Tabs' : 'Boot'))
-      .catch(() => setInitialRoute('Boot'));
+    (async () => {
+      try {
+        const onboarded = await AsyncStorage.getItem(ONBOARDING_KEY);
+        if (onboarded !== 'true') {
+          setInitialRoute('Boot');
+          return;
+        }
+        const lastReward = await AsyncStorage.getItem(DAILY_REWARD_KEY);
+        if (lastReward !== getTodayString()) {
+          await AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString());
+          setInitialRoute('DailyReward');
+        } else {
+          setInitialRoute('Tabs');
+        }
+      } catch {
+        setInitialRoute('Boot');
+      }
+    })();
   }, []);
 
   if (!initialRoute) {
@@ -78,6 +101,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
 
         {/* ── Main app ── */}
+        <Stack.Screen name="DailyReward" component={DailyRewardScreen} />
         <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen name="Launch" component={LaunchScreen} />
         <Stack.Screen name="LevelSelect" component={LevelSelectScreen} />
