@@ -18,23 +18,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigation/TabNavigator';
-import Svg, { Circle, Rect, Line, Path } from 'react-native-svg';
+import Svg, { Circle, Rect, Line, Path, Ellipse } from 'react-native-svg';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import EngineerIcon from '../components/icons/EngineerIcon';
-import { AnimatedToggle } from '../components/AnimatedToggle';
+import { WireToggle } from '../components/WireToggle';
 import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
 import {
-  VolumeIcon,
-  MusicIcon,
-  HapticIcon,
   NotificationIcon,
-  GlobeIcon,
   CloudIcon,
-  GamepadIcon,
   ClipboardIcon,
   ScrollDocIcon,
-  BulbIcon,
 } from '../components/icons/SettingsIcons';
 import { ShieldIcon } from '../components/icons/PartIcons';
 import PadlockIcon from '../components/icons/PadlockIcon';
@@ -44,19 +38,128 @@ type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
 };
 
-// ─── COGS Hints Icon (amber) ─────────────────────────────────────────────────
+// ─── Icon background wrapper ────────────────────────────────────────────────
 
-function CogsHintsIcon({ size = 28 }: { size?: number }) {
+function IconBg({ children, amber }: { children: React.ReactNode; amber?: boolean }) {
   return (
-    <View style={{ width: size, height: size, backgroundColor: 'rgba(200,121,65,0.08)', borderWidth: 1, borderColor: 'rgba(200,121,65,0.18)', borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size - 4} height={size - 4} viewBox="0 0 28 28" fill="none">
-        <Rect x="2" y="4" width="24" height="20" rx="5" stroke={Colors.copper} strokeWidth="1" fill="#0c1a2e" />
-        <Circle cx="9" cy="13" r="3.5" stroke={Colors.copper} strokeWidth="0.5" fill="#061830" />
-        <Circle cx="9" cy="13" r="2" fill={Colors.copper} opacity={0.8} />
-        <Circle cx="19" cy="13" r="2.8" stroke={Colors.copper} strokeWidth="0.5" fill="#061830" />
-        <Circle cx="19" cy="13" r="1.6" fill={Colors.copper} opacity={0.7} />
-      </Svg>
+    <View style={{
+      width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: amber ? 'rgba(200,121,65,0.08)' : 'rgba(74,158,255,0.08)',
+      borderWidth: 1,
+      borderColor: amber ? 'rgba(200,121,65,0.18)' : 'rgba(74,158,255,0.18)',
+    }}>
+      {children}
     </View>
+  );
+}
+
+// ─── Inline settings icons ──────────────────────────────────────────────────
+
+function SfxIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Path d="M6 8L6 12L10 14L10 6Z" fill="#4a9eff" opacity={0.8} />
+        <Path d="M12 7Q16 10 12 13" stroke="#4a9eff" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function MusicRowIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Line x1="5" y1="6" x2="15" y2="4" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="15" y1="4" x2="15" y2="16" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="5" y1="6" x2="5" y2="18" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Circle cx="5" cy="18" r="3" fill="#4a9eff" opacity={0.6} />
+        <Circle cx="15" cy="16" r="3" fill="#4a9eff" opacity={0.6} />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function HapticRowIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Rect x="7" y="3" width="6" height="14" rx="3" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
+        <Line x1="4" y1="7" x2="2" y2="7" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="4" y1="10" x2="1" y2="10" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="4" y1="13" x2="2" y2="13" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="16" y1="7" x2="18" y2="7" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="16" y1="10" x2="19" y2="10" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+        <Line x1="16" y1="13" x2="18" y2="13" stroke="#4a9eff" strokeWidth="1.5" strokeLinecap="round" />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function CogsHintsIcon() {
+  return (
+    <IconBg amber>
+      <Svg width={18} height={18} viewBox="0 0 28 28" fill="none">
+        <Rect x="2" y="4" width="24" height="20" rx="5" stroke="#c87941" strokeWidth="1" fill="#0c1a2e" />
+        <Circle cx="9" cy="13" r="3.5" stroke="#c87941" strokeWidth="0.5" fill="#061830" />
+        <Circle cx="9" cy="13" r="2" fill="#c87941" opacity={0.8} />
+        <Circle cx="19" cy="13" r="2.8" stroke="#c87941" strokeWidth="0.5" fill="#061830" />
+        <Circle cx="19" cy="13" r="1.6" fill="#c87941" opacity={0.7} />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function ReduceMotionIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Circle cx="10" cy="10" r="7" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
+        <Line x1="6" y1="6" x2="14" y2="14" stroke="#e05555" strokeWidth="2" strokeLinecap="round" />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function LanguageIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Circle cx="10" cy="10" r="7" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
+        <Ellipse cx="10" cy="10" rx="4" ry="7" stroke="#4a9eff" strokeWidth="1" fill="none" />
+        <Line x1="3" y1="10" x2="17" y2="10" stroke="#4a9eff" strokeWidth="0.8" opacity={0.5} strokeLinecap="round" />
+      </Svg>
+    </IconBg>
+  );
+}
+
+function ControlSchemeIcon() {
+  return (
+    <IconBg>
+      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
+        <Rect x="4" y="4" width="12" height="12" rx="3" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
+        <Circle cx="10" cy="10" r="2.5" stroke="#4a9eff" strokeWidth="1" fill="none" />
+        <Circle cx="10" cy="5.5" r="1.5" fill="#4a9eff" opacity={0.6} />
+        <Circle cx="10" cy="14.5" r="1.5" fill="#4a9eff" opacity={0.6} />
+        <Circle cx="5.5" cy="10" r="1.5" fill="#4a9eff" opacity={0.6} />
+        <Circle cx="14.5" cy="10" r="1.5" fill="#4a9eff" opacity={0.6} />
+      </Svg>
+    </IconBg>
+  );
+}
+
+// ─── R04 Mechanic Insignia (inline) ─────────────────────────────────────────
+
+function R04Insignia({ size = 18 }: { size?: number }) {
+  return (
+    <Svg width={size} height={size * (18 / 22)} viewBox="0 0 22 18" fill="none">
+      <Circle cx="11" cy="5" r="2.5" fill="#c87941" opacity={0.9} />
+      <Circle cx="5" cy="14" r="2.5" fill="#c87941" opacity={0.9} />
+      <Circle cx="17" cy="14" r="2.5" fill="#c87941" opacity={0.9} />
+      <Line x1="11" y1="7.5" x2="5.8" y2="11.5" stroke="#c87941" strokeWidth="0.8" opacity={0.4} />
+      <Line x1="11" y1="7.5" x2="16.2" y2="11.5" stroke="#c87941" strokeWidth="0.8" opacity={0.4} />
+      <Line x1="7.5" y1="14" x2="14.5" y2="14" stroke="#c87941" strokeWidth="0.8" opacity={0.4} />
+    </Svg>
   );
 }
 
@@ -103,7 +206,7 @@ function ToggleRow({
         <Text style={styles.rowLabel}>{label}</Text>
         {sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
-      <AnimatedToggle value={value} onValueChange={onChange} />
+      <WireToggle value={value} onValueChange={onChange} />
     </Animated.View>
   );
 }
@@ -205,7 +308,7 @@ export default function SettingsScreen(_: Props) {
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>Commander</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-              <RankInsignia rank={4} size={16} />
+              <R04Insignia size={18} />
               <Text style={styles.profileSub}>R04 Mechanic · 4,250 CR</Text>
             </View>
           </View>
@@ -249,23 +352,23 @@ export default function SettingsScreen(_: Props) {
           {/* Audio */}
           <SectionHeader title="AUDIO" delay={100} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<VolumeIcon size={18} color={Colors.blue} />} label="Sound Effects" value={sfx} onChange={setSfx} delay={150} />
+            <ToggleRow icon={<SfxIcon />} label="Sound Effects" value={sfx} onChange={setSfx} delay={150} />
             <View style={styles.divider} />
-            <ToggleRow icon={<MusicIcon size={18} color={Colors.blue} />} label="Background Music" value={music} onChange={setMusic} delay={200} />
+            <ToggleRow icon={<MusicRowIcon />} label="Background Music" value={music} onChange={setMusic} delay={200} />
             <View style={styles.divider} />
-            <ToggleRow icon={<HapticIcon size={18} color={Colors.blue} />} label="Haptic Feedback" sub="Vibration on interactions" value={haptics} onChange={setHaptics} delay={250} />
+            <ToggleRow icon={<HapticRowIcon />} label="Haptic Feedback" sub="Vibration on interactions" value={haptics} onChange={setHaptics} delay={250} />
           </View>
 
           {/* Gameplay */}
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<CogsHintsIcon size={26} />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
+            <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
             <View style={styles.divider} />
-            <ToggleRow icon={<BulbIcon size={18} color={Colors.amber} />} label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
+            <ToggleRow icon={<ReduceMotionIcon />} label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
             <View style={styles.divider} />
-            <TapRow icon={<GlobeIcon size={18} color={Colors.blue} />} label="Language" value="English" chevron delay={450} />
+            <TapRow icon={<LanguageIcon />} label="Language" value="English" chevron delay={450} />
             <View style={styles.divider} />
-            <TapRow icon={<GamepadIcon size={18} color={Colors.blue} />} label="Control Scheme" value="Standard" chevron delay={500} />
+            <TapRow icon={<ControlSchemeIcon />} label="Control Scheme" value="Standard" chevron delay={500} />
           </View>
 
           {/* Account */}
@@ -469,7 +572,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  rowIconWrap: { width: 26, alignItems: 'center', justifyContent: 'center' },
+  rowIconWrap: { width: 30, alignItems: 'center', justifyContent: 'center' },
   rowInfo: { flex: 1 },
   rowLabel: {
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.starWhite,
