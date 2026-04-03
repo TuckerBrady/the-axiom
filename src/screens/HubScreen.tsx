@@ -25,7 +25,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import type { TabParamList } from '../navigation/TabNavigator';
 import Svg, { Path } from 'react-native-svg';
 import StarField from '../components/StarField';
-import AxiomShipSVG from '../components/icons/AxiomShipSVG';
+import ShipRepairProgress from '../components/ShipRepairProgress';
 import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
@@ -241,7 +241,7 @@ export default function HubScreen({ navigation }: Props) {
 
             {/* Spacecraft */}
             <Animated.View style={[styles.shipInner, shipRevealStyle]}>
-              <AxiomShipSVG width={120} height={80} />
+              <ShipRepairProgress width={140} height={96} />
             </Animated.View>
           </Animated.View>
 
