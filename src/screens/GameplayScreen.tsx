@@ -30,6 +30,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
+import { useProgressionStore } from '../store/progressionStore';
 import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -174,12 +175,15 @@ export default function GameplayScreen({ navigation }: Props) {
     debugPrev,
   } = useGameStore();
 
-  const { lives, loseLife, refillLives, circuits } = useLivesStore();
+  const { lives, loseLife, refillLives, circuits, addCogs } = useLivesStore();
+  const { completeLevel } = useProgressionStore();
 
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
+  const [showSystemRestored, setShowSystemRestored] = useState<string | null>(null);
+  const [firstTimeBonus, setFirstTimeBonus] = useState(false);
   const [animatingStep, setAnimatingStep] = useState(-1);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [signalDot, setSignalDot] = useState<{ x: number; y: number } | null>(null);
@@ -307,11 +311,28 @@ export default function GameplayScreen({ navigation }: Props) {
     // Flash effect before showing overlay
     const succeeded = steps.some(s => s.type === 'output' && s.success);
     if (succeeded) {
+      // Record progression
+      const levelId = level.id;
+      const starsEarned = useGameStore.getState().stars;
+      const isFirst = completeLevel(levelId, starsEarned);
+      setFirstTimeBonus(isFirst);
+      if (isFirst) {
+        addCogs(25);
+      }
+
       // Green flash
       setFlashColor(Colors.green);
       await new Promise(resolve => setTimeout(resolve, 300));
       setFlashColor(null);
-      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Show system restored for Axiom levels
+      if (level.systemRepaired) {
+        setShowSystemRestored(level.systemRepaired);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setShowSystemRestored(null);
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       setShowResults(true);
     } else {
       // Red flash 3 times
@@ -375,6 +396,7 @@ export default function GameplayScreen({ navigation }: Props) {
             <Text style={styles.backArrow}>{'<'}</Text>
           </TouchableOpacity>
           <View style={styles.topBarCenter}>
+            <Text style={styles.sectorTag}>{level.sector.toUpperCase()}</Text>
             <Text style={styles.levelTag}>MISSION {level.id}</Text>
             <Text style={styles.levelName}>{level.name}</Text>
           </View>
@@ -731,6 +753,21 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* ── System Restored Overlay ── */}
+        {showSystemRestored && (
+          <Animated.View style={styles.overlay} entering={FadeIn.duration(300)}>
+            <LinearGradient
+              colors={['rgba(6,9,15,0.96)', 'rgba(10,22,40,0.98)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.overlayContent}>
+              <Text style={styles.systemRestoredText}>
+                {showSystemRestored.toUpperCase()}{'\n'}RESTORED
+              </Text>
+            </View>
+          </Animated.View>
+        )}
+
         {/* ── Results Overlay (Success) ── */}
         {showResults && (
           <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
@@ -746,10 +783,11 @@ export default function GameplayScreen({ navigation }: Props) {
                 <CogsAvatar size="small" state="online" />
                 <Text style={styles.resultsQuote}>
                   {stars === 3
-                    ? '"Optimal solution. I am... impressed. Do not let it go to your head."'
+                    ? '"Optimal. I have updated my assessment accordingly."'
                     : stars === 2
-                    ? '"Functional. Not optimal. I have logged the inefficiency for your review."'
-                    : '"It works. Barely. I suggest you revisit this when your skills improve."'}
+                    ? '"Functional. There was a more elegant solution."'
+                    : '"It worked. I will note that it barely worked."'}
+                  {firstTimeBonus ? '\n\n"Mission logged. 25 Cogs credited to your account."' : ''}
                 </Text>
               </View>
               <View style={styles.resultsActions}>
@@ -915,6 +953,10 @@ const styles = StyleSheet.create({
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontFamily: Fonts.orbitron, fontSize: 18, color: Colors.muted },
   topBarCenter: { flex: 1, alignItems: 'center' },
+  sectorTag: {
+    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.dim,
+    letterSpacing: 2, marginBottom: 1,
+  },
   levelTag: {
     fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.copper,
     letterSpacing: 1.5, textTransform: 'uppercase',
@@ -1214,6 +1256,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.xxxl,
     width: '100%',
+  },
+
+  // System restored
+  systemRestoredText: {
+    fontFamily: Fonts.orbitron,
+    fontSize: FontSizes.display,
+    fontWeight: 'bold',
+    color: Colors.green,
+    textAlign: 'center',
+    letterSpacing: 4,
+    lineHeight: 44,
   },
 
   // Results
