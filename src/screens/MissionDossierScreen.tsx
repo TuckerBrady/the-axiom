@@ -75,6 +75,7 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
   const setLevel = useGameStore(s => s.setLevel);
 
   const isCompleted = nodeState === 'completed';
+  const isActive = nodeState === 'active';
   const isLocked = nodeState === 'locked';
 
   const handleLaunch = () => {
@@ -151,29 +152,29 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
         {/* ── Bottom pinned launch button ── */}
         <View style={st.bottomBar}>
           <TouchableOpacity
-            style={[st.launchBtn, isLocked && st.launchBtnDim]}
-            onPress={isLocked ? undefined : handleLaunch}
-            activeOpacity={isLocked ? 1 : 0.8}
+            style={[st.launchBtn, (!isActive && !isCompleted) && st.launchBtnDim]}
+            onPress={(isActive || isCompleted) ? handleLaunch : undefined}
+            activeOpacity={(isActive || isCompleted) ? 0.8 : 1}
           >
             <LinearGradient
-              colors={isCompleted
+              colors={isActive
+                ? [Colors.copper, Colors.amber]
+                : isCompleted
                 ? [Colors.steel, Colors.navy]
-                : isLocked
-                ? ['rgba(58,80,112,0.4)', 'rgba(10,22,40,0.6)']
-                : [Colors.copper, Colors.amber]}
+                : ['rgba(58,80,112,0.4)', 'rgba(10,22,40,0.6)']}
               style={st.launchBtnGrad}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              {isLocked ? (
+              {isActive ? (
+                <Text style={st.launchBtnText}>LAUNCH MISSION</Text>
+              ) : isCompleted ? (
+                <Text style={[st.launchBtnText, { color: Colors.muted }]}>REPLAY</Text>
+              ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <PadlockIcon size={14} color={Colors.dim} />
                   <Text style={[st.launchBtnText, { color: Colors.dim }]}>LOCKED</Text>
                 </View>
-              ) : isCompleted ? (
-                <Text style={st.launchBtnText}>REPLAY MISSION</Text>
-              ) : (
-                <Text style={st.launchBtnText}>LAUNCH MISSION</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>

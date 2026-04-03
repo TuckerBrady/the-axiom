@@ -28,6 +28,9 @@ import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS } from '../store/progressionStore';
 
 const SECTORS_AHEAD_VISIBLE = 1;
+const SCANNER_TIER_1 = 0.25; // name revealed
+const SCANNER_TIER_2 = 0.50; // level count revealed
+const SCANNER_TIER_3 = 0.75; // description revealed
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -162,9 +165,17 @@ type SectorCardProps = {
   sector: Sector;
   delay: number;
   onPress: () => void;
+  scannerTier?: number; // 0-3 for locked sectors being scanned
 };
 
-function SectorCard({ sector, delay, onPress }: SectorCardProps) {
+function scannerBadgeLabel(tier: number): string {
+  if (tier === 0) return 'SIGNAL DETECTED';
+  if (tier === 1) return 'SCANNING';
+  if (tier === 2) return 'PARTIAL LOCK';
+  return 'LOCKED';
+}
+
+function SectorCard({ sector, delay, onPress, scannerTier }: SectorCardProps) {
   const reveal = useSharedValue(0);
   useEffect(() => {
     reveal.value = withDelay(delay, withTiming(1, { duration: 500 }));
@@ -172,6 +183,8 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
   const animStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
 
   const locked = sector.status === 'locked';
+  const isScanning = locked && scannerTier !== undefined;
+  const tier = scannerTier ?? 3;
   const levelText = `${sector.levelsCompleted} / ${sector.levelsTotal} levels`;
 
   const cardShadow = sector.glowColor
@@ -183,6 +196,21 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
         elevation: 6,
       }
     : {};
+
+  // Scanner tier determines what's visible
+  const showName = !isScanning || tier >= 1;
+  const showLevelCount = !isScanning || tier >= 2;
+  const showDescription = !isScanning || tier >= 3;
+
+  // Badge for scanning sectors
+  const badgeLabel = isScanning ? scannerBadgeLabel(tier) : statusLabel(sector.status);
+  const badgeColor = isScanning && tier < 3 ? Colors.amber : statusLabelColor(sector.status, sector.accentColor);
+  const badgeBorderColor = isScanning && tier < 3
+    ? 'rgba(240,180,41,0.4)'
+    : locked ? 'rgba(58,80,112,0.4)' : sector.borderColor;
+  const badgeBgColor = isScanning && tier < 3
+    ? 'rgba(240,180,41,0.08)'
+    : locked ? 'rgba(58,80,112,0.08)' : `rgba(${iconBgComponents(sector.accentColor)},0.1)`;
 
   return (
     <Animated.View style={[styles.sectorCard, cardShadow, animStyle]}>
@@ -204,9 +232,24 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
         <View
           style={[
             styles.sectorBorder,
-            { borderColor: sector.borderColor },
+            { borderColor: isScanning && tier < 3 ? 'rgba(240,180,41,0.15)' : sector.borderColor },
           ]}
         />
+
+        {/* Scanline overlay for tier 0 */}
+        {isScanning && tier === 0 && (
+          <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', borderRadius: 14 }]} pointerEvents="none">
+            {Array.from({ length: 12 }, (_, i) => (
+              <View key={i} style={{
+                position: 'absolute',
+                left: 0, right: 0,
+                top: i * 8,
+                height: 1,
+                backgroundColor: 'rgba(240,180,41,0.04)',
+              }} />
+            ))}
+          </View>
+        )}
 
         <View style={styles.sectorRow}>
           {/* Icon circle */}
@@ -221,7 +264,7 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
             ]}
           >
             {locked ? (
-              <PadlockIcon size={16} color={Colors.dim} />
+              <PadlockIcon size={16} color={isScanning && tier < 3 ? Colors.amber : Colors.dim} />
             ) : (
               <SectorIcon iconType={sector.iconType} size={26} color={sector.accentColor} />
             )}
@@ -234,31 +277,19 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
               <Text
                 style={[
                   styles.sectorName,
-                  { color: locked ? Colors.dim : Colors.starWhite },
+                  { color: showName ? (locked ? Colors.dim : Colors.starWhite) : Colors.dim },
                 ]}
               >
-                {sector.name}
+                {showName ? sector.name : '———————'}
               </Text>
               <View
                 style={[
                   styles.statusBadge,
-                  {
-                    borderColor: locked
-                      ? 'rgba(58,80,112,0.4)'
-                      : sector.borderColor,
-                    backgroundColor: locked
-                      ? 'rgba(58,80,112,0.08)'
-                      : `rgba(${iconBgComponents(sector.accentColor)},0.1)`,
-                  },
+                  { borderColor: badgeBorderColor, backgroundColor: badgeBgColor },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.statusBadgeText,
-                    { color: statusLabelColor(sector.status, sector.accentColor) },
-                  ]}
-                >
-                  {statusLabel(sector.status)}
+                <Text style={[styles.statusBadgeText, { color: badgeColor }]}>
+                  {badgeLabel}
                 </Text>
               </View>
             </View>
@@ -270,17 +301,17 @@ function SectorCard({ sector, delay, onPress }: SectorCardProps) {
                 { color: locked ? Colors.dim : Colors.muted },
               ]}
             >
-              {sector.subtitle}
+              {showDescription ? sector.subtitle : (isScanning ? 'ANALYSIS PENDING...' : sector.subtitle)}
             </Text>
 
             {/* Level count */}
             <Text
               style={[
                 styles.sectorLevels,
-                { color: sector.accentColor },
+                { color: isScanning && tier < 3 ? Colors.dim : sector.accentColor },
               ]}
             >
-              {levelText}
+              {showLevelCount ? levelText : '?? LEVELS'}
             </Text>
 
             {/* Progress bar */}
@@ -391,11 +422,22 @@ export default function SectorMapScreen({ navigation }: Props) {
             <Text style={styles.galaxyCoords}>47.2N · 183.5E</Text>
           </Animated.View>
 
-          {/* ── Sector cards (gated visibility) ── */}
+          {/* ── Sector cards (gated visibility + scanner reveal) ── */}
           {(() => {
-            // Find the index of the first locked sector
+            // Calculate active sector progress for scanner tiers
+            const activeSector = dynamicSectors.find(sec => sec.status === 'active');
+            const currentProgress = activeSector && activeSector.levelsTotal > 0
+              ? activeSector.levelsCompleted / activeSector.levelsTotal
+              : 0;
+
+            // Determine scanner tier based on progress
+            const scanTier = currentProgress >= SCANNER_TIER_3 ? 3
+              : currentProgress >= SCANNER_TIER_2 ? 2
+              : currentProgress >= SCANNER_TIER_1 ? 1
+              : 0;
+
+            // Find first locked sector index
             const firstLockedIdx = dynamicSectors.findIndex(sec => sec.status === 'locked');
-            // Show: all completed/active + up to SECTORS_AHEAD_VISIBLE locked teasers
             const visibleCount = firstLockedIdx < 0
               ? dynamicSectors.length
               : firstLockedIdx + SECTORS_AHEAD_VISIBLE;
@@ -405,6 +447,7 @@ export default function SectorMapScreen({ navigation }: Props) {
                 key={sector.id}
                 sector={sector}
                 delay={i * 120}
+                scannerTier={sector.status === 'locked' ? scanTier : undefined}
                 onPress={() => {
                   setActiveSector(sector.id === 'axiom' ? 'A1' : sector.id === 'kepler' ? 'K' : sector.id);
                   navigation.navigate('LevelSelect');

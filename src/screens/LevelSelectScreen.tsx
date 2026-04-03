@@ -342,47 +342,59 @@ function Crosshairs() {
 
 // ─── Signal dot ────────────────────────────────────────────────────────────────
 
-// Waypoints: node centers for path 1→2→3→4→5
-const SIGNAL_WP_X = [COLS[0], COLS[1], COLS[2], COLS[2], COLS[1]]; // [22,110,198,198,110]
-const SIGNAL_WP_Y = [ROWS[0], ROWS[0], ROWS[0], ROWS[1], ROWS[1]]; // [22,22,22,102,102]
-const SIGNAL_T = [0, 1, 2, 3, 4];
+function SignalDot({ completedCount }: { completedCount: number }) {
+  // No ball if nothing completed (active level is 1)
+  if (completedCount <= 0) return null;
 
-function SignalDot() {
+  // Build waypoints from node 1 through completedCount+1 (the active node)
+  const waypointCount = Math.min(completedCount + 1, 12);
+  const wpX: number[] = [];
+  const wpY: number[] = [];
+  const wpT: number[] = [];
+  for (let i = 0; i < waypointCount; i++) {
+    const pos = nxy(i + 1);
+    wpX.push(pos.x);
+    wpY.push(pos.y);
+    wpT.push(i);
+  }
+
+  const maxT = waypointCount - 1;
   const progress = useSharedValue(0);
   useEffect(() => {
+    if (maxT <= 0) return;
     progress.value = withRepeat(
-      withTiming(4, { duration: 3600, easing: Easing.linear }),
+      withTiming(maxT, { duration: maxT * 900, easing: Easing.linear }),
       -1,
       false,
     );
-  }, []);
+  }, [maxT]);
 
   const dotStyle = useAnimatedStyle(() => {
     const p = progress.value;
-    const x = interpolate(p, SIGNAL_T, SIGNAL_WP_X, Extrapolation.CLAMP);
-    const y = interpolate(p, SIGNAL_T, SIGNAL_WP_Y, Extrapolation.CLAMP);
+    const x = interpolate(p, wpT, wpX, Extrapolation.CLAMP);
+    const y = interpolate(p, wpT, wpY, Extrapolation.CLAMP);
     return {
       transform: [{ translateX: x - 5 }, { translateY: y - 5 }],
     };
   });
 
-  return <Animated.View style={[s.signalDot, dotStyle]} />;
+  return <Animated.View style={[s.signalDot, { backgroundColor: ENERGIZED_COLOR }, dotStyle]} />;
 }
 
 // ─── Path segment ──────────────────────────────────────────────────────────────
 
-function PathSegment({ from, to }: { from: number; to: number }) {
+const ENERGIZED_COLOR = '#00D4FF';
+
+function PathSegment({ from, to, getNodeState }: { from: number; to: number; getNodeState?: (id: number) => NodeState }) {
   const fc = nxy(from);
   const tc = nxy(to);
   const isH = fc.y === tc.y;
-  const fromState = getState(from);
-  const toState = getState(to);
+  const fromState = getNodeState ? getNodeState(from) : getState(from);
 
-  const isCompleted = fromState === 'completed' && toState === 'completed';
-  const isActive = (fromState === 'completed' || fromState === 'active') &&
-                   (toState === 'active' || toState === 'unplayed');
-  const color = isCompleted ? Colors.amber : isActive ? Colors.blue : Colors.dim;
-  const opacity = isCompleted ? 0.65 : isActive ? 0.45 : 0.2;
+  // Energized if the "from" node is completed (signal has passed through it)
+  const isEnergized = fromState === 'completed';
+  const color = isEnergized ? ENERGIZED_COLOR : Colors.dim;
+  const opacity = isEnergized ? 1.0 : 0.3;
 
   if (isH) {
     const leftX = Math.min(fc.x, tc.x) + NODE_R;
@@ -694,12 +706,15 @@ export default function LevelSelectScreen({ navigation }: Props) {
             <View style={{ width: MAP_W, height: MAP_H }}>
               {/* Path segments */}
               {SEGMENTS.map(([f, t]) => (
-                <PathSegment key={`${f}-${t}`} from={f} to={t} />
+                <PathSegment key={`${f}-${t}`} from={f} to={t} getNodeState={isAxiom ? getAxiomState : undefined} />
               ))}
 
-              {/* Signal dot */}
+              {/* Signal dot — travels along completed path only */}
               <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <SignalDot />
+                <SignalDot completedCount={isAxiom
+                  ? dynamicMissions.filter((_, i) => isLevelCompleted(`A1-${i + 1}`)).length
+                  : 4 /* hardcoded Kepler completed count */
+                } />
               </View>
 
               {/* Nodes */}
