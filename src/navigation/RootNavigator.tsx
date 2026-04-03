@@ -88,7 +88,7 @@ export default function RootNavigator() {
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false, animation: 'fade' }}
+        screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#06090f' } }}
       >
         {/* ── Onboarding ── */}
         <Stack.Screen name="Boot" component={BootScreen} />

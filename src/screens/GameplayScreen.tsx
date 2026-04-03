@@ -199,11 +199,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const [signalDot, setSignalDot] = useState<{ x: number; y: number } | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
-  // Fade in
-  const screenOpacity = useSharedValue(0);
-  useEffect(() => {
-    screenOpacity.value = withTiming(1, { duration: 300 });
-  }, []);
+  // Screen is immediately visible — slide_from_bottom handles entry transition
+  const screenOpacity = useSharedValue(1);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
 
   // ── Derived ──
