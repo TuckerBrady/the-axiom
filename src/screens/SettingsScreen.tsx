@@ -15,13 +15,15 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
-  interpolate,
-  interpolateColor,
 } from 'react-native-reanimated';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigation/TabNavigator';
+import Svg, { Circle, Rect, Line, Path } from 'react-native-svg';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
+import EngineerIcon from '../components/icons/EngineerIcon';
+import { AnimatedToggle } from '../components/AnimatedToggle';
+import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
 import {
   VolumeIcon,
   MusicIcon,
@@ -42,135 +44,21 @@ type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
 };
 
-// ─── Custom Animated Toggle ──────────────────────────────────────────────────
+// ─── COGS Hints Icon (amber) ─────────────────────────────────────────────────
 
-const TOGGLE_WIDTH = 48;
-const TOGGLE_HEIGHT = 26;
-const THUMB_SIZE = 20;
-const WIRE_NODE_SIZE = 8;
-const THUMB_TRAVEL = TOGGLE_WIDTH - THUMB_SIZE - 6; // 3px padding each side
-
-function CircuitToggle({
-  value,
-  onValueChange,
-}: {
-  value: boolean;
-  onValueChange: (v: boolean) => void;
-}) {
-  const progress = useSharedValue(value ? 1 : 0);
-
-  useEffect(() => {
-    progress.value = withTiming(value ? 1 : 0, { duration: 280 });
-  }, [value]);
-
-  const trackStyle = useAnimatedStyle(() => {
-    const bgColor = interpolateColor(
-      progress.value,
-      [0, 1],
-      ['transparent', Colors.blue],
-    );
-    return {
-      backgroundColor: bgColor,
-      borderWidth: interpolate(progress.value, [0, 1], [0, 1.5]),
-      borderColor: interpolateColor(
-        progress.value,
-        [0, 1],
-        ['transparent', 'rgba(74,158,255,0.4)'],
-      ),
-      opacity: progress.value,
-    };
-  });
-
-  // The dead circuit wire (visible when OFF)
-  const wireStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.5], [1, 0]),
-  }));
-
-  // Wire node (left dot visible when OFF)
-  const nodeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(progress.value, [0, 0.4], [1, 0]),
-    transform: [
-      { scale: interpolate(progress.value, [0, 0.4], [1, 0.5]) },
-    ],
-  }));
-
-  const thumbStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(progress.value, [0, 1], [0, THUMB_TRAVEL]) },
-    ],
-    backgroundColor: interpolateColor(
-      progress.value,
-      [0, 1],
-      ['rgba(58,80,112,0.6)', '#ffffff'],
-    ),
-    width: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE, THUMB_SIZE]),
-    height: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE, THUMB_SIZE]),
-    borderRadius: interpolate(progress.value, [0, 1], [WIRE_NODE_SIZE / 2, THUMB_SIZE / 2]),
-  }));
-
+function CogsHintsIcon({ size = 28 }: { size?: number }) {
   return (
-    <TouchableOpacity
-      onPress={() => onValueChange(!value)}
-      activeOpacity={0.8}
-      style={toggleStyles.container}
-    >
-      {/* Dead circuit wire line (OFF state) */}
-      <Animated.View style={[toggleStyles.wireLine, wireStyle]} />
-
-      {/* Wire node (OFF state left dot) */}
-      <Animated.View style={[toggleStyles.wireNode, nodeStyle]} />
-
-      {/* Filled track (ON state) */}
-      <Animated.View style={[toggleStyles.track, trackStyle]} />
-
-      {/* Thumb / node */}
-      <Animated.View style={[toggleStyles.thumb, thumbStyle]} />
-    </TouchableOpacity>
+    <View style={{ width: size, height: size, backgroundColor: 'rgba(200,121,65,0.08)', borderWidth: 1, borderColor: 'rgba(200,121,65,0.18)', borderRadius: 6, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size - 4} height={size - 4} viewBox="0 0 28 28" fill="none">
+        <Rect x="2" y="4" width="24" height="20" rx="5" stroke={Colors.copper} strokeWidth="1" fill="#0c1a2e" />
+        <Circle cx="9" cy="13" r="3.5" stroke={Colors.copper} strokeWidth="0.5" fill="#061830" />
+        <Circle cx="9" cy="13" r="2" fill={Colors.copper} opacity={0.8} />
+        <Circle cx="19" cy="13" r="2.8" stroke={Colors.copper} strokeWidth="0.5" fill="#061830" />
+        <Circle cx="19" cy="13" r="1.6" fill={Colors.copper} opacity={0.7} />
+      </Svg>
+    </View>
   );
 }
-
-const toggleStyles = StyleSheet.create({
-  container: {
-    width: TOGGLE_WIDTH,
-    height: TOGGLE_HEIGHT,
-    justifyContent: 'center',
-  },
-  wireLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1.5,
-    backgroundColor: 'rgba(58,80,112,0.6)',
-    top: (TOGGLE_HEIGHT - 1.5) / 2,
-  },
-  wireNode: {
-    position: 'absolute',
-    left: 3,
-    top: (TOGGLE_HEIGHT - WIRE_NODE_SIZE) / 2,
-    width: WIRE_NODE_SIZE,
-    height: WIRE_NODE_SIZE,
-    borderRadius: WIRE_NODE_SIZE / 2,
-    backgroundColor: 'rgba(58,80,112,0.4)',
-  },
-  track: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    borderRadius: TOGGLE_HEIGHT / 2,
-  },
-  thumb: {
-    position: 'absolute',
-    left: 3,
-    top: (TOGGLE_HEIGHT - THUMB_SIZE) / 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.25,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-});
 
 // ─── Section Header ──────────────────────────────────────────────────────────
 
@@ -215,7 +103,7 @@ function ToggleRow({
         <Text style={styles.rowLabel}>{label}</Text>
         {sub && <Text style={styles.rowSub}>{sub}</Text>}
       </View>
-      <CircuitToggle value={value} onValueChange={onChange} />
+      <AnimatedToggle value={value} onValueChange={onChange} />
     </Animated.View>
   );
 }
@@ -312,16 +200,47 @@ export default function SettingsScreen(_: Props) {
           />
           <View style={styles.profileBorder} />
           <View style={styles.profileAvatar}>
-            <CogsAvatar size="small" state="online" />
+            <EngineerIcon size={26} color={Colors.blue} />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>Commander</Text>
-            <Text style={styles.profileSub}>Rank: Engineer IV · 4,250 CR</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <RankInsignia rank={4} size={16} />
+              <Text style={styles.profileSub}>R04 Mechanic · 4,250 CR</Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.editBtn} activeOpacity={0.75}>
             <Text style={styles.editBtnText}>EDIT</Text>
           </TouchableOpacity>
         </Animated.View>
+
+        {/* Rank progression */}
+        <View style={styles.rankSection}>
+          <Text style={styles.rankSectionLabel}>RANK PROGRESSION</Text>
+          <View style={styles.rankGrid}>
+            {Array.from({ length: 10 }, (_, i) => {
+              const rk = i + 1;
+              const isCurrent = rk === 4;
+              const isEarned = rk <= 4;
+              return (
+                <View
+                  key={rk}
+                  style={[
+                    styles.rankCell,
+                    isCurrent && styles.rankCellCurrent,
+                  ]}
+                >
+                  <View style={{ opacity: isEarned ? 1 : 0.25 }}>
+                    <RankInsignia rank={rk} size={20} />
+                  </View>
+                  <Text style={[styles.rankCellLabel, isCurrent && { color: Colors.copper }]}>
+                    R{String(rk).padStart(2, '0')}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
 
         <ScrollView
           contentContainerStyle={styles.scroll}
@@ -340,7 +259,7 @@ export default function SettingsScreen(_: Props) {
           {/* Gameplay */}
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<CogsAvatar size="small" state="online" />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
+            <ToggleRow icon={<CogsHintsIcon size={26} />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
             <View style={styles.divider} />
             <ToggleRow icon={<BulbIcon size={18} color={Colors.amber} />} label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
             <View style={styles.divider} />
@@ -480,6 +399,41 @@ const styles = StyleSheet.create({
   },
   editBtnText: {
     fontFamily: Fonts.orbitron, fontSize: 9, color: Colors.muted, letterSpacing: 1,
+  },
+  rankSection: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+  rankSectionLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 7,
+    color: Colors.copper,
+    letterSpacing: 2,
+    marginBottom: Spacing.sm,
+    marginLeft: Spacing.xs,
+  },
+  rankGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  rankCell: {
+    width: '18%',
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 3,
+  },
+  rankCellCurrent: {
+    backgroundColor: 'rgba(200,121,65,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(200,121,65,0.25)',
+  },
+  rankCellLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 6,
+    color: Colors.dim,
+    letterSpacing: 0.5,
   },
   scroll: {
     flexGrow: 1,
