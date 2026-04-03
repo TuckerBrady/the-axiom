@@ -5,7 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -226,6 +228,7 @@ function TapRow({
   chevron,
   delay,
   onPress,
+  labelColor,
 }: {
   icon: React.ReactNode;
   label: string;
@@ -234,6 +237,7 @@ function TapRow({
   chevron?: boolean;
   delay: number;
   onPress?: () => void;
+  labelColor?: string;
 }) {
   const reveal = useSharedValue(0);
   useEffect(() => {
@@ -252,7 +256,7 @@ function TapRow({
       >
         <View style={styles.rowIconWrap}>{icon}</View>
         <View style={styles.rowInfo}>
-          <Text style={styles.rowLabel}>{label}</Text>
+          <Text style={[styles.rowLabel, labelColor ? { color: labelColor } : undefined]}>{label}</Text>
           {sub && <Text style={styles.rowSub}>{sub}</Text>}
         </View>
         {value && <Text style={styles.rowValue}>{value}</Text>}
@@ -353,6 +357,35 @@ export default function SettingsScreen(_: Props) {
             <TapRow icon={<CloudIcon size={18} color={Colors.blue} />} label="Cloud Save" sub="Last synced: just now" chevron delay={650} />
             <View style={styles.divider} />
             <TapRow icon={<PadlockIcon size={18} color={Colors.blue} />} label="Privacy Settings" chevron delay={700} />
+            {__DEV__ && (
+              <>
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.red, fontSize: 14, fontWeight: 'bold' }}>!</Text>}
+                  label="Reset Onboarding (Dev)"
+                  labelColor={Colors.red}
+                  sub="Clears onboarding flag — restarts flow"
+                  delay={720}
+                  onPress={() => {
+                    Alert.alert(
+                      'Reset Onboarding',
+                      'This will clear the onboarding flag. Restart the app to see the onboarding flow.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Reset',
+                          style: 'destructive',
+                          onPress: async () => {
+                            await AsyncStorage.removeItem('@axiom_onboarding_complete');
+                            Alert.alert('Done', 'Restart the app to see onboarding.');
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                />
+              </>
+            )}
           </View>
 
           {/* About */}
