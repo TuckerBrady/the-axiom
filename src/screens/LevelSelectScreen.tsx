@@ -523,10 +523,11 @@ type SheetProps = {
   onClose: () => void;
   onLaunch: () => void;
   sheetStyle: object;
+  getStateOverride?: (id: number) => NodeState;
 };
 
-function BottomSheet({ mission, onClose, onLaunch, sheetStyle }: SheetProps) {
-  const state = getState(mission.id);
+function BottomSheet({ mission, onClose, onLaunch, sheetStyle, getStateOverride }: SheetProps) {
+  const state = getStateOverride ? getStateOverride(mission.id) : getState(mission.id);
   const isCompleted = state === 'completed';
   const isLocked = state === 'locked';
 
@@ -866,6 +867,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
           navigation.navigate('Gameplay');
         }}
         sheetStyle={sheetStyle}
+        getStateOverride={isAxiom ? getAxiomState : undefined}
       />
     </Animated.View>
   );
