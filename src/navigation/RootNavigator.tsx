@@ -8,6 +8,7 @@ import LaunchScreen from '../screens/LaunchScreen';
 import LevelSelectScreen from '../screens/LevelSelectScreen';
 import GameplayScreen from '../screens/GameplayScreen';
 import StoreScreen from '../screens/StoreScreen';
+import MissionDossierScreen from '../screens/MissionDossierScreen';
 import DailyRewardScreen from '../screens/DailyRewardScreen';
 import TabNavigator from './TabNavigator';
 
@@ -38,6 +39,17 @@ export type RootStackParamList = {
   Tabs: undefined;
   Launch: undefined;
   LevelSelect: undefined;
+  MissionDossier: {
+    missionId: number;
+    missionName: string;
+    iconType: string;
+    stars: number;
+    bestTime: string;
+    piecesUsed: number;
+    cogsQuote: string;
+    levelId: string | undefined;
+    nodeState: 'completed' | 'active' | 'unplayed' | 'locked';
+  };
   Gameplay: undefined;
   Store: undefined;
 };
@@ -105,6 +117,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen name="Launch" component={LaunchScreen} />
         <Stack.Screen name="LevelSelect" component={LevelSelectScreen} />
+        <Stack.Screen name="MissionDossier" component={MissionDossierScreen} />
         <Stack.Screen
           name="Gameplay"
           component={GameplayScreen}

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,6 @@ import Animated, {
   interpolate,
   Extrapolation,
   Easing,
-  runOnJS,
 } from 'react-native-reanimated';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path, Circle, Line, Rect } from 'react-native-svg';
@@ -30,8 +29,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
-import { useGameStore } from '../store/gameStore';
-import { getLevelById, AXIOM_LEVELS } from '../game/levels';
+import { AXIOM_LEVELS } from '../game/levels';
 import { useProgressionStore } from '../store/progressionStore';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -517,124 +515,6 @@ function MissionNode({ mission, onPress, getStateOverride }: NodeProps) {
   );
 }
 
-// ─── Bottom sheet ──────────────────────────────────────────────────────────────
-
-type SheetProps = {
-  mission: Mission;
-  onClose: () => void;
-  onLaunch: () => void;
-  sheetStyle: object;
-  getStateOverride?: (id: number) => NodeState;
-};
-
-function BottomSheet({ mission, onClose, onLaunch, sheetStyle, getStateOverride }: SheetProps) {
-  const state = getStateOverride ? getStateOverride(mission.id) : getState(mission.id);
-  const isCompleted = state === 'completed';
-  const isLocked = state === 'locked';
-
-  return (
-    <Animated.View style={[s.sheet, sheetStyle]}>
-      <LinearGradient
-        colors={[Colors.void, Colors.navy]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-      {/* Full-bleed machine preview */}
-      <View style={s.previewArea} pointerEvents="none">
-        <MissionIcon type={mission.iconType} size={72} color={Colors.blue} />
-        <LinearGradient
-          colors={['transparent', Colors.navy]}
-          style={[StyleSheet.absoluteFill, { top: '40%' }]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0, y: 1 }}
-        />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={s.sheetScroll}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        {/* Header row */}
-        <View style={s.sheetHeader}>
-          <Text style={s.sheetMissionLabel}>MISSION {mission.id}</Text>
-          <TouchableOpacity onPress={onClose} style={s.sheetCloseBtn}>
-            <Text style={s.sheetCloseText}>✕</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Text style={s.sheetTitle}>{mission.name}</Text>
-
-        {/* Star rating */}
-        <View style={s.sheetStars}>
-          {[0, 1, 2].map(i => (
-            <Text key={i} style={[s.sheetStar, { opacity: mission.stars > i ? 1 : 0.18 }]}>★</Text>
-          ))}
-        </View>
-
-        {/* Stats grid */}
-        <View style={s.statsGrid}>
-          <View style={s.statCell}>
-            <Text style={s.statValue}>{isCompleted ? mission.bestTime : '—'}</Text>
-            <Text style={s.statKey}>BEST TIME</Text>
-          </View>
-          <View style={[s.statCell, s.statBorder]}>
-            <Text style={s.statValue}>{isCompleted ? String(mission.piecesUsed) : '—'}</Text>
-            <Text style={s.statKey}>PIECES USED</Text>
-          </View>
-          <View style={[s.statCell, s.statBorder]}>
-            <View style={{ flexDirection: 'row', gap: 2 }}>
-              {[0, 1, 2].map(i => (
-                <Text key={i} style={[s.statStar, { opacity: mission.stars > i ? 1 : 0.2 }]}>★</Text>
-              ))}
-            </View>
-            <Text style={s.statKey}>STAR RATING</Text>
-          </View>
-        </View>
-
-        {/* Cogs analysis */}
-        <View style={s.cogsCard}>
-          <View style={s.cogsCardHeader}>
-            <CogsAvatar size="small" state="online" />
-            <Text style={s.cogsCardTitle}>COGS ANALYSIS</Text>
-          </View>
-          <Text style={s.cogsCardQuote}>"{mission.cogsQuote}"</Text>
-        </View>
-
-        {/* Launch / Replay button */}
-        <TouchableOpacity
-          style={[s.launchBtn, isLocked && s.launchBtnDim]}
-          onPress={isLocked ? undefined : onLaunch}
-          activeOpacity={isLocked ? 1 : 0.8}
-        >
-          <LinearGradient
-            colors={isCompleted
-              ? [Colors.steel, Colors.navy]
-              : isLocked
-              ? ['rgba(58,80,112,0.4)', 'rgba(10,22,40,0.6)']
-              : [Colors.blue, '#2a7ee0']}
-            style={s.launchBtnGrad}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            {isLocked ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <PadlockIcon size={14} color={Colors.dim} />
-                <Text style={[s.launchBtnText, { color: Colors.dim }]}>LOCKED</Text>
-              </View>
-            ) : isCompleted ? (
-              <Text style={s.launchBtnText}>⟳  REPLAY MISSION</Text>
-            ) : (
-              <Text style={s.launchBtnText}>▶  LAUNCH MISSION</Text>
-            )}
-          </LinearGradient>
-        </TouchableOpacity>
-      </ScrollView>
-    </Animated.View>
-  );
-}
-
 // ─── Main screen ───────────────────────────────────────────────────────────────
 
 type Props = {
@@ -666,7 +546,6 @@ const AXIOM_LEVEL_MAP: Record<number, string> = {
 };
 
 export default function LevelSelectScreen({ navigation }: Props) {
-  const setLevel = useGameStore(s => s.setLevel);
   const { activeSector, isLevelCompleted, getLevelStars } = useProgressionStore();
   const isAxiom = activeSector === 'A1';
 
@@ -680,7 +559,6 @@ export default function LevelSelectScreen({ navigation }: Props) {
   const dynamicMissions = isAxiom
     ? missions.map((m, i) => {
         const lid = `A1-${i + 1}`;
-        const completed = isLevelCompleted(lid);
         const stars = getLevelStars(lid);
         return { ...m, stars };
       })
@@ -694,20 +572,14 @@ export default function LevelSelectScreen({ navigation }: Props) {
   const getAxiomState = (id: number): NodeState => {
     const lid = `A1-${id}`;
     if (isLevelCompleted(lid)) return 'completed';
-    // First incomplete level is active, next is unplayed, rest locked
     const firstIncomplete = dynamicMissions.findIndex((m, i) => !isLevelCompleted(`A1-${i + 1}`)) + 1;
     if (id === firstIncomplete) return 'active';
     if (id === firstIncomplete + 1) return 'unplayed';
     return 'locked';
   };
 
-  const [displayedMission, setDisplayedMission] = useState<Mission>(isAxiom ? dynamicMissions[0] : MISSIONS[4]);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
   const screenOpacity = useSharedValue(0);
   const contentReveal = useSharedValue(0);
-  const sheetY = useSharedValue(H);
-  const backdropOpacity = useSharedValue(0);
   const mapReveal = useSharedValue(0);
 
   useEffect(() => {
@@ -716,31 +588,26 @@ export default function LevelSelectScreen({ navigation }: Props) {
     mapReveal.value = withDelay(300, withTiming(1, { duration: 700 }));
   }, []);
 
-  const openSheet = useCallback((mission: Mission) => {
-    setDisplayedMission(mission);
-    setSheetOpen(true);
-    sheetY.value = withTiming(H * 0.22, { duration: 370, easing: Easing.out(Easing.cubic) });
-    backdropOpacity.value = withTiming(0.7, { duration: 300 });
-  }, []);
-
-  const closeSheet = useCallback(() => {
-    sheetY.value = withTiming(H, { duration: 320, easing: Easing.in(Easing.cubic) }, (done) => {
-      if (done) runOnJS(setSheetOpen)(false);
+  const handleNodePress = useCallback((mission: Mission) => {
+    const state = isAxiom ? getAxiomState(mission.id) : getState(mission.id);
+    navigation.navigate('MissionDossier', {
+      missionId: mission.id,
+      missionName: mission.name,
+      iconType: mission.iconType,
+      stars: mission.stars,
+      bestTime: mission.bestTime,
+      piecesUsed: mission.piecesUsed,
+      cogsQuote: mission.cogsQuote,
+      levelId: levelMap[mission.id],
+      nodeState: state,
     });
-    backdropOpacity.value = withTiming(0, { duration: 260 });
-  }, []);
+  }, [isAxiom, levelMap, navigation]);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
   const contentStyle = useAnimatedStyle(() => ({ opacity: contentReveal.value }));
   const mapStyle = useAnimatedStyle(() => ({
     opacity: mapReveal.value,
     transform: [{ translateY: (1 - mapReveal.value) * 20 }],
-  }));
-  const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: sheetY.value }],
-  }));
-  const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
   }));
 
   return (
@@ -836,7 +703,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
 
               {/* Nodes */}
               {dynamicMissions.slice(0, 12).map(m => (
-                <MissionNode key={m.id} mission={m} onPress={openSheet} getStateOverride={isAxiom ? getAxiomState : undefined} />
+                <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={isAxiom ? getAxiomState : undefined} />
               ))}
             </View>
           </Animated.View>
@@ -845,29 +712,6 @@ export default function LevelSelectScreen({ navigation }: Props) {
         </ScrollView>
       </SafeAreaView>
 
-      {/* ── Backdrop ── */}
-      {sheetOpen && (
-        <Animated.View style={[StyleSheet.absoluteFill, s.backdrop, backdropStyle]} pointerEvents="auto">
-          <TouchableOpacity style={StyleSheet.absoluteFill} onPress={closeSheet} activeOpacity={1} />
-        </Animated.View>
-      )}
-
-      {/* ── Bottom sheet ── */}
-      <BottomSheet
-        mission={displayedMission}
-        onClose={closeSheet}
-        onLaunch={() => {
-          closeSheet();
-          const levelId = levelMap[displayedMission.id];
-          const levelDef = levelId ? getLevelById(levelId) : undefined;
-          if (levelDef) {
-            setLevel(levelDef);
-          }
-          navigation.navigate('Gameplay');
-        }}
-        sheetStyle={sheetStyle}
-        getStateOverride={isAxiom ? getAxiomState : undefined}
-      />
     </Animated.View>
   );
 }
@@ -1148,148 +992,4 @@ const s = StyleSheet.create({
     }),
   },
 
-  // Backdrop
-  backdrop: {
-    backgroundColor: Colors.void,
-  },
-
-  // Bottom sheet
-  sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: H * 0.78,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    overflow: 'hidden',
-    borderTopWidth: 1,
-    borderColor: 'rgba(74,158,255,0.25)',
-  },
-  previewArea: {
-    height: 130,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  sheetScroll: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: 40,
-    gap: Spacing.md,
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-  },
-  sheetMissionLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.copper,
-    letterSpacing: 2,
-  },
-  sheetCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheetCloseText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: 11,
-    color: Colors.muted,
-  },
-  sheetTitle: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.xxl,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 1,
-  },
-  sheetStars: { flexDirection: 'row', gap: 4 },
-  sheetStar: { fontSize: 20, color: Colors.amber },
-
-  // Stats grid in sheet
-  statsGrid: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(26,58,92,0.3)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.12)',
-    overflow: 'hidden',
-  },
-  statCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.md,
-    gap: 4,
-  },
-  statBorder: {
-    borderLeftWidth: 1,
-    borderLeftColor: 'rgba(74,158,255,0.12)',
-  },
-  statValue: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-  },
-  statKey: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 7,
-    color: Colors.muted,
-    letterSpacing: 1,
-  },
-  statStar: { fontSize: 14, color: Colors.amber },
-
-  // Cogs card in sheet
-  cogsCard: {
-    backgroundColor: 'rgba(10,18,30,0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.18)',
-    borderRadius: 14,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  cogsCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  cogsCardTitle: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.blue,
-    letterSpacing: 1.5,
-  },
-  cogsCardQuote: {
-    fontFamily: Fonts.exo2,
-    fontSize: 13,
-    color: Colors.cream,
-    fontStyle: 'italic',
-    lineHeight: 20,
-  },
-
-  // Launch button
-  launchBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginTop: Spacing.sm,
-  },
-  launchBtnDim: { opacity: 0.5 },
-  launchBtnGrad: {
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  launchBtnText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 2,
-  },
 });
