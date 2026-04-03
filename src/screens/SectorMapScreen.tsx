@@ -14,87 +14,175 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
+import type { CompositeNavigationProp } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
+import type { TabParamList } from '../navigation/TabNavigator';
 import StarField from '../components/StarField';
+import ShipIcon from '../components/icons/ShipIcon';
+import { KeplerBeltIcon, NovaFringeIcon, RiftIcon, DeepVoidIcon } from '../components/icons/SectorIcons';
+import PadlockIcon from '../components/icons/PadlockIcon';
+import SectorsIcon from '../components/icons/SectorsIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import { useProgressionStore, AXIOM_TOTAL_LEVELS } from '../store/progressionStore';
 
-type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'SectorMap'>;
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type SectorStatus = 'completed' | 'active' | 'locked';
+
+type SectorIconType = 'axiom' | 'kepler' | 'nova' | 'rift' | 'deep';
 
 type Sector = {
   id: string;
   name: string;
   subtitle: string;
-  emoji: string;
-  levels: string;
-  status: 'unlocked' | 'locked' | 'active';
-  color: string;
-  glowColor: string;
+  iconType: SectorIconType;
+  levelsCompleted: number;
+  levelsTotal: number;
+  status: SectorStatus;
+  borderColor: string;
+  accentColor: string;
+  glowColor: string | null;
 };
+
+// ─── Sector data ──────────────────────────────────────────────────────────────
 
 const SECTORS: Sector[] = [
   {
     id: 'kepler',
     name: 'Kepler Belt',
     subtitle: 'Asteroid fields & relay stations',
-    emoji: '🪨',
-    levels: '8 levels',
-    status: 'active',
-    color: Colors.copper,
-    glowColor: 'rgba(200,121,65,0.3)',
+    iconType: 'kepler',
+    levelsCompleted: 8,
+    levelsTotal: 8,
+    status: 'completed',
+    borderColor: 'rgba(78,203,141,0.4)',
+    accentColor: Colors.green,
+    glowColor: null,
   },
   {
     id: 'nova',
     name: 'Nova Fringe',
     subtitle: 'Stellar nursery & plasma storms',
-    emoji: '💫',
-    levels: '10 levels',
-    status: 'unlocked',
-    color: Colors.blue,
-    glowColor: 'rgba(74,158,255,0.25)',
+    iconType: 'nova',
+    levelsCompleted: 3,
+    levelsTotal: 10,
+    status: 'active',
+    borderColor: 'rgba(200,121,65,0.5)',
+    accentColor: Colors.copper,
+    glowColor: 'rgba(200,121,65,0.18)',
   },
   {
     id: 'rift',
     name: 'The Rift',
     subtitle: 'Dimensional anomaly zone',
-    emoji: '🌀',
-    levels: '6 levels',
-    status: 'unlocked',
-    color: Colors.circuit,
-    glowColor: 'rgba(167,139,250,0.25)',
+    iconType: 'rift',
+    levelsCompleted: 0,
+    levelsTotal: 6,
+    status: 'locked',
+    borderColor: 'rgba(58,80,112,0.3)',
+    accentColor: Colors.dim,
+    glowColor: null,
   },
   {
     id: 'deep',
     name: 'Deep Void',
     subtitle: 'Unknown space — hostile',
-    emoji: '🕳️',
-    levels: '12 levels',
+    iconType: 'deep',
+    levelsCompleted: 0,
+    levelsTotal: 12,
     status: 'locked',
-    color: Colors.dim,
-    glowColor: 'rgba(58,80,112,0.2)',
+    borderColor: 'rgba(58,80,112,0.3)',
+    accentColor: Colors.dim,
+    glowColor: null,
   },
 ];
 
-function SectorCard({
-  sector,
-  delay,
-  onPress,
+// ─── Status label helpers ─────────────────────────────────────────────────────
+
+function statusLabel(status: SectorStatus): string {
+  if (status === 'completed') return 'COMPLETED ✓';
+  if (status === 'active') return 'IN PROGRESS';
+  return 'LOCKED';
+}
+
+function statusLabelColor(status: SectorStatus, accentColor: string): string {
+  if (status === 'locked') return Colors.dim;
+  return accentColor;
+}
+
+// ─── Progress bar ─────────────────────────────────────────────────────────────
+
+function ProgressBar({
+  completed,
+  total,
+  color,
 }: {
+  completed: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 0 ? completed / total : 0;
+  return (
+    <View style={styles.progressTrack}>
+      <View
+        style={[
+          styles.progressFill,
+          { width: `${Math.round(pct * 100)}%` as unknown as number, backgroundColor: color },
+        ]}
+      />
+    </View>
+  );
+}
+
+// ─── Sector icon resolver ────────────────────────────────────────────────────
+
+function SectorIcon({ iconType, size, color }: { iconType: SectorIconType; size: number; color: string }) {
+  switch (iconType) {
+    case 'axiom':
+      return <ShipIcon size={size} color={color} />;
+    case 'kepler':
+      return <KeplerBeltIcon size={size} color={color} />;
+    case 'nova':
+      return <NovaFringeIcon size={size} color={color} />;
+    case 'rift':
+      return <RiftIcon size={size} color={color} />;
+    case 'deep':
+      return <DeepVoidIcon size={size} color={color} />;
+  }
+}
+
+// ─── Sector card ─────────────────────────────────────────────────────────────
+
+type SectorCardProps = {
   sector: Sector;
   delay: number;
   onPress: () => void;
-}) {
+};
+
+function SectorCard({ sector, delay, onPress }: SectorCardProps) {
   const reveal = useSharedValue(0);
   useEffect(() => {
     reveal.value = withDelay(delay, withTiming(1, { duration: 500 }));
   }, []);
-  const style = useAnimatedStyle(() => ({ opacity: reveal.value }));
+  const animStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
+
   const locked = sector.status === 'locked';
+  const levelText = `${sector.levelsCompleted} / ${sector.levelsTotal} levels`;
+
+  const cardShadow = sector.glowColor
+    ? {
+        shadowColor: Colors.copper,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.35,
+        shadowRadius: 8,
+        elevation: 6,
+      }
+    : {};
 
   return (
-    <Animated.View style={[styles.sectorCard, style]}>
+    <Animated.View style={[styles.sectorCard, cardShadow, animStyle]}>
       <TouchableOpacity
         onPress={locked ? undefined : onPress}
         activeOpacity={locked ? 1 : 0.8}
@@ -103,8 +191,8 @@ function SectorCard({
         <LinearGradient
           colors={
             locked
-              ? ['rgba(20,30,45,0.6)', 'rgba(10,18,30,0.8)']
-              : ['rgba(26,58,92,0.7)', 'rgba(10,22,40,0.9)']
+              ? ['rgba(14,22,35,0.7)', 'rgba(10,15,24,0.85)']
+              : ['rgba(26,58,92,0.7)', 'rgba(10,22,40,0.92)']
           }
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
@@ -113,23 +201,32 @@ function SectorCard({
         <View
           style={[
             styles.sectorBorder,
-            {
-              borderColor: locked
-                ? 'rgba(58,80,112,0.3)'
-                : sector.glowColor,
-            },
+            { borderColor: sector.borderColor },
           ]}
         />
+
         <View style={styles.sectorRow}>
+          {/* Icon circle */}
           <View
             style={[
               styles.sectorIcon,
-              { backgroundColor: sector.glowColor },
+              {
+                backgroundColor: locked
+                  ? 'rgba(58,80,112,0.2)'
+                  : `rgba(${iconBgComponents(sector.accentColor)},0.18)`,
+              },
             ]}
           >
-            <Text style={styles.sectorEmoji}>{sector.emoji}</Text>
+            {locked ? (
+              <PadlockIcon size={16} color={Colors.dim} />
+            ) : (
+              <SectorIcon iconType={sector.iconType} size={26} color={sector.accentColor} />
+            )}
           </View>
+
+          {/* Info column */}
           <View style={styles.sectorInfo}>
+            {/* Name + status badge row */}
             <View style={styles.sectorNameRow}>
               <Text
                 style={[
@@ -139,17 +236,31 @@ function SectorCard({
               >
                 {sector.name}
               </Text>
-              {sector.status === 'active' && (
-                <View style={styles.activeBadge}>
-                  <Text style={styles.activeBadgeText}>ACTIVE</Text>
-                </View>
-              )}
-              {locked && (
-                <View style={styles.lockedBadge}>
-                  <Text style={styles.lockedBadgeText}>🔒</Text>
-                </View>
-              )}
+              <View
+                style={[
+                  styles.statusBadge,
+                  {
+                    borderColor: locked
+                      ? 'rgba(58,80,112,0.4)'
+                      : sector.borderColor,
+                    backgroundColor: locked
+                      ? 'rgba(58,80,112,0.08)'
+                      : `rgba(${iconBgComponents(sector.accentColor)},0.1)`,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusBadgeText,
+                    { color: statusLabelColor(sector.status, sector.accentColor) },
+                  ]}
+                >
+                  {statusLabel(sector.status)}
+                </Text>
+              </View>
             </View>
+
+            {/* Subtitle */}
             <Text
               style={[
                 styles.sectorSub,
@@ -158,9 +269,23 @@ function SectorCard({
             >
               {sector.subtitle}
             </Text>
-            <Text style={[styles.sectorLevels, { color: sector.color }]}>
-              {sector.levels}
+
+            {/* Level count */}
+            <Text
+              style={[
+                styles.sectorLevels,
+                { color: sector.accentColor },
+              ]}
+            >
+              {levelText}
             </Text>
+
+            {/* Progress bar */}
+            <ProgressBar
+              completed={sector.levelsCompleted}
+              total={sector.levelsTotal}
+              color={sector.accentColor}
+            />
           </View>
         </View>
       </TouchableOpacity>
@@ -168,7 +293,54 @@ function SectorCard({
   );
 }
 
+// Helper: extract r,g,b string from a known token color for inline rgba backgrounds.
+// We use a simple lookup rather than parsing hex to keep it clean.
+function iconBgComponents(color: string): string {
+  if (color === Colors.green) return '78,203,141';
+  if (color === Colors.copper) return '200,121,65';
+  if (color === Colors.blue) return '74,158,255';
+  if (color === Colors.circuit) return '167,139,250';
+  if (color === Colors.amber) return '240,180,41';
+  if (color === Colors.dim) return '58,80,112';
+  return '74,158,255';
+}
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
+
+type Props = {
+  navigation: CompositeNavigationProp<
+    BottomTabNavigationProp<TabParamList, 'SectorMap'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
+};
+
 export default function SectorMapScreen({ navigation }: Props) {
+  const { getSectorCompletedCount, setActiveSector } = useProgressionStore();
+  const axiomCompleted = getSectorCompletedCount('A1-');
+  const axiomDone = axiomCompleted >= AXIOM_TOTAL_LEVELS;
+
+  // Build dynamic sector list with The Axiom at top
+  const axiomSector: Sector = {
+    id: 'axiom',
+    name: 'The Axiom',
+    subtitle: 'Shipboard systems repair campaign',
+    iconType: 'axiom',
+    levelsCompleted: axiomCompleted,
+    levelsTotal: AXIOM_TOTAL_LEVELS,
+    status: axiomDone ? 'completed' : 'active',
+    borderColor: axiomDone ? 'rgba(78,203,141,0.4)' : 'rgba(74,158,255,0.5)',
+    accentColor: axiomDone ? Colors.green : Colors.blue,
+    glowColor: axiomDone ? null : 'rgba(74,158,255,0.18)',
+  };
+
+  // Kepler unlocks after Axiom is complete
+  const keplerStatus: SectorStatus = axiomDone ? 'active' : 'locked';
+  const dynamicSectors: Sector[] = [
+    axiomSector,
+    { ...SECTORS[0], status: keplerStatus, borderColor: axiomDone ? 'rgba(200,121,65,0.5)' : 'rgba(58,80,112,0.3)', accentColor: axiomDone ? Colors.copper : Colors.dim, glowColor: axiomDone ? 'rgba(200,121,65,0.18)' : null, levelsCompleted: axiomDone ? getSectorCompletedCount('2-') : 0 },
+    ...SECTORS.slice(1),
+  ];
+
   const screenOpacity = useSharedValue(0);
   const headerReveal = useSharedValue(0);
 
@@ -182,21 +354,15 @@ export default function SectorMapScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[styles.root, screenStyle]}>
-      <StarField seed={2} />
+      <StarField seed={1} />
 
       <SafeAreaView style={styles.safeArea}>
-        {/* Header */}
+        {/* ── Header ── */}
         <Animated.View style={[styles.header, headerRevealStyle]}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={styles.backBtn}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
+          <View style={styles.backBtn} />
           <View style={styles.headerCenter}>
-            <Text style={styles.headerLabel}>NAVIGATION</Text>
             <Text style={styles.headerTitle}>SECTOR MAP</Text>
+            <Text style={styles.headerLabel}>NAVIGATION</Text>
           </View>
           <View style={styles.headerSpacer} />
         </Animated.View>
@@ -205,22 +371,23 @@ export default function SectorMapScreen({ navigation }: Props) {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Galaxy visual */}
-          <Animated.View
-            style={[styles.galaxyContainer, headerRevealStyle]}
-          >
-            <Text style={styles.galaxyEmoji}>🌌</Text>
+          {/* ── Galaxy header ── */}
+          <Animated.View style={[styles.galaxyContainer, headerRevealStyle]}>
+            <SectorsIcon size={32} color={Colors.blue} />
             <Text style={styles.galaxyLabel}>ANDROS CLUSTER</Text>
-            <Text style={styles.galaxyCoords}>COORDS: 47.2N · 183.5E</Text>
+            <Text style={styles.galaxyCoords}>47.2N · 183.5E</Text>
           </Animated.View>
 
-          {/* Sector cards */}
-          {SECTORS.map((sector, i) => (
+          {/* ── Sector cards ── */}
+          {dynamicSectors.map((sector, i) => (
             <SectorCard
               key={sector.id}
               sector={sector}
-              delay={200 + i * 120}
-              onPress={() => navigation.navigate('LevelSelect')}
+              delay={i * 120}
+              onPress={() => {
+                setActiveSector(sector.id === 'axiom' ? 'A1' : sector.id === 'kepler' ? 'K' : sector.id);
+                navigation.navigate('LevelSelect');
+              }}
             />
           ))}
         </ScrollView>
@@ -229,12 +396,18 @@ export default function SectorMapScreen({ navigation }: Props) {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.void,
   },
-  safeArea: { flex: 1 },
+  safeArea: {
+    flex: 1,
+  },
+
+  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -251,15 +424,12 @@ const styles = StyleSheet.create({
   },
   backArrow: {
     fontFamily: Fonts.orbitron,
-    fontSize: 20,
+    fontSize: FontSizes.lg,
     color: Colors.muted,
   },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
-    letterSpacing: 2,
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
     fontFamily: Fonts.orbitron,
@@ -268,7 +438,18 @@ const styles = StyleSheet.create({
     color: Colors.starWhite,
     letterSpacing: 2,
   },
-  headerSpacer: { width: 36 },
+  headerLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    letterSpacing: 2,
+    marginTop: 2,
+  },
+  headerSpacer: {
+    width: 36,
+  },
+
+  // Scroll
   scroll: {
     flexGrow: 1,
     paddingHorizontal: Spacing.lg,
@@ -276,11 +457,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     gap: Spacing.md,
   },
+
+  // Galaxy header
   galaxyContainer: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
-  galaxyEmoji: { fontSize: 64, marginBottom: Spacing.sm },
+  galaxyEmoji: {
+    fontSize: 56,
+    marginBottom: Spacing.sm,
+  },
   galaxyLabel: {
     fontFamily: Fonts.orbitron,
     fontSize: FontSizes.md,
@@ -294,12 +480,14 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 4,
   },
+
+  // Sector card
   sectorCard: {
     borderRadius: 14,
     overflow: 'hidden',
   },
   sectorCardTouch: {
-    minHeight: 88,
+    minHeight: 100,
   },
   sectorBorder: {
     ...StyleSheet.absoluteFillObject,
@@ -318,44 +506,55 @@ const styles = StyleSheet.create({
     borderRadius: 26,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  sectorEmoji: { fontSize: 26 },
-  sectorInfo: { flex: 1 },
+  sectorInfo: {
+    flex: 1,
+    gap: 4,
+  },
   sectorNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginBottom: 3,
+    flexWrap: 'wrap',
   },
   sectorName: {
     fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.md,
+    fontSize: FontSizes.sm,
     fontWeight: 'bold',
   },
-  activeBadge: {
-    backgroundColor: 'rgba(200,121,65,0.2)',
+  statusBadge: {
     borderWidth: 1,
-    borderColor: 'rgba(200,121,65,0.5)',
     borderRadius: 6,
     paddingHorizontal: 5,
     paddingVertical: 2,
   },
-  activeBadgeText: {
+  statusBadgeText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 7,
-    color: Colors.copper,
-    letterSpacing: 1,
+    letterSpacing: 0.5,
   },
-  lockedBadge: { marginLeft: 2 },
-  lockedBadgeText: { fontSize: 12 },
   sectorSub: {
     fontFamily: Fonts.exo2,
     fontSize: FontSizes.sm,
-    marginBottom: 4,
   },
   sectorLevels: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
     letterSpacing: 1,
+  },
+
+  // Progress bar
+  progressTrack: {
+    width: '100%',
+    height: 3,
+    backgroundColor: 'rgba(58,80,112,0.35)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginTop: 2,
+  },
+  progressFill: {
+    height: 3,
+    borderRadius: 2,
   },
 });
