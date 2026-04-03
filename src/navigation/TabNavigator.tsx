@@ -1,5 +1,4 @@
 import React from 'react';
-import { Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import HubScreen from '../screens/HubScreen';
@@ -7,6 +6,12 @@ import SectorMapScreen from '../screens/SectorMapScreen';
 import CodexScreen from '../screens/CodexScreen';
 import FreeBuildScreen from '../screens/FreeBuildScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+
+import ShipIcon from '../components/icons/ShipIcon';
+import SectorsIcon from '../components/icons/SectorsIcon';
+import CodexIcon from '../components/icons/CodexIcon';
+import WorkshopIcon from '../components/icons/WorkshopIcon';
+import EngineerIcon from '../components/icons/EngineerIcon';
 
 export type TabParamList = {
   Hub: undefined;
@@ -41,7 +46,7 @@ export default function TabNavigator() {
         component={HubScreen}
         options={{
           tabBarLabel: 'Ship',
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>🚀</Text>,
+          tabBarIcon: ({ color }) => <ShipIcon size={20} color={color} />,
         }}
       />
       <Tab.Screen
@@ -49,7 +54,7 @@ export default function TabNavigator() {
         component={SectorMapScreen}
         options={{
           tabBarLabel: 'Sectors',
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>🗺️</Text>,
+          tabBarIcon: ({ color }) => <SectorsIcon size={20} color={color} />,
         }}
       />
       <Tab.Screen
@@ -57,7 +62,7 @@ export default function TabNavigator() {
         component={CodexScreen}
         options={{
           tabBarLabel: 'Codex',
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>📖</Text>,
+          tabBarIcon: ({ color }) => <CodexIcon size={20} color={color} />,
         }}
       />
       <Tab.Screen
@@ -65,15 +70,21 @@ export default function TabNavigator() {
         component={FreeBuildScreen}
         options={{
           tabBarLabel: 'Workshop',
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>⚙️</Text>,
+          tabBarIcon: ({ color }) => <WorkshopIcon size={20} color={color} />,
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            e.preventDefault();
+            navigation.navigate('Store');
+          },
+        })}
       />
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
         options={{
           tabBarLabel: 'Engineer',
-          tabBarIcon: () => <Text style={{ fontSize: 18 }}>🤖</Text>,
+          tabBarIcon: ({ color }) => <EngineerIcon size={20} color={color} />,
         }}
       />
     </Tab.Navigator>
