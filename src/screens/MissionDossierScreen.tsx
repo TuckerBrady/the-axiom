@@ -1,10 +1,13 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Animated,
+  Easing,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -57,9 +60,21 @@ function MissionIcon({ type, size = 24, color = Colors.blue }: { type: MissionIc
   }
 }
 
+const { height: screenHeight } = Dimensions.get('window');
+
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function MissionDossierScreen({ navigation, route }: Props) {
+  const slideAnim = useRef(new Animated.Value(screenHeight)).current;
+
+  useEffect(() => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, []);
   const {
     missionId,
     missionName,
@@ -87,6 +102,7 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
   };
 
   return (
+    <Animated.View style={{ flex: 1, transform: [{ translateY: slideAnim }] }}>
     <View style={st.root}>
       <SafeAreaView style={st.safeArea}>
         {/* ── Header ── */}
@@ -181,6 +197,7 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
         </View>
       </SafeAreaView>
     </View>
+    </Animated.View>
   );
 }
 
