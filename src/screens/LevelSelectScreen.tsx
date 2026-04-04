@@ -447,7 +447,7 @@ function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProp
   const borderColor = isCompleted
     ? 'rgba(200,121,65,0.9)'
     : isActive
-    ? Colors.blue
+    ? Colors.green
     : isUnplayed
     ? 'rgba(74,158,255,0.55)'
     : 'rgba(58,80,112,0.3)';
@@ -455,7 +455,7 @@ function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProp
   const bgColor = isCompleted
     ? `${Colors.amber}22`
     : isActive
-    ? `${Colors.blue}18`
+    ? `${Colors.green}18`
     : isUnplayed
     ? 'rgba(10,22,40,0.7)'
     : 'rgba(8,14,24,0.85)';
@@ -488,7 +488,7 @@ function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProp
         ]}
       >
         {isCompleted && <Text style={s.nodeCheck}>✓</Text>}
-        {isActive && <Text style={[s.nodeNum, { color: Colors.blue }]}>{mission.id}</Text>}
+        {isActive && <Text style={[s.nodeNum, { color: Colors.green }]}>{mission.id}</Text>}
         {isUnplayed && <Text style={[s.nodeNum, { color: Colors.muted }]}>{mission.id}</Text>}
         {isLocked && <PadlockIcon size={14} />}
       </TouchableOpacity>
@@ -522,12 +522,6 @@ function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProp
         />
       )}
 
-      {/* ACTIVE label below node */}
-      {isActive && (
-        <Text style={[s.nodeLabel, { position: 'absolute', top: NODE_R * 2 + 2 }]}>
-          ACTIVE
-        </Text>
-      )}
     </View>
   );
 }
