@@ -141,16 +141,17 @@ export default function HubScreen({ navigation }: Props) {
   const { currentChallenge, challengeStatus, loadOrGenerateChallenge, currentStreak } = useChallengeStore();
   const pirateActive = useConsequenceStore(s => s.activeConsequences.some(c => c.id === 'nova_boss_consequence'));
 
+  const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
+  const axiomCompleted = getSectorCompletedCount('A1-');
+  const axiomDone = axiomCompleted >= AXIOM_TOTAL_LEVELS;
+
   // Load daily challenge on mount
   useEffect(() => {
     loadOrGenerateChallenge(pirateActive);
   }, []);
 
-  const hasTransmission = challengeStatus === 'available' && !!currentChallenge;
-  const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
-
-  const axiomCompleted = getSectorCompletedCount('A1-');
-  const axiomDone = axiomCompleted >= AXIOM_TOTAL_LEVELS;
+  // Daily challenges only available after completing all 8 Axiom levels
+  const hasTransmission = axiomDone && challengeStatus === 'available' && !!currentChallenge;
 
   // Determine next mission
   const nextAxiomIdx = AXIOM_LEVELS.findIndex((_, i) => !isLevelCompleted(`A1-${i + 1}`));

@@ -88,9 +88,30 @@ export default function DailyChallengeDossierScreen({ navigation }: Props) {
             )}
           </View>
 
+          {/* Reward conditions */}
+          <View style={st.conditionsBox}>
+            <Text style={st.conditionLine}>★★★  FULL BOUNTY: {reward.creditAmount ?? 0} CR</Text>
+            <Text style={[st.conditionLine, { color: Colors.dim }]}>★★☆  PARTIAL: 0 CR</Text>
+            <Text style={[st.conditionLine, { color: Colors.dim }]}>VOID: 0 CR</Text>
+          </View>
+
           {/* One attempt warning */}
           <Text style={st.warningText}>ONE ATTEMPT</Text>
-          <Text style={st.warningSubtext}>Must achieve 3 stars to earn the reward.</Text>
+          <Text style={st.warningSubtext}>★★★ THREE STARS REQUIRED FOR FULL BOUNTY</Text>
+
+          {/* Mission requirements */}
+          <View style={st.requirementsBox}>
+            {currentChallenge.level.optimalPieces <= 3 && (
+              <Text style={st.requirementLine}>Minimal routing expected. Use only what is needed.</Text>
+            )}
+            {currentChallenge.level.dataTrail.cells.length > 0 && (
+              <Text style={st.requirementLine}>Data Trail manipulation required. The Transmitter is not optional.</Text>
+            )}
+            {currentChallenge.level.gridHeight > 6 && (
+              <Text style={st.requirementLine}>Non-linear routing required. Plan before placing.</Text>
+            )}
+            <Text style={st.requirementLine}>This transmission demands precision. The sender is not offering a second attempt.</Text>
+          </View>
 
           {/* COGS assessment */}
           <View style={st.cogsCard}>
@@ -211,6 +232,20 @@ const st = StyleSheet.create({
     fontSize: 9,
     color: Colors.muted,
   },
+  conditionsBox: {
+    backgroundColor: 'rgba(10,18,30,0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(200,121,65,0.15)',
+    borderRadius: 10,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  conditionLine: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: Colors.amber,
+    letterSpacing: 1,
+  },
   warningText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 11,
@@ -219,10 +254,21 @@ const st = StyleSheet.create({
     textAlign: 'center',
   },
   warningSubtext: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
+    letterSpacing: 2,
+    textAlign: 'center',
+  },
+  requirementsBox: {
+    gap: 6,
+  },
+  requirementLine: {
     fontFamily: Fonts.exo2,
     fontSize: 11,
-    color: Colors.dim,
-    textAlign: 'center',
+    color: Colors.muted,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
   cogsCard: {
     backgroundColor: 'rgba(10,18,30,0.95)',

@@ -50,8 +50,8 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const DOT_R = 1.5;
 const PIECE_RADIUS = 10;
 const CANVAS_PAD = 16;  // padding inside canvas area
-const MIN_CELL = 44;
-const MAX_CELL = 72;
+const MIN_CELL = 52;
+const MAX_CELL = 88;
 
 const VOID_QUOTES = [
   '"The signal did not reach Output. I observed the exact moment it failed."',
@@ -230,6 +230,14 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Derived (all hooks must be above the early return) ──
   const level = currentLevel;
+
+  // ── Daily challenge one-attempt enforcement ──
+  const isDailyChallenge = level?.sector === 'daily';
+  useEffect(() => {
+    if (!isDailyChallenge || !level) return;
+    const dateStr = level.id.replace('daily_', '');
+    AsyncStorage.setItem(`axiom_daily_${dateStr}_attempted`, '1');
+  }, [level?.id]);
 
   // ── Economy intro on first non-Axiom level ──
   useEffect(() => {
@@ -704,7 +712,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
                 const isProtocol = fromPiece.category === 'protocol' || toPiece.category === 'protocol';
                 const wireColor = isProtocol ? Colors.amber : Colors.blue;
-                const wireSW = Math.max(1.5, CELL_SIZE / 22);
+                const wireSW = Math.max(2, CELL_SIZE / 18);
                 const dashOn = Math.round(CELL_SIZE / 5);
                 const dashOff = Math.round(CELL_SIZE / 8);
 
@@ -740,11 +748,11 @@ export default function GameplayScreen({ navigation }: Props) {
               const isSource = piece.type === 'source';
               const isOutput = piece.type === 'output';
               const isHeld = heldPieceId === piece.id;
-              const pieceSize = isPrePlaced ? CELL_SIZE - 6 : CELL_SIZE - 8;
+              const pieceSize = CELL_SIZE - 4;
               const offset = (CELL_SIZE - pieceSize) / 2;
               const cellPx = piece.gridX * CELL_SIZE + offset;
               const cellPy = piece.gridY * CELL_SIZE + offset;
-              const iconSize = (CELL_SIZE - 8) * 0.55;
+              const iconSize = (CELL_SIZE - 4) * 0.60;
               const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
               const isAnimStep = animatingStep >= 0 && executionSteps[animatingStep]?.pieceId === piece.id;
 
@@ -1117,35 +1125,44 @@ export default function GameplayScreen({ navigation }: Props) {
                   {VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]}
                 </Text>
               </View>
+              {isDailyChallenge && (
+                <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.red, letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
+                  REWARD FORFEITED
+                </Text>
+              )}
               <View style={styles.voidActions}>
-                <TouchableOpacity
-                  style={styles.voidBtn}
-                  onPress={() => {
-                    if (lives <= 0) {
-                      setShowVoid(false);
-                      setShowOutOfLives(true);
-                    } else {
-                      loseLife();
-                      handleReset();
-                    }
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.voidBtnText}>TRY AGAIN</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.voidBtn, { borderColor: Colors.amber }]}
-                  onPress={handleDebug}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.voidBtnText, { color: Colors.amber }]}>DEBUG (50 CR)</Text>
-                </TouchableOpacity>
+                {!isDailyChallenge && (
+                  <TouchableOpacity
+                    style={styles.voidBtn}
+                    onPress={() => {
+                      if (lives <= 0) {
+                        setShowVoid(false);
+                        setShowOutOfLives(true);
+                      } else {
+                        loseLife();
+                        handleReset();
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.voidBtnText}>TRY AGAIN</Text>
+                  </TouchableOpacity>
+                )}
+                {!isDailyChallenge && (
+                  <TouchableOpacity
+                    style={[styles.voidBtn, { borderColor: Colors.amber }]}
+                    onPress={handleDebug}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.voidBtnText, { color: Colors.amber }]}>DEBUG (50 CR)</Text>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity
                   style={[styles.voidBtn, { borderColor: Colors.muted }]}
                   onPress={() => navigation.goBack()}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.voidBtnText, { color: Colors.muted }]}>BACK TO MAP</Text>
+                  <Text style={[styles.voidBtnText, { color: Colors.muted }]}>{isDailyChallenge ? 'RETURN TO SHIP' : 'BACK TO MAP'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
