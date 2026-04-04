@@ -18,6 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Rect, Circle, Path, G, Line } from 'react-native-svg';
 import CogsAvatar from '../components/CogsAvatar';
+import { BackButton } from '../components/BackButton';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
 const { width: W } = Dimensions.get('window');
@@ -419,9 +420,7 @@ function SectionView({
     <View style={{ flex: 1 }}>
       {/* Sub-header */}
       <View style={cs.subHeader}>
-        <TouchableOpacity onPress={onBack} style={cs.backBtn} activeOpacity={0.7}>
-          <Text style={cs.backArrow}>←</Text>
-        </TouchableOpacity>
+        <BackButton onPress={onBack} />
         <Text style={cs.subHeaderTitle}>PIECES</Text>
         <View style={{ width: 36 }} />
       </View>
@@ -502,10 +501,10 @@ function DetailView({
 
       <ScrollView contentContainerStyle={cs.detailScroll} showsVerticalScrollIndicator={false}>
         {/* Back */}
-        <TouchableOpacity onPress={onBack} style={cs.detailBackBtn} activeOpacity={0.7}>
-          <Text style={cs.backArrow}>←</Text>
+        <View style={cs.detailBackBtn}>
+          <BackButton onPress={onBack} />
           <Text style={cs.detailBackText}>PIECES</Text>
-        </TouchableOpacity>
+        </View>
 
         {/* Hero */}
         <View style={cs.detailHero}>
