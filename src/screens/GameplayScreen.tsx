@@ -40,8 +40,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const DOT_R = 1.5;
 const PIECE_RADIUS = 12;
-const BOARD_PADDING = 24;                          // 12px each side
-const BOARD_MAX_H = screenHeight * 0.44;           // never exceed 44% of screen height
+const BOARD_SIZE = screenWidth - 24;                // 12pt padding each side
 
 const VOID_QUOTES = [
   '"The signal did not reach Output. I observed the exact moment it failed."',
@@ -222,11 +221,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Dynamic board sizing ──
   const numColumns = level.gridWidth;
   const numRows = level.gridHeight;
-  const boardByWidth = screenWidth - BOARD_PADDING;
-  const BOARD_SIZE = Math.min(boardByWidth, BOARD_MAX_H);
-  const CELL_SIZE = Math.floor(BOARD_SIZE / Math.max(numColumns, numRows));
-  const canvasWidth = numColumns * CELL_SIZE;
-  const canvasHeight = numRows * CELL_SIZE;
+  const CELL_SIZE = Math.floor(BOARD_SIZE / numColumns);
 
   // Count remaining available pieces from tray
   const availableCounts = useMemo(() => {
@@ -466,11 +461,11 @@ export default function GameplayScreen({ navigation }: Props) {
 
         {/* ── Game Canvas ── */}
         <View style={styles.canvasOuter}>
-          <View style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
+          <View style={[styles.canvas, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
             {/* Dot grid */}
             <Svg
-              width={canvasWidth}
-              height={canvasHeight}
+              width={BOARD_SIZE}
+              height={BOARD_SIZE}
               style={StyleSheet.absoluteFill}
             >
               {Array.from({ length: numRows + 1 }, (_, y) =>
