@@ -15,9 +15,6 @@ const OPPOSITE_SIDE: Record<PortSide, PortSide> = {
   right: 'left',
 };
 
-/**
- * For a given side, return the grid offset (dx, dy) to the adjacent cell.
- */
 function sideOffset(side: PortSide): { dx: number; dy: number } {
   switch (side) {
     case 'top':    return { dx: 0, dy: -1 };
@@ -27,77 +24,107 @@ function sideOffset(side: PortSide): { dx: number; dy: number } {
   }
 }
 
-// ─── Rotation-aware port logic ────────────────────────────────────────────────
+// ─── Rotation helper ─────────────────────────────────────────────────────────
+
+function rotateSide(side: PortSide, rotation: number): PortSide {
+  const order: PortSide[] = ['top', 'right', 'bottom', 'left'];
+  const steps = ((rotation ?? 0) / 90) % 4;
+  const idx = order.indexOf(side);
+  return order[(idx + steps) % 4];
+}
+
+// ─── Directional port logic ──────────────────────────────────────────────────
 
 /**
- * Returns which port sides a piece exposes based on its type and rotation.
- * Gear, Source, Output, and Protocol pieces are omnidirectional.
- * Conveyor and Splitter are directional.
+ * Returns which sides a piece can RECEIVE signal from.
  */
-export function getActivePorts(piece: PlacedPiece): PortSide[] {
+export function getInputPorts(piece: PlacedPiece): PortSide[] {
   const ALL: PortSide[] = ['top', 'bottom', 'left', 'right'];
   const rot = piece.rotation ?? 0;
 
-  // Apply rotation: rotate the base ports clockwise by rot degrees
-  function rotate(side: PortSide): PortSide {
-    const order: PortSide[] = ['top', 'right', 'bottom', 'left'];
-    const steps = (rot / 90) % 4;
-    const idx = order.indexOf(side);
-    return order[(idx + steps) % 4];
-  }
-
   switch (piece.type) {
     case 'conveyor':
-      // Base 0°: input LEFT, output RIGHT
-      return [rotate('left'), rotate('right')];
-
+      return [rotateSide('left', rot)];      // input from left at 0°
     case 'splitter':
-      // Base 0°: input LEFT, outputs RIGHT + BOTTOM
-      return [rotate('left'), rotate('right'), rotate('bottom')];
-
-    // Omnidirectional pieces — all 4 sides always
+      return [rotateSide('left', rot)];      // input from left at 0°
     case 'source':
+      return [];                              // Source has no input
     case 'output':
     case 'gear':
     case 'configNode':
     case 'scanner':
     case 'transmitter':
-      return ALL;
+      return ALL;                             // omnidirectional input
   }
+}
+
+/**
+ * Returns which sides a piece SENDS signal toward.
+ */
+export function getOutputPorts(piece: PlacedPiece): PortSide[] {
+  const ALL: PortSide[] = ['top', 'bottom', 'left', 'right'];
+  const rot = piece.rotation ?? 0;
+
+  switch (piece.type) {
+    case 'conveyor':
+      return [rotateSide('right', rot)];     // output to right at 0°
+    case 'splitter':
+      return [rotateSide('right', rot), rotateSide('bottom', rot)]; // right + bottom at 0°
+    case 'output':
+      return [];                              // Output has no output
+    case 'source':
+    case 'gear':
+    case 'configNode':
+    case 'scanner':
+    case 'transmitter':
+      return ALL;                             // omnidirectional output
+  }
+}
+
+/**
+ * Returns all active port sides (union of input + output).
+ * Used by autoConnectPhysicsPieces for wire rendering.
+ */
+export function getActivePorts(piece: PlacedPiece): PortSide[] {
+  const inputs = getInputPorts(piece);
+  const outputs = getOutputPorts(piece);
+  const all = new Set([...inputs, ...outputs]);
+  return Array.from(all);
 }
 
 // ─── Connection logic ─────────────────────────────────────────────────────────
 
 /**
- * Returns true if two pieces are adjacent on the grid and both have
- * active ports on the facing sides (respecting rotation).
+ * Returns true if piece1 can send signal to piece2
+ * (piece1 has an output port facing piece2, and piece2 has
+ * an input port facing piece1).
  */
-export function canConnect(piece1: PlacedPiece, piece2: PlacedPiece): boolean {
+export function canSendTo(piece1: PlacedPiece, piece2: PlacedPiece): boolean {
   const dx = piece2.gridX - piece1.gridX;
   const dy = piece2.gridY - piece1.gridY;
-
   if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
 
-  let facingSide: PortSide | null = null;
+  let facingSide: PortSide;
   if (dx === 1 && dy === 0) facingSide = 'right';
-  if (dx === -1 && dy === 0) facingSide = 'left';
-  if (dx === 0 && dy === 1) facingSide = 'bottom';
-  if (dx === 0 && dy === -1) facingSide = 'top';
-
-  if (!facingSide) return false;
+  else if (dx === -1 && dy === 0) facingSide = 'left';
+  else if (dx === 0 && dy === 1) facingSide = 'bottom';
+  else facingSide = 'top';
 
   const opposite = OPPOSITE_SIDE[facingSide];
 
-  // Check rotation-aware active ports
-  const p1Active = getActivePorts(piece1);
-  const p2Active = getActivePorts(piece2);
-
-  return p1Active.includes(facingSide) && p2Active.includes(opposite);
+  return getOutputPorts(piece1).includes(facingSide) &&
+         getInputPorts(piece2).includes(opposite);
 }
 
 /**
- * Scans all placed physics pieces and returns wires for adjacent pairs
- * that can connect via facing ports.
+ * Bidirectional check for wire rendering — either piece can send to the other.
+ */
+export function canConnect(piece1: PlacedPiece, piece2: PlacedPiece): boolean {
+  return canSendTo(piece1, piece2) || canSendTo(piece2, piece1);
+}
+
+/**
+ * Scans all pieces and returns wires for adjacent pairs that can connect.
  */
 export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
   const wires: Wire[] = [];
@@ -114,7 +141,6 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
       if (seen.has(wireKey)) continue;
       seen.add(wireKey);
 
-      // Find the specific ports that face each other
       const dx = b.gridX - a.gridX;
       const dy = b.gridY - a.gridY;
       let aSide: PortSide;
@@ -143,65 +169,57 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
 }
 
 /**
- * Returns IDs of all pieces directly connected to the given piece via wires.
+ * Returns IDs of pieces that the given piece can send signal TO (directional).
  */
-export function getConnectedPieces(
-  pieceId: string,
-  _pieces: PlacedPiece[],
-  wires: Wire[],
-): string[] {
-  const connected: string[] = [];
-  for (const w of wires) {
-    if (w.fromPieceId === pieceId) connected.push(w.toPieceId);
-    if (w.toPieceId === pieceId) connected.push(w.fromPieceId);
+function getDirectionalNeighbors(piece: PlacedPiece, allPieces: PlacedPiece[]): PlacedPiece[] {
+  const neighbors: PlacedPiece[] = [];
+  const outputSides = getOutputPorts(piece);
+
+  for (const side of outputSides) {
+    const { dx, dy } = sideOffset(side);
+    const targetX = piece.gridX + dx;
+    const targetY = piece.gridY + dy;
+
+    const target = allPieces.find(p => p.gridX === targetX && p.gridY === targetY);
+    if (!target) continue;
+
+    // Target must accept input from the opposite direction
+    const inputSide = OPPOSITE_SIDE[side];
+    if (getInputPorts(target).includes(inputSide)) {
+      neighbors.push(target);
+    }
   }
-  return connected;
+
+  return neighbors;
 }
 
 // ─── Machine Execution ────────────────────────────────────────────────────────
 
+const MAX_STEPS = 50;
+
 /**
- * Core Turing machine execution loop.
- * Traces signal from Source through connected pieces. Returns ordered steps.
- *
- * Rules:
- * - Signal starts at Source
- * - Travels through Physics pieces in connection order
- * - ConfigNode: checks configuration against node condition
- * - Scanner: reads current DataTrail cell, advances head
- * - Transmitter: writes value to current DataTrail cell
- * - Output: returns success
- * - If signal cannot continue: void failure
+ * Directional signal tracer. Follows output→input port matching.
  */
 export function executeMachine(state: MachineState): ExecutionStep[] {
-  const { pieces, wires, dataTrail, configuration } = state;
+  const { pieces, dataTrail, configuration } = state;
   const steps: ExecutionStep[] = [];
   let stepTime = 0;
 
-  // Find the source piece
   const source = pieces.find(p => p.type === 'source');
   if (!source) {
-    steps.push({
-      pieceId: 'none',
-      type: 'error',
-      timestamp: stepTime,
-      success: false,
-      message: 'No source piece found',
-    });
+    steps.push({ pieceId: 'none', type: 'error', timestamp: stepTime, success: false, message: 'No source piece found' });
     return steps;
   }
 
-  // BFS/DFS traversal from source through wires
   const visited = new Set<string>();
   const queue: string[] = [source.id];
 
-  // Make a mutable copy of the data trail
   const trail = {
     cells: [...dataTrail.cells],
     headPosition: dataTrail.headPosition,
   };
 
-  while (queue.length > 0) {
+  while (queue.length > 0 && steps.length < MAX_STEPS) {
     const currentId = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
@@ -240,7 +258,6 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
             step.success = false;
             step.message = 'Configuration check failed — signal blocked';
             steps.push(step);
-            // Signal is blocked, don't continue from this piece
             continue;
           }
           step.message = 'Configuration check passed';
@@ -271,48 +288,39 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
       case 'output':
         step.message = 'Signal reached output — success!';
         steps.push(step);
-        return steps; // Successfully completed
+        return steps;
     }
 
     steps.push(step);
 
-    // Find connected pieces and add unvisited ones to queue
-    const neighbors = getConnectedPieces(currentId, pieces, wires);
-    for (const nId of neighbors) {
-      if (!visited.has(nId)) {
-        queue.push(nId);
+    // Follow directional output ports to find next pieces
+    const neighbors = getDirectionalNeighbors(piece, pieces);
+    for (const neighbor of neighbors) {
+      if (!visited.has(neighbor.id)) {
+        queue.push(neighbor.id);
       }
     }
   }
 
-  // If we get here, signal never reached output
-  const lastStep = steps[steps.length - 1];
-  if (!lastStep || lastStep.type !== 'output') {
-    steps.push({
-      pieceId: 'none',
-      type: 'void',
-      timestamp: stepTime,
-      success: false,
-      message: 'Signal lost — could not reach output. VOID STATE.',
-    });
-  }
+  // Signal never reached output
+  steps.push({
+    pieceId: 'none',
+    type: 'void',
+    timestamp: stepTime,
+    success: false,
+    message: 'Signal lost — could not reach output. VOID STATE.',
+  });
 
   return steps;
 }
 
 // ─── Star rating ──────────────────────────────────────────────────────────────
 
-/**
- * 3 stars: solved with optimalPieces or fewer
- * 2 stars: solved with up to double optimal
- * 1 star:  solved any other way
- */
 export function calculateStars(
   steps: ExecutionStep[],
   piecesUsed: number,
   optimalPieces: number,
 ): 0 | 1 | 2 | 3 {
-  // Check if the machine actually succeeded
   const succeeded = steps.some(s => s.type === 'output' && s.success);
   if (!succeeded) return 1;
 
@@ -323,78 +331,15 @@ export function calculateStars(
 
 // ─── Piece factory helpers ────────────────────────────────────────────────────
 
-/**
- * Returns the default ports for a given piece type.
- * Physics pieces get 4 directional ports.
- * Protocol pieces get input/output ports.
- */
 export function getDefaultPorts(type: PlacedPiece['type']): PlacedPiece['ports'] {
   const allSides: PortSide[] = ['top', 'bottom', 'left', 'right'];
-
-  switch (type) {
-    case 'source':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'output':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'conveyor':
-      // Passes signal through — has all 4 sides
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'gear':
-      // Redirects — has all 4 sides
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'splitter':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'configNode':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'scanner':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-
-    case 'transmitter':
-      return allSides.map(side => ({
-        id: `port-${side}`,
-        side,
-        connected: false,
-      }));
-  }
+  return allSides.map(side => ({
+    id: `port-${side}`,
+    side,
+    connected: false,
+  }));
 }
 
-/**
- * Returns the category for a piece type.
- */
 export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['category'] {
   switch (type) {
     case 'source':
