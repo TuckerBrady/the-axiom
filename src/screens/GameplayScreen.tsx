@@ -220,31 +220,22 @@ export default function GameplayScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(1);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
 
-  // ── Derived ──
+  // ── Derived (all hooks must be above the early return) ──
   const level = currentLevel;
-  if (!level) {
-    return (
-      <View style={styles.root}>
-        <SafeAreaView style={styles.safeArea}>
-          <Text style={styles.errorText}>No level loaded</Text>
-          <BackButton onPress={() => navigation.goBack()} />
-        </SafeAreaView>
-      </View>
-    );
-  }
 
   // ── Level budget setup ──
   useEffect(() => {
+    if (!level) return;
     setLevelBudget(level.budget ?? 0);
     return () => resetLevelBudget();
-  }, [level.id]);
+  }, [level?.id]);
 
   // ── Tutorial hints setup (suppress on replay) ──
-  const isReplay = isLevelDone(level.id);
-  const isAxiomLevel = level.sector === 'axiom';
+  const isReplay = level ? isLevelDone(level.id) : false;
+  const isAxiomLevel = level?.sector === 'axiom';
 
   useEffect(() => {
-    if (!isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if (!level || !isAxiomLevel || isReplay || !level.tutorialHints) return;
     (async () => {
       const onMountHints: { key: string; text: string }[] = [];
       for (const h of level.tutorialHints!) {
@@ -257,10 +248,10 @@ export default function GameplayScreen({ navigation }: Props) {
         setHintQueue(onMountHints.slice(1));
       }
     })();
-  }, [level.id]);
+  }, [level?.id]);
 
   const triggerHints = useCallback(async (trigger: string) => {
-    if (!isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if (!level || !isAxiomLevel || isReplay || !level.tutorialHints) return;
     if (hintTriggered.current.has(trigger)) return;
     hintTriggered.current.add(trigger);
     const hints: { key: string; text: string }[] = [];
@@ -275,7 +266,7 @@ export default function GameplayScreen({ navigation }: Props) {
     } else {
       setHintQueue(prev => [...prev, ...hints]);
     }
-  }, [isAxiomLevel, isReplay, level.tutorialHints, currentHint]);
+  }, [level, isAxiomLevel, isReplay, currentHint]);
 
   const dismissHint = useCallback(() => {
     setCurrentHint(null);
@@ -288,44 +279,47 @@ export default function GameplayScreen({ navigation }: Props) {
     }, 1500);
   }, []);
 
+  // ── Dynamic board sizing (from available canvas space) ──
+  const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
+
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
   const hasPlacedPieces = playerPieces.length > 0;
 
-  // ── Dynamic board sizing (from available canvas space) ──
-  const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
-  const numColumns = level.gridWidth;
-  const numRows = level.gridHeight;
+  const numColumns = level?.gridWidth ?? 8;
+  const numRows = level?.gridHeight ?? 7;
   const availW = canvasLayout.w - CANVAS_PAD * 2;
   const availH = canvasLayout.h - CANVAS_PAD * 2;
-  const CELL_SIZE = Math.min(MAX_CELL, Math.max(MIN_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows))));
+  const CELL_SIZE = availW > 0 && availH > 0
+    ? Math.min(MAX_CELL, Math.max(MIN_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows))))
+    : 52;
   const gridW = numColumns * CELL_SIZE;
   const gridH = numRows * CELL_SIZE;
 
   // Count remaining available pieces from tray
+  const availablePiecesList = level?.availablePieces ?? [];
   const availableCounts = useMemo(() => {
     const counts: Partial<Record<PieceType, number>> = {};
-    for (const pt of level.availablePieces) {
+    for (const pt of availablePiecesList) {
       counts[pt] = (counts[pt] || 0) + 1;
     }
-    // Subtract placed pieces
     for (const p of playerPieces) {
       if (counts[p.type] && counts[p.type]! > 0) {
         counts[p.type] = counts[p.type]! - 1;
       }
     }
     return counts;
-  }, [level.availablePieces, playerPieces]);
+  }, [availablePiecesList, playerPieces]);
 
   // Unique piece types for tray display
   const trayPieceTypes = useMemo(() => {
     const seen = new Set<PieceType>();
-    return level.availablePieces.filter(pt => {
+    return availablePiecesList.filter(pt => {
       if (seen.has(pt)) return false;
       seen.add(pt);
       return true;
     });
-  }, [level.availablePieces]);
+  }, [availablePiecesList]);
 
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
@@ -535,6 +529,18 @@ export default function GameplayScreen({ navigation }: Props) {
       </Animated.View>
     ));
   };
+
+  // ── No-level guard (after all hooks) ──
+  if (!level) {
+    return (
+      <View style={styles.root}>
+        <SafeAreaView style={styles.safeArea}>
+          <Text style={styles.errorText}>No level loaded</Text>
+          <BackButton onPress={() => navigation.goBack()} />
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <Animated.View style={[styles.root, screenStyle]}>
