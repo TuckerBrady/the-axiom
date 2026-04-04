@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -10,6 +10,7 @@ import GameplayScreen from '../screens/GameplayScreen';
 import StoreScreen from '../screens/StoreScreen';
 import MissionDossierScreen from '../screens/MissionDossierScreen';
 import DailyRewardScreen from '../screens/DailyRewardScreen';
+import ReturnBriefScreen from '../screens/ReturnBriefScreen';
 import TabNavigator from './TabNavigator';
 
 // Onboarding
@@ -35,6 +36,7 @@ export type RootStackParamList = {
   Discipline: undefined;
   Login: undefined;
   // Main app
+  ReturnBrief: undefined;
   DailyReward: undefined;
   Tabs: undefined;
   Launch: undefined;
@@ -58,6 +60,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const ONBOARDING_KEY = '@axiom_onboarding_complete';
 const DAILY_REWARD_KEY = '@axiom_last_daily_reward_date';
+const SESSION_KEY = 'axiom_last_session';
 
 function getTodayString(): string {
   const d = new Date();
@@ -65,8 +68,19 @@ function getTodayString(): string {
 }
 
 export default function RootNavigator() {
-  const [initialRoute, setInitialRoute] = useState<'Boot' | 'DailyReward' | 'Tabs' | null>(null);
+  const [initialRoute, setInitialRoute] = useState<'Boot' | 'ReturnBrief' | 'DailyReward' | 'Tabs' | null>(null);
 
+  // ── Session tracking: write timestamp when app goes to background ──
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' || state === 'inactive') {
+        AsyncStorage.setItem(SESSION_KEY, Date.now().toString());
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  // ── Determine initial route ──
   useEffect(() => {
     (async () => {
       try {
@@ -75,9 +89,21 @@ export default function RootNavigator() {
           setInitialRoute('Boot');
           return;
         }
+
+        // Check if this is a return visit (session key exists)
+        const lastSession = await AsyncStorage.getItem(SESSION_KEY);
+
+        // Check daily reward
         const lastReward = await AsyncStorage.getItem(DAILY_REWARD_KEY);
-        if (lastReward !== getTodayString()) {
+        const needsReward = lastReward !== getTodayString();
+        if (needsReward) {
           await AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString());
+        }
+
+        if (lastSession) {
+          // Returning player → show return brief (it navigates to Tabs on dismiss)
+          setInitialRoute('ReturnBrief');
+        } else if (needsReward) {
           setInitialRoute('DailyReward');
         } else {
           setInitialRoute('Tabs');
@@ -113,6 +139,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
 
         {/* ── Main app ── */}
+        <Stack.Screen name="ReturnBrief" component={ReturnBriefScreen} />
         <Stack.Screen name="DailyReward" component={DailyRewardScreen} />
         <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen name="Launch" component={LaunchScreen} />

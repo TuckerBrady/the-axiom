@@ -406,6 +406,19 @@ export default function SettingsScreen(_: Props) {
                     );
                   }}
                 />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>↻</Text>}
+                  label="Trigger Return Brief (Dev)"
+                  labelColor={Colors.amber}
+                  sub="Sets last session to 3 days ago"
+                  delay={740}
+                  onPress={async () => {
+                    const threeDaysAgo = Date.now() - 259200000;
+                    await AsyncStorage.setItem('axiom_last_session', threeDaysAgo.toString());
+                    Alert.alert('Done', 'Last session set to 72 hours ago. Reload the app to see the return brief.');
+                  }}
+                />
               </>
             )}
           </View>
