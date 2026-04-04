@@ -775,7 +775,7 @@ export default function GameplayScreen({ navigation }: Props) {
                       onPress={() => handleCanvasTap(x, y)}
                       activeOpacity={0.6}
                     >
-                      {isAxiom ? (
+                      {isTutorialSector ? (
                         <View style={styles.ghostInnerValid} />
                       ) : null}
                     </TouchableOpacity>
