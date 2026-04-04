@@ -603,7 +603,11 @@ export default function GameplayScreen({ navigation }: Props) {
           style={styles.canvasOuter}
           onLayout={e => {
             const { width: w, height: h } = e.nativeEvent.layout;
-            setCanvasLayout({ w, h });
+            setCanvasLayout(prev =>
+              prev.w === Math.round(w) && prev.h === Math.round(h)
+                ? prev
+                : { w: Math.round(w), h: Math.round(h) }
+            );
           }}
         >
           <View style={[styles.canvas, { width: gridW, height: gridH }]}>
