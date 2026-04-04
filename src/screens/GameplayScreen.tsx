@@ -32,10 +32,14 @@ import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
-import { usePlayerStore } from '../store/playerStore';
+import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
+import { useEconomyStore } from '../store/economyStore';
 import { calculateScore, getCOGSScoreComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
-import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
+import { TutorialHint } from '../components/TutorialHint';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory } from '../game/types';
+import { getPieceCost } from '../game/types';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -186,11 +190,17 @@ export default function GameplayScreen({ navigation }: Props) {
   } = useGameStore();
 
   const { lives, loseLife, refillLives, circuits, addCogs } = useLivesStore();
-  const { completeLevel } = useProgressionStore();
+  const { completeLevel, isLevelCompleted: isLevelDone } = useProgressionStore();
   const discipline = usePlayerStore(s => s.discipline);
+  const { credits, setLevelBudget, spendCredits, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
 
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [cogsScoreComment, setCogsScoreComment] = useState('');
+  const [currentHint, setCurrentHint] = useState<{ key: string; text: string } | null>(null);
+  const [hintQueue, setHintQueue] = useState<{ key: string; text: string }[]>([]);
+  const hintTriggered = useRef<Set<string>>(new Set());
+  const [showDisciplineCard, setShowDisciplineCard] = useState(false);
+  const [creditError, setCreditError] = useState(false);
 
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
@@ -220,6 +230,61 @@ export default function GameplayScreen({ navigation }: Props) {
       </View>
     );
   }
+
+  // ── Level budget setup ──
+  useEffect(() => {
+    setLevelBudget(level.budget ?? 0);
+    return () => resetLevelBudget();
+  }, [level.id]);
+
+  // ── Tutorial hints setup (suppress on replay) ──
+  const isReplay = isLevelDone(level.id);
+  const isAxiomLevel = level.sector === 'axiom';
+
+  useEffect(() => {
+    if (!isAxiomLevel || isReplay || !level.tutorialHints) return;
+    (async () => {
+      const onMountHints: { key: string; text: string }[] = [];
+      for (const h of level.tutorialHints!) {
+        if (h.trigger !== 'onMount') continue;
+        const seen = await AsyncStorage.getItem(`axiom_hint_seen_${h.key}`);
+        if (!seen) onMountHints.push({ key: h.key, text: h.text });
+      }
+      if (onMountHints.length > 0) {
+        setCurrentHint(onMountHints[0]);
+        setHintQueue(onMountHints.slice(1));
+      }
+    })();
+  }, [level.id]);
+
+  const triggerHints = useCallback(async (trigger: string) => {
+    if (!isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if (hintTriggered.current.has(trigger)) return;
+    hintTriggered.current.add(trigger);
+    const hints: { key: string; text: string }[] = [];
+    for (const h of level.tutorialHints!) {
+      if (h.trigger !== trigger) continue;
+      const seen = await AsyncStorage.getItem(`axiom_hint_seen_${h.key}`);
+      if (!seen) hints.push({ key: h.key, text: h.text });
+    }
+    if (hints.length > 0 && !currentHint) {
+      setCurrentHint(hints[0]);
+      setHintQueue(prev => [...prev, ...hints.slice(1)]);
+    } else {
+      setHintQueue(prev => [...prev, ...hints]);
+    }
+  }, [isAxiomLevel, isReplay, level.tutorialHints, currentHint]);
+
+  const dismissHint = useCallback(() => {
+    setCurrentHint(null);
+    setTimeout(() => {
+      setHintQueue(prev => {
+        if (prev.length === 0) return prev;
+        setCurrentHint(prev[0]);
+        return prev.slice(1);
+      });
+    }, 1500);
+  }, []);
 
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
@@ -260,16 +325,25 @@ export default function GameplayScreen({ navigation }: Props) {
     if (isExecuting || showResults || showVoid) return;
 
     if (selectedPieceFromTray) {
-      // Place piece from tray
       const count = availableCounts[selectedPieceFromTray] || 0;
       if (count > 0) {
+        // Check credits
+        const cost = getPieceCost(selectedPieceFromTray, discipline);
+        if (cost > 0) {
+          const ok = spendCredits(selectedPieceFromTray, discipline);
+          if (!ok) {
+            setCreditError(true);
+            setTimeout(() => setCreditError(false), 1500);
+            return;
+          }
+        }
         placePiece(selectedPieceFromTray, gridX, gridY);
+        if (!hasPlacedPieces) triggerHints('onFirstPiecePlaced');
       }
     } else if (selectedPlacedPiece) {
-      // Move selected piece to this cell
       movePiece(selectedPlacedPiece, gridX, gridY);
     }
-  }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece]);
+  }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
@@ -300,6 +374,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
     if (isExecuting) return;
+    triggerHints('onEngage');
     const engageStartTime = Date.now();
     const steps = engage();
 
@@ -337,9 +412,15 @@ export default function GameplayScreen({ navigation }: Props) {
       const starsEarned = result.stars;
       const isFirst = completeLevel(levelId, starsEarned);
       setFirstTimeBonus(isFirst);
+
+      // Credit rewards
+      if (result.stars === 3) earnCredits(levelSpent + 25);
+      else if (result.stars === 2) earnCredits(Math.ceil(levelSpent * 0.5));
       if (isFirst) {
+        earnCredits(25);
         addCogs(25);
       }
+      triggerHints('onSuccess');
 
       // Green flash
       setFlashColor(Colors.green);
@@ -391,9 +472,10 @@ export default function GameplayScreen({ navigation }: Props) {
       }
       await new Promise(resolve => setTimeout(resolve, 200));
       setShowVoid(true);
+      triggerHints('onVoid');
     }
     setAnimatingStep(-1);
-  }, [isExecuting, engage, getPieceCenter]);
+  }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
 
   // ── Reset ──
   const handleReset = useCallback(() => {
@@ -647,6 +729,8 @@ export default function GameplayScreen({ navigation }: Props) {
                 const count = availableCounts[pt] || 0;
                 const isActive = selectedPieceFromTray === pt;
                 const color = getPieceColor(pt);
+                const cost = getPieceCost(pt, discipline);
+                const canAfford = cost === 0 || (useEconomyStore.getState().levelBudget - useEconomyStore.getState().levelSpent + useEconomyStore.getState().credits) >= cost;
                 return (
                   <TouchableOpacity
                     key={pt}
@@ -658,17 +742,32 @@ export default function GameplayScreen({ navigation }: Props) {
                     activeOpacity={0.7}
                     disabled={count <= 0}
                   >
-                    <View style={{ opacity: count > 0 ? 1 : 0.3 }}>
+                    <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
                       <PieceIcon type={pt} size={22} color={color} />
                     </View>
                     <Text style={[styles.trayLabel, { color }]}>{PIECE_LABELS[pt]}</Text>
                     <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
                       <Text style={styles.trayBadgeText}>{count}</Text>
                     </View>
+                    {cost > 0 && (
+                      <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
+                    )}
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
+          </View>
+        )}
+
+        {/* ── Tutorial Hint ── */}
+        {currentHint && (
+          <TutorialHint hintKey={currentHint.key} text={currentHint.text} onDismiss={dismissHint} />
+        )}
+
+        {/* ── Credit Error ── */}
+        {creditError && (
+          <View style={styles.creditErrorWrap}>
+            <Text style={styles.creditErrorText}>Insufficient credits.</Text>
           </View>
         )}
 
@@ -756,25 +855,36 @@ export default function GameplayScreen({ navigation }: Props) {
               <Text style={styles.resultsTitle}>CIRCUIT COMPLETE</Text>
               <Text style={styles.resultsLevel}>{level.name}</Text>
 
-              {/* Score breakdown strip */}
-              {scoreResult && (
-                <View style={styles.scoreStrip}>
-                  {([
-                    ['EFFICIENCY', scoreResult.breakdown.efficiency, 30],
-                    ['PROTOCOL', scoreResult.breakdown.protocolPrecision, 25],
-                    ['INTEGRITY', scoreResult.breakdown.chainIntegrity, 20],
-                    ['DISCIPLINE', scoreResult.breakdown.disciplineBonus, 15],
-                    ['SPEED', scoreResult.breakdown.speedBonus, 10],
-                  ] as [string, number, number][]).map(([label, val, max]) => (
-                    <View key={label} style={styles.scoreCell}>
-                      <Text style={[
-                        styles.scoreCellVal,
-                        { color: val >= max ? Colors.green : val > 0 ? Colors.amber : Colors.red },
-                      ]}>{val}</Text>
-                      <Text style={styles.scoreCellLabel}>{label}</Text>
-                    </View>
-                  ))}
-                </View>
+              {/* Score breakdown strip — progressive reveal */}
+              {scoreResult && (() => {
+                const visible = level.scoringCategoriesVisible ?? ['efficiency'];
+                const allCats: [ScoringCategory, string, number, number][] = [
+                  ['efficiency', 'EFFICIENCY', scoreResult.breakdown.efficiency, 30],
+                  ['protocolPrecision', 'PROTOCOL', scoreResult.breakdown.protocolPrecision, 25],
+                  ['chainIntegrity', 'INTEGRITY', scoreResult.breakdown.chainIntegrity, 20],
+                  ['disciplineBonus', 'DISCIPLINE', scoreResult.breakdown.disciplineBonus, 15],
+                  ['speedBonus', 'SPEED', scoreResult.breakdown.speedBonus, 10],
+                ];
+                const shown = allCats.filter(([cat]) => visible.includes(cat));
+                return (
+                  <View style={styles.scoreStrip}>
+                    {shown.map(([, label, val, max]) => (
+                      <View key={label} style={styles.scoreCell}>
+                        <Text style={[
+                          styles.scoreCellVal,
+                          { color: val >= max ? '#4ecb8d' : val > 0 ? '#f0b429' : 'rgba(224,85,85,0.7)' },
+                        ]}>{val}</Text>
+                        <Text style={styles.scoreCellLabel}>{label}</Text>
+                      </View>
+                    ))}
+                  </View>
+                );
+              })()}
+
+              {level.id === 'A1-8' && firstTimeBonus && (
+                <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 9, color: '#4ecb8d', letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
+                  FULL SCORING UNLOCKED
+                </Text>
               )}
 
               <View style={styles.cogsResultRow}>
@@ -794,7 +904,19 @@ export default function GameplayScreen({ navigation }: Props) {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.resultsPrimaryBtn}
-                  onPress={() => navigation.goBack()}
+                  onPress={async () => {
+                    // A1-3 discipline acknowledgment (first time only)
+                    if (level.id === 'A1-3' && firstTimeBonus && discipline) {
+                      const seen = await AsyncStorage.getItem('axiom_a13_discipline_seen');
+                      if (!seen) {
+                        await AsyncStorage.setItem('axiom_a13_discipline_seen', '1');
+                        setShowResults(false);
+                        setShowDisciplineCard(true);
+                        return;
+                      }
+                    }
+                    navigation.goBack();
+                  }}
                   activeOpacity={0.85}
                 >
                   <LinearGradient
@@ -921,6 +1043,29 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
       </SafeAreaView>
+
+      {/* ── A1-3 Discipline Acknowledgment ── */}
+      {showDisciplineCard && discipline && (
+        <TouchableOpacity
+          style={styles.completionScene}
+          activeOpacity={1}
+          onPress={() => { setShowDisciplineCard(false); navigation.goBack(); }}
+        >
+          <View style={styles.completionInner}>
+            <CogsAvatar size="large" state="online" />
+            <Text style={[styles.completionText, { maxWidth: 300 }]}>
+              {discipline === 'systems'
+                ? 'Config Node. Protocol logic. This is your domain. I expected you would handle it well.'
+                : discipline === 'drive'
+                ? 'You navigated a Protocol piece. It was not elegant. But it worked. I am noting that.'
+                : 'Physics and Protocol in the same machine. That is the Field Operative\'s answer to everything. I am beginning to understand the choice.'}
+            </Text>
+            <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3, marginTop: Spacing.xl }}>
+              TAP TO CONTINUE
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* ── A1-8 Completion Scene ── */}
       {showCompletionScene && (
@@ -1144,6 +1289,17 @@ const styles = StyleSheet.create({
   },
   trayBadgeText: {
     fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.void, fontWeight: 'bold',
+  },
+  trayCost: {
+    fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5,
+  },
+  creditErrorWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+    alignItems: 'center',
+  },
+  creditErrorText: {
+    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.red, letterSpacing: 1,
   },
 
   // Debug bar

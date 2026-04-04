@@ -29,6 +29,7 @@ import ShipRepairProgress from '../components/ShipRepairProgress';
 import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
+import { useEconomyStore } from '../store/economyStore';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS, SHIP_SYSTEMS } from '../store/progressionStore';
 import { AXIOM_LEVELS } from '../game/levels';
 
@@ -134,6 +135,7 @@ function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
 
 export default function HubScreen({ navigation }: Props) {
   const { lives, regenerate } = useLivesStore();
+  const { credits } = useEconomyStore();
   const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
 
   const axiomCompleted = getSectorCompletedCount('A1-');
@@ -224,6 +226,9 @@ export default function HubScreen({ navigation }: Props) {
             <Text style={styles.headerTitle}>THE AXIOM</Text>
           </View>
           <View style={styles.headerRight}>
+            <View style={styles.livesBadge}>
+              <Text style={{ fontFamily: Fonts.orbitron, fontSize: 9, fontWeight: 'bold', color: Colors.amber }}>{credits} CR</Text>
+            </View>
             <View style={styles.livesBadge}>
               <HeartIcon filled={lives > 0} size={12} />
               <Text style={[styles.livesCount, lives <= 1 && { color: Colors.red }]}>{lives}</Text>
