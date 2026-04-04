@@ -338,7 +338,7 @@ const st = StyleSheet.create({
     color: Colors.amber,
   },
   currencyLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.muted,
+    fontFamily: Fonts.spaceMono, fontSize: 13, color: Colors.muted,
     letterSpacing: 1, marginLeft: 'auto',
   },
 
@@ -371,7 +371,7 @@ const st = StyleSheet.create({
   // Section title
   sectionTitle: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: 11,
     color: Colors.copper,
     letterSpacing: 2,
     marginBottom: Spacing.sm,
@@ -422,7 +422,7 @@ const st = StyleSheet.create({
     gap: 3,
   },
   puBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 9, fontWeight: 'bold',
+    fontFamily: Fonts.orbitron, fontSize: 12, fontWeight: 'bold',
     color: Colors.void, letterSpacing: 1,
   },
   puBtnTextDim: {
@@ -469,7 +469,7 @@ const st = StyleSheet.create({
     color: Colors.circuit, marginTop: Spacing.sm,
   },
   ccLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.muted,
+    fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted,
     letterSpacing: 2, marginBottom: Spacing.md,
   },
   ccBtn: {
