@@ -212,6 +212,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
   const [teachCardLine, setTeachCardLine] = useState(0);
   const [showBriefing, setShowBriefing] = useState(true);
+  const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
@@ -230,9 +231,18 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Derived (all hooks must be above the early return) ──
   const level = currentLevel;
 
-  // ── Level budget setup ──
+  // ── Economy intro on first non-Axiom level ──
+  useEffect(() => {
+    if (!level || level.sector === 'axiom') return;
+    AsyncStorage.getItem('axiom_economy_intro_seen').then(seen => {
+      if (!seen) setShowEconomyIntro(true);
+    });
+  }, [level?.id]);
+
+  // ── Level budget setup (skip on Axiom tutorial levels) ──
   useEffect(() => {
     if (!level) return;
+    if (level.sector === 'axiom') return; // free pieces on tutorial
     setLevelBudget(level.budget ?? 0);
     return () => resetLevelBudget();
   }, [level?.id]);
@@ -357,7 +367,7 @@ export default function GameplayScreen({ navigation }: Props) {
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
       if (count > 0) {
-        const cost = getPieceCost(selectedPieceFromTray, discipline);
+        const cost = isAxiomLevel ? 0 : getPieceCost(selectedPieceFromTray, discipline);
         if (cost > 0) {
           const ok = spendCredits(selectedPieceFromTray, discipline);
           if (!ok) {
@@ -853,7 +863,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 const count = availableCounts[pt] || 0;
                 const isActive = selectedPieceFromTray === pt;
                 const color = getPieceColor(pt);
-                const cost = getPieceCost(pt, discipline);
+                const cost = isAxiomLevel ? 0 : getPieceCost(pt, discipline);
                 const canAfford = cost === 0 || (useEconomyStore.getState().levelBudget - useEconomyStore.getState().levelSpent + useEconomyStore.getState().credits) >= cost;
                 return (
                   <TouchableOpacity
@@ -950,6 +960,38 @@ export default function GameplayScreen({ navigation }: Props) {
         {/* ── Flash Overlay ── */}
         {flashColor && (
           <View style={[styles.flashOverlay, { backgroundColor: flashColor }]} />
+        )}
+
+        {/* ── Economy Intro (first non-Axiom level) ── */}
+        {showEconomyIntro && (
+          <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
+            <LinearGradient
+              colors={['rgba(6,9,15,0.97)', 'rgba(10,22,40,0.99)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.overlayContent}>
+              <CogsAvatar size="medium" state="online" />
+              <Text style={{
+                fontFamily: Fonts.exo2, fontSize: 14, fontStyle: 'italic',
+                color: Colors.starWhite, lineHeight: 22, textAlign: 'center',
+                marginTop: Spacing.xl, maxWidth: 300,
+              }}>
+                The Axiom is repaired. The training protocols are behind you. Pieces cost Credits here. You have been accumulating them. Spend wisely.
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: Spacing.xxl }}
+                onPress={async () => {
+                  await AsyncStorage.setItem('axiom_economy_intro_seen', '1');
+                  setShowEconomyIntro(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
+                  TAP TO CONTINUE
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
         )}
 
         {/* ── System Restored Overlay ── */}
