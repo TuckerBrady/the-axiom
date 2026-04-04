@@ -46,8 +46,10 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 // ─── Grid constants ───────────────────────────────────────────────────────────
 
 const DOT_R = 1.5;
-const PIECE_RADIUS = 12;
-const BOARD_SIZE = screenWidth - 24;                // 12pt padding each side
+const PIECE_RADIUS = 10;
+const CANVAS_PAD = 16;  // padding inside canvas area
+const MIN_CELL = 44;
+const MAX_CELL = 72;
 
 const VOID_QUOTES = [
   '"The signal did not reach Output. I observed the exact moment it failed."',
@@ -290,10 +292,15 @@ export default function GameplayScreen({ navigation }: Props) {
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
   const hasPlacedPieces = playerPieces.length > 0;
 
-  // ── Dynamic board sizing ──
+  // ── Dynamic board sizing (from available canvas space) ──
+  const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
   const numColumns = level.gridWidth;
   const numRows = level.gridHeight;
-  const CELL_SIZE = Math.floor(BOARD_SIZE / numColumns);
+  const availW = canvasLayout.w - CANVAS_PAD * 2;
+  const availH = canvasLayout.h - CANVAS_PAD * 2;
+  const CELL_SIZE = Math.min(MAX_CELL, Math.max(MIN_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows))));
+  const gridW = numColumns * CELL_SIZE;
+  const gridH = numRows * CELL_SIZE;
 
   // Count remaining available pieces from tray
   const availableCounts = useMemo(() => {
@@ -523,7 +530,7 @@ export default function GameplayScreen({ navigation }: Props) {
             <Text style={styles.levelTag}>{level.id}</Text>
             <Text style={styles.levelName}>{level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}</Text>
           </View>
-          <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7} onPress={() => setShowBriefing(true)}>
             <Svg width={18} height={18} viewBox="0 0 24 24">
               <Circle cx="12" cy="12" r="10" fill="none" stroke={Colors.muted} strokeWidth="2" />
               <Path d="M12 16 L12 12" stroke={Colors.muted} strokeWidth="2" strokeLinecap="round" />
@@ -566,15 +573,17 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* ── Game Canvas ── */}
-        <View style={styles.canvasOuter}>
-          <View style={[styles.canvas, { width: BOARD_SIZE, height: BOARD_SIZE }]}>
+        {/* ── Game Canvas (flex fills remaining space) ── */}
+        <View
+          style={styles.canvasOuter}
+          onLayout={e => {
+            const { width: w, height: h } = e.nativeEvent.layout;
+            setCanvasLayout({ w, h });
+          }}
+        >
+          <View style={[styles.canvas, { width: gridW, height: gridH }]}>
             {/* Dot grid */}
-            <Svg
-              width={BOARD_SIZE}
-              height={BOARD_SIZE}
-              style={StyleSheet.absoluteFill}
-            >
+            <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
                 Array.from({ length: numColumns + 1 }, (_, x) => (
                   <Circle
@@ -587,7 +596,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 )),
               )}
 
-              {/* Wires */}
+              {/* Wires — stroke scales with cell size */}
               {wires.map(wire => {
                 const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
                 const toPiece = pieces.find(p => p.id === wire.toPieceId);
@@ -600,6 +609,9 @@ export default function GameplayScreen({ navigation }: Props) {
 
                 const isProtocol = fromPiece.category === 'protocol' || toPiece.category === 'protocol';
                 const wireColor = isProtocol ? Colors.amber : Colors.blue;
+                const wireSW = Math.max(1.5, CELL_SIZE / 22);
+                const dashOn = Math.round(CELL_SIZE / 5);
+                const dashOff = Math.round(CELL_SIZE / 8);
 
                 const isAnimating = animatingStep >= 0 && executionSteps.length > 0;
                 const animatedPieceIds = isAnimating
@@ -613,8 +625,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     key={wire.id}
                     x1={fx} y1={fy} x2={tx} y2={ty}
                     stroke={isLit ? Colors.green : wireColor}
-                    strokeWidth={isLit ? 3 : 2}
-                    strokeDasharray={isLit ? undefined : '4,4'}
+                    strokeWidth={isLit ? wireSW * 1.5 : wireSW}
+                    strokeDasharray={isLit ? undefined : `${dashOn},${dashOff}`}
                     strokeOpacity={isLit ? 0.9 : 0.5}
                     strokeLinecap="round"
                   />
@@ -632,16 +644,12 @@ export default function GameplayScreen({ navigation }: Props) {
               const isPrePlaced = piece.isPrePlaced;
               const isSource = piece.type === 'source';
               const isOutput = piece.type === 'output';
-              const cellPx = piece.gridX * CELL_SIZE;
-              const cellPy = piece.gridY * CELL_SIZE;
-
-              // Icon sizing
-              const iconSize = isPrePlaced ? CELL_SIZE * 0.65 : CELL_SIZE * 0.6;
-
-              // Icon color: Source=amber, Output=green, player pieces=default
+              const pieceSize = isPrePlaced ? CELL_SIZE - 6 : CELL_SIZE - 8;
+              const offset = (CELL_SIZE - pieceSize) / 2;
+              const cellPx = piece.gridX * CELL_SIZE + offset;
+              const cellPy = piece.gridY * CELL_SIZE + offset;
+              const iconSize = (CELL_SIZE - 8) * 0.55;
               const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
-
-              // Animation state
               const isAnimStep = animatingStep >= 0 && executionSteps[animatingStep]?.pieceId === piece.id;
 
               return (
@@ -652,15 +660,15 @@ export default function GameplayScreen({ navigation }: Props) {
                     {
                       left: cellPx,
                       top: cellPy,
-                      width: CELL_SIZE,
-                      height: CELL_SIZE,
+                      width: pieceSize,
+                      height: pieceSize,
                       borderWidth: 0,
                       backgroundColor: isAnimStep ? `${iconColor}25` : 'transparent',
                     },
                   ]}
                   onPress={() => handlePieceTap(piece)}
                   onLongPress={() => handlePieceLongPress(piece)}
-                  delayLongPress={400}
+                  delayLongPress={500}
                 >
                   <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
                     <PieceIcon type={piece.type} size={iconSize} color={iconColor} />
@@ -669,7 +677,7 @@ export default function GameplayScreen({ navigation }: Props) {
               );
             })}
 
-            {/* Ghost cells (tap targets for empty cells) */}
+            {/* Ghost cells */}
             {(selectedPieceFromTray || selectedPlacedPiece) &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
@@ -1170,6 +1178,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
+    paddingHorizontal: CANVAS_PAD,
+    paddingVertical: CANVAS_PAD / 2,
   },
   canvas: {
     backgroundColor: '#06090f',
@@ -1177,6 +1187,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(74,158,255,0.1)',
     borderRadius: 8,
     position: 'relative',
+    overflow: 'hidden',
   },
 
   // Signal dot
@@ -1258,24 +1269,27 @@ const styles = StyleSheet.create({
 
   // Parts tray
   partsTray: {
+    height: 80,
     borderTopWidth: 1,
     borderTopColor: 'rgba(74,158,255,0.12)',
-    paddingVertical: Spacing.sm,
+    justifyContent: 'center',
   },
   partsTrayInner: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.sm,
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center',
   },
   trayItem: {
     width: 64,
-    height: 72,
+    height: 64,
     borderWidth: 1,
     borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(10,18,30,0.6)',
+    backgroundColor: 'rgba(8,14,28,0.8)',
     gap: 2,
+    position: 'relative',
   },
   trayLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5,
@@ -1330,10 +1344,10 @@ const styles = StyleSheet.create({
 
   // Engage row
   engageRow: {
+    height: 56,
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    paddingTop: Spacing.sm,
     gap: Spacing.md,
   },
   resetBtn: {
