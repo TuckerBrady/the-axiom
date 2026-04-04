@@ -275,7 +275,7 @@ export default function StoreScreen({ navigation }: Props) {
                 )}
                 <CircuitsIcon size={28} />
                 <Text style={st.ccAmount}>{pack.amount}</Text>
-                <Text style={st.ccLabel}>CR</Text>
+                <Text style={st.ccLabel}>CREDITS</Text>
                 <TouchableOpacity style={st.ccBtn} activeOpacity={0.85}>
                   <View style={st.ccBtnInner}>
                     <Text style={st.ccBtnText}>COMING SOON</Text>
