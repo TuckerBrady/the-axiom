@@ -1,0 +1,96 @@
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Animated,
+  Easing,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import CogsAvatar from './CogsAvatar';
+import { Colors, Fonts, Spacing } from '../theme/tokens';
+
+interface Props {
+  hintKey: string;
+  text: string;
+  onDismiss: () => void;
+}
+
+export function TutorialHint({ hintKey, text, onDismiss }: Props) {
+  const translateY = useRef(new Animated.Value(60)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  const handleDismiss = () => {
+    AsyncStorage.setItem(`axiom_hint_seen_${hintKey}`, '1');
+    Animated.parallel([
+      Animated.timing(translateY, { toValue: 60, duration: 250, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+    ]).start(() => onDismiss());
+  };
+
+  return (
+    <Animated.View style={[st.container, { transform: [{ translateY }], opacity }]}>
+      <View style={st.inner}>
+        <View style={st.header}>
+          <CogsAvatar size="small" state="engaged" />
+          <Text style={st.label}>COGS</Text>
+        </View>
+        <Text style={st.text}>{text}</Text>
+        <TouchableOpacity onPress={handleDismiss} style={st.dismissBtn} activeOpacity={0.7}>
+          <Text style={st.dismissText}>Got it</Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
+
+const st = StyleSheet.create({
+  container: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.sm,
+  },
+  inner: {
+    backgroundColor: 'rgba(8,14,28,0.96)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4a9eff',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 10,
+    paddingRight: 14,
+    gap: 6,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  label: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.blue,
+    letterSpacing: 1.5,
+  },
+  text: {
+    fontFamily: Fonts.exo2,
+    fontSize: 12,
+    fontStyle: 'italic',
+    color: Colors.starWhite,
+    lineHeight: 12 * 1.6,
+  },
+  dismissBtn: {
+    alignSelf: 'flex-end',
+  },
+  dismissText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.copper,
+  },
+});

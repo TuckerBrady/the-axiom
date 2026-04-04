@@ -258,15 +258,47 @@ function TapRow({
   );
 }
 
+function DisciplineIcon({ disc }: { disc: 'systems' | 'drive' | 'field' }) {
+  const size = 16;
+  if (disc === 'systems') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+        <Rect x="4" y="8" width="20" height="12" rx="4" stroke="#c87941" strokeWidth="1.5" fill="none" />
+        <Circle cx="14" cy="14" r="3" fill="#c87941" opacity={0.6} />
+        <Line x1="4" y1="14" x2="1" y2="14" stroke="#c87941" strokeWidth="1.5" />
+        <Line x1="27" y1="14" x2="24" y2="14" stroke="#c87941" strokeWidth="1.5" />
+      </Svg>
+    );
+  }
+  if (disc === 'drive') {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+        <Rect x="3" y="10" width="22" height="8" rx="3" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
+        <Path d="M17 9L23 14L17 19" stroke="#4a9eff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <Circle cx="9" cy="14" r="2" fill="#4a9eff" opacity={0.5} />
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={size} height={size} viewBox="0 0 28 28" fill="none">
+      <Circle cx="14" cy="14" r="8" stroke="#4ecb8d" strokeWidth="1.5" fill="none" />
+      <Path d="M10 14L14 10L18 14L14 18Z" fill="#4ecb8d" opacity={0.7} />
+    </Svg>
+  );
+}
+
 function DisciplineLabel() {
   const disc = usePlayerStore(s => s.discipline);
   if (!disc) return null;
   const label = DISCIPLINE_LABELS[disc];
   const color = disc === 'systems' ? Colors.amber : disc === 'drive' ? Colors.blue : Colors.green;
   return (
-    <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color, letterSpacing: 0.5 }}>
-      {label}
-    </Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 }}>
+      <DisciplineIcon disc={disc} />
+      <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color, letterSpacing: 0.5 }}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
