@@ -192,7 +192,7 @@ export default function GameplayScreen({ navigation }: Props) {
     debugPrev,
   } = useGameStore();
 
-  const { lives, loseLife, refillLives, credits, addCredits } = useLivesStore();
+  const { lives, loseLife, refillLives, credits: livesCredits, addCredits } = useLivesStore();
   const { completeLevel, isLevelCompleted: isLevelDone } = useProgressionStore();
   const discipline = usePlayerStore(s => s.discipline);
   const { credits, setLevelBudget, spendCredits, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
@@ -1111,13 +1111,13 @@ export default function GameplayScreen({ navigation }: Props) {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={credits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
+                  colors={livesCredits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
                   style={styles.resultsPrimaryGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
                   <Text style={styles.resultsPrimaryText}>
-                    {credits >= 30 ? 'REFILL LIVES · 30 CR' : `NEED ${30 - credits} MORE CR`}
+                    {livesCredits >= 30 ? 'REFILL LIVES · 30 CR' : `NEED ${30 - livesCredits} MORE CR`}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
