@@ -34,15 +34,14 @@ import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
 import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
 
-const { width: W, height: H } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 // ─── Grid constants ───────────────────────────────────────────────────────────
 
-const CELL_SIZE = 34;
 const DOT_R = 1.5;
-const PIECE_SIZE_PRE = 52;
-const PIECE_SIZE_PLAYER = 44;
 const PIECE_RADIUS = 12;
+const BOARD_PADDING = 24;                          // 12px each side
+const BOARD_MAX_H = screenHeight * 0.44;           // never exceed 44% of screen height
 
 const VOID_QUOTES = [
   '"The signal did not reach Output. I observed the exact moment it failed."',
@@ -196,7 +195,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const [completionText, setCompletionText] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
   const [animatingStep, setAnimatingStep] = useState(-1);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [signalDot, setSignalDot] = useState<{ x: number; y: number } | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
@@ -220,6 +218,15 @@ export default function GameplayScreen({ navigation }: Props) {
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
   const hasPlacedPieces = playerPieces.length > 0;
+
+  // ── Dynamic board sizing ──
+  const numColumns = level.gridWidth;
+  const numRows = level.gridHeight;
+  const boardByWidth = screenWidth - BOARD_PADDING;
+  const BOARD_SIZE = Math.min(boardByWidth, BOARD_MAX_H);
+  const CELL_SIZE = Math.floor(BOARD_SIZE / Math.max(numColumns, numRows));
+  const canvasWidth = numColumns * CELL_SIZE;
+  const canvasHeight = numRows * CELL_SIZE;
 
   // Count remaining available pieces from tray
   const availableCounts = useMemo(() => {
@@ -246,9 +253,6 @@ export default function GameplayScreen({ navigation }: Props) {
     });
   }, [level.availablePieces]);
 
-  const canvasWidth = level.gridWidth * CELL_SIZE;
-  const canvasHeight = level.gridHeight * CELL_SIZE;
-
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
     if (isExecuting || showResults || showVoid) return;
@@ -274,18 +278,12 @@ export default function GameplayScreen({ navigation }: Props) {
     rotatePiece(piece.id);
   }, [isExecuting, showResults, showVoid, rotatePiece]);
 
-  // ── Long press for delete ──
+  // ── Long press to pick up piece (return to tray) ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
-    setDeleteConfirm(piece.id);
-  }, []);
-
-  const confirmDelete = useCallback(() => {
-    if (deleteConfirm) {
-      deletePiece(deleteConfirm);
-      setDeleteConfirm(null);
-    }
-  }, [deleteConfirm, deletePiece]);
+    if (isExecuting || showResults || showVoid) return;
+    deletePiece(piece.id);
+  }, [isExecuting, showResults, showVoid, deletePiece]);
 
   // ── Helper: get piece center in canvas coords ──
   const getPieceCenter = useCallback((pieceId: string) => {
@@ -467,184 +465,131 @@ export default function GameplayScreen({ navigation }: Props) {
         )}
 
         {/* ── Game Canvas ── */}
-        <ScrollView
-          style={styles.canvasScroll}
-          contentContainerStyle={styles.canvasScrollContent}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-        >
-          <ScrollView
-            nestedScrollEnabled
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ alignItems: 'center', paddingVertical: Spacing.md }}
-          >
-            <View style={[styles.canvas, { width: canvasWidth + CELL_SIZE, height: canvasHeight + CELL_SIZE }]}>
-              {/* Dot grid */}
-              <Svg
-                width={canvasWidth + CELL_SIZE}
-                height={canvasHeight + CELL_SIZE}
-                style={StyleSheet.absoluteFill}
-              >
-                {Array.from({ length: level.gridHeight + 1 }, (_, y) =>
-                  Array.from({ length: level.gridWidth + 1 }, (_, x) => (
-                    <Circle
-                      key={`dot-${x}-${y}`}
-                      cx={x * CELL_SIZE + CELL_SIZE / 2}
-                      cy={y * CELL_SIZE + CELL_SIZE / 2}
-                      r={DOT_R}
-                      fill="rgba(74,158,255,0.15)"
-                    />
-                  )),
-                )}
-
-                {/* Wires */}
-                {wires.map(wire => {
-                  const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
-                  const toPiece = pieces.find(p => p.id === wire.toPieceId);
-                  if (!fromPiece || !toPiece) return null;
-
-                  const fx = fromPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
-                  const fy = fromPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
-                  const tx = toPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
-                  const ty = toPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
-
-                  const isProtocol = fromPiece.category === 'protocol' || toPiece.category === 'protocol';
-                  const wireColor = isProtocol ? Colors.amber : Colors.blue;
-
-                  // Check if this wire is part of the current animation
-                  const isAnimating = animatingStep >= 0 && executionSteps.length > 0;
-                  const animatedPieceIds = isAnimating
-                    ? executionSteps.slice(0, animatingStep + 1).map(s => s.pieceId)
-                    : [];
-                  const isLit = animatedPieceIds.includes(wire.fromPieceId) &&
-                                animatedPieceIds.includes(wire.toPieceId);
-
-                  return (
-                    <Line
-                      key={wire.id}
-                      x1={fx}
-                      y1={fy}
-                      x2={tx}
-                      y2={ty}
-                      stroke={isLit ? Colors.green : wireColor}
-                      strokeWidth={isLit ? 3 : 2}
-                      strokeDasharray={isLit ? undefined : '4,4'}
-                      strokeOpacity={isLit ? 0.9 : 0.5}
-                      strokeLinecap="round"
-                    />
-                  );
-                })}
-              </Svg>
-
-              {/* Signal dot travelling along wires */}
-              {signalDot && (
-                <View
-                  style={[
-                    styles.signalDot,
-                    {
-                      left: signalDot.x - 6,
-                      top: signalDot.y - 6,
-                    },
-                  ]}
-                />
+        <View style={styles.canvasOuter}>
+          <View style={[styles.canvas, { width: canvasWidth, height: canvasHeight }]}>
+            {/* Dot grid */}
+            <Svg
+              width={canvasWidth}
+              height={canvasHeight}
+              style={StyleSheet.absoluteFill}
+            >
+              {Array.from({ length: numRows + 1 }, (_, y) =>
+                Array.from({ length: numColumns + 1 }, (_, x) => (
+                  <Circle
+                    key={`dot-${x}-${y}`}
+                    cx={x * CELL_SIZE + CELL_SIZE / 2}
+                    cy={y * CELL_SIZE + CELL_SIZE / 2}
+                    r={DOT_R}
+                    fill="rgba(74,158,255,0.12)"
+                  />
+                )),
               )}
 
-              {/* Placed pieces */}
-              {pieces.map(piece => {
-                const pSize = piece.isPrePlaced ? PIECE_SIZE_PRE : PIECE_SIZE_PLAYER;
-                const px = piece.gridX * CELL_SIZE + (CELL_SIZE - pSize) / 2;
-                const py = piece.gridY * CELL_SIZE + (CELL_SIZE - pSize) / 2;
-                const isSelected = selectedPlacedPiece === piece.id;
-                const pieceColor = getPieceColor(piece.type);
-                const isSource = piece.type === 'source';
-                const isOutput = piece.type === 'output';
-                const isPrePlaced = piece.isPrePlaced;
-                const pieceSize = isPrePlaced ? PIECE_SIZE_PRE : PIECE_SIZE_PLAYER;
+              {/* Wires */}
+              {wires.map(wire => {
+                const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
+                const toPiece = pieces.find(p => p.id === wire.toPieceId);
+                if (!fromPiece || !toPiece) return null;
 
-                // Animation state
-                const isAnimStep = animatingStep >= 0 &&
-                  executionSteps[animatingStep]?.pieceId === piece.id;
+                const fx = fromPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
+                const fy = fromPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
+                const tx = toPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
+                const ty = toPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
 
-                // Debug state
-                let debugColor: string | null = null;
-                if (debugMode && executionSteps.length > 0) {
-                  const stepIdx = executionSteps.findIndex(s => s.pieceId === piece.id);
-                  if (stepIdx >= 0) {
-                    if (stepIdx < debugStepIndex) debugColor = Colors.green;
-                    else if (stepIdx === debugStepIndex) debugColor = Colors.amber;
-                    else if (!executionSteps[stepIdx].success) debugColor = Colors.red;
-                  }
-                }
+                const isProtocol = fromPiece.category === 'protocol' || toPiece.category === 'protocol';
+                const wireColor = isProtocol ? Colors.amber : Colors.blue;
 
-                // Placed (non-fixed) pieces: no border, transparent bg
-                // Fixed pieces (Source/Output): keep existing card style
-                const isPlayerPlaced = !isPrePlaced;
-                const containerStyle = isPlayerPlaced
-                  ? {
-                      borderWidth: 0,
-                      backgroundColor: 'transparent' as const,
-                    }
-                  : {
-                      borderColor: debugColor || (isAnimStep ? Colors.green : pieceColor),
-                      borderWidth: 1,
-                      backgroundColor: isAnimStep
-                        ? `${pieceColor}40`
-                        : `${Colors.navy}cc`,
-                    };
+                const isAnimating = animatingStep >= 0 && executionSteps.length > 0;
+                const animatedPieceIds = isAnimating
+                  ? executionSteps.slice(0, animatingStep + 1).map(s => s.pieceId)
+                  : [];
+                const isLit = animatedPieceIds.includes(wire.fromPieceId) &&
+                              animatedPieceIds.includes(wire.toPieceId);
 
                 return (
-                  <Pressable
-                    key={piece.id}
-                    style={[
-                      styles.piece,
-                      {
-                        left: px,
-                        top: py,
-                        width: pieceSize,
-                        height: pieceSize,
-                      },
-                      containerStyle,
-                    ]}
-                    onPress={() => handlePieceTap(piece)}
-                    onLongPress={() => handlePieceLongPress(piece)}
-                    delayLongPress={500}
-                  >
-                    <View style={{ transform: [{ rotate: `${isPlayerPlaced ? piece.rotation : 0}deg` }] }}>
-                      <PieceIcon type={piece.type} size={pieceSize * 0.55} color={pieceColor} />
-                    </View>
-                  </Pressable>
+                  <Line
+                    key={wire.id}
+                    x1={fx} y1={fy} x2={tx} y2={ty}
+                    stroke={isLit ? Colors.green : wireColor}
+                    strokeWidth={isLit ? 3 : 2}
+                    strokeDasharray={isLit ? undefined : '4,4'}
+                    strokeOpacity={isLit ? 0.9 : 0.5}
+                    strokeLinecap="round"
+                  />
                 );
               })}
+            </Svg>
 
-              {/* Ghost piece (tap targets for empty cells) */}
-              {(selectedPieceFromTray || selectedPlacedPiece) &&
-                Array.from({ length: level.gridHeight }, (_, y) =>
-                  Array.from({ length: level.gridWidth }, (_, x) => {
-                    const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
-                    if (occupied) return null;
-                    return (
-                      <TouchableOpacity
-                        key={`ghost-${x}-${y}`}
-                        style={[
-                          styles.ghostCell,
-                          {
-                            left: x * CELL_SIZE,
-                            top: y * CELL_SIZE,
-                            width: CELL_SIZE,
-                            height: CELL_SIZE,
-                          },
-                        ]}
-                        onPress={() => handleCanvasTap(x, y)}
-                        activeOpacity={0.6}
-                      >
-                        <View style={styles.ghostInner} />
-                      </TouchableOpacity>
-                    );
-                  }),
-                )}
-            </View>
-          </ScrollView>
-        </ScrollView>
+            {/* Signal dot */}
+            {signalDot && (
+              <View style={[styles.signalDot, { left: signalDot.x - 6, top: signalDot.y - 6 }]} />
+            )}
+
+            {/* Pieces */}
+            {pieces.map(piece => {
+              const isPrePlaced = piece.isPrePlaced;
+              const isSource = piece.type === 'source';
+              const isOutput = piece.type === 'output';
+              const cellPx = piece.gridX * CELL_SIZE;
+              const cellPy = piece.gridY * CELL_SIZE;
+
+              // Icon sizing
+              const iconSize = isPrePlaced ? CELL_SIZE * 0.65 : CELL_SIZE * 0.6;
+
+              // Icon color: Source=amber, Output=green, player pieces=default
+              const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
+
+              // Animation state
+              const isAnimStep = animatingStep >= 0 && executionSteps[animatingStep]?.pieceId === piece.id;
+
+              return (
+                <Pressable
+                  key={piece.id}
+                  style={[
+                    styles.piece,
+                    {
+                      left: cellPx,
+                      top: cellPy,
+                      width: CELL_SIZE,
+                      height: CELL_SIZE,
+                      borderWidth: 0,
+                      backgroundColor: isAnimStep ? `${iconColor}25` : 'transparent',
+                    },
+                  ]}
+                  onPress={() => handlePieceTap(piece)}
+                  onLongPress={() => handlePieceLongPress(piece)}
+                  delayLongPress={400}
+                >
+                  <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
+                    <PieceIcon type={piece.type} size={iconSize} color={iconColor} />
+                  </View>
+                </Pressable>
+              );
+            })}
+
+            {/* Ghost cells (tap targets for empty cells) */}
+            {(selectedPieceFromTray || selectedPlacedPiece) &&
+              Array.from({ length: numRows }, (_, y) =>
+                Array.from({ length: numColumns }, (_, x) => {
+                  const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
+                  if (occupied) return null;
+                  return (
+                    <TouchableOpacity
+                      key={`ghost-${x}-${y}`}
+                      style={[
+                        styles.ghostCell,
+                        { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },
+                      ]}
+                      onPress={() => handleCanvasTap(x, y)}
+                      activeOpacity={0.6}
+                    >
+                      <View style={styles.ghostInner} />
+                    </TouchableOpacity>
+                  );
+                }),
+              )}
+          </View>
+        </View>
 
         {/* ── Data Trail Strip ── */}
         {level.dataTrail.cells.length > 0 && (
@@ -762,32 +707,6 @@ export default function GameplayScreen({ navigation }: Props) {
         {/* ── Flash Overlay ── */}
         {flashColor && (
           <View style={[styles.flashOverlay, { backgroundColor: flashColor }]} />
-        )}
-
-        {/* ── Delete Confirmation ── */}
-        {deleteConfirm && (
-          <View style={styles.deleteOverlay}>
-            <View style={styles.deleteDialog}>
-              <Text style={styles.deleteTitle}>DELETE PIECE?</Text>
-              <Text style={styles.deleteSubtext}>This action cannot be undone.</Text>
-              <View style={styles.deleteActions}>
-                <TouchableOpacity
-                  style={styles.deleteCancelBtn}
-                  onPress={() => setDeleteConfirm(null)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.deleteCancelText}>CANCEL</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.deleteConfirmBtn}
-                  onPress={confirmDelete}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.deleteConfirmText}>DELETE</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
         )}
 
         {/* ── System Restored Overlay ── */}
@@ -1063,10 +982,14 @@ const styles = StyleSheet.create({
   configToggleTextActive: { color: Colors.amber },
 
   // Canvas
-  canvasScroll: { flex: 1 },
-  canvasScrollContent: { alignItems: 'center', paddingHorizontal: Spacing.md },
+  canvasOuter: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+  },
   canvas: {
-    backgroundColor: 'rgba(6,9,15,0.8)',
+    backgroundColor: '#06090f',
     borderWidth: 1,
     borderColor: 'rgba(74,158,255,0.1)',
     borderRadius: 8,
@@ -1243,47 +1166,6 @@ const styles = StyleSheet.create({
   engageBtnText: {
     fontFamily: Fonts.orbitron, fontSize: 11, fontWeight: 'bold',
     letterSpacing: 2, color: Colors.void,
-  },
-
-  // Delete dialog
-  deleteOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-  },
-  deleteDialog: {
-    backgroundColor: Colors.navy,
-    borderWidth: 1,
-    borderColor: Colors.red,
-    borderRadius: 12,
-    padding: Spacing.xl,
-    width: W * 0.7,
-    alignItems: 'center',
-  },
-  deleteTitle: {
-    fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
-    color: Colors.red, marginBottom: Spacing.sm,
-  },
-  deleteSubtext: {
-    fontFamily: Fonts.exo2, fontSize: FontSizes.sm, color: Colors.muted,
-    marginBottom: Spacing.lg,
-  },
-  deleteActions: { flexDirection: 'row', gap: Spacing.md },
-  deleteCancelBtn: {
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    borderWidth: 1, borderColor: Colors.dim, borderRadius: 8,
-  },
-  deleteCancelText: {
-    fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.muted, letterSpacing: 1,
-  },
-  deleteConfirmBtn: {
-    paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm,
-    backgroundColor: Colors.red, borderRadius: 8,
-  },
-  deleteConfirmText: {
-    fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.starWhite, letterSpacing: 1,
   },
 
   // Overlays
