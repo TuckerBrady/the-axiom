@@ -465,6 +465,75 @@ export default function SettingsScreen(_: Props) {
                     Alert.alert('Done', 'Last session set to 72 hours ago. Reload the app to see the return brief.');
                   }}
                 />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.green, fontSize: 14 }}>◆</Text>}
+                  label="Generate Today's Challenge (Dev)"
+                  labelColor={Colors.green}
+                  sub="Logs full challenge to console"
+                  delay={760}
+                  onPress={() => {
+                    const { generateDailyChallenge, getTodayDateString } = require('../game/dailyChallenge');
+                    const today = getTodayDateString();
+                    const challenge = generateDailyChallenge(today);
+                    console.log('[Challenge]', JSON.stringify({
+                      date: challenge.date,
+                      template: challenge.level.name,
+                      difficulty: challenge.level.optimalPieces,
+                      sender: challenge.sender.name,
+                      reward: challenge.reward,
+                      grid: `${challenge.level.gridWidth}x${challenge.level.gridHeight}`,
+                      pieces: challenge.level.availablePieces.length,
+                    }, null, 2));
+                    Alert.alert('Challenge Generated', `${challenge.level.name}\nSender: ${challenge.sender.name}\nReward: ${challenge.reward.creditAmount} CR`);
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.green, fontSize: 14 }}>▣</Text>}
+                  label="Test All Templates (Dev)"
+                  labelColor={Colors.green}
+                  sub="Verifies all 50 templates solvable"
+                  delay={780}
+                  onPress={() => {
+                    const { ALL_TEMPLATES } = require('../game/challengeTemplates');
+                    const { SeededRandom } = require('../game/seededRandom');
+                    const { generatePuzzleFromTemplate } = require('../game/puzzleGenerator');
+                    const { verifyPuzzle } = require('../game/puzzleVerifier');
+                    let pass = 0;
+                    let fail = 0;
+                    const failures: string[] = [];
+                    for (const tpl of ALL_TEMPLATES) {
+                      const rng = new SeededRandom(12345);
+                      const { level, solutionPieces } = generatePuzzleFromTemplate(tpl, rng, '2026-04-04');
+                      const result = verifyPuzzle(level, solutionPieces);
+                      if (result.solvable) { pass++; } else { fail++; failures.push(`${tpl.id}: ${result.failReason}`); }
+                    }
+                    console.log('[Templates]', `${pass}/${ALL_TEMPLATES.length} verified`, failures);
+                    Alert.alert('Template Test', `${pass}/${ALL_TEMPLATES.length} verified\n${failures.length > 0 ? failures.slice(0, 3).join('\n') : 'All passed!'}`);
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
+                  label="Preview Next 7 Days (Dev)"
+                  labelColor={Colors.green}
+                  sub="Shows upcoming daily challenges"
+                  delay={800}
+                  onPress={() => {
+                    const { generateDailyChallenge } = require('../game/dailyChallenge');
+                    const days: string[] = [];
+                    for (let i = 0; i < 7; i++) {
+                      const d = new Date();
+                      d.setDate(d.getDate() + i);
+                      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                      const ch = generateDailyChallenge(ds);
+                      days.push(`${ds}: ${ch.level.name} (${ch.sender.type})`);
+                    }
+                    console.log('[Next 7 Days]', days);
+                    Alert.alert('Next 7 Days', days.join('\n'));
+                  }}
+                />
               </>
             )}
           </View>
