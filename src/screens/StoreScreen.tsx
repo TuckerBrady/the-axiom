@@ -182,16 +182,11 @@ export default function StoreScreen({ navigation }: Props) {
           <View style={{ width: 36 }} />
         </Animated.View>
 
-        {/* Currency displays */}
+        {/* Currency display — single balance */}
         <Animated.View style={[st.currencyRow, headerRevealStyle]}>
           <View style={st.currencyBox}>
             <CogsIcon size={16} />
             <Text style={st.currencyAmount}>{credits}</Text>
-            <Text style={st.currencyLabel}>CR</Text>
-          </View>
-          <View style={[st.currencyBox, st.currencyBoxCircuits]}>
-            <CircuitsIcon size={16} />
-            <Text style={[st.currencyAmount, { color: Colors.circuit }]}>{credits}</Text>
             <Text style={st.currencyLabel}>CR</Text>
           </View>
         </Animated.View>
@@ -244,12 +239,11 @@ export default function StoreScreen({ navigation }: Props) {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 0 }}
                       >
-                        <Text style={st.puBtnText}>{item.price}</Text>
-                        <CogsIcon size={10} />
+                        <Text style={st.puBtnText}>{item.price} CR</Text>
                       </LinearGradient>
                     ) : (
                       <View style={st.puBtnGradient}>
-                        <Text style={st.puBtnTextDim}>Need {deficit}</Text>
+                        <Text style={st.puBtnTextDim}>Need {deficit} CR</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -258,7 +252,7 @@ export default function StoreScreen({ navigation }: Props) {
             );
           })}
 
-          {/* Circuits section */}
+          {/* Credits section */}
           <Text style={[st.sectionTitle, { marginTop: Spacing.xl }]}>CREDITS</Text>
           <View style={st.circuitGrid}>
             {CIRCUIT_PACKS.map((pack, i) => (
@@ -338,10 +332,6 @@ const st = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-  },
-  currencyBoxCircuits: {
-    backgroundColor: 'rgba(167,139,250,0.08)',
-    borderColor: 'rgba(167,139,250,0.25)',
   },
   currencyAmount: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
