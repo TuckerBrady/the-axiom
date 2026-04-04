@@ -38,8 +38,9 @@ import { calculateScore, getCOGSScoreComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory } from '../game/types';
+import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
+import { getOutputPorts, getInputPorts } from '../game/engine';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -624,8 +625,8 @@ export default function GameplayScreen({ navigation }: Props) {
                 )),
               )}
 
-              {/* Wires — stroke scales with cell size */}
-              {wires.map(wire => {
+              {/* Wires — only on Axiom tutorial levels */}
+              {level.sector === 'axiom' && wires.map(wire => {
                 const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
                 const toPiece = pieces.find(p => p.id === wire.toPieceId);
                 if (!fromPiece || !toPiece) return null;
@@ -710,12 +711,33 @@ export default function GameplayScreen({ navigation }: Props) {
               );
             })}
 
-            {/* Ghost cells (show during tray selection or held piece) */}
+            {/* Ghost cells — valid placement hints on Axiom, tap targets everywhere */}
             {(selectedPieceFromTray || heldPieceId) &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
                   const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
                   if (occupied) return null;
+
+                  // On Axiom levels: only show cells adjacent to placed/pre-placed pieces
+                  // where port directions would allow a connection
+                  const isAxiom = level.sector === 'axiom';
+                  let isValid = true;
+                  if (isAxiom) {
+                    isValid = pieces.some(p => {
+                      const dx = x - p.gridX;
+                      const dy = y - p.gridY;
+                      if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
+                      // Check if the existing piece has an output port facing this cell
+                      let side: PortSide;
+                      if (dx === 1) side = 'right';
+                      else if (dx === -1) side = 'left';
+                      else if (dy === 1) side = 'bottom';
+                      else side = 'top';
+                      return getOutputPorts(p).includes(side) || getInputPorts(p).includes(side);
+                    });
+                    if (!isValid) return null;
+                  }
+
                   return (
                     <TouchableOpacity
                       key={`ghost-${x}-${y}`}
@@ -726,7 +748,9 @@ export default function GameplayScreen({ navigation }: Props) {
                       onPress={() => handleCanvasTap(x, y)}
                       activeOpacity={0.6}
                     >
-                      <View style={styles.ghostInner} />
+                      {isAxiom ? (
+                        <View style={styles.ghostInnerValid} />
+                      ) : null}
                     </TouchableOpacity>
                   );
                 }),
@@ -1259,13 +1283,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ghostInner: {
+  ghostInnerValid: {
     width: '80%',
     height: '80%',
     borderRadius: PIECE_RADIUS - 1,
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.15)',
+    borderWidth: 1.5,
+    borderColor: '#c87941',
     borderStyle: 'dashed',
+    backgroundColor: 'rgba(200,121,65,0.08)',
   },
 
   // Data trail
