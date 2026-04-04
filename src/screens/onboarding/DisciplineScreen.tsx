@@ -16,7 +16,9 @@ import Animated, {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
-import { usePlayerStore, Discipline } from '../../store/playerStore';
+import { usePlayerStore, DISCIPLINE_MAP } from '../../store/playerStore';
+
+type OnboardingDiscipline = 'architect' | 'engineer' | 'operative' | null;
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 
 type Props = {
@@ -24,7 +26,7 @@ type Props = {
 };
 
 const DISCIPLINES: Array<{
-  id: Discipline;
+  id: OnboardingDiscipline;
   name: string;
   tag: string;
   tagColor: string;
@@ -132,7 +134,7 @@ function CogsResponseCard({
 }
 
 export default function DisciplineScreen({ navigation }: Props) {
-  const [selected, setSelected] = useState<Discipline>(null);
+  const [selected, setSelected] = useState<OnboardingDiscipline>(null);
   const playerName = usePlayerStore(s => s.name);
   const setDiscipline = usePlayerStore(s => s.setDiscipline);
 
@@ -163,7 +165,8 @@ export default function DisciplineScreen({ navigation }: Props) {
 
   const handleConfirm = () => {
     if (!selected) return;
-    setDiscipline(selected);
+    const mapped = DISCIPLINE_MAP[selected] ?? null;
+    setDiscipline(mapped);
     navigation.navigate('Login');
   };
 

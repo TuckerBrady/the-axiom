@@ -24,6 +24,7 @@ import DisciplineScreen from '../screens/onboarding/DisciplineScreen';
 import LoginScreen from '../screens/onboarding/LoginScreen';
 
 import { Colors } from '../theme/tokens';
+import { usePlayerStore } from '../store/playerStore';
 
 export type RootStackParamList = {
   // Onboarding
@@ -78,6 +79,11 @@ export default function RootNavigator() {
       }
     });
     return () => sub.remove();
+  }, []);
+
+  // ── Hydrate player store from AsyncStorage ──
+  useEffect(() => {
+    usePlayerStore.getState().hydrate();
   }, []);
 
   // ── Determine initial route ──

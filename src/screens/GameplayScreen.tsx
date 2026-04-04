@@ -32,6 +32,9 @@ import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
+import { usePlayerStore } from '../store/playerStore';
+import { calculateScore, getCOGSScoreComment } from '../game/scoring';
+import type { ScoreResult } from '../game/scoring';
 import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -184,6 +187,10 @@ export default function GameplayScreen({ navigation }: Props) {
 
   const { lives, loseLife, refillLives, circuits, addCogs } = useLivesStore();
   const { completeLevel } = useProgressionStore();
+  const discipline = usePlayerStore(s => s.discipline);
+
+  const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
+  const [cogsScoreComment, setCogsScoreComment] = useState('');
 
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
@@ -293,6 +300,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
     if (isExecuting) return;
+    const engageStartTime = Date.now();
     const steps = engage();
 
     // Animate signal dot travelling along wires with 400ms per step
@@ -307,9 +315,26 @@ export default function GameplayScreen({ navigation }: Props) {
     // Flash effect before showing overlay
     const succeeded = steps.some(s => s.type === 'output' && s.success);
     if (succeeded) {
+      // Calculate score using new scoring engine
+      const engageDurationMs = Date.now() - engageStartTime;
+      const currentDiscipline = discipline ?? 'field'; // fallback
+      const result = calculateScore({
+        executionSteps: steps,
+        placedPieces: machineState.pieces,
+        optimalPieces: level.optimalPieces,
+        discipline: currentDiscipline,
+        engageDurationMs,
+      });
+      setScoreResult(result);
+
+      const playerPieceCount = machineState.pieces.filter(p => !p.isPrePlaced).length;
+      setCogsScoreComment(getCOGSScoreComment(
+        result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces,
+      ));
+
       // Record progression
       const levelId = level.id;
-      const starsEarned = useGameStore.getState().stars;
+      const starsEarned = result.stars;
       const isFirst = completeLevel(levelId, starsEarned);
       setFirstTimeBonus(isFirst);
       if (isFirst) {
@@ -727,17 +752,35 @@ export default function GameplayScreen({ navigation }: Props) {
               style={StyleSheet.absoluteFill}
             />
             <View style={styles.overlayContent}>
-              <View style={styles.starsRow}>{renderStars(stars)}</View>
+              <View style={styles.starsRow}>{renderStars(scoreResult?.stars ?? stars)}</View>
               <Text style={styles.resultsTitle}>CIRCUIT COMPLETE</Text>
               <Text style={styles.resultsLevel}>{level.name}</Text>
+
+              {/* Score breakdown strip */}
+              {scoreResult && (
+                <View style={styles.scoreStrip}>
+                  {([
+                    ['EFFICIENCY', scoreResult.breakdown.efficiency, 30],
+                    ['PROTOCOL', scoreResult.breakdown.protocolPrecision, 25],
+                    ['INTEGRITY', scoreResult.breakdown.chainIntegrity, 20],
+                    ['DISCIPLINE', scoreResult.breakdown.disciplineBonus, 15],
+                    ['SPEED', scoreResult.breakdown.speedBonus, 10],
+                  ] as [string, number, number][]).map(([label, val, max]) => (
+                    <View key={label} style={styles.scoreCell}>
+                      <Text style={[
+                        styles.scoreCellVal,
+                        { color: val >= max ? Colors.green : val > 0 ? Colors.amber : Colors.red },
+                      ]}>{val}</Text>
+                      <Text style={styles.scoreCellLabel}>{label}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={styles.cogsResultRow}>
                 <CogsAvatar size="small" state="online" />
                 <Text style={styles.resultsQuote}>
-                  {stars === 3
-                    ? '"Optimal. I have updated my assessment accordingly."'
-                    : stars === 2
-                    ? '"Functional. There was a more elegant solution."'
-                    : '"It worked. I will note that it barely worked."'}
+                  "{cogsScoreComment || 'Circuit complete.'}"
                   {firstTimeBonus ? '\n\n"Mission logged. 25 Cogs credited to your account."' : ''}
                 </Text>
               </View>
@@ -1191,6 +1234,35 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 4,
     lineHeight: 44,
+  },
+
+  // Score strip
+  scoreStrip: {
+    flexDirection: 'row',
+    width: '100%',
+    marginBottom: Spacing.md,
+    backgroundColor: 'rgba(10,18,30,0.6)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.1)',
+    overflow: 'hidden',
+  },
+  scoreCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 2,
+  },
+  scoreCellVal: {
+    fontFamily: Fonts.orbitron,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  scoreCellLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 5,
+    color: Colors.dim,
+    letterSpacing: 0.5,
   },
 
   // Results

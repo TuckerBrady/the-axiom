@@ -24,6 +24,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import EngineerIcon from '../components/icons/EngineerIcon';
 import { WireToggle } from '../components/WireToggle';
 import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
+import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
 import {
   NotificationIcon,
   CloudIcon,
@@ -257,6 +258,18 @@ function TapRow({
   );
 }
 
+function DisciplineLabel() {
+  const disc = usePlayerStore(s => s.discipline);
+  if (!disc) return null;
+  const label = DISCIPLINE_LABELS[disc];
+  const color = disc === 'systems' ? Colors.amber : disc === 'drive' ? Colors.blue : Colors.green;
+  return (
+    <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color, letterSpacing: 0.5 }}>
+      {label}
+    </Text>
+  );
+}
+
 export default function SettingsScreen(_: Props) {
   const [sfx, setSfx] = useState(true);
   const [music, setMusic] = useState(true);
@@ -311,6 +324,7 @@ export default function SettingsScreen(_: Props) {
               <R04Insignia size={18} />
               <Text style={styles.profileSub}>R04 Mechanic · 4,250 CR</Text>
             </View>
+            <DisciplineLabel />
           </View>
           <TouchableOpacity style={styles.editBtn} activeOpacity={0.75}>
             <Text style={styles.editBtnText}>EDIT</Text>
