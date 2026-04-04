@@ -41,6 +41,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
 import { getOutputPorts, getInputPorts } from '../game/engine';
+import { AXIOM_LEVELS } from '../game/levels';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -178,6 +179,7 @@ export default function GameplayScreen({ navigation }: Props) {
     configuration,
     debugMode,
     debugStepIndex,
+    setLevel,
     placePiece,
     movePiece,
     deletePiece,
@@ -1007,7 +1009,8 @@ export default function GameplayScreen({ navigation }: Props) {
                         return;
                       }
                     }
-                    navigation.goBack();
+                    // Pop back to LevelSelect — next level becomes active via progressionStore
+                    navigation.navigate('LevelSelect');
                   }}
                   activeOpacity={0.85}
                 >
@@ -1141,7 +1144,7 @@ export default function GameplayScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.completionScene}
           activeOpacity={1}
-          onPress={() => { setShowDisciplineCard(false); navigation.goBack(); }}
+          onPress={() => { setShowDisciplineCard(false); navigation.navigate('LevelSelect'); }}
         >
           <View style={styles.completionInner}>
             <CogsAvatar size="large" state="online" />
