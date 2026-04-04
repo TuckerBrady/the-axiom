@@ -30,6 +30,8 @@ import CogsAvatar from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
 import { useEconomyStore } from '../store/economyStore';
+import { useChallengeStore, getStreakCOGSLine } from '../store/challengeStore';
+import { useConsequenceStore } from '../store/consequenceStore';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS, SHIP_SYSTEMS } from '../store/progressionStore';
 import { AXIOM_LEVELS } from '../game/levels';
 
@@ -136,6 +138,15 @@ function HeartIcon({ filled, size = 16 }: { filled: boolean; size?: number }) {
 export default function HubScreen({ navigation }: Props) {
   const { lives, regenerate } = useLivesStore();
   const { credits } = useEconomyStore();
+  const { currentChallenge, challengeStatus, loadOrGenerateChallenge, currentStreak } = useChallengeStore();
+  const pirateActive = useConsequenceStore(s => s.activeConsequences.some(c => c.id === 'nova_boss_consequence'));
+
+  // Load daily challenge on mount
+  useEffect(() => {
+    loadOrGenerateChallenge(pirateActive);
+  }, []);
+
+  const hasTransmission = challengeStatus === 'available' && !!currentChallenge;
   const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
 
   const axiomCompleted = getSectorCompletedCount('A1-');
@@ -265,15 +276,33 @@ export default function HubScreen({ navigation }: Props) {
           </Animated.View>
 
           {/* ── Cogs speech bubble ── */}
-          <Animated.View style={[styles.cogsBubble, cogsRevealStyle]}>
-            <View style={styles.cogsHeader}>
-              <View style={styles.cogsAvatar}>
-                <CogsAvatar size="small" state="online" />
+          <TouchableOpacity
+            activeOpacity={hasTransmission ? 0.8 : 1}
+            onPress={hasTransmission ? () => {
+              // TODO: navigate to DailyChallengeDossier when built
+            } : undefined}
+          >
+            <Animated.View style={[
+              styles.cogsBubble,
+              cogsRevealStyle,
+              hasTransmission && styles.cogsBubbleTransmission,
+            ]}>
+              {hasTransmission && (
+                <Text style={styles.transmissionBadge}>TRANSMISSION</Text>
+              )}
+              <View style={styles.cogsHeader}>
+                <View style={styles.cogsAvatar}>
+                  <CogsAvatar size="small" state={hasTransmission ? 'engaged' : 'online'} />
+                </View>
+                <Text style={styles.cogsName}>COGS · AI UNIT</Text>
               </View>
-              <Text style={styles.cogsName}>COGS · AI UNIT</Text>
-            </View>
-            <Text style={styles.cogsSpeech}>{todayCogsLine}</Text>
-          </Animated.View>
+              <Text style={styles.cogsSpeech}>
+                {hasTransmission
+                  ? currentChallenge!.cogsPresentation
+                  : todayCogsLine}
+              </Text>
+            </Animated.View>
+          </TouchableOpacity>
 
           {/* ── Lives row ── */}
           <Animated.View style={[styles.livesRow, cogsRevealStyle]}>
@@ -508,6 +537,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(74,158,255,0.2)',
     borderRadius: 14,
     padding: 14,
+  },
+  cogsBubbleTransmission: {
+    borderColor: 'rgba(200,121,65,0.4)',
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.copper,
+  },
+  transmissionBadge: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 7,
+    color: Colors.copper,
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   cogsHeader: {
     flexDirection: 'row',

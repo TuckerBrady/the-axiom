@@ -206,6 +206,46 @@ export type TutorialHint = {
 
 export type ScoringCategory = 'efficiency' | 'chainIntegrity' | 'protocolPrecision' | 'disciplineBonus' | 'speedBonus';
 
+// ─── Daily Challenge ─────────────────────────────────────────────────────────
+
+export type ChallengeSender = {
+  id: string;
+  name: string;
+  type: 'known_contact' | 'unknown' | 'pirate_adjacent' | 'government' | 'distress';
+  sector: string;
+  description: string;
+};
+
+export type ChallengeReward = {
+  type: 'credits' | 'rare_piece_unlock' | 'hint_tokens' | 'codex_entry' | 'credits_and_bonus';
+  creditAmount?: number;
+  hintTokens?: number;
+  codexEntryId?: string;
+  bonusDescription?: string;
+};
+
+export type DailyChallenge = {
+  date: string;
+  puzzleId: string;
+  sender: ChallengeSender;
+  reward: ChallengeReward;
+  cogsPresentation: string;
+  cogsFullBrief: string;
+  cogsOnAttempt: string;
+  cogsOnSuccess: string;
+  cogsOnFailure: string;
+  cogsOnDecline: string;
+  level: LevelDefinition;
+};
+
+export type ChallengeRecord = {
+  date: string;
+  senderName: string;
+  result: '3star' | 'sub3star' | 'failed' | 'declined';
+  creditsEarned: number;
+  puzzleType: string;
+};
+
 // ─── Execution ────────────────────────────────────────────────────────────────
 
 export type ExecutionStep = {
