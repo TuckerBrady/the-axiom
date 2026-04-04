@@ -56,6 +56,14 @@ export const levelA1_1: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 1,
   systemRepaired: 'Emergency Power',
+  budget: 0,
+  scoringCategoriesVisible: ['efficiency'],
+  tutorialHints: [
+    { key: 'a11_select', trigger: 'onMount', text: 'Tap a piece in the tray to select it. Then tap the grid to place it between Source and Output.' },
+    { key: 'a11_engage', trigger: 'onFirstPiecePlaced', text: 'Piece placed. Tap ENGAGE MACHINE to fire the signal.' },
+    { key: 'a11_void', trigger: 'onVoid', text: 'The signal could not reach Output. Check your connections.' },
+    { key: 'a11_success', trigger: 'onSuccess', text: 'Emergency power restored. Source to Output. That is how every machine works.' },
+  ],
 };
 
 pieceCounter = 100;
@@ -77,6 +85,12 @@ export const levelA1_2: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 2,
   systemRepaired: 'Life Support',
+  budget: 10,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity'],
+  tutorialHints: [
+    { key: 'a12_gear', trigger: 'onMount', text: 'Source and Output are not aligned. A Gear redirects the signal. Plan your path before placing.' },
+    { key: 'a12_integrity', trigger: 'onSuccess', text: 'Chain Integrity: every piece you place should carry the signal. Pieces the signal skips cost points.' },
+  ],
 };
 
 pieceCounter = 200;
@@ -99,6 +113,13 @@ export const levelA1_3: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 3,
   systemRepaired: 'Navigation Array',
+  budget: 20,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  tutorialHints: [
+    { key: 'a13_protocol', trigger: 'onMount', text: 'The amber piece is a Config Node — a Protocol piece. Protocol pieces think. Physics pieces move.' },
+    { key: 'a13_config', trigger: 'onMount', text: 'The Config Node only passes the signal when conditions are met. Connect the pieces. It handles the logic.' },
+    { key: 'a13_precision', trigger: 'onSuccess', text: 'Protocol Precision: Protocol pieces touched by the signal score higher. Use them well.' },
+  ],
 };
 
 pieceCounter = 300;
@@ -120,6 +141,12 @@ export const levelA1_4: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 3,
   systemRepaired: 'Propulsion Core',
+  budget: 20,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  tutorialHints: [
+    { key: 'a14_chain', trigger: 'onMount', text: 'Propulsion needs a longer path. Every piece you place should carry the signal. Nothing wasted.' },
+    { key: 'a14_remove', trigger: 'onVoid', text: 'Remove any piece the signal did not reach. Dead weight costs points.' },
+  ],
 };
 
 pieceCounter = 400;
@@ -142,6 +169,12 @@ export const levelA1_5: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 2,
   systemRepaired: 'Communication Array',
+  budget: 25,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  tutorialHints: [
+    { key: 'a15_trail', trigger: 'onMount', text: 'The Data Trail at the bottom is signal memory. The Scanner reads it cell by cell as the machine runs.' },
+    { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
+  ],
 };
 
 pieceCounter = 500;
@@ -163,6 +196,12 @@ export const levelA1_6: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 4,
   systemRepaired: 'Sensor Grid',
+  budget: 40,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  tutorialHints: [
+    { key: 'a16_multi', trigger: 'onMount', text: 'Multiple Config Nodes. Each reads the trail and decides whether to pass the signal. Study the trail first.' },
+    { key: 'a16_void', trigger: 'onVoid', text: 'A Config Node blocked the signal. The trail value there did not match. Rethink the sequence.' },
+  ],
 };
 
 pieceCounter = 600;
@@ -185,6 +224,12 @@ export const levelA1_7: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 4,
   systemRepaired: 'Weapons Lock',
+  budget: 40,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  tutorialHints: [
+    { key: 'a17_transmitter', trigger: 'onMount', text: 'The Transmitter writes to the Data Trail. Scanner reads. Together they change what Config Nodes see. The machine can think.' },
+    { key: 'a17_sequence', trigger: 'onFirstPiecePlaced', text: 'Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters.' },
+  ],
 };
 
 pieceCounter = 700;
@@ -212,6 +257,14 @@ export const levelA1_8: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6,
   systemRepaired: 'Bridge Systems',
+  budget: 60,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
+  tutorialHints: [
+    { key: 'a18_boss', trigger: 'onMount', text: 'Bridge systems. Every piece you have learned is in play. This is what the Axiom needs.' },
+    { key: 'a18_scoring', trigger: 'onMount', text: 'Your full score is now visible: Efficiency, Protocol, Integrity, Discipline, Speed. Three stars is the goal.' },
+    { key: 'a18_discipline', trigger: 'onMount', text: 'Your discipline shapes your bonus. Play to your strengths — but every path to three stars is open.' },
+    { key: 'a18_speed', trigger: 'onEngage', text: 'Timer running. Decisive solutions score higher.' },
+  ],
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

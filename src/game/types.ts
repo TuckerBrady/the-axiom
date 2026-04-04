@@ -86,7 +86,56 @@ export type LevelDefinition = {
   objectives: LevelObjective[];
   optimalPieces: number;
   systemRepaired?: string;
+  budget?: number;
+  tutorialHints?: TutorialHint[];
+  scoringCategoriesVisible?: ScoringCategory[];
 };
+
+// ─── Piece Costs ─────────────────────────────────────────────────────────
+
+export const PIECE_COSTS: Partial<Record<PieceType, number>> = {
+  conveyor: 5,
+  gear: 10,
+  splitter: 15,
+  configNode: 25,
+  scanner: 30,
+  transmitter: 35,
+};
+
+const PROTOCOL_PIECES: PieceType[] = ['configNode', 'scanner', 'transmitter'];
+const PHYSICS_PIECES: PieceType[] = ['conveyor', 'gear', 'splitter'];
+
+export function getPieceCost(
+  pieceType: PieceType,
+  discipline: 'systems' | 'drive' | 'field' | null,
+): number {
+  const base = PIECE_COSTS[pieceType] ?? 0;
+  if (base === 0) return 0;
+  if (discipline === 'systems' && PROTOCOL_PIECES.includes(pieceType)) {
+    return Math.floor(base * 0.8);
+  }
+  if (discipline === 'drive' && PHYSICS_PIECES.includes(pieceType)) {
+    return Math.floor(base * 0.8);
+  }
+  if (discipline === 'field') {
+    return Math.floor(base * 0.9);
+  }
+  return base;
+}
+
+// ─── Tutorial Hints ──────────────────────────────────────────────────────────
+
+export type TutorialTrigger = 'onMount' | 'onFirstPiecePlaced' | 'onEngage' | 'onVoid' | 'onSuccess';
+
+export type TutorialHint = {
+  key: string;
+  trigger: TutorialTrigger;
+  text: string;
+};
+
+// ─── Scoring Category Visibility ─────────────────────────────────────────────
+
+export type ScoringCategory = 'efficiency' | 'chainIntegrity' | 'protocolPrecision' | 'disciplineBonus' | 'speedBonus';
 
 // ─── Execution ────────────────────────────────────────────────────────────────
 
