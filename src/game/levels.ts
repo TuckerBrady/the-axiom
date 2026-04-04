@@ -359,6 +359,58 @@ export const level2_3: LevelDefinition = {
   optimalPieces: 3,
 };
 
+// ─── Repair Puzzles (consequence-triggered) ──────────────────────────────────
+
+pieceCounter = 900;
+
+// Triggered by Kepler boss consequence — propulsion surge damage
+export const repairPropulsionSurge: LevelDefinition = {
+  id: 'REPAIR-PROP-SURGE',
+  name: 'Propulsion Core Emergency Restart',
+  sector: 'kepler',
+  description: 'The colonists jury-rigged the propulsion routing. Undo the damage.',
+  cogsLine: 'The surge damaged the propulsion routing. The colonists\' wiring is now in the mix. This will be more complex than a standard repair.',
+  gridWidth: 9,
+  gridHeight: 6,
+  prePlacedPieces: [
+    prePlaced('source', 1, 3),
+    prePlaced('output', 8, 3),
+    prePlaced('configNode', 4, 3, { condition: (c: number) => c === 1 }),
+    prePlaced('scanner', 6, 3),
+  ],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'transmitter'],
+  dataTrail: { cells: [1, 0, 1, 0, 1, 1, 0, 1], headPosition: 0 },
+  objectives: [{ type: 'reach_output' }],
+  optimalPieces: 4,
+  budget: 40,
+  systemRepaired: 'Propulsion Core',
+};
+
+pieceCounter = 910;
+
+// Triggered by Nova Fringe pirate consequence — hyperdrive damage
+export const repairHyperdrive: LevelDefinition = {
+  id: 'REPAIR-HYPERDRIVE',
+  name: 'Hyperdrive Restart Sequence',
+  sector: 'nova',
+  description: 'The pirates disabled the hyperdrive routing. Full Protocol coordination required.',
+  cogsLine: 'The pirates disabled the hyperdrive routing before they left. Thorough of them. The restart sequence requires full Protocol coordination.',
+  gridWidth: 9,
+  gridHeight: 7,
+  prePlacedPieces: [
+    prePlaced('source', 1, 3),
+    prePlaced('output', 8, 3),
+    prePlaced('scanner', 3, 3),
+    prePlaced('scanner', 6, 4),
+  ],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'configNode', 'configNode', 'transmitter', 'transmitter'],
+  dataTrail: { cells: [1, 1, 0, 1, 0, 0, 1, 1], headPosition: 0 },
+  objectives: [{ type: 'reach_output' }],
+  optimalPieces: 5,
+  budget: 50,
+  systemRepaired: 'Propulsion Core',
+};
+
 // ─── All levels ───────────────────────────────────────────────────────────────
 
 export const AXIOM_LEVELS: LevelDefinition[] = [
@@ -368,7 +420,9 @@ export const AXIOM_LEVELS: LevelDefinition[] = [
 
 export const KEPLER_LEVELS: LevelDefinition[] = [level2_1, level2_2, level2_3];
 
-export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS];
+export const REPAIR_LEVELS: LevelDefinition[] = [repairPropulsionSurge, repairHyperdrive];
+
+export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS, ...REPAIR_LEVELS];
 
 export function getLevelById(id: string): LevelDefinition | undefined {
   return ALL_LEVELS.find(l => l.id === id);
