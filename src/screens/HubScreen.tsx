@@ -279,7 +279,7 @@ export default function HubScreen({ navigation }: Props) {
           <TouchableOpacity
             activeOpacity={hasTransmission ? 0.8 : 1}
             onPress={hasTransmission ? () => {
-              // TODO: navigate to DailyChallengeDossier when built
+              navigation.navigate('DailyChallengeDossier');
             } : undefined}
           >
             <Animated.View style={[

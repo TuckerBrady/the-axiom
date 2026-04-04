@@ -11,6 +11,7 @@ import StoreScreen from '../screens/StoreScreen';
 import MissionDossierScreen from '../screens/MissionDossierScreen';
 import DailyRewardScreen from '../screens/DailyRewardScreen';
 import ReturnBriefScreen from '../screens/ReturnBriefScreen';
+import DailyChallengeDossierScreen from '../screens/DailyChallengeDossierScreen';
 import TabNavigator from './TabNavigator';
 
 // Onboarding
@@ -54,6 +55,7 @@ export type RootStackParamList = {
     levelId: string | undefined;
     nodeState: 'completed' | 'active' | 'unplayed' | 'locked';
   };
+  DailyChallengeDossier: undefined;
   Gameplay: undefined;
   Store: undefined;
 };
@@ -155,6 +157,11 @@ export default function RootNavigator() {
         <Stack.Screen
           name="MissionDossier"
           component={MissionDossierScreen}
+          options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }}
+        />
+        <Stack.Screen
+          name="DailyChallengeDossier"
+          component={DailyChallengeDossierScreen}
           options={{ headerShown: false, animation: 'slide_from_bottom', presentation: 'modal' }}
         />
         <Stack.Screen
