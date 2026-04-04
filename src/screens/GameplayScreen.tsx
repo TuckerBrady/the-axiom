@@ -1009,8 +1009,9 @@ export default function GameplayScreen({ navigation }: Props) {
                         return;
                       }
                     }
-                    // Pop back to LevelSelect — next level becomes active via progressionStore
-                    navigation.navigate('LevelSelect');
+                    // Pop past MissionDossier back to LevelSelect
+                    // progressionStore already updated — getAxiomState will show next level as active
+                    if (navigation.canGoBack()) navigation.pop(2);
                   }}
                   activeOpacity={0.85}
                 >
@@ -1144,7 +1145,7 @@ export default function GameplayScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.completionScene}
           activeOpacity={1}
-          onPress={() => { setShowDisciplineCard(false); navigation.navigate('LevelSelect'); }}
+          onPress={() => { setShowDisciplineCard(false); if (navigation.canGoBack()) navigation.pop(2); }}
         >
           <View style={styles.completionInner}>
             <CogsAvatar size="large" state="online" />
