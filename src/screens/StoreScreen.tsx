@@ -187,7 +187,7 @@ export default function StoreScreen({ navigation }: Props) {
           <View style={st.currencyBox}>
             <CogsIcon size={16} />
             <Text style={st.currencyAmount}>{credits}</Text>
-            <Text style={st.currencyLabel}>CR</Text>
+            <Text style={st.currencyLabel}>Credits</Text>
           </View>
         </Animated.View>
 
