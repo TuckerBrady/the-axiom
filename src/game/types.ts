@@ -72,6 +72,17 @@ export type LevelObjective = {
   requiredValue?: number;
 };
 
+// ─── Consequence Level Config ─────────────────────────────────────────────
+
+export type ConsequenceConfig = {
+  // COGS pre-launch line — weight only, no specifics
+  cogsWarning: string;
+  // What breaks on failure (hidden from player until failure occurs)
+  failureEffect: string;
+  // For boss consequence levels: require 3 stars to avoid consequence
+  requireThreeStars?: boolean;
+};
+
 export type LevelDefinition = {
   id: string;
   name: string;
@@ -89,6 +100,8 @@ export type LevelDefinition = {
   budget?: number;
   tutorialHints?: TutorialHint[];
   scoringCategoriesVisible?: ScoringCategory[];
+  // Consequence levels — undefined for normal levels
+  consequence?: ConsequenceConfig;
 };
 
 // ─── Piece Costs ─────────────────────────────────────────────────────────

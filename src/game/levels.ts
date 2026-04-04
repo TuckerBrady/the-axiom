@@ -270,6 +270,22 @@ export const levelA1_8: LevelDefinition = {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SECTOR 1: KEPLER BELT
 // ═══════════════════════════════════════════════════════════════════════════════
+//
+// CONSEQUENCE LEVEL DESIGN RULES:
+// - K2-4, K2-8: standard consequence. Any completion (1+ stars) avoids penalty.
+// - K2-10 (boss): requireThreeStars. 1-2 stars triggers consequence.
+// - COGS pre-launch lines are weight only, no specifics:
+//     K2-4:  "Pay attention to this one."
+//     K2-8:  "This mission matters more than most. That is all."
+//     K2-10: "Do not fail here. I will not elaborate."
+// - No Shield purchase, no MISSION RISK section, no repair cost preview.
+// - Node visual: copper pulsing ring, no tooltip/label explaining risk.
+// - On failure: dramatic consequence reveal (ship zone darkens, COGS eyes shift).
+//
+// FREE PIECE SET GUARANTEE:
+// Every consequence level's availablePieces array MUST be verified solvable
+// at 3 stars without spending any credits. The solve path exists.
+// Credits are emergency only — for reactive in-level spending when stuck.
 
 pieceCounter = 800;
 

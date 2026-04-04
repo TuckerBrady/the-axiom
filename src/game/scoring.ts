@@ -1,4 +1,4 @@
-import type { ExecutionStep, PlacedPiece, PieceType } from './types';
+import type { ExecutionStep, PlacedPiece, PieceType, ConsequenceConfig } from './types';
 import type { Discipline } from '../store/playerStore';
 
 // ─── Score thresholds ────────────────────────────────────────────────────────
@@ -138,6 +138,47 @@ export function calculateScore(params: {
     stars,
     breakdown: { efficiency, protocolPrecision, chainIntegrity, disciplineBonus, speedBonus },
   };
+}
+
+// ─── Consequence level check ─────────────────────────────────────────────────
+
+/**
+ * Determines whether a consequence level's penalty triggers.
+ *
+ * Standard consequence levels (K2-4, K2-8):
+ *   Any completion avoids the consequence. 1 star is fine.
+ *
+ * Boss consequence levels (K2-10, requireThreeStars: true):
+ *   3 stars required. 1-2 stars triggers consequence even on completion.
+ *
+ * Free piece set guarantee: every consequence level's availablePieces
+ * array MUST be verified solvable at 3 stars without spending any credits.
+ * The solve path exists. Credits are emergency only.
+ */
+export function doesConsequenceTrigger(
+  consequence: ConsequenceConfig | undefined,
+  succeeded: boolean,
+  stars: 0 | 1 | 2 | 3,
+): boolean {
+  if (!consequence) return false;
+  if (!succeeded) return true;
+  if (consequence.requireThreeStars && stars < 3) return true;
+  return false;
+}
+
+export function getConsequenceFailureLine(
+  consequence: ConsequenceConfig,
+  succeeded: boolean,
+  stars: 0 | 1 | 2 | 3,
+): string {
+  if (!succeeded) {
+    return consequence.failureEffect;
+  }
+  // Completed but not enough stars (boss level)
+  if (consequence.requireThreeStars && stars < 3) {
+    return 'You completed the mission. It was not enough. Precision matters here. The consequence stands.';
+  }
+  return '';
 }
 
 // ─── COGS score commentary ───────────────────────────────────────────────────
