@@ -204,6 +204,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
   const [creditError, setCreditError] = useState(false);
 
+  const [heldPieceId, setHeldPieceId] = useState<string | null>(null);
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
@@ -371,8 +372,6 @@ export default function GameplayScreen({ navigation }: Props) {
   }, [isExecuting, showResults, showVoid, rotatePiece, heldPieceId, selectPlaced]);
 
   // ── Long press to pick up piece for repositioning ──
-  const [heldPieceId, setHeldPieceId] = useState<string | null>(null);
-
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
     if (isExecuting || showResults || showVoid) return;
