@@ -208,6 +208,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const [creditError, setCreditError] = useState(false);
 
   const [heldPieceId, setHeldPieceId] = useState<string | null>(null);
+  const [failCount, setFailCount] = useState(0);
+  const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
+  const [teachCardLine, setTeachCardLine] = useState(0);
   const [showBriefing, setShowBriefing] = useState(true);
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
@@ -415,12 +418,12 @@ export default function GameplayScreen({ navigation }: Props) {
     const engageStartTime = Date.now();
     const steps = engage();
 
-    // Animate signal dot travelling along wires with 400ms per step
+    // Animate signal dot visiting each piece center in sequence (300ms per hop)
     for (let i = 0; i < steps.length; i++) {
       const pos = getPieceCenter(steps[i].pieceId);
       if (pos) setSignalDot(pos);
       setAnimatingStep(i);
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await new Promise(resolve => setTimeout(resolve, 300));
     }
     setSignalDot(null);
 
@@ -517,6 +520,33 @@ export default function GameplayScreen({ navigation }: Props) {
         await new Promise(resolve => setTimeout(resolve, 100));
       }
       await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Progressive teaching on A1-3 failures
+      const newFailCount = failCount + 1;
+      setFailCount(newFailCount);
+
+      if (level.id === 'A1-3' && newFailCount === 1) {
+        setShowTeachCard([
+          'The Config Node blocked the signal.',
+          'A Config Node reads the current Configuration value. It only passes the signal when that value matches its condition.',
+          'The condition here requires Configuration = 1. Check that Configuration is set to ACTIVE before engaging.',
+          'The Data Trail at the bottom is the memory. The Scanner reads it. What it reads can affect the Configuration.',
+        ]);
+        setTeachCardLine(0);
+        return;
+      }
+      if (level.id === 'A1-3' && newFailCount === 2) {
+        setShowTeachCard([
+          'Still blocked. Let me be more direct.',
+          'The Data Trail reads left to right as the signal travels. Cell 0 first, then cell 1, then cell 2.',
+          'The Scanner reads the trail value at the current head position when the signal reaches it.',
+          'Check which value the Scanner will read. If it reads 1, the Config Node opens. If it reads 0, it stays closed.',
+          'Toggle the Configuration to ACTIVE before engaging. That is the key.',
+        ]);
+        setTeachCardLine(0);
+        return;
+      }
+
       setShowVoid(true);
       triggerHints('onVoid');
     }
@@ -1076,6 +1106,52 @@ export default function GameplayScreen({ navigation }: Props) {
                   <Text style={[styles.voidBtnText, { color: Colors.muted }]}>BACK TO MAP</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── COGS Teach Card (progressive failure teaching) ── */}
+        {showTeachCard && (
+          <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
+            <LinearGradient
+              colors={['rgba(6,9,15,0.97)', 'rgba(10,22,40,0.99)']}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.overlayContent}>
+              <CogsAvatar size="medium" state="engaged" />
+              <View style={{ gap: 16, marginTop: Spacing.xl, maxWidth: 320 }}>
+                {showTeachCard.slice(0, teachCardLine + 1).map((line, i) => (
+                  <Text key={i} style={{
+                    fontFamily: Fonts.exo2, fontSize: 13, fontStyle: 'italic',
+                    color: Colors.starWhite, lineHeight: 20,
+                  }}>{line}</Text>
+                ))}
+              </View>
+              {teachCardLine < showTeachCard.length - 1 ? (
+                <TouchableOpacity
+                  style={{ marginTop: Spacing.xl }}
+                  onPress={() => setTeachCardLine(prev => prev + 1)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.copper, letterSpacing: 2 }}>
+                    NEXT
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={{ marginTop: Spacing.xl }}
+                  onPress={() => {
+                    setShowTeachCard(null);
+                    setTeachCardLine(0);
+                    setShowVoid(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
+                    TAP TO CONTINUE
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </Animated.View>
         )}
