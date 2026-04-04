@@ -27,20 +27,57 @@ function sideOffset(side: PortSide): { dx: number; dy: number } {
   }
 }
 
+// ─── Rotation-aware port logic ────────────────────────────────────────────────
+
+/**
+ * Returns which port sides a piece exposes based on its type and rotation.
+ * Gear, Source, Output, and Protocol pieces are omnidirectional.
+ * Conveyor and Splitter are directional.
+ */
+export function getActivePorts(piece: PlacedPiece): PortSide[] {
+  const ALL: PortSide[] = ['top', 'bottom', 'left', 'right'];
+  const rot = piece.rotation ?? 0;
+
+  // Apply rotation: rotate the base ports clockwise by rot degrees
+  function rotate(side: PortSide): PortSide {
+    const order: PortSide[] = ['top', 'right', 'bottom', 'left'];
+    const steps = (rot / 90) % 4;
+    const idx = order.indexOf(side);
+    return order[(idx + steps) % 4];
+  }
+
+  switch (piece.type) {
+    case 'conveyor':
+      // Base 0°: input LEFT, output RIGHT
+      return [rotate('left'), rotate('right')];
+
+    case 'splitter':
+      // Base 0°: input LEFT, outputs RIGHT + BOTTOM
+      return [rotate('left'), rotate('right'), rotate('bottom')];
+
+    // Omnidirectional pieces — all 4 sides always
+    case 'source':
+    case 'output':
+    case 'gear':
+    case 'configNode':
+    case 'scanner':
+    case 'transmitter':
+      return ALL;
+  }
+}
+
 // ─── Connection logic ─────────────────────────────────────────────────────────
 
 /**
- * Returns true if two physics pieces are adjacent on the grid and have
- * facing ports that could connect.
+ * Returns true if two pieces are adjacent on the grid and both have
+ * active ports on the facing sides (respecting rotation).
  */
 export function canConnect(piece1: PlacedPiece, piece2: PlacedPiece): boolean {
   const dx = piece2.gridX - piece1.gridX;
   const dy = piece2.gridY - piece1.gridY;
 
-  // Must be orthogonally adjacent (manhattan distance 1)
   if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
 
-  // Find which side of piece1 faces piece2
   let facingSide: PortSide | null = null;
   if (dx === 1 && dy === 0) facingSide = 'right';
   if (dx === -1 && dy === 0) facingSide = 'left';
@@ -51,11 +88,11 @@ export function canConnect(piece1: PlacedPiece, piece2: PlacedPiece): boolean {
 
   const opposite = OPPOSITE_SIDE[facingSide];
 
-  // Both pieces must have ports on the facing sides
-  const p1HasPort = piece1.ports.some(p => p.side === facingSide);
-  const p2HasPort = piece2.ports.some(p => p.side === opposite);
+  // Check rotation-aware active ports
+  const p1Active = getActivePorts(piece1);
+  const p2Active = getActivePorts(piece2);
 
-  return p1HasPort && p2HasPort;
+  return p1Active.includes(facingSide) && p2Active.includes(opposite);
 }
 
 /**

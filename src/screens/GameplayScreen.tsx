@@ -331,10 +331,17 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
     if (isExecuting || showResults || showVoid) return;
 
+    // Held piece repositioning (from long press)
+    if (heldPieceId) {
+      movePiece(heldPieceId, gridX, gridY);
+      setHeldPieceId(null);
+      selectPlaced(null);
+      return;
+    }
+
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
       if (count > 0) {
-        // Check credits
         const cost = getPieceCost(selectedPieceFromTray, discipline);
         if (cost > 0) {
           const ok = spendCredits(selectedPieceFromTray, discipline);
@@ -349,24 +356,36 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     } else if (selectedPlacedPiece) {
       movePiece(selectedPlacedPiece, gridX, gridY);
+      selectPlaced(null);
     }
-  }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints]);
+  }, [selectedPieceFromTray, selectedPlacedPiece, heldPieceId, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
     if (isExecuting || showResults || showVoid) return;
     if (piece.isPrePlaced) return;
 
+    // If this piece is held (long-pressed), cancel hold
+    if (heldPieceId === piece.id) {
+      setHeldPieceId(null);
+      selectPlaced(null);
+      return;
+    }
+
     // Tap on placed piece rotates it 90°
     rotatePiece(piece.id);
-  }, [isExecuting, showResults, showVoid, rotatePiece]);
+  }, [isExecuting, showResults, showVoid, rotatePiece, heldPieceId, selectPlaced]);
 
-  // ── Long press to pick up piece (return to tray) ──
+  // ── Long press to pick up piece for repositioning ──
+  const [heldPieceId, setHeldPieceId] = useState<string | null>(null);
+
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
     if (isExecuting || showResults || showVoid) return;
-    deletePiece(piece.id);
-  }, [isExecuting, showResults, showVoid, deletePiece]);
+    // Enter "held" state — piece stays on board, ghost cells appear
+    setHeldPieceId(piece.id);
+    selectPlaced(piece.id);
+  }, [isExecuting, showResults, showVoid, selectPlaced]);
 
   // ── Helper: get piece center in canvas coords ──
   const getPieceCenter = useCallback((pieceId: string) => {
@@ -644,6 +663,7 @@ export default function GameplayScreen({ navigation }: Props) {
               const isPrePlaced = piece.isPrePlaced;
               const isSource = piece.type === 'source';
               const isOutput = piece.type === 'output';
+              const isHeld = heldPieceId === piece.id;
               const pieceSize = isPrePlaced ? CELL_SIZE - 6 : CELL_SIZE - 8;
               const offset = (CELL_SIZE - pieceSize) / 2;
               const cellPx = piece.gridX * CELL_SIZE + offset;
@@ -662,8 +682,12 @@ export default function GameplayScreen({ navigation }: Props) {
                       top: cellPy,
                       width: pieceSize,
                       height: pieceSize,
-                      borderWidth: 0,
+                      borderWidth: isHeld ? 2 : 0,
+                      borderColor: isHeld ? Colors.copper : undefined,
                       backgroundColor: isAnimStep ? `${iconColor}25` : 'transparent',
+                      opacity: isHeld ? 0.6 : 1,
+                      transform: [{ scale: isHeld ? 1.15 : 1 }],
+                      zIndex: isHeld ? 10 : 0,
                     },
                   ]}
                   onPress={() => handlePieceTap(piece)}
@@ -677,8 +701,8 @@ export default function GameplayScreen({ navigation }: Props) {
               );
             })}
 
-            {/* Ghost cells */}
-            {(selectedPieceFromTray || selectedPlacedPiece) &&
+            {/* Ghost cells (show during tray selection or held piece) */}
+            {(selectedPieceFromTray || heldPieceId) &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
                   const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
