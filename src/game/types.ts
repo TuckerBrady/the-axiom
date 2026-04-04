@@ -104,6 +104,62 @@ export type LevelDefinition = {
   consequence?: ConsequenceConfig;
 };
 
+// ─── Ship Systems ────────────────────────────────────────────────────────
+
+export type ShipSystem =
+  | 'emergencyPower'
+  | 'lifeSupport'
+  | 'navigationArray'
+  | 'propulsionCore'
+  | 'communicationArray'
+  | 'sensorGrid'
+  | 'weaponsLock'
+  | 'bridgeSystems';
+
+// ─── Narrative Consequence System ────────────────────────────────────────
+
+export type LevelModifier = {
+  type: 'reduced_piece_set' | 'no_hints' | 'harder_grid';
+  description: string;
+};
+
+export type MechanicalEffect = {
+  type: 'damage_system' | 'steal_credits' | 'lock_codex_entry' |
+        'add_modifier' | 'damage_cogs_integrity';
+  system?: ShipSystem;
+  creditAmount?: number;
+  creditPercent?: number;
+  codexEntryId?: string;
+  modifier?: LevelModifier;
+  integrityAmount?: number;
+};
+
+export type NarrativeEffect = {
+  type: 'hostile_contact' | 'mystery_deepen' | 'codex_redact' |
+        'sector_modifier';
+  description: string;
+  duration: 'permanent' | 'next_n_levels';
+  levelsAffected?: number;
+};
+
+export type NarrativeConsequence = {
+  id: string;
+  sectorId: string;
+  triggerLevelId: string;
+  triggerCondition: 'fail' | 'below3star' | 'below2star';
+  mechanicalEffects: MechanicalEffect[];
+  narrativeEffects: NarrativeEffect[];
+  cogsImmediateResponse: string;
+  cogsLaterReaction: string;
+  cogsOnRepair: string;
+};
+
+export type CreditTransaction = {
+  amount: number;
+  reason: string;
+  timestamp: number;
+};
+
 // ─── Piece Costs ─────────────────────────────────────────────────────────
 
 export const PIECE_COSTS: Partial<Record<PieceType, number>> = {
