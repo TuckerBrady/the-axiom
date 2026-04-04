@@ -722,11 +722,6 @@ export default function LevelSelectScreen({ navigation }: Props) {
                 <PathSegment key={`${f}-${t}`} from={f} to={t} getNodeState={getNodeState} positions={positions} />
               ))}
 
-              {/* Signal dot — travels along completed path only */}
-              <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                <SignalDot completedCount={completedLevels} positions={positions} />
-              </View>
-
               {/* Nodes */}
               {dynamicMissions.map(m => (
                 <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={isAxiom ? getAxiomState : undefined} positions={positions} />
