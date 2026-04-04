@@ -242,3 +242,30 @@ export function getCOGSScoreComment(
   if (stars === 1) return 'It worked. I will note that it barely worked.';
   return 'The machine did not lock. Review your approach.';
 }
+
+// ─── Tutorial (Axiom) COGS quotes — honest about score, always 3 stars ──────
+
+export function getTutorialCOGSComment(
+  rawScore: number,
+  discipline: NonNullable<Discipline>,
+): string {
+  if (rawScore >= 80) {
+    switch (discipline) {
+      case 'systems': return 'Optimal routing. Protocol instinct is correct.';
+      case 'drive': return 'Clean chain. Every piece fired. Well done.';
+      case 'field': return 'Efficient and adaptable. I have no notes.';
+    }
+  }
+  if (rawScore >= 55) {
+    switch (discipline) {
+      case 'systems': return 'Functional. The solution worked. It was not particularly elegant, but it worked.';
+      case 'drive': return 'The chain held. Some redundancy I noted. We will address that in later missions.';
+      case 'field': return 'Complete. Not your most efficient work. Three stars recorded regardless. You are learning. That is the point.';
+    }
+  }
+  switch (discipline) {
+    case 'systems': return 'The mission is complete. I am recording three stars because this is a training level. The actual score was... noted.';
+    case 'drive': return 'It ran. Eventually. Three stars, as required by the training protocol. Between us: there is room to improve.';
+    case 'field': return 'Completed. I will be honest — the scoring engine was not impressed. But you finished it. That counts. Three stars.';
+  }
+}

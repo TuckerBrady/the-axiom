@@ -34,7 +34,7 @@ import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
-import { calculateScore, getCOGSScoreComment } from '../game/scoring';
+import { calculateScore, getCOGSScoreComment, getTutorialCOGSComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -323,6 +323,20 @@ export default function GameplayScreen({ navigation }: Props) {
     });
   }, [availablePiecesList]);
 
+  // ── Auto-orientation: face away from Source if adjacent ──
+  const getAutoRotation = useCallback((gridX: number, gridY: number): number => {
+    const source = pieces.find(p => p.type === 'source');
+    if (!source) return 0;
+    const dx = gridX - source.gridX;
+    const dy = gridY - source.gridY;
+    if (Math.abs(dx) + Math.abs(dy) !== 1) return 0;
+    if (dx === 1) return 0;    // right of Source → face right
+    if (dy === 1) return 90;   // below Source → face down
+    if (dx === -1) return 180; // left of Source → face left
+    if (dy === -1) return 270; // above Source → face up
+    return 0;
+  }, [pieces]);
+
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
     if (isExecuting || showResults || showVoid) return;
@@ -347,14 +361,15 @@ export default function GameplayScreen({ navigation }: Props) {
             return;
           }
         }
-        placePiece(selectedPieceFromTray, gridX, gridY);
+        const rotation = getAutoRotation(gridX, gridY);
+        placePiece(selectedPieceFromTray, gridX, gridY, rotation);
         if (!hasPlacedPieces) triggerHints('onFirstPiecePlaced');
       }
     } else if (selectedPlacedPiece) {
       movePiece(selectedPlacedPiece, gridX, gridY);
       selectPlaced(null);
     }
-  }, [selectedPieceFromTray, selectedPlacedPiece, heldPieceId, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced]);
+  }, [selectedPieceFromTray, selectedPlacedPiece, heldPieceId, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
@@ -420,16 +435,25 @@ export default function GameplayScreen({ navigation }: Props) {
         discipline: currentDiscipline,
         engageDurationMs,
       });
-      setScoreResult(result);
+
+      // Axiom tutorial levels: always 3 stars, honest COGS quote
+      const isTutorial = level.sector === 'axiom';
+      const displayStars = isTutorial ? 3 : result.stars;
+      const displayResult: ScoreResult = isTutorial
+        ? { ...result, stars: 3 as 0 | 1 | 2 | 3 }
+        : result;
+      setScoreResult(displayResult);
 
       const playerPieceCount = machineState.pieces.filter(p => !p.isPrePlaced).length;
-      setCogsScoreComment(getCOGSScoreComment(
-        result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces,
-      ));
+      setCogsScoreComment(
+        isTutorial
+          ? getTutorialCOGSComment(result.total, currentDiscipline)
+          : getCOGSScoreComment(result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces),
+      );
 
-      // Record progression
+      // Record progression — save displayed stars (3 for tutorial)
       const levelId = level.id;
-      const starsEarned = result.stars;
+      const starsEarned = displayStars as 0 | 1 | 2 | 3;
       const isFirst = completeLevel(levelId, starsEarned);
       setFirstTimeBonus(isFirst);
 
@@ -711,29 +735,32 @@ export default function GameplayScreen({ navigation }: Props) {
               );
             })}
 
-            {/* Ghost cells — valid placement hints on Axiom, tap targets everywhere */}
+            {/* Ghost cells — copper valid hints on Axiom, invisible taps elsewhere */}
             {(selectedPieceFromTray || heldPieceId) &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
                   const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
                   if (occupied) return null;
 
-                  // On Axiom levels: only show cells adjacent to placed/pre-placed pieces
-                  // where port directions would allow a connection
-                  const isAxiom = level.sector === 'axiom';
+                  const isTutorialSector = level.sector === 'axiom';
                   let isValid = true;
-                  if (isAxiom) {
+                  if (isTutorialSector) {
+                    // Check: would a piece placed here (with auto-rotation)
+                    // connect to at least one existing piece?
+                    const autoRot = getAutoRotation(x, y);
                     isValid = pieces.some(p => {
                       const dx = x - p.gridX;
                       const dy = y - p.gridY;
                       if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
-                      // Check if the existing piece has an output port facing this cell
-                      let side: PortSide;
-                      if (dx === 1) side = 'right';
-                      else if (dx === -1) side = 'left';
-                      else if (dy === 1) side = 'bottom';
-                      else side = 'top';
-                      return getOutputPorts(p).includes(side) || getInputPorts(p).includes(side);
+                      // Direction from existing piece toward this cell
+                      let sideFromExisting: PortSide;
+                      if (dx === 1) sideFromExisting = 'right';
+                      else if (dx === -1) sideFromExisting = 'left';
+                      else if (dy === 1) sideFromExisting = 'bottom';
+                      else sideFromExisting = 'top';
+                      const oppSide = sideFromExisting === 'right' ? 'left' : sideFromExisting === 'left' ? 'right' : sideFromExisting === 'bottom' ? 'top' : 'bottom';
+                      // Existing piece outputs toward this cell, OR this cell's auto-rotated piece outputs toward existing
+                      return getOutputPorts(p).includes(sideFromExisting) || getInputPorts(p).includes(sideFromExisting);
                     });
                     if (!isValid) return null;
                   }

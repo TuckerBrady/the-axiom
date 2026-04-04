@@ -31,7 +31,7 @@ interface GameState {
 
   // Actions
   setLevel: (level: LevelDefinition) => void;
-  placePiece: (type: PieceType, gridX: number, gridY: number) => void;
+  placePiece: (type: PieceType, gridX: number, gridY: number, rotation?: number) => void;
   movePiece: (pieceId: string, gridX: number, gridY: number) => void;
   deletePiece: (pieceId: string) => void;
   rotatePiece: (pieceId: string) => void;
@@ -100,11 +100,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  placePiece: (type, gridX, gridY) => {
+  placePiece: (type, gridX, gridY, rotation) => {
     const state = get();
     const { machineState } = state;
 
-    // Check if cell is occupied
     const occupied = machineState.pieces.some(
       p => p.gridX === gridX && p.gridY === gridY,
     );
@@ -117,7 +116,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       gridX,
       gridY,
       ports: getDefaultPorts(type),
-      rotation: 0,
+      rotation: rotation ?? 0,
       isPrePlaced: false,
     };
 
