@@ -4,23 +4,28 @@ import { create } from 'zustand';
 
 const MAX_LIVES = 5;
 const REGEN_MS = 30 * 60 * 1000; // 30 minutes per life
-const REFILL_COST_CIRCUITS = 30;
+const REFILL_COST_CR = 30;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface LivesState {
   lives: number;
   lastLifeLostAt: number | null;
-  circuits: number;
-  cogs: number;
+  credits: number;
 
   // Actions
   loseLife: () => void;
-  refillLives: () => boolean; // returns false if insufficient circuits
+  refillLives: () => boolean; // returns false if insufficient credits
+  addCredits: (amount: number) => void;
+  spendCredits: (amount: number) => boolean; // returns false if insufficient
+  regenerate: () => void; // call on app foreground
+
+  // Legacy aliases (transitional — will be removed)
+  circuits: number;
+  cogs: number;
   addCircuits: (amount: number) => void;
   addCogs: (amount: number) => void;
-  spendCogs: (amount: number) => boolean; // returns false if insufficient
-  regenerate: () => void; // call on app foreground
+  spendCogs: (amount: number) => boolean;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -28,8 +33,7 @@ interface LivesState {
 export const useLivesStore = create<LivesState>((set, get) => ({
   lives: MAX_LIVES,
   lastLifeLostAt: null,
-  circuits: 0,
-  cogs: 500,
+  credits: 500,
 
   loseLife: () => {
     const { lives } = get();
@@ -41,49 +45,50 @@ export const useLivesStore = create<LivesState>((set, get) => ({
   },
 
   refillLives: () => {
-    const { circuits } = get();
-    if (circuits < REFILL_COST_CIRCUITS) return false;
+    const { credits } = get();
+    if (credits < REFILL_COST_CR) return false;
     set({
       lives: MAX_LIVES,
-      circuits: circuits - REFILL_COST_CIRCUITS,
+      credits: credits - REFILL_COST_CR,
       lastLifeLostAt: null,
     });
     return true;
   },
 
-  addCircuits: (amount) => {
-    set(s => ({ circuits: s.circuits + amount }));
+  addCredits: (amount) => {
+    set(s => ({ credits: s.credits + amount }));
   },
 
-  addCogs: (amount) => {
-    set(s => ({ cogs: s.cogs + amount }));
-  },
-
-  spendCogs: (amount) => {
-    const { cogs } = get();
-    if (cogs < amount) return false;
-    set({ cogs: cogs - amount });
+  spendCredits: (amount) => {
+    const { credits } = get();
+    if (credits < amount) return false;
+    set({ credits: credits - amount });
     return true;
   },
 
   regenerate: () => {
     const { lives, lastLifeLostAt } = get();
     if (lives >= MAX_LIVES || !lastLifeLostAt) return;
-
     const elapsed = Date.now() - lastLifeLostAt;
     const livesGained = Math.floor(elapsed / REGEN_MS);
     if (livesGained <= 0) return;
-
     const newLives = Math.min(lives + livesGained, MAX_LIVES);
     set({
       lives: newLives,
       lastLifeLostAt: newLives >= MAX_LIVES ? null : lastLifeLostAt + livesGained * REGEN_MS,
     });
   },
+
+  // Legacy aliases — point to credits
+  get circuits() { return get().credits; },
+  get cogs() { return get().credits; },
+  addCircuits: (amount) => { get().addCredits(amount); },
+  addCogs: (amount) => { get().addCredits(amount); },
+  spendCogs: (amount) => { return get().spendCredits(amount); },
 }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export const MAX_LIVES_COUNT = MAX_LIVES;
 export const REGEN_INTERVAL_MS = REGEN_MS;
-export const REFILL_COST = REFILL_COST_CIRCUITS;
+export const REFILL_COST = REFILL_COST_CR;

@@ -30,20 +30,20 @@ type Props = {
 
 type RewardDay = {
   day: number;
-  type: 'cogs' | 'life' | 'debug' | 'hint' | 'combo';
+  type: 'credits' | 'life' | 'debug' | 'hint' | 'combo';
   label: string;
   amount: string;
   cogsLine: string;
 };
 
 const REWARDS: RewardDay[] = [
-  { day: 1, type: 'cogs', label: '50 Cogs', amount: '50', cogsLine: 'Your daily allocation. Do not spend it on anything unnecessary.' },
+  { day: 1, type: 'credits', label: '50 CR', amount: '50', cogsLine: 'Your daily allocation. Do not spend it on anything unnecessary.' },
   { day: 2, type: 'life', label: '1 Extra Life', amount: '1', cogsLine: 'One life. Use it better than the last one.' },
-  { day: 3, type: 'cogs', label: '75 Cogs', amount: '75', cogsLine: 'More than yesterday. You are making adequate progress.' },
+  { day: 3, type: 'credits', label: '75 CR', amount: '75', cogsLine: 'More than yesterday. You are making adequate progress.' },
   { day: 4, type: 'debug', label: '1 Debug Credit', amount: '1', cogsLine: 'This allows you to see where you went wrong. I suspect you already know.' },
-  { day: 5, type: 'cogs', label: '100 Cogs', amount: '100', cogsLine: 'Day five. I have updated my assessment of your commitment.' },
+  { day: 5, type: 'credits', label: '100 CR', amount: '100', cogsLine: 'Day five. I have updated my assessment of your commitment.' },
   { day: 6, type: 'life', label: '2 Extra Lives', amount: '2', cogsLine: 'Two lives. I am not going soft. The mathematics simply worked out this way.' },
-  { day: 7, type: 'combo', label: '150 Cogs + 1 Hint', amount: '150+1', cogsLine: 'Seven days. That is either dedication or habit. Either is acceptable.' },
+  { day: 7, type: 'combo', label: '150 CR + 1 Hint', amount: '150+1', cogsLine: 'Seven days. That is either dedication or habit. Either is acceptable.' },
 ];
 
 const DAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
@@ -52,7 +52,7 @@ const DAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 function RewardIcon({ type, size = 48 }: { type: string; size?: number }) {
   switch (type) {
-    case 'cogs':
+    case 'credits':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
           <Circle cx="12" cy="12" r="9" fill="none" stroke={Colors.amber} strokeWidth="2" />
@@ -96,7 +96,7 @@ function RewardIcon({ type, size = 48 }: { type: string; size?: number }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function DailyRewardScreen({ navigation }: Props) {
-  const { addCogs } = useLivesStore();
+  const { addCredits } = useLivesStore();
 
   // Determine streak day (1–7 cycling)
   const dayOfYear = useMemo(() => {
@@ -130,15 +130,15 @@ export default function DailyRewardScreen({ navigation }: Props) {
   const handleCollect = () => {
     // Apply reward
     switch (reward.type) {
-      case 'cogs':
-        addCogs(parseInt(reward.amount, 10));
+      case 'credits':
+        addCredits(parseInt(reward.amount, 10));
         break;
       case 'life':
         // Lives are handled via livesStore but not adding lives beyond max
         // For now just grant the life reward
         break;
       case 'combo':
-        addCogs(150);
+        addCredits(150);
         break;
       default:
         break;

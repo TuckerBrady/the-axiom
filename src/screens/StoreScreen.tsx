@@ -143,7 +143,7 @@ function PowerUpIcon({ type, size = 24 }: { type: string; size?: number }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function StoreScreen({ navigation }: Props) {
-  const { cogs, circuits, spendCogs } = useLivesStore();
+  const { credits, spendCredits: spendFromLives } = useLivesStore();
   const [cogsLineIdx, setCogsLineIdx] = useState(0);
 
   const screenOpacity = useSharedValue(0);
@@ -164,7 +164,7 @@ export default function StoreScreen({ navigation }: Props) {
   const headerRevealStyle = useAnimatedStyle(() => ({ opacity: headerReveal.value }));
 
   const handleBuy = (item: PowerUp) => {
-    spendCogs(item.price);
+    spendFromLives(item.price);
   };
 
   return (
@@ -186,13 +186,13 @@ export default function StoreScreen({ navigation }: Props) {
         <Animated.View style={[st.currencyRow, headerRevealStyle]}>
           <View style={st.currencyBox}>
             <CogsIcon size={16} />
-            <Text style={st.currencyAmount}>{cogs}</Text>
-            <Text style={st.currencyLabel}>COGS</Text>
+            <Text style={st.currencyAmount}>{credits}</Text>
+            <Text style={st.currencyLabel}>CR</Text>
           </View>
           <View style={[st.currencyBox, st.currencyBoxCircuits]}>
             <CircuitsIcon size={16} />
-            <Text style={[st.currencyAmount, { color: Colors.circuit }]}>{circuits}</Text>
-            <Text style={st.currencyLabel}>CIRCUITS</Text>
+            <Text style={[st.currencyAmount, { color: Colors.circuit }]}>{credits}</Text>
+            <Text style={st.currencyLabel}>CR</Text>
           </View>
         </Animated.View>
 
@@ -209,8 +209,8 @@ export default function StoreScreen({ navigation }: Props) {
           {/* Power-ups section */}
           <Text style={st.sectionTitle}>POWER-UPS</Text>
           {POWER_UPS.map((item, i) => {
-            const canAfford = cogs >= item.price;
-            const deficit = item.price - cogs;
+            const canAfford = credits >= item.price;
+            const deficit = item.price - credits;
             return (
               <Animated.View
                 key={item.id}
@@ -259,7 +259,7 @@ export default function StoreScreen({ navigation }: Props) {
           })}
 
           {/* Circuits section */}
-          <Text style={[st.sectionTitle, { marginTop: Spacing.xl }]}>CIRCUITS</Text>
+          <Text style={[st.sectionTitle, { marginTop: Spacing.xl }]}>CREDITS</Text>
           <View style={st.circuitGrid}>
             {CIRCUIT_PACKS.map((pack, i) => (
               <Animated.View
@@ -281,7 +281,7 @@ export default function StoreScreen({ navigation }: Props) {
                 )}
                 <CircuitsIcon size={28} />
                 <Text style={st.ccAmount}>{pack.amount}</Text>
-                <Text style={st.ccLabel}>CIRCUITS</Text>
+                <Text style={st.ccLabel}>CR</Text>
                 <TouchableOpacity style={st.ccBtn} activeOpacity={0.85}>
                   <View style={st.ccBtnInner}>
                     <Text style={st.ccBtnText}>COMING SOON</Text>

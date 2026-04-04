@@ -192,7 +192,7 @@ export default function GameplayScreen({ navigation }: Props) {
     debugPrev,
   } = useGameStore();
 
-  const { lives, loseLife, refillLives, circuits, addCogs } = useLivesStore();
+  const { lives, loseLife, refillLives, credits, addCredits } = useLivesStore();
   const { completeLevel, isLevelCompleted: isLevelDone } = useProgressionStore();
   const discipline = usePlayerStore(s => s.discipline);
   const { credits, setLevelBudget, spendCredits, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
@@ -462,7 +462,7 @@ export default function GameplayScreen({ navigation }: Props) {
       else if (result.stars === 2) earnCredits(Math.ceil(levelSpent * 0.5));
       if (isFirst) {
         earnCredits(25);
-        addCogs(25);
+        addCredits(25);
       }
       triggerHints('onSuccess');
 
@@ -983,7 +983,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 <CogsAvatar size="small" state="online" />
                 <Text style={styles.resultsQuote}>
                   "{cogsScoreComment || 'Circuit complete.'}"
-                  {firstTimeBonus ? '\n\n"Mission logged. 25 Cogs credited to your account."' : ''}
+                  {firstTimeBonus ? '\n\n"Mission logged. 25 CR credited to your account."' : ''}
                 </Text>
               </View>
               <View style={styles.resultsActions}>
@@ -1062,7 +1062,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   onPress={handleDebug}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.voidBtnText, { color: Colors.amber }]}>DEBUG (50 Cogs)</Text>
+                  <Text style={[styles.voidBtnText, { color: Colors.amber }]}>DEBUG (50 CR)</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.voidBtn, { borderColor: Colors.muted }]}
@@ -1111,13 +1111,13 @@ export default function GameplayScreen({ navigation }: Props) {
                 activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={circuits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
+                  colors={credits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
                   style={styles.resultsPrimaryGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                 >
                   <Text style={styles.resultsPrimaryText}>
-                    {circuits >= 30 ? 'REFILL LIVES · 30 CIRCUITS' : `NEED ${30 - circuits} MORE CIRCUITS`}
+                    {credits >= 30 ? 'REFILL LIVES · 30 CR' : `NEED ${30 - credits} MORE CR`}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
