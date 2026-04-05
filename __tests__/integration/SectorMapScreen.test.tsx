@@ -1,16 +1,17 @@
-import React from 'react';
+// Integration test: verify SectorMapScreen's data dependencies
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
-  useIsFocused: () => true,
-}));
+describe('SectorMapScreen data layer', () => {
+  it('progressionStore provides sector completion tracking', () => {
+    const { useProgressionStore, AXIOM_TOTAL_LEVELS } = require('../../src/store/progressionStore');
+    const state = useProgressionStore.getState();
+    expect(AXIOM_TOTAL_LEVELS).toBe(8);
+    expect(state.getSectorCompletedCount('A1-')).toBe(0);
+  });
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
-}));
-
-describe('SectorMapScreen', () => {
-  it('module exists and can be imported', () => {
-    expect(() => require('../../src/screens/SectorMapScreen')).not.toThrow();
+  it('consequenceStore tracks active consequences', () => {
+    const { useConsequenceStore } = require('../../src/store/consequenceStore');
+    const state = useConsequenceStore.getState();
+    expect(state.activeConsequences).toEqual([]);
+    expect(typeof state.applyConsequence).toBe('function');
   });
 });

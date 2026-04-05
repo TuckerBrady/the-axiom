@@ -1,0 +1,14 @@
+const mock = () => null;
+export default mock;
+export const Svg = mock;
+export const Circle = mock;
+export const Rect = mock;
+export const Path = mock;
+export const Line = mock;
+export const G = mock;
+export const Defs = mock;
+export const RadialGradient = mock;
+export const Stop = mock;
+export const Ellipse = mock;
+export const Polygon = mock;
+export const Text = mock;

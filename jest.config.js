@@ -8,6 +8,14 @@ module.exports = {
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
     },
+    {
+      displayName: 'integration',
+      testMatch: ['<rootDir>/__tests__/integration/**/*.test.{ts,tsx}'],
+      transform: {
+        '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+      },
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+    },
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

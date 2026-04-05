@@ -1,0 +1,4 @@
+const mock = () => null;
+export const SafeAreaView = mock;
+export const SafeAreaProvider = mock;
+export const useSafeAreaInsets = () => ({ top: 0, bottom: 0, left: 0, right: 0 });

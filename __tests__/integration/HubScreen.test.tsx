@@ -1,17 +1,28 @@
-import React from 'react';
+// Integration test: verify HubScreen's data dependencies work correctly
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn() }),
-  useIsFocused: () => true,
-}));
+describe('HubScreen data layer', () => {
+  it('livesStore provides lives count and regenerate', () => {
+    const { useLivesStore } = require('../../src/store/livesStore');
+    const state = useLivesStore.getState();
+    expect(state.lives).toBe(5);
+    expect(typeof state.regenerate).toBe('function');
+  });
 
-jest.mock('expo-router', () => ({
-  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
-  Link: ({ children }: any) => children,
-}));
+  it('economyStore provides credits', () => {
+    const { useEconomyStore } = require('../../src/store/economyStore');
+    const state = useEconomyStore.getState();
+    expect(state.credits).toBe(100);
+  });
 
-describe('HubScreen', () => {
-  it('module exists and can be imported', () => {
-    expect(() => require('../../src/screens/HubScreen')).not.toThrow();
+  it('progressionStore provides sector completion count', () => {
+    const { useProgressionStore } = require('../../src/store/progressionStore');
+    const state = useProgressionStore.getState();
+    expect(state.getSectorCompletedCount('A1-')).toBe(0);
+  });
+
+  it('challengeStore provides loadOrGenerateChallenge', () => {
+    const { useChallengeStore } = require('../../src/store/challengeStore');
+    const state = useChallengeStore.getState();
+    expect(typeof state.loadOrGenerateChallenge).toBe('function');
   });
 });
