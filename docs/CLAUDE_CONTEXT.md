@@ -358,3 +358,371 @@ No emojis in commit messages. Ever.
 - Do not return a piece to tray on long press -- it enters held state
 - Do not show wire connections on non-Axiom (Kepler+) levels
 - Do not show placement highlights on non-Axiom levels
+
+
+---
+
+## CODEX ENTRIES — FULL REFERENCE
+
+These are the canonical descriptions for all Codex
+entries in The Axiom. Four sections: Pieces, Locations,
+Entities, The Axiom. Writers and future Claude sessions
+must use these as the source of truth for all lore,
+copy, and narrative references.
+
+---
+
+### PIECES (8 unlocked, 10 classified)
+
+**Conveyor**
+The most fundamental component in the machine. Accepts
+signal from one direction, outputs in the opposite.
+Cannot change direction on its own — it carries, it does
+not think. Named for the industrial belt systems that
+inspired its design. The first piece any Engineer learns
+to place.
+
+**Gear**
+The only Physics piece capable of changing signal
+direction. Omnidirectional — accepts input from any
+adjacent port and routes the signal outward. The corner
+of every machine that bends. COGS has noted that most
+Engineers underestimate how many problems a single
+Gear solves.
+
+**Splitter**
+Accepts one input and produces two simultaneous outputs.
+Used when the signal needs to reach multiple destinations
+or when a chain must branch. Rarely optimal. Often
+necessary.
+
+**Source**
+The origin point of every machine. Pre-placed on every
+level. Cannot be moved. Radiates signal outward to any
+adjacent connected piece when the machine engages. The
+Engineer does not place the Source — they work from it.
+
+**Output**
+The destination. Pre-placed on every level. Cannot be
+moved. When the signal reaches Output, the machine locks
+and the circuit is complete. Everything the Engineer
+builds is in service of this moment.
+
+**Config Node**
+The first Protocol piece most Engineers encounter. Does
+not carry signal blindly — it reads the current
+Configuration value and decides whether to pass or block.
+A gate with a condition. The signal arrives. The
+condition is checked. The gate opens or it does not.
+
+**Scanner**
+Reads the Data Trail at the current head position and
+sets the Configuration value accordingly. The Scanner
+is how the machine becomes aware of its own memory.
+What it reads determines what happens next.
+
+**Transmitter**
+Writes a value to the Data Trail. Where the Scanner
+reads, the Transmitter writes. Together they allow a
+machine to change what it knows mid-execution. The most
+powerful piece in the catalogue. Also the most dangerous
+to misplace.
+
+**Relay** [CLASSIFIED — unlocks Kepler Belt]
+Holds signal for one execution cycle then releases it.
+Used for timing coordination between parallel paths.
+
+**Threshold Relay** [CLASSIFIED — unlocks Kepler Belt]
+Passes signal when either input port is receiving.
+Less demanding than the Confluence Node, more forgiving
+than most Protocol pieces. Used when redundancy is the
+point — two routes, one destination, either will do.
+The Threshold Relay is how a machine survives a broken
+path. COGS considers this practical. He does not
+consider practical to be a compliment.
+
+**Inverter** [CLASSIFIED — unlocks Kepler Belt]
+Flips the Configuration value at the point of
+evaluation. What reads as 1 becomes 0. What reads as
+0 becomes 1. The machine's understanding of its own
+state is reversed. Puzzles that include an Inverter
+require the Engineer to reason backward — the solution
+is often the opposite of the obvious approach.
+
+**Amplifier** [CLASSIFIED — unlocks Nova Fringe]
+Extends signal range across non-adjacent cells. Used
+when the optimal path cannot be built with adjacent
+pieces alone.
+
+**Confluence Node** [CLASSIFIED — unlocks Nova Fringe]
+Requires signal to arrive simultaneously from two
+separate input ports before passing it forward. The
+machine will not proceed on partial information.
+Building toward a Confluence Node means designing two
+complete paths that converge at exactly the right
+moment. Most Engineers attempt this once with a single
+path and learn immediately why that does not work.
+
+**Junction** [CLASSIFIED — unlocks The Rift]
+Four-way intersection piece. Signal passes through in
+the direction it arrived unless redirected by an
+adjacent Gear.
+
+**Capacitor** [CLASSIFIED — unlocks The Rift]
+Stores a Configuration value from one Scanner read and
+holds it for a later Config Node check. Bridges the gap
+between read and decision across a longer execution path.
+
+**Divergence Gate** [CLASSIFIED — unlocks The Rift]
+Passes signal when exactly one input is active. Not
+zero. Not both. One. The most discriminating piece in
+the Protocol catalogue. It opens for the unexpected
+path and closes for the expected one. Engineers who
+approach it with conventional routing logic will find
+it uncooperative. COGS has described it as having
+good taste.
+
+**Sequencer** [CLASSIFIED — unlocks Deep Void]
+Fires outputs in a defined order rather than
+simultaneously. The most complex Physics piece.
+Reserved for Deep Void.
+
+---
+
+### LOCATIONS (1/12 unlocked at game start)
+
+**The Axiom**
+A military scout vessel of unclear origin, acquired
+through circumstances the ship logs do not fully
+explain. Compact, durable, and built for long-range
+independent operation. Eight critical systems were
+offline when the Engineer came aboard. The ship has
+been operational in varying states of repair ever
+since. COGS came with it.
+
+**Andros Cluster**
+The star system where The Axiom's journey begins.
+Coordinates 47.2N, 183.5E. A mid-density cluster with
+established trade and relay infrastructure. Not
+frontier space — but not safe either. The Axiom
+passed through here once before, under different
+command.
+
+**Kepler Station**
+A colonial relay station in the Kepler Belt.
+Population: several hundred. The station council
+requested assistance restoring power infrastructure
+damaged in an unlogged incident. They were told help
+was coming. They waited longer than expected.
+
+**Kepler Belt**
+An asteroid field threaded with relay stations, mining
+platforms, and the kind of infrastructure that keeps
+distant colonies connected to the core. Not dangerous
+by reputation. Dangerous in practice to anyone flying
+without current charts.
+
+**Nova Fringe**
+A stellar nursery on the outer boundary of charted
+space. Plasma storms make navigation unreliable. The
+researchers who come here do so because the phenomena
+cannot be observed anywhere else. The Axiom has no
+official reason to be in this sector. It came anyway.
+
+**The Rift**
+A dimensional anomaly zone. Long-range sensors produce
+readings that do not correspond to known physical
+phenomena. Signal degradation is standard. Signals
+that should not exist are occasionally detected. The
+3.4 seconds of data COGS recovered before system
+failure came from somewhere in this sector.
+
+**Deep Void**
+Uncharted space beyond the Rift. No relay
+infrastructure. No registered vessels. No record of
+prior survey. What brought The Axiom here is a
+question the ship logs answer only partially. What
+is waiting here is a question they do not answer
+at all.
+
+**Colony Vessel Perseverance**
+A long-haul colony vessel in transit through Nova
+Fringe. Mid-journey. Unable to stop. The crew has
+been in transit long enough that morale is a
+maintenance item. They reached out for assistance
+with a routing problem because they had no other
+options. COGS found their operational discipline
+adequate. This is high praise.
+
+**Outer Belt Station — Unregistered**
+Coordinates verified. Registration: none. The
+structure is real. The people inside it have chosen
+not to be on any official record. This is not
+unusual in the outer belt. It does not make it
+comfortable.
+
+**Andros Cluster Authority**
+The regional governing body for the Andros Cluster.
+They communicate through official channels when they
+need something done quietly. When they contacted
+The Axiom directly it was not a small job. COGS ran
+a background check. The results were inconclusive
+in ways that were themselves informative.
+
+**Automated Beacon — Deep Void Approach**
+No crew. No registration. Broadcasting a distress
+signal and a reward offer simultaneously. An
+automated system with credits to offer is either a
+trap or something stranger. COGS has not determined
+which. The investigation is ongoing.
+
+**The Previous Engineer's Last Known Position**
+A set of coordinates that appear in fragments across
+three separate sectors. Not a place. A trail.
+Something was here, or someone was here, and whatever
+happened left marks in the data that COGS has been
+quietly assembling for longer than he has mentioned.
+
+---
+
+### ENTITIES (2/8 unlocked at game start)
+
+**C.O.G.S Unit 7**
+Designation: Cooperative Operations and Guidance
+System, Unit 7. Acquired with the vessel under
+circumstances the purchase record does not fully
+explain. Operational role: AI companion, navigator,
+systems analyst, and the only crew member who has
+been aboard The Axiom continuously since before the
+Engineer arrived. His assessment of most situations
+is accurate. His commentary on them is offered
+regardless of whether it was requested. He has never
+confirmed how long he was running before the Engineer
+came aboard. He has not denied the question either.
+
+**The Engineer**
+Designation assigned by COGS on first activation.
+Not chosen. Not negotiable. The Engineer came aboard
+The Axiom, found eight systems offline, and started
+fixing them. Whether this was the plan or an
+improvisation is unclear. What is clear is that the
+ship is more operational than it was, the Axiom's
+systems remember every repair, and COGS has begun
+adjusting his probability estimates upward.
+
+**The Kepler Station Council**
+The governing body of Kepler Station. Pragmatic,
+under-resourced, and experienced enough to know that
+waiting for official assistance means not getting it.
+They reached out to The Axiom because the Engineer's
+reputation — such as it is this early — suggested a
+faster solution than the alternatives. Their
+relationship with The Axiom improved or deteriorated
+depending on how the Kepler sector was resolved.
+
+**Dr. Yael Orin**
+A plasma physicist stationed in Nova Fringe studying
+stellar formation phenomena that cannot be observed
+anywhere closer to the core. Legitimate credentials.
+Published work. The kind of researcher who stays in
+dangerous places because the science requires it.
+She contacted The Axiom with a routing problem she
+could not solve locally. COGS described her
+credentials as adequate. This is high praise.
+
+**The Previous Engineer**
+No name in any accessible record. A designation only
+— the same designation, in fact, that COGS assigned
+to the current Engineer on day one. The Axiom was
+under their command before it was not. The logs from
+that period are incomplete in ways that feel
+deliberate. COGS references this period rarely and
+precisely. What happened to the previous Engineer is
+the question underneath every other question in
+Deep Void.
+
+**Pirate Vessel — Unidentified**
+Vessel profile matched to an unregistered craft
+operating in Nova Fringe. Known to board and extract.
+Known to leave. What they took from The Axiom, how
+much it cost, and whether COGS has a plan about it
+are all matters of record. The exact credit amount
+is logged. COGS has not stopped thinking about it.
+
+**Kepler Belt Colonists**
+Not a single entity — a population. Several hundred
+people living in relay stations and mining platforms
+across the belt, dependent on infrastructure they
+did not build and cannot fully repair. They trusted
+that someone would come when the power grid failed.
+That trust was either validated or exhausted
+depending on how the Kepler sector ended.
+
+**Signal — Unidentified Origin**
+Not a person. Not a vessel. A 3.4-second transmission
+detected in The Rift before COGS's memory systems
+took damage. Content: partially recovered. Origin:
+unknown. The Codex entry for this exists but most of
+it is redacted. COGS wrote the redactions himself.
+He has not explained why he remembers more than
+he logged.
+
+---
+
+### THE AXIOM — VESSEL RECORDS (1/6 unlocked)
+
+**Vessel Overview**
+A military scout ship of compact design, built for
+extended independent operation in low-support
+environments. Eight primary systems. One AI unit.
+Crew complement: one, currently. The ship was
+acquired through channels that the acquisition
+record describes as standard and that COGS describes
+as unusual. Both statements appear to be true.
+
+**Ship Systems — Repair Log**
+A running record of every system the Engineer has
+restored and the order in which they were repaired.
+Emergency power first. Bridge systems last. The log
+does not record what condition the ship was in
+before the Engineer arrived, only what it became
+afterward. COGS maintains a parallel log. The two
+records do not always agree on timestamps.
+
+**The AX-MOD Port**
+A retrofitted connection port on COGS's chest unit
+that was not part of the original C.O.G.S
+manufacturing specification. The modification is
+professional-grade. The origin is unlogged. COGS
+acknowledges its existence and declines to explain
+it. It is compatible with hardware that should not
+exist yet.
+
+**Navigation History**
+A partial record of where The Axiom has been.
+Partial because some entries are missing. Not
+corrupted — missing. The gaps correspond to periods
+before the current Engineer's tenure. COGS has the
+coordinates. He has not volunteered them. He has
+not denied having them.
+
+**Previous Crew Record**
+One entry. One designation: The Engineer. No name.
+Service dates: incomplete. Departure record: absent.
+What the previous Engineer built, repaired, and left
+behind is scattered across four sectors in fragments.
+The Axiom remembers them in the way ships remember
+— in the wear on the panels, in the modifications
+no one ordered, in the AI that came with the ship
+and has never fully explained why it stayed.
+
+**The Axiom's Mission**
+Officially: unassigned. The ship has no standing
+orders from any authority. No contract. No employer.
+What the Engineer does with it is the Engineer's
+decision. COGS has opinions about this. He expresses
+them by providing information the Engineer did not
+ask for and withholding assessments until they are
+useful. Whether The Axiom has a purpose beyond what
+the Engineer gives it is the kind of question COGS
+considers unanswerable and therefore interesting.
