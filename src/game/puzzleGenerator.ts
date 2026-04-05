@@ -148,8 +148,8 @@ function generateDataTrail(rng: SeededRandom, length: number, needsCorrectValues
     trail.push(rng.nextInt(0, 1) as 0 | 1);
   }
   // Ensure at least one '1' for configNode to pass
-  if (needsCorrectValues && trail.every(v => v === 0)) {
-    trail[0] = 1;
+  if (needsCorrectValues && !trail.includes(1)) {
+    (trail as (0 | 1)[])[0] = 1;
   }
   return trail;
 }

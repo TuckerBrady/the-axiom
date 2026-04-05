@@ -77,7 +77,7 @@ export default function DailyChallengeDossierScreen({ navigation }: Props) {
           </View>
 
           {/* Transmission text */}
-          <Text style={st.briefText}>"{cogsFullBrief}"</Text>
+          <Text style={st.briefText}>{'"'}{cogsFullBrief}{'"'}</Text>
 
           {/* Reward block */}
           <View style={st.rewardBox}>
@@ -119,7 +119,7 @@ export default function DailyChallengeDossierScreen({ navigation }: Props) {
               <CogsAvatar size="small" state="engaged" />
               <Text style={st.cogsCardLabel}>COGS ASSESSMENT</Text>
             </View>
-            <Text style={st.cogsCardText}>"{cogsPresentation}"</Text>
+            <Text style={st.cogsCardText}>{'"'}{cogsPresentation}{'"'}</Text>
           </View>
         </ScrollView>
 

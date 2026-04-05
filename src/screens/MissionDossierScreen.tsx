@@ -161,7 +161,7 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
               <CogsAvatar size="small" state="online" />
               <Text style={st.cogsCardTitle}>COGS ANALYSIS</Text>
             </View>
-            <Text style={st.cogsCardQuote}>"{cogsQuote}"</Text>
+            <Text style={st.cogsCardQuote}>{'"'}{cogsQuote}{'"'}</Text>
           </View>
         </ScrollView>
 

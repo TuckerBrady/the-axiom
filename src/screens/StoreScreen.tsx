@@ -198,7 +198,7 @@ export default function StoreScreen({ navigation }: Props) {
           {/* COGS rotating comment */}
           <View style={st.cogsStrip}>
             <CogsAvatar size="small" state="online" />
-            <Text style={st.cogsStripText}>"{COGS_LINES[cogsLineIdx]}"</Text>
+            <Text style={st.cogsStripText}>{'"'}{COGS_LINES[cogsLineIdx]}{'"'}</Text>
           </View>
 
           {/* Power-ups section */}

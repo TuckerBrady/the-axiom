@@ -346,11 +346,7 @@ function Crosshairs() {
 // ─── Signal dot ────────────────────────────────────────────────────────────────
 
 function SignalDot({ completedCount, positions }: { completedCount: number; positions: { x: number; y: number }[] }) {
-  // No ball if nothing completed (active level is 1)
-  if (completedCount <= 0) return null;
-
-  // Build waypoints from node 1 through completedCount+1 (the active node)
-  const waypointCount = Math.min(completedCount + 1, positions.length);
+  const waypointCount = Math.min(Math.max(completedCount + 1, 1), positions.length);
   const wpX: number[] = [];
   const wpY: number[] = [];
   const wpT: number[] = [];
@@ -364,13 +360,13 @@ function SignalDot({ completedCount, positions }: { completedCount: number; posi
   const maxT = waypointCount - 1;
   const progress = useSharedValue(0);
   useEffect(() => {
-    if (maxT <= 0) return;
+    if (completedCount <= 0 || maxT <= 0) return;
     progress.value = withRepeat(
       withTiming(maxT, { duration: maxT * 900, easing: Easing.linear }),
       -1,
       false,
     );
-  }, [maxT]);
+  }, [maxT, completedCount]);
 
   const dotStyle = useAnimatedStyle(() => {
     const p = progress.value;
@@ -381,6 +377,7 @@ function SignalDot({ completedCount, positions }: { completedCount: number; posi
     };
   });
 
+  if (completedCount <= 0) return null;
   return <Animated.View style={[s.signalDot, { backgroundColor: ENERGIZED_COLOR }, dotStyle]} />;
 }
 

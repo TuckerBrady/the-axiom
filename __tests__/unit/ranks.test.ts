@@ -1,5 +1,3 @@
-import { describe, it, expect } from '@jest/globals';
-
 const RANKS = [
   { id: 'R01', name: 'Salvager', minXP: 0 },
   { id: 'R02', name: 'Apprentice', minXP: 100 },

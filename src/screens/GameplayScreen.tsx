@@ -431,7 +431,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
-    if (isExecuting) return;
+    if (isExecuting || !level) return;
     triggerHints('onEngage');
     const engageStartTime = Date.now();
     const steps = engage();
@@ -1064,7 +1064,7 @@ export default function GameplayScreen({ navigation }: Props) {
               <View style={styles.cogsResultRow}>
                 <CogsAvatar size="small" state="online" />
                 <Text style={styles.resultsQuote}>
-                  "{cogsScoreComment || 'Circuit complete.'}"
+                  {'"'}{cogsScoreComment || 'Circuit complete.'}{'"'}
                   {firstTimeBonus ? '\n\n"Mission logged. 25 CR credited to your account."' : ''}
                 </Text>
               </View>
@@ -1235,7 +1235,7 @@ export default function GameplayScreen({ navigation }: Props) {
               <View style={[styles.cogsResultRow, { marginTop: Spacing.md }]}>
                 <CogsAvatar size="small" state="online" />
                 <Text style={styles.resultsQuote}>
-                  "You are out of lives. I could tell you to wait. But there is an alternative."
+                  {'"'}You are out of lives. I could tell you to wait. But there is an alternative.{'"'}
                 </Text>
               </View>
               <TouchableOpacity

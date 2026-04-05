@@ -165,7 +165,7 @@ export default function DailyRewardScreen({ navigation }: Props) {
 
         {/* COGS line */}
         <Animated.View entering={FadeIn.delay(400).duration(400)} style={s.cogsLineWrap}>
-          <Text style={s.cogsLine}>"{reward.cogsLine}"</Text>
+          <Text style={s.cogsLine}>{'"'}{reward.cogsLine}{'"'}</Text>
         </Animated.View>
 
         {/* 7-day streak calendar */}

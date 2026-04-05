@@ -128,7 +128,7 @@ function CogsResponseCard({
         <CogsAvatar size="small" state="online" />
         <Text style={s.cogsResponseLabel}>C.O.G.S RESPONSE</Text>
       </View>
-      <Text style={s.cogsResponseText}>"{response}"</Text>
+      <Text style={s.cogsResponseText}>{'"'}{response}{'"'}</Text>
     </Animated.View>
   );
 }

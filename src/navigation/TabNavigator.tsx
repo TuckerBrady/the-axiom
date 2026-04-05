@@ -75,7 +75,7 @@ export default function TabNavigator() {
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             e.preventDefault();
-            navigation.navigate('Store');
+            (navigation as any).navigate('Store');
           },
         })}
       />

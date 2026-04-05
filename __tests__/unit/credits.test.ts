@@ -1,5 +1,3 @@
-import { describe, it, expect } from '@jest/globals';
-
 function applyTransaction(balance: number, amount: number, type: 'earn' | 'spend'): number {
   if (type === 'earn') return balance + amount;
   if (type === 'spend') {

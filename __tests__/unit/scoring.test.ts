@@ -1,5 +1,3 @@
-import { describe, it, expect } from '@jest/globals';
-
 interface ScoreInput {
   timeMs: number;
   piecesUsed: number;

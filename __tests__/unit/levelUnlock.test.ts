@@ -1,5 +1,3 @@
-import { describe, it, expect } from '@jest/globals';
-
 const SECTORS = [
   { id: 0, name: 'The Axiom', levels: 8, requiredSector: null },
   { id: 1, name: 'Kepler Belt', levels: 10, requiredSector: 0 },
