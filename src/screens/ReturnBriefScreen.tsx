@@ -113,7 +113,14 @@ export default function ReturnBriefScreen({ navigation }: Props) {
   const screenFade = useRef(new Animated.Value(0)).current;
   const cogsScale = useRef(new Animated.Value(0.92)).current;
   const cogsFade = useRef(new Animated.Value(0)).current;
-  const lineAnims = useRef(lines.map(() => new Animated.Value(0))).current;
+  // Always allocate 4 animated values (max possible lines) to avoid
+  // undefined access when lines array grows after first render
+  const lineAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
   const tapFade = useRef(new Animated.Value(0)).current;
   const exitFade = useRef(new Animated.Value(1)).current;
   const [cogsState, setCogsState] = useState<CogsState>('engaged');
