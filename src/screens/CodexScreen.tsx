@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Dimensions,
   FlatList,
+  Animated as RNAnimated,
+  Easing as RNEasing,
 } from 'react-native';
+import Svg, { Circle as SvgCircle, Rect as SvgRect, Line as SvgLine } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -51,49 +54,49 @@ const PIECES: PieceEntry[] = [
     description: 'A mechanical belt that accepts an item on one end and delivers it to the other. No branching. No memory.',
     function: 'Moves a signal exactly one position forward along a defined axis. Output occurs at the far end.',
     importance: 'Without the Conveyor, isolated components cannot communicate. It is the connective tissue of every working circuit.',
-    cogsNote: '"It moves things forward. A quality I find underrated."',
+    cogsNote: 'The Conveyor carries signal in a straight line. Input enters from the rear, output exits the front. It cannot bend, branch, or redirect \u2014 that is not what it is for. Direction is set before you place it, not after. A Conveyor facing away from the signal source is not a Conveyor. It is a dead end. Rotate first.',
     timesUsed: 14, levelsPlayed: 4, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 01',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['Boot Sequence T-1', 'First Contact', 'Signal Drift', 'Relay Breach'],
   },
   {
     id: 'source', name: 'Source', type: 'Physics', status: 'unlocked',
-    description: 'Primary input node. The origin of all signal flow aboard the vessel. It does not ask where the signal is going.',
+    description: 'Primary input node. The origin of all signal flow aboard the vessel.',
     function: 'Emits a continuous signal from its output port. Always active. Cannot be switched off.',
-    importance: 'Every circuit begins here. The Source is the heartbeat. Without it, nothing moves.',
-    cogsNote: '"Every machine starts somewhere. The Source is that somewhere. Simple. Important. Often forgotten."',
+    importance: 'Every circuit begins here. The Source is the heartbeat.',
+    cogsNote: 'The Source is not a piece you place. It is fixed infrastructure \u2014 part of the ship itself. Signal begins here and nowhere else. It cannot be moved, repositioned, or removed. Your job is to build from it. That is the only direction available to you.',
     timesUsed: 18, levelsPlayed: 4, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 01',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['First Contact', 'Signal Drift', 'Relay Breach', 'Ion Cascade'],
   },
   {
     id: 'output', name: 'Output', type: 'Physics', status: 'unlocked',
-    description: 'Terminal destination node. Accepts the final signal and confirms circuit completion. Lights up on receipt.',
-    function: 'Receives a signal at its input port and marks the circuit as complete. One-way. Final.',
+    description: 'Terminal destination node. Accepts the final signal and confirms circuit completion.',
+    function: 'Receives a signal at its input port and marks the circuit as complete.',
     importance: 'Without a destination, the signal is noise. The Output gives the circuit its purpose.',
-    cogsNote: '"Reach the Output. The path between Source and Output is where the actual engineering happens."',
+    cogsNote: 'The Output is also fixed \u2014 you route to it, not with it. When signal arrives here, the system activates. If it does not arrive, the machine has not run. It does not matter how complete the path looks. Signal either reaches the Output or it does not. Build accordingly.',
     timesUsed: 18, levelsPlayed: 4, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 01',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['First Contact', 'Signal Drift', 'Relay Breach', 'Ion Cascade'],
   },
   {
     id: 'gear', name: 'Gear', type: 'Physics', status: 'unlocked',
     description: 'A rotational transmission component. Accepts signal from one direction and redirects it ninety degrees.',
-    function: 'Changes the direction of signal flow by 90°. Can be placed in four orientations.',
+    function: 'Changes the direction of signal flow by 90 degrees. Can be placed in four orientations.',
     importance: 'Circuits are rarely straight. The Gear is what makes corners possible.',
-    cogsNote: '"The Conveyor moves things forward. The Gear decides where forward is. There is a meaningful difference."',
+    cogsNote: 'The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns \u2014 90 degrees, to any perpendicular exit. It accepts input from any direction. Every non-linear circuit requires at least one. Plan the bend before you need it. The signal will not wait while you reconsider.',
     timesUsed: 9, levelsPlayed: 3, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 03',
+    firstEncountered: 'THE AXIOM \u2014 A1-2 Life Support',
     seenIn: ['Relay Breach', 'Ion Cascade', 'Flux Resonance'],
   },
   {
     id: 'splitter', name: 'Splitter', type: 'Physics', status: 'unlocked',
     description: 'Divides a single signal path into two parallel streams without amplification loss.',
-    function: 'Takes one input and produces two outputs. Both carry the full signal. Neither is diminished.',
+    function: 'Takes one input and produces two outputs. Both carry the full signal.',
     importance: 'When a circuit must reach two destinations simultaneously, the Splitter is the only option.',
-    cogsNote: '"One becomes two. Straightforward conceptually. Less straightforward when you have to plan both paths simultaneously."',
+    cogsNote: 'The Splitter divides a single signal into two parallel paths. Both carry the complete signal \u2014 nothing is lost, nothing is reduced. One input, two outputs. The piece itself is straightforward. What is not straightforward is committing to two complete routes simultaneously before either one is finished. Plan both before you place either.',
     timesUsed: 5, levelsPlayed: 2, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 04',
+    firstEncountered: 'THE AXIOM \u2014 A1-4 Propulsion Core',
     seenIn: ['Ion Cascade', 'Flux Resonance'],
   },
   // ── Unlocked Protocol ──
@@ -102,9 +105,9 @@ const PIECES: PieceEntry[] = [
     description: 'A programmable routing node that modifies the behaviour of adjacent components based on set parameters.',
     function: 'Applies a configuration to downstream pieces. Changes can include delay, inversion, or conditional routing.',
     importance: 'Static circuits have limits. The Config Node is what makes circuits intelligent.',
-    cogsNote: '"This is the piece most engineers underestimate on first encounter. I do not underestimate things. You should not either."',
+    cogsNote: 'The Config Node is a conditional gate. Signal passes through only when the current Data Trail value satisfies the Node\u2019s configured condition. If the condition is not met, the signal halts here \u2014 the circuit does not fail, the signal simply does not continue. Set the condition before engaging the machine. It will not configure itself.',
     timesUsed: 7, levelsPlayed: 2, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 02',
+    firstEncountered: 'THE AXIOM \u2014 A1-3 Navigation Array',
     seenIn: ['Signal Drift', 'Ion Cascade'],
   },
   {
@@ -112,9 +115,9 @@ const PIECES: PieceEntry[] = [
     description: 'Reads the state of a connected piece and broadcasts its status to any listening nodes on the circuit.',
     function: 'Monitors an adjacent piece and reports ACTIVE, IDLE, or ERROR via its output port.',
     importance: 'You cannot fix what you cannot see. The Scanner makes the invisible visible.',
-    cogsNote: '"Think of it as paying attention. Something I recommend highly."',
+    cogsNote: 'The Scanner reads the Data Trail at the moment signal passes through it. That value is captured and stored \u2014 available to any Config Node that follows it in the circuit. The Scanner changes nothing: not the signal, not the trail. It only observes. Place it before the nodes that depend on what it reads. Sequence is not optional.',
     timesUsed: 6, levelsPlayed: 2, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 02',
+    firstEncountered: 'THE AXIOM \u2014 A1-5 Communication Array',
     seenIn: ['Signal Drift', 'Relay Breach'],
   },
   {
@@ -122,9 +125,9 @@ const PIECES: PieceEntry[] = [
     description: 'Broadcasts a signal wirelessly across non-adjacent grid positions to a designated receiver.',
     function: 'Sends a signal from its location to any Receiver piece on the same grid, regardless of distance or obstacles.',
     importance: 'Some gaps cannot be bridged with physical pieces. The Transmitter ignores those constraints.',
-    cogsNote: '"The Scanner reads. The Transmitter writes. Between those two things, a machine can think. I find that remarkable."',
+    cogsNote: 'The Transmitter writes a configured value to the Data Trail at the moment signal passes through it \u2014 overwriting whatever was there. Anything reading the trail after this point sees the new value. The write happens once, at the moment of signal contact. The write must precede the read. This is not a suggestion. It is how the machine runs.',
     timesUsed: 4, levelsPlayed: 2, sectorsSeen: 1,
-    firstEncountered: 'KEPLER BELT — Mission 03',
+    firstEncountered: 'THE AXIOM \u2014 A1-7 Weapons Lock',
     seenIn: ['Relay Breach', 'Ion Cascade'],
   },
   // ── Redacted ──
@@ -366,12 +369,103 @@ function SectionView({
 
 // ─── Detail view ─────────────────────────────────────────────────────────────
 
-const DETAIL_SECTIONS = (entry: PieceEntry) => [
-  { title: 'WHAT IT IS', text: entry.description },
-  { title: 'WHAT IT DOES', text: entry.function },
-  { title: 'WHY IT MATTERS', text: entry.importance },
-  { title: 'C.O.G.S NOTES', text: entry.cogsNote, isCogs: true },
-];
+// Simulation captions per piece type
+const SIM_CAPTIONS: Record<string, string> = {
+  source: 'Signal originates here. The circuit begins.',
+  output: 'Signal must arrive here. The circuit ends.',
+  conveyor: 'Signal travels straight. Direction is set before placement.',
+  gear: 'The only piece that changes signal direction.',
+  splitter: 'Signal enters once. Two full-strength paths exit simultaneously.',
+  config_node: 'Signal passes only when the trail condition is satisfied.',
+  scanner: 'Reads the Data Trail. Stores the value. Changes nothing.',
+  transmitter: 'Writes a value to the Data Trail as signal passes through.',
+};
+
+// ─── Piece Simulation ─────────────────────────────────────────────────────────
+
+function PieceSimulation({ pieceType }: { pieceType: string }) {
+  const progress = useRef(new RNAnimated.Value(0)).current;
+
+  useEffect(() => {
+    const loop = RNAnimated.loop(
+      RNAnimated.timing(progress, {
+        toValue: 1,
+        duration: 3600,
+        easing: RNEasing.linear,
+        useNativeDriver: false,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  const caption = SIM_CAPTIONS[pieceType] ?? 'Field simulation.';
+
+  // Simple horizontal path for most pieces
+  const ballX = progress.interpolate({ inputRange: [0, 1], outputRange: [30, 328] });
+  const ballY = 85; // center vertical
+
+  return (
+    <View style={simStyles.container}>
+      <Text style={simStyles.label}>FIELD SIMULATION</Text>
+      <View style={simStyles.canvas}>
+        <Svg width={358} height={130}>
+          {/* Source node */}
+          <SvgCircle cx="30" cy="85" r="10" fill="none" stroke="#F0B429" strokeWidth="1.5" />
+          <SvgCircle cx="30" cy="85" r="4" fill="#F0B429" opacity={0.6} />
+          {/* Connector line */}
+          <SvgLine x1="40" y1="85" x2="318" y2="85" stroke="rgba(0,212,255,0.3)" strokeWidth="1.5" strokeDasharray="4,4" />
+          {/* Output node */}
+          <SvgCircle cx="328" cy="85" r="10" fill="none" stroke="#00C48C" strokeWidth="1.5" />
+          <SvgCircle cx="328" cy="85" r="4" fill="#00C48C" opacity={0.6} />
+        </Svg>
+        {/* Signal ball */}
+        <RNAnimated.View style={[simStyles.ball, { left: ballX, top: ballY - 5 }]} />
+      </View>
+      <Text style={simStyles.caption}>{caption}</Text>
+    </View>
+  );
+}
+
+const simStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: '#0a1628',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.25)',
+    borderRadius: 14,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  label: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
+    letterSpacing: 2,
+  },
+  canvas: {
+    width: 358,
+    height: 130,
+    alignSelf: 'center',
+    position: 'relative',
+  },
+  ball: {
+    position: 'absolute',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#00D4FF',
+  },
+  caption: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    textAlign: 'center',
+  },
+});
+
+// ─── Detail view ──────────────────────────────────────────────────────────────
 
 function DetailView({
   entry,
@@ -435,55 +529,30 @@ function DetailView({
           </View>
         </View>
 
-        {/* Stats row */}
-        <View style={cs.statsRow}>
-          <View style={cs.statCell}>
-            <Text style={cs.statVal}>{entry.timesUsed}</Text>
-            <Text style={cs.statKey}>TIMES USED</Text>
-          </View>
-          <View style={[cs.statCell, cs.statBorder]}>
-            <Text style={cs.statVal}>{entry.levelsPlayed}</Text>
-            <Text style={cs.statKey}>LEVELS PLAYED</Text>
-          </View>
-          <View style={[cs.statCell, cs.statBorder]}>
-            <Text style={cs.statVal}>{entry.sectorsSeen}</Text>
-            <Text style={cs.statKey}>SECTORS SEEN</Text>
-          </View>
-        </View>
-
         {/* First encountered */}
         <View style={cs.firstEncountered}>
           <Text style={cs.firstEncLabel}>FIRST ENCOUNTERED</Text>
           <Text style={cs.firstEncValue}>{entry.firstEncountered}</Text>
         </View>
 
-        {/* Dossier sections */}
-        <View style={cs.dossierSections}>
-          {DETAIL_SECTIONS(entry).map((sec, i) => (
-            <View key={i} style={[cs.dossierCard, sec.isCogs && cs.dossierCardCogs]}>
-              <Text style={[cs.dossierTitle, sec.isCogs && { color: Colors.blue }]}>
-                {sec.title}
-              </Text>
-              <Text style={[cs.dossierText, sec.isCogs && cs.dossierTextCogs]}>
-                {sec.text}
-              </Text>
-            </View>
-          ))}
-        </View>
+        {/* Field simulation */}
+        <PieceSimulation pieceType={entry.id} />
 
-        {/* Seen in */}
-        {entry.seenIn.length > 0 && (
-          <View style={cs.seenIn}>
-            <Text style={cs.seenInLabel}>SEEN IN MISSIONS</Text>
-            <View style={cs.seenInTags}>
-              {entry.seenIn.map((m, i) => (
-                <View key={i} style={cs.seenInTag}>
-                  <Text style={cs.seenInTagText}>{m}</Text>
-                </View>
-              ))}
+        {/* C.O.G.S NOTES — teaching mode */}
+        <View style={cs.dossierSections}>
+          <View style={[cs.dossierCard, cs.cogsTeachCard]}>
+            <View style={cs.cogsTeachHeader}>
+              <View style={cs.cogsEyeIcon}>
+                <View style={cs.cogsEyeDot} />
+              </View>
+              <Text style={cs.cogsTeachLabel}>C.O.G.S NOTES</Text>
+              <View style={cs.teachBadge}>
+                <Text style={cs.teachBadgeText}>TEACHING</Text>
+              </View>
             </View>
+            <Text style={cs.cogsTeachText}>{entry.cogsNote}</Text>
           </View>
-        )}
+        </View>
       </ScrollView>
     </Animated.View>
   );
@@ -894,6 +963,61 @@ const cs = StyleSheet.create({
     backgroundColor: 'rgba(74,158,255,0.04)',
     borderColor: 'rgba(74,158,255,0.2)',
   },
+
+  // COGS teaching card
+  cogsTeachCard: {
+    backgroundColor: 'rgba(10,22,40,0.7)',
+    borderColor: 'rgba(240,180,41,0.2)',
+  },
+  cogsTeachHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  cogsEyeIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#00C48C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cogsEyeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00C48C',
+  },
+  cogsTeachLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
+    letterSpacing: 2,
+    flex: 1,
+  },
+  teachBadge: {
+    borderWidth: 1,
+    borderColor: '#00C48C',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  teachBadgeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: '#00C48C',
+    letterSpacing: 1,
+  },
+  cogsTeachText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13.5,
+    fontStyle: 'italic',
+    color: 'rgba(232,240,255,0.8)',
+    lineHeight: 13.5 * 1.65,
+  },
+
   dossierTitle: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
@@ -908,36 +1032,5 @@ const cs = StyleSheet.create({
   },
   dossierTextCogs: {
     fontStyle: 'italic',
-  },
-
-  // Seen in
-  seenIn: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  seenInLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
-    letterSpacing: 2,
-  },
-  seenInTags: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  seenInTag: {
-    backgroundColor: 'rgba(26,58,92,0.5)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 20,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-  },
-  seenInTagText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
   },
 });
