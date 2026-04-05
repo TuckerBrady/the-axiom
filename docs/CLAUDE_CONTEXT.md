@@ -44,7 +44,7 @@ executes.
 
 ## CURRENT BUILD STATE
 
-**Last completed sprint:** Sprint 5 (full feature session)
+**Last completed sprint:** Sprint 6 (UI polish, game board, Codex redesign)
 
 **What is live and working:**
 
@@ -101,6 +101,20 @@ executes.
 - 24 automated tests passing (unit + integration).
 - Store: Credits only, prices shown as CR on buttons, spelled out
   Credits on pack cards and section headers.
+- MissionDossierScreen: full-screen, slides up from bottom via Animated API on mount. Navigator-level animation props do not work on web -- always use Animated API directly in the component for cross-platform slide animations.
+- Level launch gating enforced: only the 'active' node opens MissionDossierScreen with LAUNCH MISSION. Completed levels open dossier with REPLAY (muted style). Locked nodes are not tappable.
+- Sector Map long-range scanner reveal system: SECTORS_AHEAD_VISIBLE = 1. One sector beyond active is shown with progressive reveal tied to current sector completion percentage. Tiers: 0%=SIGNAL DETECTED (all info hidden), 25%=name resolves, 50%=level count appears, 75%=description unlocks, 100%=fully accessible. Constants SCANNER_TIER_1/2/3 in SectorMapScreen.tsx.
+- Level Select node map: dynamic node count renders exactly sector.levels.length circles. No longer hardcoded. Correct for all sector sizes (Axiom=8, Kepler=10, etc).
+- Level Select stats: COMPLETE, REMAINING, STARS, PROGRESS are real-time values derived from actual game state. No hardcoded values remain.
+- Level Select connectors: energized (blue, full opacity) on completed path; dim on locked/active path. Animated ball travels only on energized connectors. No ball rendered when player is on level 1 (nothing completed yet).
+- Game board: BOARD_SIZE = SCREEN_WIDTH - 24, always square. CELL_SIZE = BOARD_SIZE / numColumns. Board is centered. All sizing is dynamic -- no hardcoded pixel values.
+- Placed pieces on board: no container box or border. Only held/selected pieces (from tray, not yet placed) show the rounded square border.
+- Source node visual: amber #F0B429, no container box. Fixed infrastructure -- visually distinct from player pieces.
+- Output node visual: green #00C48C, no container box. Fixed infrastructure -- visually distinct from player pieces.
+- Conveyor directional indicator: input circle (signal enters) = amber #F0B429. Output circle (signal exits) = green #00C48C. Body rect and arrow = blue #00D4FF. Direction is legible at all 4 rotation states.
+- PieceIcon extracted to src/components/PieceIcon.tsx. Single source of truth used by both CodexScreen and GameplayScreen. Codex icon designs are canonical. Do not create local PieceIcon implementations in individual screens.
+- Codex detail view redesigned: hero (icon + name + type badge) -> first encountered -> field simulation -> C.O.G.S NOTES (teaching mode, single merged section). Stats row removed. Seen in missions section removed.
+- CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 24 tests passing.
 
 **Known issues / in-flight:**
 
