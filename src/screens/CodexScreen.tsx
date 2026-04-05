@@ -10,7 +10,7 @@ import {
   Animated as RNAnimated,
   Easing as RNEasing,
 } from 'react-native';
-import Svg, { Circle as SvgCircle, Rect as SvgRect, Line as SvgLine } from 'react-native-svg';
+import Svg, { Circle as SvgCircle, Rect as SvgRect, Line as SvgLine, Path as SvgPath, Text as SvgText } from 'react-native-svg';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -383,44 +383,285 @@ const SIM_CAPTIONS: Record<string, string> = {
 
 // ─── Piece Simulation ─────────────────────────────────────────────────────────
 
+const SIM_W = 326;
+const SIM_H = 140;
+
+function getCell(col: number, row: number, cols: number, rows: number) {
+  const CELL = Math.min(Math.floor((SIM_W - 32) / cols), Math.floor((SIM_H - 24) / rows));
+  const ox = (SIM_W - cols * CELL) / 2;
+  const oy = (SIM_H - rows * CELL) / 2;
+  return { x: ox + col * CELL + CELL / 2, y: oy + row * CELL + CELL / 2, r: CELL };
+}
+
+// SVG piece draw helpers
+function DrawSource({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  return (<><SvgCircle cx={cx} cy={cy} r={r * 0.38} fill="rgba(240,180,41,0.12)" stroke="#F0B429" strokeWidth="1.5" /><SvgCircle cx={cx} cy={cy} r={r * 0.18} fill="#F0B429" /></>);
+}
+function DrawOutput({ cx, cy, r, lit }: { cx: number; cy: number; r: number; lit?: boolean }) {
+  const c = lit ? '#00C48C' : 'rgba(0,196,140,0.3)';
+  return (<><SvgCircle cx={cx} cy={cy} r={r * 0.4} fill={lit ? 'rgba(0,196,140,0.18)' : 'rgba(0,196,140,0.06)'} stroke={c} strokeWidth="1.5" /><SvgCircle cx={cx} cy={cy} r={r * 0.22} fill="none" stroke={c} strokeWidth="1" /><SvgCircle cx={cx} cy={cy} r={r * 0.1} fill={c} /></>);
+}
+function DrawConveyor({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const s = r * 0.38;
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill="rgba(0,212,255,0.06)" stroke="rgba(0,212,255,0.18)" strokeWidth="1" /><SvgPath d={`M${cx - s * 0.2} ${cy - s * 0.35}L${cx + s * 0.4} ${cy}L${cx - s * 0.2} ${cy + s * 0.35}`} stroke="rgba(0,212,255,0.5)" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" /></>);
+}
+function DrawGear({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const s = r * 0.38;
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill="rgba(0,212,255,0.08)" stroke="#00D4FF" strokeWidth="1.5" /><SvgCircle cx={cx} cy={cy} r={s * 0.4} fill="none" stroke="rgba(0,212,255,0.6)" strokeWidth="1" /><SvgCircle cx={cx} cy={cy} r={s * 0.18} fill="#00D4FF" /></>);
+}
+function DrawSplitter({ cx, cy, r }: { cx: number; cy: number; r: number }) {
+  const s = r * 0.38;
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill="rgba(0,212,255,0.08)" stroke="#00D4FF" strokeWidth="1.5" /><SvgPath d={`M${cx - s * 0.5} ${cy}L${cx} ${cy}M${cx} ${cy}L${cx + s * 0.5} ${cy - s * 0.4}M${cx} ${cy}L${cx + s * 0.5} ${cy + s * 0.4}`} stroke="#00D4FF" strokeWidth="1.5" fill="none" strokeLinecap="round" /></>);
+}
+function DrawConfigNode({ cx, cy, r, active }: { cx: number; cy: number; r: number; active?: boolean }) {
+  const s = r * 0.38;
+  const c = active ? '#A78BFA' : 'rgba(167,139,250,0.35)';
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill={active ? 'rgba(167,139,250,0.14)' : 'rgba(167,139,250,0.05)'} stroke={c} strokeWidth="1.5" /><SvgLine x1={cx} y1={cy - s * 0.35} x2={cx} y2={cy + s * 0.1} stroke={c} strokeWidth="2" /><SvgCircle cx={cx} cy={cy + s * 0.3} r={s * 0.12} fill={c} /></>);
+}
+function DrawScanner({ cx, cy, r, reading }: { cx: number; cy: number; r: number; reading?: boolean }) {
+  const s = r * 0.38;
+  const c = reading ? '#A78BFA' : 'rgba(167,139,250,0.35)';
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill="rgba(167,139,250,0.05)" stroke={c} strokeWidth="1.5" /><SvgCircle cx={cx - s * 0.1} cy={cy - s * 0.1} r={s * 0.25} fill="none" stroke={c} strokeWidth="1.5" /><SvgLine x1={cx + s * 0.1} y1={cy + s * 0.1} x2={cx + s * 0.35} y2={cy + s * 0.35} stroke={c} strokeWidth="1.5" strokeLinecap="round" /></>);
+}
+function DrawTransmitter({ cx, cy, r, transmitting }: { cx: number; cy: number; r: number; transmitting?: boolean }) {
+  const s = r * 0.38;
+  const c = transmitting ? '#A78BFA' : 'rgba(167,139,250,0.35)';
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="4" fill="rgba(167,139,250,0.05)" stroke={c} strokeWidth="1.5" /><SvgCircle cx={cx} cy={cy + s * 0.15} r={s * 0.12} fill={c} /><SvgPath d={`M${cx - s * 0.3} ${cy - s * 0.1}Q${cx} ${cy - s * 0.5} ${cx + s * 0.3} ${cy - s * 0.1}`} stroke={c} strokeWidth="1" fill="none" /><SvgPath d={`M${cx - s * 0.5} ${cy - s * 0.25}Q${cx} ${cy - s * 0.75} ${cx + s * 0.5} ${cy - s * 0.25}`} stroke={c} strokeWidth="0.8" fill="none" opacity="0.5" /></>);
+}
+function DrawDataTrail({ cx, cy, r, val, highlight }: { cx: number; cy: number; r: number; val: string; highlight?: boolean }) {
+  const s = r * 0.32;
+  return (<><SvgRect x={cx - s} y={cy - s} width={s * 2} height={s * 2} rx="3" fill={highlight ? 'rgba(0,212,255,0.14)' : 'rgba(0,212,255,0.04)'} stroke={highlight ? '#00D4FF' : 'rgba(0,212,255,0.2)'} strokeWidth="1" /><SvgText x={cx} y={cy + 4} fill={highlight ? '#00D4FF' : 'rgba(0,212,255,0.4)'} fontSize="10" fontFamily="monospace" textAnchor="middle">{val}</SvgText></>);
+}
+function DrawConn({ x1, y1, x2, y2, lit }: { x1: number; y1: number; x2: number; y2: number; lit?: boolean }) {
+  return <SvgLine x1={x1} y1={y1} x2={x2} y2={y2} stroke={lit ? '#00D4FF' : 'rgba(0,212,255,0.1)'} strokeWidth={lit ? 2 : 1} />;
+}
+
 function PieceSimulation({ pieceType }: { pieceType: string }) {
-  const progress = useRef(new RNAnimated.Value(0)).current;
+  const animVal = useRef(new RNAnimated.Value(0)).current;
+  const [t, setT] = useState(0);
 
   useEffect(() => {
+    const id = animVal.addListener(({ value }) => setT(value));
     const loop = RNAnimated.loop(
-      RNAnimated.timing(progress, {
-        toValue: 1,
-        duration: 3600,
-        easing: RNEasing.linear,
-        useNativeDriver: false,
-      }),
+      RNAnimated.timing(animVal, { toValue: 1, duration: 3600, easing: RNEasing.linear, useNativeDriver: false }),
     );
     loop.start();
-    return () => loop.stop();
-  }, []);
+    return () => { loop.stop(); animVal.removeListener(id); };
+  }, [pieceType]);
 
-  const caption = SIM_CAPTIONS[pieceType] ?? 'Field simulation.';
+  const caption = SIM_CAPTIONS[pieceType] ?? SIM_CAPTIONS[pieceType === 'config_node' ? 'config_node' : pieceType] ?? 'Field simulation.';
+  const type = pieceType === 'config_node' ? 'configNode' : pieceType;
 
-  // Simple horizontal path for most pieces
-  const ballX = progress.interpolate({ inputRange: [0, 1], outputRange: [30, 328] });
-  const ballY = 85; // center vertical
+  // Interpolate ball position along a path defined by waypoints
+  function interpPath(waypoints: { x: number; y: number }[], tVal: number, tEnd: number): { x: number; y: number } {
+    const p = Math.min(tVal / tEnd, 1);
+    const seg = p * (waypoints.length - 1);
+    const i = Math.min(Math.floor(seg), waypoints.length - 2);
+    const frac = seg - i;
+    return {
+      x: waypoints[i].x + (waypoints[i + 1].x - waypoints[i].x) * frac,
+      y: waypoints[i].y + (waypoints[i + 1].y - waypoints[i].y) * frac,
+    };
+  }
+
+  function renderSim() {
+    switch (type) {
+      case 'conveyor': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), C2 = getCell(2, 1, 5, 3), C3 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const wp = [S, C1, C2, C3, O];
+        const ball = t < 0.85 ? interpPath(wp, t, 0.85) : O;
+        const oLit = t > 0.85;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={C2.x} y2={C2.y} lit={t > 0.25} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={C3.x} y2={C3.y} lit={t > 0.48} />
+          <DrawConn x1={C3.x} y1={C3.y} x2={O.x} y2={O.y} lit={t > 0.68} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawConveyor cx={C3.x} cy={C3.y} r={C3.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={oLit} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>);
+      }
+      case 'gear': {
+        const S = getCell(0, 1, 5, 4), C1 = getCell(1, 1, 5, 4), G = getCell(2, 1, 5, 4), C2 = getCell(2, 2, 5, 4), O = getCell(2, 3, 5, 4);
+        const wp = [S, C1, G, C2, O];
+        const ball = t < 0.85 ? interpPath(wp, t, 0.85) : O;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={G.x} y2={G.y} lit={t > 0.25} />
+          <DrawConn x1={G.x} y1={G.y} x2={C2.x} y2={C2.y} lit={t > 0.5} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.68} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawGear cx={G.x} cy={G.y} r={G.r} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={t > 0.85} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>);
+      }
+      case 'splitter': {
+        const S = getCell(1, 1, 7, 4), C1 = getCell(2, 1, 7, 4), SP = getCell(3, 1, 7, 4);
+        const C2 = getCell(4, 1, 7, 4), O1 = getCell(5, 1, 7, 4);
+        const C3 = getCell(3, 2, 7, 4), O2 = getCell(3, 3, 7, 4);
+        const SPLIT_T = 0.38;
+        const wpPre = [S, C1, SP];
+        const wpR = [SP, C2, O1];
+        const wpD = [SP, C3, O2];
+        const preBall = t < SPLIT_T ? interpPath(wpPre, t, SPLIT_T) : null;
+        const postT = Math.min((t - SPLIT_T) / (0.9 - SPLIT_T), 1);
+        const ballR = t >= SPLIT_T && t < 0.9 ? interpPath(wpR, postT * 0.85, 0.85) : null;
+        const ballD = t >= SPLIT_T && t < 0.9 ? interpPath(wpD, postT * 0.85, 0.85) : null;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={SP.x} y2={SP.y} lit={t > 0.2} />
+          <DrawConn x1={SP.x} y1={SP.y} x2={C2.x} y2={C2.y} lit={t > SPLIT_T} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O1.x} y2={O1.y} lit={t > 0.6} />
+          <DrawConn x1={SP.x} y1={SP.y} x2={C3.x} y2={C3.y} lit={t > SPLIT_T} />
+          <DrawConn x1={C3.x} y1={C3.y} x2={O2.x} y2={O2.y} lit={t > 0.6} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawSplitter cx={SP.x} cy={SP.y} r={SP.r} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawOutput cx={O1.x} cy={O1.y} r={O1.r} lit={t > 0.9} />
+          <DrawConveyor cx={C3.x} cy={C3.y} r={C3.r} />
+          <DrawOutput cx={O2.x} cy={O2.y} r={O2.r} lit={t > 0.9} />
+          {preBall && <SvgCircle cx={preBall.x} cy={preBall.y} r="5" fill="#00D4FF" />}
+          {ballR && <SvgCircle cx={ballR.x} cy={ballR.y} r="5" fill="#00D4FF" />}
+          {ballD && <SvgCircle cx={ballD.x} cy={ballD.y} r="5" fill="#00D4FF" />}
+        </>);
+      }
+      case 'source': {
+        const S = getCell(1, 1, 3, 3);
+        const ring1R = S.r * 0.25 + (t * S.r * 0.6);
+        const ring2R = S.r * 0.25 + (((t + 0.33) % 1) * S.r * 0.6);
+        const ring3R = S.r * 0.25 + (((t + 0.66) % 1) * S.r * 0.6);
+        const a1 = Math.max(0, 0.35 - t * 0.35);
+        const a2 = Math.max(0, 0.35 - ((t + 0.33) % 1) * 0.35);
+        const a3 = Math.max(0, 0.35 - ((t + 0.66) % 1) * 0.35);
+        return (<>
+          <SvgCircle cx={S.x} cy={S.y} r={ring1R} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a1} />
+          <SvgCircle cx={S.x} cy={S.y} r={ring2R} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a2} />
+          <SvgCircle cx={S.x} cy={S.y} r={ring3R} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a3} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+        </>);
+      }
+      case 'output': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), C2 = getCell(2, 1, 5, 3), C3 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const wp = [S, C1, C2, C3, O];
+        const ball = t < 0.85 ? interpPath(wp, t, 0.85) : O;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={C2.x} y2={C2.y} lit={t > 0.25} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={C3.x} y2={C3.y} lit={t > 0.48} />
+          <DrawConn x1={C3.x} y1={C3.y} x2={O.x} y2={O.y} lit={t > 0.68} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawConveyor cx={C3.x} cy={C3.y} r={C3.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={t > 0.85} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>);
+      }
+      case 'configNode': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), CN = getCell(2, 1, 5, 3), C2 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const CHECK_T = 0.45, PASS_T = 0.58;
+        const isPaused = t >= CHECK_T && t < PASS_T;
+        const passed = t >= PASS_T;
+        const wpPre = [S, C1, CN];
+        const wpPost = [CN, C2, O];
+        let ball: { x: number; y: number };
+        if (t < CHECK_T) ball = interpPath(wpPre, t, CHECK_T);
+        else if (isPaused) ball = CN;
+        else if (t < 0.9) ball = interpPath(wpPost, (t - PASS_T) / (0.9 - PASS_T) * 0.85, 0.85);
+        else ball = O;
+        const ballColor = isPaused || passed ? '#A78BFA' : '#00D4FF';
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={CN.x} y2={CN.y} lit={t > 0.25} />
+          <DrawConn x1={CN.x} y1={CN.y} x2={C2.x} y2={C2.y} lit={passed} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} />
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawConfigNode cx={CN.x} cy={CN.y} r={CN.r} active={isPaused || passed} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={t > 0.9} />
+          {isPaused && <SvgText x={CN.x} y={CN.y - CN.r * 0.55} fill="#A78BFA" fontSize="8" fontFamily="monospace" textAnchor="middle" opacity={0.8}>CHECKING</SvgText>}
+          {passed && t < PASS_T + 0.08 && <SvgText x={CN.x} y={CN.y - CN.r * 0.55} fill="#00C48C" fontSize="9" fontFamily="monospace" textAnchor="middle" fontWeight="bold">PASS</SvgText>}
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={ballColor} />}
+        </>);
+      }
+      case 'scanner': {
+        const S = getCell(0, 1, 5, 4), C1 = getCell(1, 1, 5, 4), SC = getCell(2, 1, 5, 4), C2 = getCell(3, 1, 5, 4), O = getCell(4, 1, 5, 4);
+        const DT = getCell(2, 2, 5, 4);
+        const SCAN_T = 0.45, DONE_T = 0.6;
+        const isReading = t >= SCAN_T && t < DONE_T;
+        const done = t >= DONE_T;
+        const wpPre = [S, C1, SC];
+        const wpPost = [SC, C2, O];
+        let ball: { x: number; y: number };
+        if (t < SCAN_T) ball = interpPath(wpPre, t, SCAN_T);
+        else if (isReading) ball = SC;
+        else if (t < 0.9) ball = interpPath(wpPost, (t - DONE_T) / (0.9 - DONE_T) * 0.85, 0.85);
+        else ball = O;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={SC.x} y2={SC.y} lit={t > 0.25} />
+          <DrawConn x1={SC.x} y1={SC.y} x2={C2.x} y2={C2.y} lit={done} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} />
+          {isReading && <SvgLine x1={SC.x} y1={SC.y + SC.r * 0.4} x2={DT.x} y2={DT.y - DT.r * 0.35} stroke="#A78BFA" strokeWidth="1.5" strokeDasharray="3,3" opacity={0.7} />}
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawScanner cx={SC.x} cy={SC.y} r={SC.r} reading={isReading} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={t > 0.9} />
+          <DrawDataTrail cx={DT.x} cy={DT.y} r={DT.r} val="1" highlight={isReading || done} />
+          {done && t < DONE_T + 0.1 && <SvgText x={SC.x + SC.r * 0.5} y={SC.y - SC.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>STORED</SvgText>}
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isReading || done ? '#A78BFA' : '#00D4FF'} />}
+        </>);
+      }
+      case 'transmitter': {
+        const S = getCell(0, 1, 5, 4), C1 = getCell(1, 1, 5, 4), TX = getCell(2, 1, 5, 4), C2 = getCell(3, 1, 5, 4), O = getCell(4, 1, 5, 4);
+        const DT = getCell(2, 2, 5, 4);
+        const WRITE_T = 0.45, DONE_T = 0.58;
+        const isWriting = t >= WRITE_T && t < DONE_T;
+        const done = t >= DONE_T;
+        const wpPre = [S, C1, TX];
+        const wpPost = [TX, C2, O];
+        let ball: { x: number; y: number };
+        if (t < WRITE_T) ball = interpPath(wpPre, t, WRITE_T);
+        else if (isWriting) ball = TX;
+        else if (t < 0.9) ball = interpPath(wpPost, (t - DONE_T) / (0.9 - DONE_T) * 0.85, 0.85);
+        else ball = O;
+        return (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={TX.x} y2={TX.y} lit={t > 0.25} />
+          <DrawConn x1={TX.x} y1={TX.y} x2={C2.x} y2={C2.y} lit={done} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} />
+          {isWriting && <SvgLine x1={TX.x} y1={TX.y + TX.r * 0.4} x2={DT.x} y2={DT.y - DT.r * 0.35} stroke="#A78BFA" strokeWidth="2" opacity={0.9} />}
+          <DrawSource cx={S.x} cy={S.y} r={S.r} />
+          <DrawConveyor cx={C1.x} cy={C1.y} r={C1.r} />
+          <DrawTransmitter cx={TX.x} cy={TX.y} r={TX.r} transmitting={isWriting} />
+          <DrawConveyor cx={C2.x} cy={C2.y} r={C2.r} />
+          <DrawOutput cx={O.x} cy={O.y} r={O.r} lit={t > 0.9} />
+          <DrawDataTrail cx={DT.x} cy={DT.y} r={DT.r} val={done ? '1' : '0'} highlight={isWriting || done} />
+          {isWriting && <SvgText x={TX.x + TX.r * 0.5} y={TX.y - TX.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>WRITING</SvgText>}
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isWriting || done ? '#A78BFA' : '#00D4FF'} />}
+        </>);
+      }
+      default: {
+        const S = getCell(0, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        return (<><DrawSource cx={S.x} cy={S.y} r={S.r} /><DrawOutput cx={O.x} cy={O.y} r={O.r} /></>);
+      }
+    }
+  }
 
   return (
     <View style={simStyles.container}>
       <Text style={simStyles.label}>FIELD SIMULATION</Text>
       <View style={simStyles.canvas}>
-        <Svg width={358} height={130}>
-          {/* Source node */}
-          <SvgCircle cx="30" cy="85" r="10" fill="none" stroke="#F0B429" strokeWidth="1.5" />
-          <SvgCircle cx="30" cy="85" r="4" fill="#F0B429" opacity={0.6} />
-          {/* Connector line */}
-          <SvgLine x1="40" y1="85" x2="318" y2="85" stroke="rgba(0,212,255,0.3)" strokeWidth="1.5" strokeDasharray="4,4" />
-          {/* Output node */}
-          <SvgCircle cx="328" cy="85" r="10" fill="none" stroke="#00C48C" strokeWidth="1.5" />
-          <SvgCircle cx="328" cy="85" r="4" fill="#00C48C" opacity={0.6} />
-        </Svg>
-        {/* Signal ball */}
-        <RNAnimated.View style={[simStyles.ball, { left: ballX, top: ballY - 5 }]} />
+        <Svg width={SIM_W} height={SIM_H}>{renderSim()}</Svg>
       </View>
       <Text style={simStyles.caption}>{caption}</Text>
     </View>
@@ -445,17 +686,9 @@ const simStyles = StyleSheet.create({
     letterSpacing: 2,
   },
   canvas: {
-    width: 358,
-    height: 130,
+    width: SIM_W,
+    height: SIM_H,
     alignSelf: 'center',
-    position: 'relative',
-  },
-  ball: {
-    position: 'absolute',
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#00D4FF',
   },
   caption: {
     fontFamily: Fonts.spaceMono,
