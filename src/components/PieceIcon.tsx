@@ -27,10 +27,10 @@ export function PieceIcon({ type: rawType, size = 24, color }: Props) {
       return (
         <Svg width={s} height={s * 0.6} viewBox="0 0 60 36">
           <Rect x="5" y="10" width="50" height="16" rx="8" fill="#0e1f36" stroke={color ?? Colors.copper} strokeWidth="1.5" />
-          <Circle cx="13" cy="18" r="8" fill="#0a1628" stroke={color ?? Colors.copper} strokeWidth="1.5" />
-          <Circle cx="13" cy="18" r="3.5" fill={color ?? Colors.copper} />
-          <Circle cx="47" cy="18" r="8" fill="#0a1628" stroke={color ?? Colors.copper} strokeWidth="1.5" />
-          <Circle cx="47" cy="18" r="3.5" fill={color ?? Colors.copper} />
+          <Circle cx="13" cy="18" r="8" fill="#0a1628" stroke="#F0B429" strokeWidth="1.5" />
+          <Circle cx="13" cy="18" r="3.5" fill="#F0B429" />
+          <Circle cx="47" cy="18" r="8" fill="#0a1628" stroke="#00C48C" strokeWidth="1.5" />
+          <Circle cx="47" cy="18" r="3.5" fill="#00C48C" />
           <Path d="M 23 14 L 29 18 L 23 22" stroke={color ?? Colors.amber} strokeWidth="1.5" fill="none" strokeLinecap="round" />
           <Path d="M 30 14 L 36 18 L 30 22" stroke={color ?? Colors.amber} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
         </Svg>
