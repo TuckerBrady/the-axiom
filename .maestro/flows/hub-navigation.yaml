@@ -1,0 +1,16 @@
+appId: com.tuckbrady.theaxiom
+---
+- launchApp
+- assertVisible: "THE AXIOM"
+- tapOn: "ENTER"
+- assertVisible: "HUB"
+- tapOn:
+    id: "sectors-tab"
+- assertVisible: "SECTORS"
+- tapOn:
+    id: "workshop-tab"
+- tapOn:
+    id: "engineer-tab"
+- tapOn:
+    id: "ship-tab"
+- assertVisible: "HUB"

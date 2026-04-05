@@ -1,0 +1,14 @@
+appId: com.tuckbrady.theaxiom
+---
+- launchApp
+- assertVisible: "THE AXIOM"
+- tapOn: "ENTER"
+- assertVisible: "HUB"
+- tapOn:
+    id: "sectors-tab"
+- assertVisible: "SECTORS"
+- tapOn: "THE AXIOM"
+- assertVisible: "MISSION 1"
+- tapOn: "LAUNCH MISSION"
+- assertVisible: "GAMEPLAY"
+- runFlow: ../subflows/complete-puzzle.yaml

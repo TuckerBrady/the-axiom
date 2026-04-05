@@ -42,6 +42,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1e67df2a-c3f1-45dd-817c-e1949a2b6da5"
+      }
+    },
+    "owner": "tuckerbrady"
   }
 }

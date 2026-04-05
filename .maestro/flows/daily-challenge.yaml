@@ -1,0 +1,7 @@
+appId: com.tuckbrady.theaxiom
+---
+- launchApp
+- tapOn: "ENTER"
+- assertVisible: "TRANSMISSION"
+- tapOn: "TRANSMISSION"
+- assertVisible: "DAILY CHALLENGE"

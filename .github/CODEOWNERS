@@ -1,0 +1,6 @@
+# All files require TuckerBrady review
+* @TuckerBrady
+
+# CI/CD pipeline changes require extra scrutiny
+.github/ @TuckerBrady
+eas.json @TuckerBrady
