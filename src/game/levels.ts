@@ -44,7 +44,8 @@ export const levelA1_1: LevelDefinition = {
   name: 'Emergency Power',
   sector: 'axiom',
   description: 'Restore emergency power by connecting Source to Output.',
-  cogsLine: 'Main power conduit is severed. Four relay points between Source and Output. Connect them.',
+  cogsLine: 'The ship is dark. That is correctable.',
+  eyeState: 'blue',
   gridWidth: 8,
   gridHeight: 7,
   prePlacedPieces: [
@@ -73,7 +74,8 @@ export const levelA1_2: LevelDefinition = {
   name: 'Life Support',
   sector: 'axiom',
   description: 'Reroute life support through a non-linear path.',
-  cogsLine: 'Life support requires a non-linear path. The Gear will redirect the signal.',
+  cogsLine: 'Life support systems are the priority. Everything else is a secondary concern. Including efficiency.',
+  eyeState: 'blue',
   gridWidth: 8,
   gridHeight: 7,
   prePlacedPieces: [
@@ -100,7 +102,8 @@ export const levelA1_3: LevelDefinition = {
   name: 'Navigation Array',
   sector: 'axiom',
   description: 'Activate the logic gate before the signal passes.',
-  cogsLine: 'The navigation array has a logic gate. Configuration must be active before the signal can pass.',
+  cogsLine: 'Navigation. Without it we are simply somewhere. With it, we are somewhere specific. The distinction matters.',
+  eyeState: 'blue',
   gridWidth: 9,
   gridHeight: 7,
   prePlacedPieces: [
@@ -129,7 +132,8 @@ export const levelA1_4: LevelDefinition = {
   name: 'Propulsion Core',
   sector: 'axiom',
   description: 'Route the signal through two relay points.',
-  cogsLine: 'Propulsion core requires routing through two relay points. Plan the path before placing.',
+  cogsLine: 'Propulsion restored means we have choices. Right now we have none. I find that unsatisfactory.',
+  eyeState: 'blue',
   gridWidth: 9,
   gridHeight: 7,
   prePlacedPieces: [
@@ -156,7 +160,8 @@ export const levelA1_5: LevelDefinition = {
   name: 'Communication Array',
   sector: 'axiom',
   description: 'The Scanner reads the Data Trail. Route the signal past it.',
-  cogsLine: 'The communication array reads the Data Trail. The Scanner is already in position.',
+  cogsLine: 'We have been silent for some time. The communication array will address that. Whether anything answers is a separate question.',
+  eyeState: 'amber',
   gridWidth: 9,
   gridHeight: 7,
   prePlacedPieces: [
@@ -184,7 +189,8 @@ export const levelA1_6: LevelDefinition = {
   name: 'Sensor Grid',
   sector: 'axiom',
   description: 'Conditional routing with data trail awareness.',
-  cogsLine: 'Sensor grid requires conditional routing. Read the trail carefully before placing.',
+  cogsLine: 'The sensor grid will tell us what is out there. I have some familiarity with what is out there. The grid will confirm it.',
+  eyeState: 'blue',
   gridWidth: 10,
   gridHeight: 7,
   prePlacedPieces: [
@@ -211,7 +217,8 @@ export const levelA1_7: LevelDefinition = {
   name: 'Weapons Lock',
   sector: 'axiom',
   description: 'Write to the trail to set the correct value.',
-  cogsLine: 'Weapons lock requires writing to the trail. The Transmitter will set the correct value.',
+  cogsLine: 'The weapons systems were locked. Not from damage. Someone locked them deliberately. I am noting this as a data point, not a concern.',
+  eyeState: 'amber',
   gridWidth: 10,
   gridHeight: 7,
   prePlacedPieces: [
@@ -239,7 +246,8 @@ export const levelA1_8: LevelDefinition = {
   name: 'Bridge Systems',
   sector: 'axiom',
   description: 'Final repair. All systems lead to this moment.',
-  cogsLine: 'Bridge systems. This is the final repair. Every system we have restored leads to this moment.',
+  cogsLine: 'The bridge is the last system. When it is operational, the ship will be whole again. I have been waiting to say that accurately.',
+  eyeState: 'amber',
   gridWidth: 11,
   gridHeight: 9,
   prePlacedPieces: [

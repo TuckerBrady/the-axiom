@@ -89,6 +89,7 @@ export type LevelDefinition = {
   sector: string;
   description: string;
   cogsLine: string;
+  eyeState?: 'blue' | 'amber' | 'green' | 'red' | 'dark';
   gridWidth: number;
   gridHeight: number;
   prePlacedPieces: PlacedPiece[];

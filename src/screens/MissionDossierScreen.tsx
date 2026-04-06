@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { BackButton } from '../components/BackButton';
-import CogsAvatar from '../components/CogsAvatar';
+import CogsAvatar, { CogsState } from '../components/CogsAvatar';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -89,12 +89,20 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
 
   const setLevel = useGameStore(s => s.setLevel);
 
+  const levelDef = levelId ? getLevelById(levelId) : undefined;
+  const displayedCogsQuote = levelDef?.cogsLine ?? cogsQuote;
+  const eyeState = levelDef?.eyeState ?? 'blue';
+  const cogsAvatarState: CogsState =
+    eyeState === 'red' ? 'damaged'
+    : eyeState === 'amber' ? 'partial'
+    : eyeState === 'dark' ? 'damaged'
+    : 'online';
+
   const isCompleted = nodeState === 'completed';
   const isActive = nodeState === 'active';
   const isLocked = nodeState === 'locked';
 
   const handleLaunch = () => {
-    const levelDef = levelId ? getLevelById(levelId) : undefined;
     if (levelDef) {
       setLevel(levelDef);
     }
@@ -158,10 +166,10 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
           {/* ── COGS analysis ── */}
           <View style={st.cogsCard}>
             <View style={st.cogsCardHeader}>
-              <CogsAvatar size="small" state="online" />
+              <CogsAvatar size="small" state={cogsAvatarState} />
               <Text style={st.cogsCardTitle}>COGS ANALYSIS</Text>
             </View>
-            <Text style={st.cogsCardQuote}>{'"'}{cogsQuote}{'"'}</Text>
+            <Text style={st.cogsCardQuote}>{'"'}{displayedCogsQuote}{'"'}</Text>
           </View>
         </ScrollView>
 
