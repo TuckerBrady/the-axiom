@@ -22,6 +22,12 @@ import { useEconomyStore } from '../store/economyStore';
 import { useChallengeStore } from '../store/challengeStore';
 import { AXIOM_LEVELS } from '../game/levels';
 import { RANK_NAMES } from '../components/RankInsignia';
+import {
+  getHudState,
+  getHudCornerColor,
+  getHudScanLineColor,
+  getHudHeaderBorderColor,
+} from '../utils/hudState';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ReturnBrief'>;
@@ -348,6 +354,11 @@ export default function ReturnBriefScreen({ navigation }: Props) {
     });
   };
 
+  const hudStateRef = useRef(getHudState());
+  const cornerColor = getHudCornerColor(hudStateRef.current);
+  const scanColor = getHudScanLineColor(hudStateRef.current);
+  const headerBorderColor = getHudHeaderBorderColor(hudStateRef.current);
+
   if (!ready) return <View style={s.root} />;
 
   return (
@@ -355,11 +366,12 @@ export default function ReturnBriefScreen({ navigation }: Props) {
       <Animated.View
         style={[s.root, { opacity: Animated.multiply(screenFade, exitFade) }]}
       >
-        <ScanLine />
-        <HudCorners />
+        <ScanLine color={scanColor} />
+        <HudCorners color={cornerColor} />
 
         {/* Header bar */}
-        <View style={s.headerBar}>
+        <View style={[s.headerBar, { borderBottomColor: headerBorderColor }]}>
+
           <Text style={s.headerLabel}>THE AXIOM — SYSTEM BOOT LOG</Text>
           <BlinkingText style={s.headerStatus}>RECONNECTING</BlinkingText>
         </View>
@@ -456,7 +468,7 @@ function getDefaultTimeAwayLine(lastSession: number | null): string {
 
 // ─── HUD chrome ──────────────────────────────────────────────────────────────
 
-function HudCorners() {
+function HudCorners({ color }: { color: string }) {
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(fade, {
@@ -466,26 +478,26 @@ function HudCorners() {
       useNativeDriver: true,
     }).start();
   }, [fade]);
-  const C = 'rgba(74,158,255,0.45)';
-  const positions = [
-    { top: 14, left: 14 },
-    { top: 14, right: 14 },
-    { bottom: 14, left: 14 },
-    { bottom: 14, right: 14 },
+  const C = color;
+  const corners: Array<{ pos: object; h: object; v: object }> = [
+    { pos: { top: 14, left: 14 },     h: { top: 0, left: 0 },     v: { top: 0, left: 0 } },
+    { pos: { top: 14, right: 14 },    h: { top: 0, right: 0 },    v: { top: 0, right: 0 } },
+    { pos: { bottom: 14, left: 14 },  h: { bottom: 0, left: 0 },  v: { bottom: 0, left: 0 } },
+    { pos: { bottom: 14, right: 14 }, h: { bottom: 0, right: 0 }, v: { bottom: 0, right: 0 } },
   ];
   return (
     <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade }]} pointerEvents="none">
-      {positions.map((pos, i) => (
-        <View key={i} style={[s.corner, pos]}>
-          <View style={[s.cornerH, { backgroundColor: C }]} />
-          <View style={[s.cornerV, { backgroundColor: C }]} />
+      {corners.map((c, i) => (
+        <View key={i} style={[s.corner, c.pos]}>
+          <View style={[s.cornerH, c.h, { backgroundColor: C }]} />
+          <View style={[s.cornerV, c.v, { backgroundColor: C }]} />
         </View>
       ))}
     </Animated.View>
   );
 }
 
-function ScanLine() {
+function ScanLine({ color }: { color: string }) {
   const y = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -502,7 +514,7 @@ function ScanLine() {
   return (
     <Animated.View
       pointerEvents="none"
-      style={[s.scanLine, { transform: [{ translateY: y }] }]}
+      style={[s.scanLine, { backgroundColor: color, transform: [{ translateY: y }] }]}
     />
   );
 }
@@ -556,15 +568,11 @@ const s = StyleSheet.create({
     position: 'absolute',
     width: BRACKET_SIZE,
     height: BRACKET_THICKNESS,
-    top: 0,
-    left: 0,
   },
   cornerV: {
     position: 'absolute',
     width: BRACKET_THICKNESS,
     height: BRACKET_SIZE,
-    top: 0,
-    left: 0,
   },
   headerBar: {
     flexDirection: 'row',

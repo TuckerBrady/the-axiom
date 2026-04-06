@@ -60,19 +60,43 @@ function HudCorners() {
     reveal.value = withDelay(200, withTiming(1, { duration: 800 }));
   }, []);
   const style = useAnimatedStyle(() => ({ opacity: reveal.value }));
-  const C = 'rgba(74,158,255,0.5)';
-  const corners = [
-    { top: 0, left: 0 },
-    { top: 0, right: 0 },
-    { bottom: 0, left: 0 },
-    { bottom: 0, right: 0 },
+  const C = 'rgba(224,85,85,0.45)';
+  const corners: Array<{
+    pos: object;
+    h: object;
+    v: object;
+  }> = [
+    // Top-left: H along top, V along left
+    {
+      pos: { top: 14, left: 14 },
+      h: { top: 0, left: 0 },
+      v: { top: 0, left: 0 },
+    },
+    // Top-right: H along top, V along right
+    {
+      pos: { top: 14, right: 14 },
+      h: { top: 0, right: 0 },
+      v: { top: 0, right: 0 },
+    },
+    // Bottom-left: H along bottom, V along left
+    {
+      pos: { bottom: 14, left: 14 },
+      h: { bottom: 0, left: 0 },
+      v: { bottom: 0, left: 0 },
+    },
+    // Bottom-right: H along bottom, V along right
+    {
+      pos: { bottom: 14, right: 14 },
+      h: { bottom: 0, right: 0 },
+      v: { bottom: 0, right: 0 },
+    },
   ];
   return (
     <Animated.View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
-      {corners.map((pos, i) => (
-        <View key={i} style={[s.corner, pos]}>
-          <View style={[s.cornerH, { backgroundColor: C }]} />
-          <View style={[s.cornerV, { backgroundColor: C }]} />
+      {corners.map((c, i) => (
+        <View key={i} style={[s.corner, c.pos]}>
+          <View style={[s.cornerH, c.h, { backgroundColor: C }]} />
+          <View style={[s.cornerV, c.v, { backgroundColor: C }]} />
         </View>
       ))}
     </Animated.View>
@@ -193,24 +217,10 @@ export default function BootScreen({ navigation }: Props) {
             BOOT_LINES.findIndex((l) => l.type === 'section') === i;
           return <BootLine key={i} entry={line} isFirstSection={isFirstSection} />;
         })}
-        <Animated.Text style={[s.bootLine, { color: Colors.blue }, cursorStyle]}>
+        <Animated.Text style={[s.bootLine, { color: 'rgba(224,85,85,0.85)' }, cursorStyle]}>
           {'> _'}
         </Animated.Text>
       </ScrollView>
-
-      {/* Tap hint */}
-      {ready && (
-        <Animated.View style={[s.tapHint, headerStyle]}>
-          <Text style={s.tapText}>TAP ANYWHERE TO RECEIVE TRANSMISSION</Text>
-        </Animated.View>
-      )}
-
-      {/* Bottom status bar */}
-      <Animated.View style={[s.statusBar, headerStyle]}>
-        <Text style={s.statusItem}>SYS: CRITICAL</Text>
-        <Text style={s.statusItem}>COGS: 20%</Text>
-        <Text style={s.statusItem}>PWR: 31%</Text>
-      </Animated.View>
     </TouchableOpacity>
   );
 }
@@ -226,7 +236,7 @@ const s = StyleSheet.create({
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: 'rgba(74,158,255,0.12)',
+    backgroundColor: 'rgba(224,85,85,0.18)',
     zIndex: 2,
   },
   corner: {
@@ -238,15 +248,11 @@ const s = StyleSheet.create({
     position: 'absolute',
     width: BRACKET_SIZE,
     height: BRACKET_THICKNESS,
-    top: 0,
-    left: 0,
   },
   cornerV: {
     position: 'absolute',
     width: BRACKET_THICKNESS,
     height: BRACKET_SIZE,
-    top: 0,
-    left: 0,
   },
   headerBar: {
     flexDirection: 'row',

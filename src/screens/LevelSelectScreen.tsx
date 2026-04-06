@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { getHudState, getHudCornerColor } from '../utils/hudState';
 import {
   View,
   Text,
@@ -228,30 +229,29 @@ function getState(id: number): NodeState {
 
 const BS = 14;
 const BT = 1.5;
-const BC = 'rgba(74,158,255,0.4)';
 
-function Brackets({ style }: { style?: object }) {
+function Brackets({ style, color }: { style?: object; color: string }) {
   return (
     <View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
       {/* TL */}
       <View style={[s.brTL]}>
-        <View style={[s.brH, { backgroundColor: BC }]} />
-        <View style={[s.brV, { backgroundColor: BC }]} />
+        <View style={[s.brH, { backgroundColor: color }]} />
+        <View style={[s.brV, { backgroundColor: color }]} />
       </View>
       {/* TR */}
       <View style={[s.brTR]}>
-        <View style={[s.brH, { backgroundColor: BC }]} />
-        <View style={[s.brV, { backgroundColor: BC, alignSelf: 'flex-end' }]} />
+        <View style={[s.brH, { backgroundColor: color }]} />
+        <View style={[s.brV, { backgroundColor: color, alignSelf: 'flex-end' }]} />
       </View>
       {/* BL */}
       <View style={[s.brBL]}>
-        <View style={[s.brV, { backgroundColor: BC }]} />
-        <View style={[s.brH, { backgroundColor: BC }]} />
+        <View style={[s.brV, { backgroundColor: color }]} />
+        <View style={[s.brH, { backgroundColor: color }]} />
       </View>
       {/* BR */}
       <View style={[s.brBR]}>
-        <View style={[s.brV, { backgroundColor: BC, alignSelf: 'flex-end' }]} />
-        <View style={[s.brH, { backgroundColor: BC }]} />
+        <View style={[s.brV, { backgroundColor: color, alignSelf: 'flex-end' }]} />
+        <View style={[s.brH, { backgroundColor: color }]} />
       </View>
     </View>
   );
@@ -556,6 +556,8 @@ const AXIOM_LEVEL_MAP: Record<number, string> = {
 export default function LevelSelectScreen({ navigation }: Props) {
   const { activeSector, isLevelCompleted, getLevelStars } = useProgressionStore();
   const isAxiom = activeSector === 'A1';
+  const hudCornerColorRef = useRef(getHudCornerColor(getHudState()));
+  const hudCornerColor = hudCornerColorRef.current;
 
   // Sector-specific data
   const sectorTitle = isAxiom ? 'THE AXIOM' : 'KEPLER BELT';
@@ -645,7 +647,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
             <Text style={s.headerTitle}>{sectorTitle}</Text>
           </View>
           <View style={s.backBtn} />
-          <Brackets />
+          <Brackets color={hudCornerColor} />
         </Animated.View>
 
         <ScrollView

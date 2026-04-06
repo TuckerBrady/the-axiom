@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
+import { getHudState, getHudCornerColor, getHudScanLineColor } from '../utils/hudState';
 import {
   View,
   Text,
@@ -41,47 +42,46 @@ const { height: H } = Dimensions.get('window');
 
 const BRACKET_SIZE = 14;
 const BRACKET_THICKNESS = 1.5;
-const BRACKET_COLOR = 'rgba(74,158,255,0.4)';
 
-function TopLeftBracket() {
+function TopLeftBracket({ color }: { color: string }) {
   return (
     <View style={styles.bracketTopLeft}>
-      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
-      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketH, { backgroundColor: color }]} />
+      <View style={[styles.bracketV, { backgroundColor: color }]} />
     </View>
   );
 }
 
-function TopRightBracket() {
+function TopRightBracket({ color }: { color: string }) {
   return (
     <View style={styles.bracketTopRight}>
-      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
-      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR, alignSelf: 'flex-end' }]} />
+      <View style={[styles.bracketH, { backgroundColor: color }]} />
+      <View style={[styles.bracketV, { backgroundColor: color, alignSelf: 'flex-end' }]} />
     </View>
   );
 }
 
-function BottomLeftBracket() {
+function BottomLeftBracket({ color }: { color: string }) {
   return (
     <View style={styles.bracketBottomLeft}>
-      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR }]} />
-      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketV, { backgroundColor: color }]} />
+      <View style={[styles.bracketH, { backgroundColor: color }]} />
     </View>
   );
 }
 
-function BottomRightBracket() {
+function BottomRightBracket({ color }: { color: string }) {
   return (
     <View style={styles.bracketBottomRight}>
-      <View style={[styles.bracketV, { backgroundColor: BRACKET_COLOR, alignSelf: 'flex-end' }]} />
-      <View style={[styles.bracketH, { backgroundColor: BRACKET_COLOR }]} />
+      <View style={[styles.bracketV, { backgroundColor: color, alignSelf: 'flex-end' }]} />
+      <View style={[styles.bracketH, { backgroundColor: color }]} />
     </View>
   );
 }
 
 // ─── Scanning line ────────────────────────────────────────────────────────────
 
-function ScanLine({ containerHeight }: { containerHeight: number }) {
+function ScanLine({ containerHeight, color }: { containerHeight: number; color: string }) {
   const translateY = useSharedValue(0);
   useEffect(() => {
     translateY.value = withRepeat(
@@ -96,7 +96,7 @@ function ScanLine({ containerHeight }: { containerHeight: number }) {
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.scanLine, style]}
+      style={[styles.scanLine, { backgroundColor: color }, style]}
     />
   );
 }
@@ -152,6 +152,10 @@ export default function HubScreen({ navigation }: Props) {
 
   // Daily challenges only available after completing all 8 Axiom levels
   const hasTransmission = axiomDone && challengeStatus === 'available' && !!currentChallenge;
+
+  const hudStateRef = useRef(getHudState());
+  const hudCornerColor = getHudCornerColor(hudStateRef.current);
+  const hudScanColor = getHudScanLineColor(hudStateRef.current);
 
   // Determine next mission
   const nextAxiomIdx = AXIOM_LEVELS.findIndex((_, i) => !isLevelCompleted(`A1-${i + 1}`));
@@ -260,14 +264,14 @@ export default function HubScreen({ navigation }: Props) {
             style={[styles.hudContainer, { height: HUD_HEIGHT }, hudRevealStyle]}
           >
             {/* Corner brackets */}
-            <TopLeftBracket />
-            <TopRightBracket />
-            <BottomLeftBracket />
-            <BottomRightBracket />
+            <TopLeftBracket color={hudCornerColor} />
+            <TopRightBracket color={hudCornerColor} />
+            <BottomLeftBracket color={hudCornerColor} />
+            <BottomRightBracket color={hudCornerColor} />
 
             {/* Scanning line */}
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <ScanLine containerHeight={HUD_HEIGHT} />
+              <ScanLine containerHeight={HUD_HEIGHT} color={hudScanColor} />
             </View>
 
             {/* Spacecraft */}
