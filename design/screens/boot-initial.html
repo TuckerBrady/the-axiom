@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>The Axiom — System Boot Log (Initial)</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --void:   #050c14;
+    --blue:   #4a9eff;
+    --amber:  #f0b429;
+    --green:  #4ecb8d;
+    --red:    #e05555;
+    --copper: #c87941;
+    --muted:  #4a6070;
+    --star:   #e8f4ff;
+    --dim:    #1a2a38;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #020810;
+    overflow: hidden;
+  }
+
+  .scan {
+    position: fixed; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(224,85,85,.18), transparent);
+    animation: scan 4s linear infinite;
+    pointer-events: none; z-index: 100;
+  }
+  @keyframes scan { from { top: 0; } to { top: 100vh; } }
+
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 99;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
+    opacity: .45;
+  }
+
+  .corner { position: absolute; width: 22px; height: 22px; opacity: 0; animation: show .6s .15s forwards; }
+  .corner::before, .corner::after { content: ''; position: absolute; background: rgba(224,85,85,.4); }
+  .corner::before { width: 100%; height: 2px; top: 0; left: 0; }
+  .corner::after  { width: 2px; height: 100%; top: 0; left: 0; }
+  .corner.tl { top: 14px; left: 14px; }
+  .corner.tr { top: 14px; right: 14px; transform: scaleX(-1); }
+  .corner.bl { bottom: 14px; left: 14px; transform: scaleY(-1); }
+  .corner.br { bottom: 14px; right: 14px; transform: scale(-1); }
+  @keyframes show { to { opacity: 1; } }
+
+  .screen {
+    display: flex; flex-direction: column;
+    width: 390px; height: 844px;
+    margin: 0 auto; position: relative;
+    background: var(--void);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--star);
+    border-left: 1px solid rgba(224,85,85,.07);
+    border-right: 1px solid rgba(224,85,85,.07);
+  }
+
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 52px 20px 12px;
+    border-bottom: 1px solid rgba(224,85,85,.15);
+    flex-shrink: 0;
+    opacity: 0; animation: show .5s .1s forwards;
+  }
+  .hl { font-size: 10px; letter-spacing: 2.5px; color: var(--muted); }
+  .hs { font-size: 10px; letter-spacing: 2px; color: var(--red); animation: blink 1.8s step-end infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  .terminal {
+    flex: 1;
+    padding: 14px 20px;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Section headers — white */
+  .sec {
+    font-size: 9px; letter-spacing: 3px; color: var(--star);
+    padding-top: 14px; padding-bottom: 6px;
+    border-bottom: 1px solid rgba(232,244,255,.08);
+    margin-bottom: 3px;
+    opacity: 0;
+  }
+  .sec.first { padding-top: 0; }
+
+  /* Data line: > LABEL ... VALUE all same color */
+  .line {
+    font-size: 11.5px;
+    line-height: 26px;
+    letter-spacing: .5px;
+    opacity: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .line .p { color: var(--muted); margin-right: 8px; }
+  .line .dots { letter-spacing: 1px; margin: 0 2px; }
+
+  .line.red    .lbl, .line.red    .dots, .line.red    .val { color: var(--red); }
+  .line.amber  .lbl, .line.amber  .dots, .line.amber  .val { color: var(--amber); }
+  .line.blue   .lbl, .line.blue   .dots, .line.blue   .val { color: var(--blue); }
+  .line.muted  .lbl, .line.muted  .dots, .line.muted  .val { color: var(--muted); }
+
+  /* Plain lines (no label/dots/value split) */
+  .line.plain-white .txt { color: var(--star); }
+  .line.plain-blue  .txt { color: var(--blue); }
+
+  .cursor { color: var(--red); animation: blink 1s step-end infinite; }
+
+  .gap { height: 4px; flex-shrink: 0; }
+
+  /* Status bar — red tinted like existing boot screen */
+  .sb {
+    display: flex; justify-content: space-around;
+    padding: 10px 20px 32px;
+    border-top: 1px solid rgba(224,85,85,.2);
+    flex-shrink: 0;
+    opacity: 0; animation: show .5s .2s forwards;
+  }
+  .si { font-size: 9px; letter-spacing: 1px; color: var(--red); }
+  .si span { color: var(--red); opacity: .7; }
+</style>
+</head>
+<body>
+<div class="scan"></div>
+<div class="noise"></div>
+
+<div class="screen">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="hl">THE AXIOM — SYSTEM BOOT LOG</span>
+    <span class="hs">EMERGENCY MODE</span>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+
+    <!-- SYSTEM DIAGNOSTICS -->
+    <div class="sec first" id="s1">// SYSTEM DIAGNOSTICS</div>
+    <div class="line red" id="l1">
+      <span class="p">&gt;</span><span class="lbl">AXIOM SYSTEMS</span><span class="dots"> ... </span><span class="val">EMERGENCY RESTART INITIATED</span>
+    </div>
+    <div class="line muted" id="l2">
+      <span class="p">&gt;</span><span class="lbl">BIOS v4.7.2</span><span class="dots"> ... </span><span class="val">OK</span>
+    </div>
+
+    <!-- SHIP SYSTEMS -->
+    <div class="sec" id="s2">// SHIP SYSTEMS</div>
+    <div class="line red" id="l3">
+      <span class="p">&gt;</span><span class="lbl">HULL INTEGRITY SYSTEMS</span><span class="dots"> ... </span><span class="val">OFFLINE</span>
+    </div>
+    <div class="line red" id="l4">
+      <span class="p">&gt;</span><span class="lbl">NAVIGATION MODULE</span><span class="dots"> ... </span><span class="val">OFFLINE</span>
+    </div>
+    <div class="line amber" id="l5">
+      <span class="p">&gt;</span><span class="lbl">PROPULSION ARRAY</span><span class="dots"> ... </span><span class="val">DEGRADED</span>
+    </div>
+    <div class="line amber" id="l6">
+      <span class="p">&gt;</span><span class="lbl">LIFE SUPPORT</span><span class="dots"> ... </span><span class="val">DEGRADED</span>
+    </div>
+    <div class="line red" id="l7">
+      <span class="p">&gt;</span><span class="lbl">COMMUNICATION ARRAY</span><span class="dots"> ... </span><span class="val">OFFLINE</span>
+    </div>
+    <div class="line red" id="l8">
+      <span class="p">&gt;</span><span class="lbl">SENSOR GRID</span><span class="dots"> ... </span><span class="val">OFFLINE</span>
+    </div>
+    <div class="line amber" id="l9">
+      <span class="p">&gt;</span><span class="lbl">POWER CORE</span><span class="dots"> ... </span><span class="val">DEGRADED (31%)</span>
+    </div>
+    <div class="line red" id="l10">
+      <span class="p">&gt;</span><span class="lbl">REPAIR PROTOCOLS</span><span class="dots"> ... </span><span class="val">MISSING</span>
+    </div>
+
+    <!-- AI SYSTEMS -->
+    <div class="sec" id="s3">// AI SYSTEMS</div>
+    <div class="line muted" id="l11">
+      <span class="p">&gt;</span><span class="lbl">C.O.G.S UNIT 7</span><span class="dots"> ... </span><span class="val">LOCATING AI CORE</span>
+    </div>
+    <div class="line red" id="l12">
+      <span class="p">&gt;</span><span class="lbl">C.O.G.S UNIT 7 INTEGRITY</span><span class="dots"> ... </span><span class="val">20% — CRITICAL</span>
+    </div>
+
+    <!-- INCOMING TRANSMISSION -->
+    <div class="sec" id="s4">// INCOMING TRANSMISSION</div>
+    <div class="line plain-blue" id="l13">
+      <span class="p">&gt;</span><span class="txt">Incoming transmission detected.</span>
+    </div>
+
+    <div class="gap" id="gc"></div>
+    <div class="line plain-white" id="lt">
+      <span class="p">&gt;</span><span class="txt">Tap anywhere to receive.</span>
+    </div>
+    <div class="line" id="lc">
+      <span class="cursor">&gt; _</span>
+    </div>
+
+  </div>
+
+  <!-- Status bar -->
+  <div class="sb">
+    <span class="si">SYS: <span>CRITICAL</span></span>
+    <span class="si">COGS: <span>20%</span></span>
+    <span class="si">PWR: <span>31%</span></span>
+  </div>
+
+</div>
+
+<script>
+  [
+    { id: 's1',  d: 200  },
+    { id: 'l1',  d: 380  },
+    { id: 'l2',  d: 520  },
+    { id: 's2',  d: 700  },
+    { id: 'l3',  d: 840  },
+    { id: 'l4',  d: 980  },
+    { id: 'l5',  d: 1120 },
+    { id: 'l6',  d: 1260 },
+    { id: 'l7',  d: 1400 },
+    { id: 'l8',  d: 1540 },
+    { id: 'l9',  d: 1680 },
+    { id: 'l10', d: 1820 },
+    { id: 's3',  d: 2020 },
+    { id: 'l11', d: 2200 },
+    { id: 'l12', d: 2460 },
+    { id: 's4',  d: 2680 },
+    { id: 'l13', d: 2860 },
+    { id: 'gc',  d: 3060 },
+    { id: 'lt',  d: 3200 },
+    { id: 'lc',  d: 3380 },
+  ].forEach(({ id, d }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.2s ease';
+      el.style.opacity = '1';
+    }, d);
+  });
+
+  document.querySelector('.screen').addEventListener('click', () => {
+    document.querySelector('.screen').style.transition = 'opacity 0.35s ease';
+    document.querySelector('.screen').style.opacity = '0';
+  });
+</script>
+</body>
+</html>

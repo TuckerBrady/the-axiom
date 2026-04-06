@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>The Axiom — Boot Log</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Exo+2:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --void:   #050c14;
+    --blue:   #4a9eff;
+    --amber:  #f0b429;
+    --green:  #4ecb8d;
+    --red:    #e05555;
+    --copper: #c87941;
+    --muted:  #4a6070;
+    --star:   #e8f4ff;
+    --dim:    #1a2a38;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: #020810;
+    overflow: hidden;
+  }
+
+  /* Scan line */
+  .scan {
+    position: fixed; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(74,158,255,.18), transparent);
+    animation: scan 4s linear infinite;
+    pointer-events: none; z-index: 100;
+  }
+  @keyframes scan { from { top: 0; } to { top: 100vh; } }
+
+  /* Noise */
+  .noise {
+    position: fixed; inset: 0; pointer-events: none; z-index: 99;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.025'/%3E%3C/svg%3E");
+    opacity: .45;
+  }
+
+  /* HUD corners */
+  .corner { position: absolute; width: 22px; height: 22px; opacity: 0; animation: show .6s .15s forwards; }
+  .corner::before, .corner::after { content: ''; position: absolute; background: rgba(74,158,255,.45); }
+  .corner::before { width: 100%; height: 2px; top: 0; left: 0; }
+  .corner::after  { width: 2px; height: 100%; top: 0; left: 0; }
+  .corner.tl { top: 14px; left: 14px; }
+  .corner.tr { top: 14px; right: 14px; transform: scaleX(-1); }
+  .corner.bl { bottom: 14px; left: 14px; transform: scaleY(-1); }
+  .corner.br { bottom: 14px; right: 14px; transform: scale(-1); }
+  @keyframes show { to { opacity: 1; } }
+
+  /* Screen */
+  .screen {
+    display: flex; flex-direction: column;
+    width: 390px; height: 844px;
+    margin: 0 auto; position: relative;
+    background: var(--void);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--star);
+    border-left: 1px solid rgba(74,158,255,.07);
+    border-right: 1px solid rgba(74,158,255,.07);
+  }
+
+  /* Header */
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 52px 20px 12px;
+    border-bottom: 1px solid rgba(74,158,255,.10);
+    flex-shrink: 0;
+    opacity: 0; animation: show .5s .1s forwards;
+  }
+  .hl { font-size: 10px; letter-spacing: 2.5px; color: var(--muted); }
+  .hs { font-size: 10px; letter-spacing: 2px; color: var(--blue); animation: blink 1.8s step-end infinite; }
+  @keyframes blink { 50% { opacity: .35; } }
+
+  /* Terminal scroll area */
+  .terminal {
+    flex: 1;
+    padding: 16px 20px;
+    display: flex; flex-direction: column;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* Section label */
+  .sec {
+    font-size: 9px; letter-spacing: 3px;
+    padding-top: 16px; padding-bottom: 7px;
+    border-bottom: 1px solid rgba(26,42,56,.9);
+    margin-bottom: 2px;
+    opacity: 0;
+  }
+  .sec.first { padding-top: 0; }
+
+  /* Boot-log style line: > LABEL ... VALUE */
+  .line {
+    font-size: 11.5px;
+    line-height: 28px;
+    letter-spacing: .5px;
+    opacity: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* The prompt character */
+  .line .p { color: var(--muted); margin-right: 8px; }
+
+  /* The label portion — inherits line color */
+  .line .lbl { }
+
+  /* The dots separator — inherits line color */
+  .line .dots { letter-spacing: 1px; margin: 0 2px; }
+
+  /* Status values */
+  .line .val { }
+  .line.blue   .lbl, .line.blue   .dots, .line.blue   .val { color: var(--blue); }
+  .line.amber  .lbl, .line.amber  .dots, .line.amber  .val { color: var(--amber); }
+  .line.green  .lbl, .line.green  .dots, .line.green  .val { color: var(--green); }
+  .line.red    .lbl, .line.red    .dots, .line.red    .val { color: var(--red); }
+  .line.copper .lbl, .line.copper .dots, .line.copper .val { color: var(--copper); }
+  .line.muted  .lbl, .line.muted  .dots, .line.muted  .val { color: var(--muted); }
+
+  /* Section headers — white, distinct from all data line colors */
+  .sec { color: var(--star); border-bottom-color: rgba(232,244,255,.10); }
+
+  /* Blinking cursor */
+  .cursor { color: var(--blue); animation: blink 1s step-end infinite; }
+
+  /* Gap between sections */
+  .gap { height: 4px; flex-shrink: 0; }
+
+  /* COGS assessment card */
+  .cogs-card {
+    margin: 0 20px 14px;
+    background: rgba(74,158,255,.04);
+    border: 1px solid rgba(74,158,255,.18);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 14px;
+    opacity: 0; flex-shrink: 0;
+  }
+  .av { flex-shrink: 0; margin-top: 2px; }
+  .cb { flex: 1; }
+  .cl {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px; letter-spacing: 2px; color: var(--blue);
+    margin-bottom: 5px; opacity: .7;
+  }
+  .ct {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 13px; font-style: italic; line-height: 20px;
+    color: var(--star);
+  }
+
+  /* Tap hint */
+  .tap {
+    text-align: center; padding: 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; letter-spacing: 2.5px; color: var(--blue);
+    opacity: 0; flex-shrink: 0;
+  }
+
+  /* Status bar */
+  .sb {
+    display: flex; justify-content: space-around;
+    padding: 10px 20px 32px;
+    border-top: 1px solid rgba(224,85,85,.2);
+    flex-shrink: 0;
+    opacity: 0; animation: show .5s .2s forwards;
+  }
+  .si { font-family: 'Share Tech Mono', monospace; font-size: 9px; letter-spacing: 1px; color: var(--red); }
+  .si span { color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="scan"></div>
+<div class="noise"></div>
+
+<div class="screen">
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+
+  <!-- Header -->
+  <div class="header">
+    <span class="hl">THE AXIOM — SYSTEM BOOT LOG</span>
+    <span class="hs">RECONNECTING</span>
+  </div>
+
+  <!-- Terminal -->
+  <div class="terminal">
+
+    <!-- SESSION LOG -->
+    <div class="sec first" id="s1">// SESSION LOG</div>
+
+    <div class="line amber" id="l1">
+      <span class="p">&gt;</span><span class="lbl">TIME OFFLINE</span><span class="dots"> ... </span><span class="val">3 DAYS, 14 HRS</span>
+    </div>
+    <div class="line muted" id="l2">
+      <span class="p">&gt;</span><span class="lbl">LAST SESSION</span><span class="dots"> ... </span><span class="val">APR 03 — 21:42</span>
+    </div>
+    <div class="line blue" id="l3">
+      <span class="p">&gt;</span><span class="lbl">SESSIONS TOTAL</span><span class="dots"> ... </span><span class="val">47</span>
+    </div>
+
+    <div class="gap"></div>
+
+    <!-- MISSION STATUS -->
+    <div class="sec" id="s2">// MISSION STATUS</div>
+
+    <div class="line amber" id="l4">
+      <span class="p">&gt;</span><span class="lbl">ACTIVE SECTOR</span><span class="dots"> ... </span><span class="val">KEPLER BELT</span>
+    </div>
+    <div class="line blue" id="l5">
+      <span class="p">&gt;</span><span class="lbl">ACTIVE MISSION</span><span class="dots"> ... </span><span class="val">K1-6 — COLONIST HUB</span>
+    </div>
+    <div class="line green" id="l6">
+      <span class="p">&gt;</span><span class="lbl">SECTOR PROGRESS</span><span class="dots"> ... </span><span class="val">5 / 10 COMPLETE</span>
+    </div>
+    <div class="line copper" id="l7">
+      <span class="p">&gt;</span><span class="lbl">STARS EARNED</span><span class="dots"> ... </span><span class="val">13 / 24</span>
+    </div>
+
+    <div class="gap"></div>
+
+    <!-- SHIP SYSTEMS -->
+    <div class="sec" id="s3">// SHIP SYSTEMS</div>
+
+    <div class="line green" id="l8">
+      <span class="p">&gt;</span><span class="lbl">COGS INTEGRITY</span><span class="dots"> ... </span><span class="val">82% — NOMINAL</span>
+    </div>
+    <div class="line green" id="l9">
+      <span class="p">&gt;</span><span class="lbl">HULL STATUS</span><span class="dots"> ... </span><span class="val">NOMINAL</span>
+    </div>
+    <div class="line amber" id="l10">
+      <span class="p">&gt;</span><span class="lbl">PROPULSION CORE</span><span class="dots"> ... </span><span class="val">DAMAGED — REPAIR PENDING</span>
+    </div>
+
+    <div class="gap"></div>
+
+    <!-- RESOURCES -->
+    <div class="sec" id="s4">// RESOURCES</div>
+
+    <div class="line copper" id="l11">
+      <span class="p">&gt;</span><span class="lbl">CREDITS</span><span class="dots"> ... </span><span class="val">275 CR</span>
+    </div>
+    <div class="line blue" id="l12">
+      <span class="p">&gt;</span><span class="lbl">RANK</span><span class="dots"> ... </span><span class="val">R04 — MECHANIC</span>
+    </div>
+    <div class="line blue" id="l13">
+      <span class="p">&gt;</span><span class="lbl">BOUNTY</span><span class="dots"> ... </span><span class="val">AVAILABLE — MEDIUM</span>
+    </div>
+
+    <div class="gap" id="gc"></div>
+    <div class="line" id="lt">
+      <span class="p">&gt;</span><span style="color:var(--star);">Tap anywhere to continue.</span>
+    </div>
+    <div class="line" id="lc"><span class="cursor">&gt; _</span></div>
+
+  </div>
+
+  <!-- COGS assessment -->
+  <div class="cogs-card" id="cc">
+    <div class="av">
+      <svg width="42" height="55" viewBox="0 0 100 130">
+        <defs>
+          <radialGradient id="rg" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#4a9eff" stop-opacity="1"/>
+            <stop offset="100%" stop-color="#4a9eff" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+        <line x1="50" y1="2" x2="50" y2="14" stroke="#1a2a38" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="50" cy="2" r="4" fill="#4ecb8d" opacity="0.8">
+          <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.6s" repeatCount="indefinite"/>
+        </circle>
+        <rect x="14" y="12" width="72" height="52" rx="12" ry="12" fill="#0e1f36" stroke="#4a9eff" stroke-width="1.5" stroke-opacity="0.6"/>
+        <rect x="18" y="24" width="64" height="28" rx="6" ry="6" fill="#060e1a"/>
+        <circle cx="36" cy="38" r="10" fill="#4a9eff">
+          <animate attributeName="opacity" values="1;0.7;1" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="36" cy="38" r="5" fill="#000" opacity="0.5"/>
+        <circle cx="38" cy="36" r="2" fill="#fff" opacity="0.4"/>
+        <circle cx="64" cy="38" r="10" fill="#4a9eff">
+          <animate attributeName="opacity" values="1;0.7;1" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="64" cy="38" r="5" fill="#000" opacity="0.5"/>
+        <circle cx="66" cy="36" r="2" fill="#fff" opacity="0.4"/>
+        <rect x="34" y="55" width="32" height="5" rx="2.5" fill="#1a2a38" opacity="0.6"/>
+        <circle cx="42" cy="57.5" r="1.5" fill="#4ecb8d" opacity="0.8"/>
+        <circle cx="50" cy="57.5" r="1.5" fill="#4ecb8d" opacity="0.5"/>
+        <circle cx="58" cy="57.5" r="1.5" fill="#4ecb8d" opacity="0.8"/>
+        <line x1="14" y1="26" x2="14" y2="50" stroke="#c87941" stroke-width="2" stroke-opacity="0.6"/>
+        <line x1="86" y1="26" x2="86" y2="50" stroke="#c87941" stroke-width="2" stroke-opacity="0.6"/>
+        <rect x="40" y="64" width="20" height="8" rx="3" fill="#0a1628" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.4"/>
+        <rect x="12" y="72" width="76" height="46" rx="8" ry="8" fill="#0e1f36" stroke="#4a9eff" stroke-width="1.5" stroke-opacity="0.5"/>
+        <circle cx="50" cy="91" r="18" fill="url(#rg)">
+          <animate attributeName="opacity" values="0.15;0.45;0.15" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="50" cy="91" r="10" fill="#4a9eff">
+          <animate attributeName="opacity" values="0.6;1;0.6" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="50" cy="91" r="6" fill="#060e1a" opacity="0.7"/>
+        <circle cx="50" cy="91" r="3" fill="#4a9eff" opacity="0.9"/>
+        <rect x="18" y="82" width="10" height="2.5" rx="1.25" fill="#c87941" opacity="0.7"/>
+        <rect x="72" y="82" width="10" height="2.5" rx="1.25" fill="#c87941" opacity="0.7"/>
+        <rect x="18" y="100" width="10" height="2" rx="1" fill="#c87941" opacity="0.5"/>
+        <rect x="72" y="100" width="10" height="2" rx="1" fill="#c87941" opacity="0.5"/>
+        <rect x="0" y="74" width="14" height="32" rx="5" fill="#0e1f36" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.5"/>
+        <circle cx="7" cy="106" r="4" fill="#0a1628" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.4"/>
+        <rect x="86" y="74" width="14" height="32" rx="5" fill="#0e1f36" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.5"/>
+        <circle cx="93" cy="110" r="4" fill="#0a1628" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.4"/>
+        <rect x="22" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.4"/>
+        <rect x="56" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke="#1a2a38" stroke-width="1" stroke-opacity="0.4"/>
+      </svg>
+    </div>
+    <div class="cb">
+      <div class="cl">C.O.G.S UNIT 7 — ASSESSMENT</div>
+      <div class="ct">Three days. The propulsion damage is not improving on its own. I recommend we address it before continuing.</div>
+    </div>
+  </div>
+
+  <!-- Tap hint -->
+  <div class="tap" id="th">TAP ANYWHERE TO RESUME</div>
+
+  <!-- Status bar -->
+  <div class="sb">
+    <span class="si">SYS: <span>NOMINAL</span></span>
+    <span class="si">COGS: <span>82%</span></span>
+    <span class="si">PWR: <span>94%</span></span>
+  </div>
+
+</div>
+
+<script>
+  [
+    { id: 's1',  d: 200  },
+    { id: 'l1',  d: 380  },
+    { id: 'l2',  d: 530  },
+    { id: 'l3',  d: 670  },
+    { id: 's2',  d: 860  },
+    { id: 'l4',  d: 990  },
+    { id: 'l5',  d: 1120 },
+    { id: 'l6',  d: 1250 },
+    { id: 'l7',  d: 1380 },
+    { id: 's3',  d: 1560 },
+    { id: 'l8',  d: 1690 },
+    { id: 'l9',  d: 1820 },
+    { id: 'l10', d: 1950 },
+    { id: 's4',  d: 2130 },
+    { id: 'l11', d: 2260 },
+    { id: 'l12', d: 2380 },
+    { id: 'l13', d: 2500 },
+    { id: 'gc',  d: 2620 },
+    { id: 'lt',  d: 2740 },
+    { id: 'lc',  d: 2900 },
+    { id: 'cc',  d: 3100 },
+    { id: 'th',  d: 3580 },
+  ].forEach(({ id, d }) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    setTimeout(() => {
+      el.style.transition = 'opacity 0.2s ease';
+      el.style.opacity = '1';
+    }, d);
+  });
+
+  document.querySelector('.screen').addEventListener('click', () => {
+    document.querySelector('.screen').style.transition = 'opacity 0.35s ease';
+    document.querySelector('.screen').style.opacity = '0';
+  });
+</script>
+</body>
+</html>

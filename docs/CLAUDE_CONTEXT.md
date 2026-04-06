@@ -288,7 +288,9 @@ To trigger a native binary build: include [build] in commit message.
    operational screens only. Not on personal or conversational
    screens.
 7. HTML prototype first. Tucker approves design in HTML before
-   React Native implementation.
+   React Native implementation. All approved prototypes live in
+   design/screens/ and are referenced directly in Claude Code
+   implementation prompts.
 8. COGS eye states: blue=operations, amber=engagement,
    green=warmth, red=damage, dark=offline.
 9. Credits is the only currency. Abbreviate as CR only where space
