@@ -98,7 +98,7 @@ executes.
 - Military scout ship SVG on Hub with zone-based lighting.
 - Rank system: 10 ranks R01-R10, all designs approved.
 - CI/CD pipeline: GitHub Actions, all green.
-- 24 automated tests passing (unit + integration).
+- 35 automated tests passing (unit + integration).
 - Store: Credits only, prices shown as CR on buttons, spelled out
   Credits on pack cards and section headers.
 - MissionDossierScreen: full-screen, slides up from bottom via Animated API on mount. Navigator-level animation props do not work on web -- always use Animated API directly in the component for cross-platform slide animations.
@@ -114,7 +114,7 @@ executes.
 - Conveyor directional indicator: input circle (signal enters) = amber #F0B429. Output circle (signal exits) = green #00C48C. Body rect and arrow = blue #00D4FF. Direction is legible at all 4 rotation states.
 - PieceIcon extracted to src/components/PieceIcon.tsx. Single source of truth used by both CodexScreen and GameplayScreen. Codex icon designs are canonical. Do not create local PieceIcon implementations in individual screens.
 - Codex detail view redesigned: hero (icon + name + type badge) -> first encountered -> field simulation -> C.O.G.S NOTES (teaching mode, single merged section). Stats row removed. Seen in missions section removed.
-- CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 24 tests passing.
+- CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 35 tests passing.
 
 **Known issues / in-flight:**
 
@@ -251,7 +251,7 @@ Every push to master runs automatically:
 | Job | Checks | Must pass |
 |-----|--------|-----------|
 | Lint and Type Check | ESLint zero warnings, TypeScript zero errors | YES |
-| Unit and Integration Tests | 24 tests, 4 suites, zero regressions | YES |
+| Unit and Integration Tests | 35 tests, 4 suites, zero regressions | YES |
 | Security Audit | npm audit high severity | YES |
 | EAS OTA Update | Ships JS changes to devices | On master merge |
 
@@ -260,7 +260,7 @@ Every Claude Code prompt must end with this block:
 QUALITY GATES -- all must pass before pushing:
 1. npx expo lint        -- zero warnings
 2. npx tsc --noEmit     -- zero errors
-3. npm test             -- all 24 tests green
+3. npm test             -- all 35 tests green
 4. npm audit --audit-level=high -- clean
 Only push if all four pass. Report pass/fail on each.
 

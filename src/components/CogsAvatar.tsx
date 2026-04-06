@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { View } from 'react-native';
 import Svg, {
   Rect,
   Circle,
@@ -17,6 +16,7 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  withDelay,
   Easing,
   createAnimatedComponent,
 } from 'react-native-reanimated';
@@ -25,13 +25,11 @@ import { Colors } from '../theme/tokens';
 // ─── Animated SVG primitives ───────────────────────────────────────────────────
 
 const AnimatedCircle = createAnimatedComponent(Circle);
-const AnimatedRect = createAnimatedComponent(Rect);
-const AnimatedG = createAnimatedComponent(G);
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export type CogsSize = 'small' | 'medium' | 'large';
-export type CogsState = 'damaged' | 'partial' | 'online' | 'engaged';
+export type CogsState = 'damaged' | 'partial' | 'online' | 'engaged' | 'green' | 'dark';
 
 interface Props {
   size?: CogsSize;
@@ -44,6 +42,11 @@ const SIZE_MAP: Record<CogsSize, number> = {
   large: 96,
 };
 
+// Hex tokens used for the new states. Colors.green / Colors.blue in tokens
+// resolve to slightly different hex values; the spec calls for these exact ones.
+const GREEN_HEX = '#00C48C';
+const DARK_BLUE_HEX = '#00D4FF';
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 // All geometry defined for a 100×130 viewBox. SVG scales via width/height props.
 
@@ -51,25 +54,38 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
   const px = SIZE_MAP[size];
   const py = px * (130 / 100);
 
+  const isGreen = state === 'green';
+  const isDark = state === 'dark';
+  const isOnline = state === 'online';
+  const isEngaged = state === 'engaged';
+  const isDamaged = state === 'damaged';
+
   // ── Eye colour ──
   const eyeColor =
-    state === 'damaged' ? Colors.red
+    isDamaged ? Colors.red
     : state === 'partial' ? Colors.amber
-    : state === 'online' ? Colors.blue
+    : isOnline ? Colors.blue
+    : isGreen ? GREEN_HEX
+    : isDark ? DARK_BLUE_HEX
     : Colors.amber; // engaged
 
   const reactorColor =
-    state === 'online' ? Colors.blue
-    : state === 'engaged' ? Colors.amber
-    : state === 'damaged' ? Colors.red
+    isOnline ? Colors.blue
+    : isEngaged ? Colors.amber
+    : isDamaged ? Colors.red
+    : isGreen ? GREEN_HEX
+    : isDark ? DARK_BLUE_HEX
     : `${Colors.amber}88`;
 
   // ── Animations ──
 
-  // Flickering red eyes (damaged)
+  // Eye opacity (left). Damaged flickers; dark slow-breathes; otherwise solid.
   const eyeOpacity = useSharedValue(1);
+  // Eye opacity (right). Only diverges from left in dark state where it is
+  // phase-offset by 400ms for the breathing effect.
+  const eyeOpacity2 = useSharedValue(1);
   useEffect(() => {
-    if (state === 'damaged') {
+    if (isDamaged) {
       eyeOpacity.value = withRepeat(
         withSequence(
           withTiming(0.2, { duration: 80 }),
@@ -82,8 +98,32 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         -1,
         false,
       );
+      eyeOpacity2.value = eyeOpacity.value;
+    } else if (isDark) {
+      eyeOpacity.value = 0.12;
+      eyeOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.28, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.12, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+      eyeOpacity2.value = 0.12;
+      eyeOpacity2.value = withDelay(
+        400,
+        withRepeat(
+          withSequence(
+            withTiming(0.28, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+            withTiming(0.12, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+          ),
+          -1,
+          false,
+        ),
+      );
     } else {
       eyeOpacity.value = 1;
+      eyeOpacity2.value = 1;
     }
   }, [state]);
 
@@ -92,14 +132,14 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
     fill: eyeColor,
   }));
   const eyeProps2 = useAnimatedProps(() => ({
-    opacity: eyeOpacity.value,
+    opacity: eyeOpacity2.value,
     fill: eyeColor,
   }));
 
-  // Antenna pulse glow (online)
+  // Antenna pulse glow
   const antennaPulse = useSharedValue(0.4);
   useEffect(() => {
-    if (state === 'online') {
+    if (isOnline) {
       antennaPulse.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 800, easing: Easing.inOut(Easing.sin) }),
@@ -108,20 +148,38 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         -1,
         false,
       );
+    } else if (isGreen) {
+      antennaPulse.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.4, { duration: 1000, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else if (isDark) {
+      antennaPulse.value = 0.10;
     } else {
       antennaPulse.value = 0.6;
     }
   }, [state]);
 
+  const antennaFill =
+    isOnline ? Colors.green
+    : isDamaged ? Colors.red
+    : isGreen ? GREEN_HEX
+    : isDark ? DARK_BLUE_HEX
+    : Colors.amber;
+
   const antennaProps = useAnimatedProps(() => ({
     opacity: antennaPulse.value,
-    fill: state === 'online' ? Colors.green : state === 'damaged' ? Colors.red : Colors.amber,
+    fill: antennaFill,
   }));
 
   // Chest reactor pulse
   const reactorPulse = useSharedValue(0.6);
   useEffect(() => {
-    if (state === 'online' || state === 'engaged') {
+    if (isOnline || isEngaged) {
       reactorPulse.value = withRepeat(
         withSequence(
           withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
@@ -130,8 +188,26 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         -1,
         false,
       );
+    } else if (isGreen) {
+      reactorPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.8, { duration: 1250, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.35, { duration: 1250, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else if (isDark) {
+      reactorPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.18, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.08, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
     } else {
-      reactorPulse.value = state === 'damaged' ? 0.3 : 0.5;
+      reactorPulse.value = isDamaged ? 0.3 : 0.5;
     }
   }, [state]);
 
@@ -139,10 +215,10 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
     opacity: reactorPulse.value,
   }));
 
-  // Outer reactor ring pulse (opposite phase)
+  // Outer reactor ring pulse (opposite phase). Hidden for green and dark.
   const reactorRing = useSharedValue(0.2);
   useEffect(() => {
-    if (state === 'online' || state === 'engaged') {
+    if (isOnline || isEngaged) {
       reactorRing.value = withRepeat(
         withSequence(
           withTiming(0.5, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
@@ -151,6 +227,8 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         -1,
         false,
       );
+    } else if (isGreen || isDark) {
+      reactorRing.value = 0;
     } else {
       reactorRing.value = 0.1;
     }
@@ -160,16 +238,57 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
     opacity: reactorRing.value,
   }));
 
-  // Engaged — container slight tilt (handled by Animated.View wrapper)
+  // Engaged — container slight tilt
   const tiltStyle = useAnimatedStyle(() => ({
-    transform: state === 'engaged' ? [{ rotate: '-4deg' }] : [],
+    transform: isEngaged ? [{ rotate: '-4deg' }] : [],
   }));
 
   // ── Head group transform for engaged (slight tilt) ──
-  const headTransform = state === 'engaged' ? 'rotate(-5, 50, 40)' : undefined;
+  const headTransform = isEngaged ? 'rotate(-5, 50, 40)' : undefined;
 
   // ── Left arm raise for engaged ──
-  const leftArmY = state === 'engaged' ? 66 : 74;
+  const leftArmY = isEngaged ? 66 : 74;
+
+  // ── Chassis stroke per state ──
+  const chassisStroke =
+    isDamaged ? Colors.red
+    : isOnline ? Colors.blue
+    : isGreen ? GREEN_HEX
+    : isDark ? DARK_BLUE_HEX
+    : Colors.dim;
+  const chassisStrokeWidth =
+    isOnline || isGreen || isDark ? '1.5' : '1';
+  const headStrokeOpacity =
+    isOnline ? 0.6
+    : isGreen ? 0.5
+    : isDark ? 0.18
+    : 0.4;
+  const bodyStrokeOpacity =
+    isOnline ? 0.5
+    : isGreen ? 0.5
+    : isDark ? 0.18
+    : 0.35;
+
+  // ── Mouth LED dot fill ──
+  const mouthLedFill =
+    isOnline ? Colors.green
+    : isGreen ? GREEN_HEX
+    : isDark ? GREEN_HEX
+    : Colors.dim;
+  const mouthLedOpacityHigh = isDark ? 0.10 : 0.8;
+  const mouthLedOpacityLow = isDark ? 0.10 : 0.5;
+
+  // ── Copper accent opacity per state ──
+  const showCopperLines = isOnline || isEngaged || isGreen || isDark;
+  const copperLineOpacity = isDark ? 0.18 : 0.6;
+  const copperBarHigh =
+    isDark ? 0.18
+    : isOnline || isEngaged || isGreen ? 0.7
+    : 0.3;
+  const copperBarLow =
+    isDark ? 0.14
+    : isOnline || isEngaged || isGreen ? 0.5
+    : 0.2;
 
   return (
     <Animated.View style={tiltStyle}>
@@ -184,14 +303,14 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         {/* ── Antenna ── */}
         <Line
           x1="50" y1="2" x2="50" y2="14"
-          stroke={state === 'damaged' ? Colors.red : Colors.dim}
+          stroke={isDamaged ? Colors.red : Colors.dim}
           strokeWidth="2"
           strokeLinecap="round"
-          transform={state === 'damaged' ? 'rotate(22, 50, 14)' : undefined}
+          transform={isDamaged ? 'rotate(22, 50, 14)' : undefined}
         />
         <AnimatedCircle
           cx="50"
-          cy={state === 'damaged' ? '2' : '2'}
+          cy="2"
           r="4"
           animatedProps={antennaProps}
         />
@@ -203,9 +322,9 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
             x="14" y="12" width="72" height="52"
             rx="12" ry="12"
             fill="#0e1f36"
-            stroke={state === 'damaged' ? Colors.red : state === 'online' ? Colors.blue : Colors.dim}
-            strokeWidth={state === 'online' ? '1.5' : '1'}
-            strokeOpacity={state === 'online' ? '0.6' : '0.4'}
+            stroke={chassisStroke}
+            strokeWidth={chassisStrokeWidth}
+            strokeOpacity={headStrokeOpacity}
           />
 
           {/* Visor slot */}
@@ -228,20 +347,20 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
           {/* Mouth bar */}
           <Rect x="34" y="55" width="32" height="5" rx="2.5" fill={Colors.dim} opacity="0.6" />
           {/* Mouth LED dots */}
-          <Circle cx="42" cy="57.5" r="1.5" fill={state === 'online' ? Colors.green : Colors.dim} opacity="0.8" />
-          <Circle cx="50" cy="57.5" r="1.5" fill={state === 'online' ? Colors.green : Colors.dim} opacity="0.5" />
-          <Circle cx="58" cy="57.5" r="1.5" fill={state === 'online' ? Colors.green : Colors.dim} opacity="0.8" />
+          <Circle cx="42" cy="57.5" r="1.5" fill={mouthLedFill} opacity={mouthLedOpacityHigh} />
+          <Circle cx="50" cy="57.5" r="1.5" fill={mouthLedFill} opacity={mouthLedOpacityLow} />
+          <Circle cx="58" cy="57.5" r="1.5" fill={mouthLedFill} opacity={mouthLedOpacityHigh} />
 
-          {/* Copper accent lines (online/engaged) */}
-          {(state === 'online' || state === 'engaged') && (
+          {/* Copper accent lines */}
+          {showCopperLines && (
             <>
-              <Line x1="14" y1="26" x2="14" y2="50" stroke={Colors.copper} strokeWidth="2" strokeOpacity="0.6" />
-              <Line x1="86" y1="26" x2="86" y2="50" stroke={Colors.copper} strokeWidth="2" strokeOpacity="0.6" />
+              <Line x1="14" y1="26" x2="14" y2="50" stroke={Colors.copper} strokeWidth="2" strokeOpacity={copperLineOpacity} />
+              <Line x1="86" y1="26" x2="86" y2="50" stroke={Colors.copper} strokeWidth="2" strokeOpacity={copperLineOpacity} />
             </>
           )}
 
           {/* Damage crack */}
-          {state === 'damaged' && (
+          {isDamaged && (
             <Path
               d="M 52 14 L 46 36 L 50 48 L 44 64"
               stroke={Colors.red}
@@ -261,9 +380,9 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
           x="12" y="72" width="76" height="46"
           rx="8" ry="8"
           fill="#0e1f36"
-          stroke={state === 'damaged' ? Colors.red : state === 'online' ? Colors.blue : Colors.dim}
-          strokeWidth={state === 'online' ? '1.5' : '1'}
-          strokeOpacity={state === 'online' ? '0.5' : '0.35'}
+          stroke={chassisStroke}
+          strokeWidth={chassisStrokeWidth}
+          strokeOpacity={bodyStrokeOpacity}
         />
 
         {/* Chest reactor glow halo */}
@@ -275,10 +394,10 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         <Circle cx="50" cy="91" r="3" fill={reactorColor} opacity="0.9" />
 
         {/* Copper body accents */}
-        <Rect x="18" y="82" width="10" height="2.5" rx="1.25" fill={Colors.copper} opacity={state === 'online' || state === 'engaged' ? 0.7 : 0.3} />
-        <Rect x="72" y="82" width="10" height="2.5" rx="1.25" fill={Colors.copper} opacity={state === 'online' || state === 'engaged' ? 0.7 : 0.3} />
-        <Rect x="18" y="100" width="10" height="2" rx="1" fill={Colors.copper} opacity={state === 'online' || state === 'engaged' ? 0.5 : 0.2} />
-        <Rect x="72" y="100" width="10" height="2" rx="1" fill={Colors.copper} opacity={state === 'online' || state === 'engaged' ? 0.5 : 0.2} />
+        <Rect x="18" y="82" width="10" height="2.5" rx="1.25" fill={Colors.copper} opacity={copperBarHigh} />
+        <Rect x="72" y="82" width="10" height="2.5" rx="1.25" fill={Colors.copper} opacity={copperBarHigh} />
+        <Rect x="18" y="100" width="10" height="2" rx="1" fill={Colors.copper} opacity={copperBarLow} />
+        <Rect x="72" y="100" width="10" height="2" rx="1" fill={Colors.copper} opacity={copperBarLow} />
 
         {/* ── Left arm ── */}
         <Rect
@@ -299,7 +418,7 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         <Rect x="56" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
 
         {/* ── Damage badge (damaged only) ── */}
-        {state === 'damaged' && (
+        {isDamaged && (
           <G>
             <Circle cx="84" cy="16" r="12" fill={Colors.red} opacity="0.9" />
             <Rect x="82.5" y="10" width="3" height="7" rx="1.5" fill="#fff" />

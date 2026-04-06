@@ -94,8 +94,9 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
   const eyeState = levelDef?.eyeState ?? 'blue';
   const cogsAvatarState: CogsState =
     eyeState === 'red' ? 'damaged'
-    : eyeState === 'amber' ? 'partial'
-    : eyeState === 'dark' ? 'damaged'
+    : eyeState === 'amber' ? 'engaged'
+    : eyeState === 'green' ? 'green'
+    : eyeState === 'dark' ? 'dark'
     : 'online';
 
   const isCompleted = nodeState === 'completed';
