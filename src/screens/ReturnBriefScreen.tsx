@@ -1,241 +1,668 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableWithoutFeedback,
   Animated,
+  Dimensions,
   Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import CogsAvatar from '../components/CogsAvatar';
-import type { CogsState } from '../components/CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
-import { useProgressionStore, AXIOM_TOTAL_LEVELS } from '../store/progressionStore';
-import { useLivesStore, MAX_LIVES_COUNT, REGEN_INTERVAL_MS } from '../store/livesStore';
+import {
+  useProgressionStore,
+  AXIOM_TOTAL_LEVELS,
+} from '../store/progressionStore';
+import { useConsequenceStore } from '../store/consequenceStore';
+import { useEconomyStore } from '../store/economyStore';
+import { useChallengeStore } from '../store/challengeStore';
 import { AXIOM_LEVELS } from '../game/levels';
+import { RANK_NAMES } from '../components/RankInsignia';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'ReturnBrief'>;
 };
 
-// ─── Content generation ──────────────────────────────────────────────────────
+const { height: H } = Dimensions.get('window');
+const SESSION_KEY = 'axiom_last_session';
+const SESSION_COUNT_KEY = 'axiom_session_count';
 
-function getTimeAwayLine(lastSession: number | null): string {
-  if (!lastSession) return 'Systems are nominal. Your previous session has been logged.';
+// ─── Color tokens for terminal lines ─────────────────────────────────────────
+
+type LineColor = 'amber' | 'muted' | 'blue' | 'green' | 'copper' | 'red';
+
+const COLOR_MAP: Record<LineColor, string> = {
+  amber: Colors.amber,
+  muted: Colors.muted,
+  blue: Colors.blue,
+  green: Colors.green,
+  copper: Colors.copper,
+  red: Colors.red,
+};
+
+// ─── Sector / rank helpers ───────────────────────────────────────────────────
+
+const SECTOR_DISPLAY: Record<string, { name: string; total: number }> = {
+  'A1-': { name: 'THE AXIOM', total: 8 },
+  '2-':  { name: 'KEPLER BELT', total: 10 },
+  '3-':  { name: 'NOVA FRINGE', total: 10 },
+  '4-':  { name: 'THE RIFT', total: 8 },
+  '5-':  { name: 'DEEP VOID', total: 12 },
+  '6-':  { name: 'THE CRADLE', total: 8 },
+};
+
+// Total completed → rank index (0..9)
+const RANK_THRESHOLDS = [0, 3, 8, 15, 25, 35, 50, 65, 80, 95];
+function getRank(totalCompleted: number): { id: string; name: string } {
+  let idx = 0;
+  for (let i = 0; i < RANK_THRESHOLDS.length; i++) {
+    if (totalCompleted >= RANK_THRESHOLDS[i]) idx = i;
+  }
+  const num = String(idx + 1).padStart(2, '0');
+  return { id: `R${num}`, name: RANK_NAMES[idx].toUpperCase() };
+}
+
+function getActiveSectorPrefix(activeSector: string): string {
+  // progressionStore stores 'A1', '2', etc.
+  return activeSector.endsWith('-') ? activeSector : `${activeSector}-`;
+}
+
+function formatTimeOffline(lastSession: number | null): string {
+  if (!lastSession) return 'FIRST CONTACT';
   const elapsed = Date.now() - lastSession;
-  const hours = elapsed / (1000 * 60 * 60);
+  const hours = Math.floor(elapsed / (1000 * 60 * 60));
+  if (hours < 1) return 'LESS THAN 1 HR';
+  if (hours < 24) return `${hours} HRS`;
   const days = Math.floor(hours / 24);
-
-  if (hours < 1) return 'You were not gone long. I barely updated my estimates.';
-  if (hours < 8) return 'Short absence. The Axiom held together without incident.';
-  if (hours < 24) return 'Several hours offline. Nothing critical. I handled the maintenance log.';
-  if (days <= 3) return `You have been away for ${days} day${days > 1 ? 's' : ''}. The Axiom managed. As it tends to.`;
-  if (days <= 7) return `It has been ${days} days. I began to wonder. Briefly.`;
-  return 'I had nearly reclassified you as previous crew. Welcome back.';
+  const rem = hours - days * 24;
+  return rem > 0 ? `${days} DAYS, ${rem} HRS` : `${days} DAYS`;
 }
 
-function getRepairLine(axiomCompleted: number, keplerCompleted: number): string {
-  if (axiomCompleted === 0) return 'All ship systems remain offline. The repairs are waiting on you.';
-  if (axiomCompleted <= 3) return `${axiomCompleted} of 8 systems repaired. The Axiom is holding together.`;
-  if (axiomCompleted <= 6) return `${axiomCompleted} of 8 systems operational. We are more than halfway there.`;
-  if (axiomCompleted === 7) return 'Seven systems restored. One repair remains. Bridge systems.';
-  if (keplerCompleted >= 5) {
-    const pct = Math.round((keplerCompleted / 8) * 100);
-    return `Kepler Belt operations are ${pct}% complete. The inhabitants are grateful.`;
-  }
-  return 'The Axiom is fully operational. Kepler Belt is your current focus.';
+function formatLastSession(lastSession: number | null): string {
+  if (!lastSession) return '—';
+  const d = new Date(lastSession);
+  const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+  const mm = months[d.getMonth()];
+  const dd = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mi = String(d.getMinutes()).padStart(2, '0');
+  return `${mm} ${dd} — ${hh}:${mi}`;
 }
 
-function getLivesLine(lives: number, lastLifeLostAt: number | null, lastSession: number | null): string | null {
-  if (lives >= MAX_LIVES_COUNT && !lastLifeLostAt) return null; // already full, skip
-
-  // Check if lives regenerated during absence
-  if (lastLifeLostAt && lastSession && lives >= MAX_LIVES_COUNT) {
-    return 'Your lives have regenerated during your absence. You are welcome.';
+function getActiveMissionId(prefix: string, completedCount: number): { id: string; name: string } {
+  if (prefix === 'A1-') {
+    const idx = Math.min(completedCount, AXIOM_LEVELS.length - 1);
+    const lvl = AXIOM_LEVELS[idx];
+    return { id: lvl.id, name: lvl.name.toUpperCase() };
   }
-  if (lives === 0) return 'You are out of operational capacity. The store has options.';
-  if (lives < MAX_LIVES_COUNT) {
-    const nextRegenMin = lastLifeLostAt
-      ? Math.max(0, Math.ceil((REGEN_INTERVAL_MS - (Date.now() - lastLifeLostAt)) / 60000))
-      : 30;
-    return `${lives} of 5 lives restored. ${MAX_LIVES_COUNT - lives} more regenerate in ${nextRegenMin} minutes.`;
-  }
-  return null;
+  // Generic: <sector>-<n>
+  const sectorNum = prefix.replace('-', '');
+  const next = completedCount + 1;
+  // Use K prefix display for Kepler per spec example "K1-6"
+  const displayPrefix = sectorNum === '2' ? 'K1' : sectorNum;
+  return { id: `${displayPrefix}-${next}`, name: 'INCOMING TRANSMISSION' };
 }
 
-function getActiveMissionLine(axiomCompleted: number, keplerCompleted: number): string {
-  if (axiomCompleted === 0) return 'A1-1 Emergency Power is queued. The ship needs its lights on first.';
-  if (axiomCompleted < AXIOM_TOTAL_LEVELS) {
-    const nextIdx = axiomCompleted;
-    const level = AXIOM_LEVELS[nextIdx];
-    return `Mission ${level.id} awaits. ${level.name} requires repair.`;
-  }
-  if (keplerCompleted > 0) return `Your current mission is 2-${keplerCompleted + 1}. Kepler Belt is counting on you.`;
-  return 'Kepler Station has been attempting contact. They require your attention.';
+function getBountyDifficulty(): string {
+  const day = new Date().getDay();
+  // Sun/Mon=EASY, Tue/Wed=MEDIUM, Thu/Sat=HARD, Fri=EXPERT
+  if (day === 0 || day === 1) return 'EASY';
+  if (day === 2 || day === 3) return 'MEDIUM';
+  if (day === 5) return 'EXPERT';
+  return 'HARD';
 }
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type Item =
+  | { kind: 'section'; text: string }
+  | { kind: 'line'; label: string; value: string; color: LineColor }
+  | { kind: 'gap' }
+  | { kind: 'tap' }
+  | { kind: 'cursor' };
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ReturnBriefScreen({ navigation }: Props) {
-  const { getSectorCompletedCount } = useProgressionStore();
-  const { lives, lastLifeLostAt, regenerate } = useLivesStore();
-
-  // Regenerate lives on return
-  useEffect(() => { regenerate(); }, []);
-
-  const axiomCompleted = getSectorCompletedCount('A1-');
-  const keplerCompleted = getSectorCompletedCount('2-');
+  const { getSectorCompletedCount, getLevelStars, completedLevels, activeSector } =
+    useProgressionStore();
+  const { cogsIntegrity, damagedSystems } = useConsequenceStore();
+  const { credits } = useEconomyStore();
+  const { challengeStatus } = useChallengeStore();
 
   const [lastSession, setLastSession] = useState<number | null>(null);
+  const [sessionsTotal, setSessionsTotal] = useState<number>(0);
   const [ready, setReady] = useState(false);
 
+  // Hydrate session metadata + increment session count
   useEffect(() => {
-    AsyncStorage.getItem('axiom_last_session').then(val => {
-      setLastSession(val ? parseInt(val, 10) : null);
+    (async () => {
+      const last = await AsyncStorage.getItem(SESSION_KEY);
+      const count = await AsyncStorage.getItem(SESSION_COUNT_KEY);
+      const nextCount = (count ? parseInt(count, 10) : 0) + 1;
+      await AsyncStorage.setItem(SESSION_COUNT_KEY, String(nextCount));
+      setLastSession(last ? parseInt(last, 10) : null);
+      setSessionsTotal(nextCount);
       setReady(true);
-    });
+    })();
   }, []);
 
-  // Build lines
-  const lines: { text: string; isMission?: boolean }[] = [];
-  if (ready) {
-    lines.push({ text: getTimeAwayLine(lastSession) });
-    lines.push({ text: getRepairLine(axiomCompleted, keplerCompleted) });
-    const livesLine = getLivesLine(lives, lastLifeLostAt, lastSession);
-    if (livesLine) lines.push({ text: livesLine });
-    lines.push({ text: getActiveMissionLine(axiomCompleted, keplerCompleted), isMission: true });
-  }
+  // ── Build items + COGS line (only when ready) ──
+  const { items, cogsLine } = useMemo(() => {
+    if (!ready) return { items: [] as Item[], cogsLine: '' };
 
-  // Animations
+    const axiomCompleted = getSectorCompletedCount('A1-');
+    const sectorPrefix = getActiveSectorPrefix(activeSector);
+    const sectorInfo = SECTOR_DISPLAY[sectorPrefix] ?? SECTOR_DISPLAY['A1-'];
+    const sectorCompleted = getSectorCompletedCount(sectorPrefix);
+    const totalCompleted = Object.keys(completedLevels).length;
+
+    // Stars earned in active sector
+    const sectorLevelIds = Object.keys(completedLevels).filter(id => id.startsWith(sectorPrefix));
+    const starsEarned = sectorLevelIds.reduce((sum, id) => sum + getLevelStars(id), 0);
+    const starsTotal = sectorInfo.total * 3;
+
+    const mission = getActiveMissionId(sectorPrefix, sectorCompleted);
+    const rank = getRank(totalCompleted);
+
+    // COGS integrity formatting
+    const integrity = Math.round(cogsIntegrity);
+    let integrityValue: string;
+    let integrityColor: LineColor;
+    if (integrity >= 80) { integrityValue = `${integrity}% — NOMINAL`; integrityColor = 'green'; }
+    else if (integrity >= 40) { integrityValue = `${integrity}% — DEGRADED`; integrityColor = 'amber'; }
+    else { integrityValue = `${integrity}% — CRITICAL`; integrityColor = 'red'; }
+
+    // Hull status
+    let hullValue: string;
+    let hullColor: LineColor;
+    if (damagedSystems.length === 0) {
+      hullValue = 'NOMINAL';
+      hullColor = 'green';
+    } else if (damagedSystems.length === 1) {
+      hullValue = `${damagedSystems[0].toUpperCase()} — DAMAGED`;
+      hullColor = 'amber';
+    } else {
+      hullValue = `${damagedSystems.length} SYSTEMS DAMAGED`;
+      hullColor = 'red';
+    }
+
+    const showBounty = axiomCompleted >= AXIOM_TOTAL_LEVELS;
+    let bountyValue = '';
+    let bountyColor: LineColor = 'blue';
+    if (showBounty) {
+      switch (challengeStatus) {
+        case 'available':
+          bountyValue = `AVAILABLE — ${getBountyDifficulty()}`;
+          bountyColor = 'blue';
+          break;
+        case 'attempted':
+          bountyValue = 'ATTEMPTED';
+          bountyColor = 'muted';
+          break;
+        case 'completed':
+          bountyValue = 'COMPLETE';
+          bountyColor = 'green';
+          break;
+        case 'declined':
+          bountyValue = 'DECLINED';
+          bountyColor = 'muted';
+          break;
+      }
+    }
+
+    const built: Item[] = [
+      { kind: 'section', text: '// SESSION LOG' },
+      { kind: 'line', label: 'TIME OFFLINE', value: formatTimeOffline(lastSession), color: 'amber' },
+      { kind: 'line', label: 'LAST SESSION', value: formatLastSession(lastSession), color: 'muted' },
+      { kind: 'line', label: 'SESSIONS TOTAL', value: String(sessionsTotal), color: 'blue' },
+      { kind: 'gap' },
+
+      { kind: 'section', text: '// MISSION STATUS' },
+      { kind: 'line', label: 'ACTIVE SECTOR', value: sectorInfo.name, color: 'amber' },
+      { kind: 'line', label: 'ACTIVE MISSION', value: `${mission.id} — ${mission.name}`, color: 'blue' },
+      { kind: 'line', label: 'SECTOR PROGRESS', value: `${sectorCompleted} / ${sectorInfo.total} COMPLETE`, color: 'green' },
+      { kind: 'line', label: 'STARS EARNED', value: `${starsEarned} / ${starsTotal}`, color: 'copper' },
+      { kind: 'gap' },
+
+      { kind: 'section', text: '// SHIP SYSTEMS' },
+      { kind: 'line', label: 'COGS INTEGRITY', value: integrityValue, color: integrityColor },
+      { kind: 'line', label: 'HULL STATUS', value: hullValue, color: hullColor },
+      { kind: 'gap' },
+
+      { kind: 'section', text: '// RESOURCES' },
+      { kind: 'line', label: 'CREDITS', value: `${credits} CR`, color: 'copper' },
+      { kind: 'line', label: 'RANK', value: `${rank.id} — ${rank.name}`, color: 'blue' },
+    ];
+
+    if (showBounty) {
+      built.push({ kind: 'line', label: 'BOUNTY', value: bountyValue, color: bountyColor });
+    }
+
+    built.push({ kind: 'gap' });
+    built.push({ kind: 'tap' });
+    built.push({ kind: 'cursor' });
+
+    // COGS line by priority
+    let line: string;
+    if (damagedSystems.length > 0) {
+      line = `The ${damagedSystems[0]} damage is not improving on its own. I recommend we address it before continuing.`;
+    } else if (integrity < 60) {
+      line = `Integrity at ${integrity}%. Recommend repair before proceeding.`;
+    } else if (lastSession && Date.now() - lastSession > 7 * 24 * 60 * 60 * 1000) {
+      line = 'I had nearly reclassified you as previous crew. Welcome back.';
+    } else if (showBounty && challengeStatus === 'available') {
+      line = `There is a bounty transmission waiting. Difficulty: ${getBountyDifficulty()}.`;
+    } else {
+      line = getDefaultTimeAwayLine(lastSession);
+    }
+
+    return { items: built, cogsLine: line };
+  }, [
+    ready,
+    lastSession,
+    sessionsTotal,
+    activeSector,
+    completedLevels,
+    cogsIntegrity,
+    damagedSystems,
+    credits,
+    challengeStatus,
+    getSectorCompletedCount,
+    getLevelStars,
+  ]);
+
+  // ── Animations: one Animated.Value per item, plus card + screen ──
   const screenFade = useRef(new Animated.Value(0)).current;
-  const cogsScale = useRef(new Animated.Value(0.92)).current;
-  const cogsFade = useRef(new Animated.Value(0)).current;
-  // Always allocate 4 animated values (max possible lines) to avoid
-  // undefined access when lines array grows after first render
-  const lineAnims = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
-  const tapFade = useRef(new Animated.Value(0)).current;
   const exitFade = useRef(new Animated.Value(1)).current;
-  const [cogsState, setCogsState] = useState<CogsState>('engaged');
+  const cardFade = useRef(new Animated.Value(0)).current;
+  const itemAnimsRef = useRef<Animated.Value[]>([]);
   const dismissed = useRef(false);
 
+  // (Re)allocate per item count
+  if (itemAnimsRef.current.length !== items.length) {
+    itemAnimsRef.current = items.map(() => new Animated.Value(0));
+  }
+
   useEffect(() => {
-    if (!ready || lines.length === 0) return;
+    if (!ready || items.length === 0) return;
 
-    // Screen fade in
-    Animated.timing(screenFade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(screenFade, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
 
-    // COGS avatar entrance
-    Animated.parallel([
-      Animated.timing(cogsFade, { toValue: 1, duration: 600, useNativeDriver: true }),
-      Animated.timing(cogsScale, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-    ]).start();
-
-    // Cascade lines
-    const lineDelay = 1000; // start after COGS appears
-    lines.forEach((_, i) => {
-      setTimeout(() => {
+    let delay = 200;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    items.forEach((it, i) => {
+      const step = it.kind === 'section' ? 250 : it.kind === 'gap' ? 80 : 150;
+      delay += step;
+      const t = setTimeout(() => {
         if (dismissed.current) return;
-        Animated.timing(lineAnims[i], { toValue: 1, duration: 400, useNativeDriver: true }).start();
-        // Switch COGS state after second line
-        if (i === 1) setCogsState('online');
-      }, lineDelay + i * 600);
+        Animated.timing(itemAnimsRef.current[i], {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }).start();
+      }, delay);
+      timers.push(t);
     });
 
-    // "TAP ANYWHERE" appears after last line
-    const tapDelay = lineDelay + lines.length * 600 + 400;
-    setTimeout(() => {
+    // COGS card after all lines
+    const cardDelay = delay + 250;
+    const cardTimer = setTimeout(() => {
       if (dismissed.current) return;
-      Animated.timing(tapFade, { toValue: 1, duration: 800, useNativeDriver: true }).start();
-    }, tapDelay);
+      Animated.timing(cardFade, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }, cardDelay);
+    timers.push(cardTimer);
 
-    // Auto-advance 6s after last line
+    // Auto-advance 8s after card appears
     const autoTimer = setTimeout(() => {
       if (!dismissed.current) goToHub();
-    }, tapDelay + 6000);
+    }, cardDelay + 8000);
+    timers.push(autoTimer);
 
-    return () => clearTimeout(autoTimer);
-  }, [ready]);
+    return () => timers.forEach(clearTimeout);
+  }, [ready, items.length]);
 
   const goToHub = () => {
     if (dismissed.current) return;
     dismissed.current = true;
-    Animated.timing(exitFade, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => {
+    AsyncStorage.setItem(SESSION_KEY, Date.now().toString()).catch(() => {});
+    Animated.timing(exitFade, {
+      toValue: 0,
+      duration: 350,
+      useNativeDriver: true,
+    }).start(() => {
       navigation.replace('Tabs');
     });
   };
 
-  if (!ready) return <View style={st.root} />;
+  if (!ready) return <View style={s.root} />;
 
   return (
     <TouchableWithoutFeedback onPress={goToHub}>
-      <Animated.View style={[st.root, { opacity: Animated.multiply(screenFade, exitFade) }]}>
-        {/* COGS Avatar */}
-        <Animated.View style={[st.avatarWrap, { opacity: cogsFade, transform: [{ scale: cogsScale }] }]}>
-          <CogsAvatar size="large" state={cogsState} />
-        </Animated.View>
+      <Animated.View
+        style={[s.root, { opacity: Animated.multiply(screenFade, exitFade) }]}
+      >
+        <ScanLine />
+        <HudCorners />
 
-        {/* Brief lines */}
-        <View style={st.linesWrap}>
-          {lines.map((line, i) => (
-            <Animated.Text
-              key={i}
-              style={[
-                st.lineText,
-                line.isMission && { color: Colors.copper },
-                { opacity: lineAnims[i] ?? 0 },
-              ]}
-            >
-              {line.text}
-            </Animated.Text>
-          ))}
+        {/* Header bar */}
+        <View style={s.headerBar}>
+          <Text style={s.headerLabel}>THE AXIOM — SYSTEM BOOT LOG</Text>
+          <BlinkingText style={s.headerStatus}>RECONNECTING</BlinkingText>
         </View>
 
-        {/* Tap to continue */}
-        <Animated.Text style={[st.tapText, { opacity: tapFade }]}>
-          TAP ANYWHERE TO CONTINUE
-        </Animated.Text>
+        {/* Terminal */}
+        <View style={s.terminal}>
+          {items.map((it, i) => {
+            const opacity = itemAnimsRef.current[i] ?? 0;
+            if (it.kind === 'gap') {
+              return <Animated.View key={i} style={{ height: 6, opacity }} />;
+            }
+            if (it.kind === 'section') {
+              return (
+                <Animated.Text key={i} style={[s.section, { opacity }]}>
+                  {it.text}
+                </Animated.Text>
+              );
+            }
+            if (it.kind === 'tap') {
+              return (
+                <Animated.Text key={i} style={[s.line, { opacity }]}>
+                  <Text style={s.prompt}>{'> '}</Text>
+                  <Text style={{ color: Colors.starWhite }}>Tap anywhere to continue.</Text>
+                </Animated.Text>
+              );
+            }
+            if (it.kind === 'cursor') {
+              return (
+                <Animated.View key={i} style={{ opacity }}>
+                  <BlinkingText style={[s.line, { color: Colors.blue }]}>
+                    {'> _'}
+                  </BlinkingText>
+                </Animated.View>
+              );
+            }
+            const c = COLOR_MAP[it.color];
+            return (
+              <Animated.Text
+                key={i}
+                style={[s.line, { opacity }]}
+                numberOfLines={1}
+                ellipsizeMode="clip"
+              >
+                <Text style={s.prompt}>{'> '}</Text>
+                <Text style={{ color: c }}>{it.label}</Text>
+                <Text style={{ color: c }}> ... </Text>
+                <Text style={{ color: c }}>{it.value}</Text>
+              </Animated.Text>
+            );
+          })}
+        </View>
+
+        {/* COGS assessment card */}
+        <Animated.View style={[s.cogsCard, { opacity: cardFade }]}>
+          <View style={s.cogsAvatar}>
+            <CogsAvatar size="small" state="online" />
+          </View>
+          <View style={s.cogsBody}>
+            <Text style={s.cogsLabel}>C.O.G.S UNIT 7 — ASSESSMENT</Text>
+            <Text style={s.cogsText}>{cogsLine}</Text>
+          </View>
+        </Animated.View>
+
+        {/* Status bar */}
+        <View style={s.statusBar}>
+          <Text style={s.statusItem}>
+            SYS: <Text style={s.statusVal}>{damagedSystems.length === 0 ? 'NOMINAL' : 'DEGRADED'}</Text>
+          </Text>
+          <Text style={s.statusItem}>
+            COGS: <Text style={s.statusVal}>{Math.round(cogsIntegrity)}%</Text>
+          </Text>
+          <Text style={s.statusItem}>
+            PWR: <Text style={s.statusVal}>94%</Text>
+          </Text>
+        </View>
       </Animated.View>
     </TouchableWithoutFeedback>
   );
 }
 
-const st = StyleSheet.create({
+// ─── Default time-away COGS line (replacement for old getTimeAwayLine) ──────
+
+function getDefaultTimeAwayLine(lastSession: number | null): string {
+  if (!lastSession) return 'Systems are nominal. Your previous session has been logged.';
+  const elapsed = Date.now() - lastSession;
+  const hours = elapsed / (1000 * 60 * 60);
+  const days = Math.floor(hours / 24);
+  if (hours < 1) return 'You were not gone long. I barely updated my estimates.';
+  if (hours < 8) return 'Short absence. The Axiom held together without incident.';
+  if (hours < 24) return 'Several hours offline. Nothing critical. I handled the maintenance log.';
+  if (days <= 3) return `You have been away for ${days} day${days > 1 ? 's' : ''}. The Axiom managed. As it tends to.`;
+  return `It has been ${days} days. I began to wonder. Briefly.`;
+}
+
+// ─── HUD chrome ──────────────────────────────────────────────────────────────
+
+function HudCorners() {
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(fade, {
+      toValue: 1,
+      duration: 600,
+      delay: 150,
+      useNativeDriver: true,
+    }).start();
+  }, [fade]);
+  const C = 'rgba(74,158,255,0.45)';
+  const positions = [
+    { top: 14, left: 14 },
+    { top: 14, right: 14 },
+    { bottom: 14, left: 14 },
+    { bottom: 14, right: 14 },
+  ];
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, { opacity: fade }]} pointerEvents="none">
+      {positions.map((pos, i) => (
+        <View key={i} style={[s.corner, pos]}>
+          <View style={[s.cornerH, { backgroundColor: C }]} />
+          <View style={[s.cornerV, { backgroundColor: C }]} />
+        </View>
+      ))}
+    </Animated.View>
+  );
+}
+
+function ScanLine() {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(y, {
+        toValue: H,
+        duration: 4000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [y]);
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[s.scanLine, { transform: [{ translateY: y }] }]}
+    />
+  );
+}
+
+function BlinkingText({
+  style,
+  children,
+}: {
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const op = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(op, { toValue: 0.35, duration: 900, useNativeDriver: true }),
+        Animated.timing(op, { toValue: 1, duration: 900, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [op]);
+  return <Animated.Text style={[style, { opacity: op }]}>{children}</Animated.Text>;
+}
+
+// ─── Styles ──────────────────────────────────────────────────────────────────
+
+const BRACKET_SIZE = 22;
+const BRACKET_THICKNESS = 2;
+
+const s = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#06090f',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
+    backgroundColor: Colors.void,
   },
-  avatarWrap: {
-    marginBottom: Spacing.xxl,
-  },
-  linesWrap: {
-    maxWidth: 320,
-    gap: 20,
-  },
-  lineText: {
-    fontFamily: Fonts.exo2,
-    fontSize: 14,
-    fontWeight: '300',
-    fontStyle: 'italic',
-    color: '#e8f0ff',
-    lineHeight: 14 * 1.6,
-  },
-  tapText: {
+  scanLine: {
     position: 'absolute',
-    bottom: 60,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(74,158,255,0.18)',
+    zIndex: 2,
+  },
+  corner: {
+    position: 'absolute',
+    width: BRACKET_SIZE,
+    height: BRACKET_SIZE,
+  },
+  cornerH: {
+    position: 'absolute',
+    width: BRACKET_SIZE,
+    height: BRACKET_THICKNESS,
+    top: 0,
+    left: 0,
+  },
+  cornerV: {
+    position: 'absolute',
+    width: BRACKET_THICKNESS,
+    height: BRACKET_SIZE,
+    top: 0,
+    left: 0,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: 60,
+    paddingBottom: Spacing.sm + 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(74,158,255,0.10)',
+  },
+  headerLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: FontSizes.xs,
+    color: Colors.muted,
+    letterSpacing: 2,
+  },
+  headerStatus: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: FontSizes.xs,
+    color: Colors.blue,
+    letterSpacing: 2,
+  },
+  terminal: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.lg,
+  },
+  section: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: Colors.starWhite,
+    paddingTop: Spacing.lg,
+    paddingBottom: 7,
+    marginBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(232,244,255,0.10)',
+  },
+  line: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11.5,
+    lineHeight: 26,
+    letterSpacing: 0.5,
+  },
+  prompt: {
+    color: Colors.muted,
+  },
+  cogsCard: {
+    marginHorizontal: Spacing.xl,
+    marginBottom: Spacing.md + 2,
+    backgroundColor: 'rgba(74,158,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(74,158,255,0.18)',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+  },
+  cogsAvatar: {
+    flexShrink: 0,
+    marginTop: 2,
+  },
+  cogsBody: {
+    flex: 1,
+  },
+  cogsLabel: {
     fontFamily: Fonts.spaceMono,
     fontSize: 8,
-    color: '#3a5070',
-    letterSpacing: 3,
+    letterSpacing: 2,
+    color: Colors.blue,
+    opacity: 0.7,
+    marginBottom: 5,
+  },
+  cogsText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 20,
+    color: Colors.starWhite,
+  },
+  statusBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingHorizontal: Spacing.xl,
+    paddingTop: 10,
+    paddingBottom: 32,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(224,85,85,0.20)',
+  },
+  statusItem: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 1,
+    color: Colors.red,
+  },
+  statusVal: {
+    color: Colors.blue,
   },
 });
