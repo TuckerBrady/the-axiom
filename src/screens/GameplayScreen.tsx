@@ -136,6 +136,11 @@ export default function GameplayScreen({ navigation }: Props) {
   const boardGridRef = useRef<View>(null);
   const engageButtonRef = useRef<View>(null);
   const trayConveyorRef = useRef<View>(null);
+  const trayGearRef = useRef<View>(null);
+  const trayConfigNodeRef = useRef<View>(null);
+  const traySplitterRef = useRef<View>(null);
+  const traScannerRef = useRef<View>(null);
+  const trayTransmitterRef = useRef<View>(null);
   const [tutorialComplete, setTutorialComplete] = useState(false);
   const [tutorialSkipped, setTutorialSkipped] = useState(false);
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
@@ -824,7 +829,15 @@ export default function GameplayScreen({ navigation }: Props) {
                 return (
                   <TouchableOpacity
                     key={pt}
-                    ref={pt === 'conveyor' ? trayConveyorRef : undefined}
+                    ref={
+                      pt === 'conveyor' ? trayConveyorRef
+                      : pt === 'gear' ? trayGearRef
+                      : pt === 'configNode' ? trayConfigNodeRef
+                      : pt === 'splitter' ? traySplitterRef
+                      : pt === 'scanner' ? traScannerRef
+                      : pt === 'transmitter' ? trayTransmitterRef
+                      : undefined
+                    }
                     style={[
                       styles.trayItem,
                       isActive && { borderColor: color, backgroundColor: `${color}15` },
@@ -1270,6 +1283,11 @@ export default function GameplayScreen({ navigation }: Props) {
             boardGrid: boardGridRef,
             engageButton: engageButtonRef,
             trayConveyor: trayConveyorRef,
+            trayGear: trayGearRef,
+            trayConfigNode: trayConfigNodeRef,
+            traySplitter: traySplitterRef,
+            trayScanner: traScannerRef,
+            trayTransmitter: trayTransmitterRef,
           }}
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}

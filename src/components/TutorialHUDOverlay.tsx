@@ -473,7 +473,7 @@ export default function TutorialHUDOverlay({
           {phase === 'demo' && (
             <View style={s.body}>
               <Text style={s.demoLabel}>LIVE DEMONSTRATION</Text>
-              <DemoVisual />
+              <DemoVisual kind={step.codexEntryId ?? 'conveyor'} />
               <Text style={s.demoText}>{step.demoText}</Text>
               <View style={s.actions}>
                 <TouchableOpacity onPress={handleSkip} activeOpacity={0.7}>
@@ -558,24 +558,179 @@ export default function TutorialHUDOverlay({
   );
 }
 
-// ─── DemoVisual: simple horizontal conveyor track ──────────────────────────
+// ─── DemoVisual: switches on piece kind ────────────────────────────────────
 
-function DemoVisual() {
+function DemoVisual({ kind }: { kind: string }) {
+  if (kind === 'gear') return <GearDemo />;
+  if (kind === 'config_node' || kind === 'configNode') return <ConfigNodeDemo />;
+  if (kind === 'splitter') return <SplitterDemo />;
+  if (kind === 'scanner') return <ScannerDemo />;
+  if (kind === 'transmitter') return <TransmitterDemo />;
+  return <ConveyorDemo />;
+}
+
+function ConveyorDemo() {
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    Animated.loop(
-      Animated.timing(x, {
-        toValue: 1,
-        duration: 1600,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      }),
-    ).start();
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
   }, [x]);
   const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, 64] });
   return (
     <View style={s.demoBox}>
       <View style={s.demoTrack} />
+      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
+    </View>
+  );
+}
+
+function GearDemo() {
+  // L-shaped path: horizontal then vertical.
+  const p = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [p]);
+  // First half: translateX from 0 to 32 at y=0. Second half: translateY 0 to 20 at x=32.
+  const tx = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 32, 32] });
+  const ty = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 20] });
+  return (
+    <View style={s.demoBox}>
+      {/* horizontal track */}
+      <View style={[s.gearTrackH]} />
+      {/* vertical track */}
+      <View style={[s.gearTrackV]} />
+      {/* gear corner */}
+      <View style={s.gearCorner} />
+      <Animated.View
+        style={[
+          s.demoBall,
+          { left: 8, top: 14, transform: [{ translateX: tx }, { translateY: ty }] },
+        ]}
+      />
+    </View>
+  );
+}
+
+function ConfigNodeDemo() {
+  const x = useRef(new Animated.Value(0)).current;
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    // Sequence: travel to center (0->0.45), pause (0.45->0.55), travel to end (0.55->1)
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+    );
+    pulseLoop.start();
+    return () => { loop.stop(); pulseLoop.stop(); };
+  }, [x, pulse]);
+  const tx = x.interpolate({
+    inputRange: [0, 0.45, 0.55, 1],
+    outputRange: [0, 32, 32, 64],
+  });
+  return (
+    <View style={s.demoBox}>
+      <View style={s.demoTrack} />
+      <View style={s.configCenter} />
+      <Animated.View style={[s.configIndicator, { opacity: pulse }]} />
+      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
+    </View>
+  );
+}
+
+function SplitterDemo() {
+  const p = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [p]);
+  // Before split (0-0.5): single ball x: 0->32. After split: two balls, one x 32->64, other y 0->20.
+  const preX = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 32, 32] });
+  const preOpacity = p.interpolate({ inputRange: [0, 0.49, 0.5], outputRange: [1, 1, 0] });
+  const rightX = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [32, 32, 64] });
+  const downY = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, 20] });
+  const postOpacity = p.interpolate({ inputRange: [0, 0.5, 0.51], outputRange: [0, 0, 1] });
+  return (
+    <View style={s.demoBox}>
+      <View style={s.demoTrack} />
+      <View style={s.splitterTrackDown} />
+      <View style={s.configCenter} />
+      <Animated.View style={[s.demoBall, { opacity: preOpacity, transform: [{ translateX: preX }] }]} />
+      <Animated.View style={[s.demoBall, { opacity: postOpacity, transform: [{ translateX: rightX }] }]} />
+      <Animated.View style={[s.demoBall, { opacity: postOpacity, transform: [{ translateX: downY.interpolate({ inputRange: [0, 20], outputRange: [32, 32] }) }, { translateY: downY }] }]} />
+    </View>
+  );
+}
+
+function ScannerDemo() {
+  const x = useRef(new Animated.Value(0)).current;
+  const flash = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    const flashLoop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(800),
+        Animated.timing(flash, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(flash, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.delay(200),
+      ]),
+    );
+    flashLoop.start();
+    return () => { loop.stop(); flashLoop.stop(); };
+  }, [x, flash]);
+  const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, 64] });
+  return (
+    <View style={s.demoBox}>
+      <View style={s.demoTrack} />
+      <View style={s.dataMarker} />
+      <Animated.Text style={[s.scanReadout, { opacity: flash }]}>1</Animated.Text>
+      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
+    </View>
+  );
+}
+
+function TransmitterDemo() {
+  const x = useRef(new Animated.Value(0)).current;
+  const markerOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+    );
+    loop.start();
+    const markerLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(markerOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
+        Animated.timing(markerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.delay(800),
+      ]),
+    );
+    markerLoop.start();
+    return () => { loop.stop(); markerLoop.stop(); };
+  }, [x, markerOpacity]);
+  const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, 64] });
+  return (
+    <View style={s.demoBox}>
+      <View style={s.demoTrack} />
+      <View style={s.configCenter} />
+      <Animated.View style={[s.dataMarker, { opacity: markerOpacity }]} />
       <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
     </View>
   );
@@ -889,6 +1044,82 @@ const s = StyleSheet.create({
     height: 6,
     borderRadius: 3,
     backgroundColor: '#00D4FF',
+  },
+  gearTrackH: {
+    position: 'absolute',
+    left: 8,
+    top: 16,
+    width: 32,
+    height: 2,
+    backgroundColor: 'rgba(0,212,255,0.3)',
+  },
+  gearTrackV: {
+    position: 'absolute',
+    left: 40,
+    top: 16,
+    width: 2,
+    height: 24,
+    backgroundColor: 'rgba(0,212,255,0.3)',
+  },
+  gearCorner: {
+    position: 'absolute',
+    left: 37,
+    top: 13,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#00D4FF',
+    backgroundColor: 'rgba(0,212,255,0.2)',
+  },
+  configCenter: {
+    position: 'absolute',
+    left: 37,
+    top: 18,
+    width: 6,
+    height: 10,
+    borderRadius: 1,
+    backgroundColor: 'rgba(167,139,250,0.5)',
+    borderWidth: 1,
+    borderColor: '#A78BFA',
+  },
+  configIndicator: {
+    position: 'absolute',
+    left: 38,
+    top: 10,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#4ecb8d',
+  },
+  splitterTrackDown: {
+    position: 'absolute',
+    left: 40,
+    top: 24,
+    width: 2,
+    height: 20,
+    backgroundColor: 'rgba(0,212,255,0.3)',
+  },
+  dataMarker: {
+    position: 'absolute',
+    left: 36,
+    top: 34,
+    width: 8,
+    height: 8,
+    borderRadius: 1,
+    backgroundColor: 'rgba(0,212,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.5)',
+  },
+  scanReadout: {
+    position: 'absolute',
+    left: 37,
+    top: 2,
+    width: 8,
+    textAlign: 'center',
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
   },
   demoText: {
     fontFamily: Fonts.exo2,

@@ -120,12 +120,16 @@ executes.
   AsyncStorage keys: axiom_tutorial_step_${levelId},
   axiom_tutorial_complete_${levelId},
   axiom_tutorial_skipped_${levelId}.
+  Tutorial steps defined for all 8 Axiom levels. New piece
+  introductions: Gear (A1-2), Config Node (A1-3), Splitter (A1-4),
+  Scanner (A1-5), Transmitter (A1-7). Board strategy steps on
+  A1-6 and A1-8.
 - CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 35 tests passing.
 
 **Known issues / in-flight:**
 
-- HUD tutorial system live on A1-1. A1-2 through A1-8 tutorial
-  steps to be added in Sprint 9.
+- HUD tutorial system complete across all 8 Axiom levels (A1-1
+  through A1-8). Full PieceSimulation parity in CodexDetailView.
 - Signal ball animation does not follow Gear bends correctly.
   Travels diagonally instead of hopping through each piece center.
 - Grid sizing: pieces still feel small on phone. CELL_SIZE min

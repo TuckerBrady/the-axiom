@@ -138,6 +138,27 @@ export const levelA1_2: LevelDefinition = {
     { key: 'a12_gear', trigger: 'onMount', text: 'Source and Output are not aligned. A Gear redirects the signal. Plan your path before placing.' },
     { key: 'a12_integrity', trigger: 'onSuccess', text: 'Chain Integrity: every piece you place should carry the signal. Pieces the signal skips cost points.' },
   ],
+  tutorialSteps: [
+    {
+      id: 'gear-intro',
+      label: 'GEAR',
+      targetRef: 'trayGear',
+      eyeState: 'amber',
+      message: 'The Gear. The only Physics piece that changes signal direction. It accepts input from any adjacent port and routes the signal outward. This is how a machine bends.',
+      highlightAmberWords: ['Gear'],
+      showDemo: true,
+      demoText: 'Signal enters from any side. Exits in a new direction. Place it at the corner of your path. Tap to rotate and set the output direction.',
+      codexEntryId: 'gear',
+    },
+    {
+      id: 'gear-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: 'Place the Conveyors to approach the bend. Then use the Gear to redirect. The signal follows the direction the Gear outputs. Plan the corner before placing anything.',
+      highlightWords: ['Gear'],
+    },
+  ],
 };
 
 pieceCounter = 200;
@@ -168,6 +189,27 @@ export const levelA1_3: LevelDefinition = {
     { key: 'a13_config', trigger: 'onMount', text: 'The Config Node only passes the signal when conditions are met. Connect the pieces. It handles the logic.' },
     { key: 'a13_precision', trigger: 'onSuccess', text: 'Protocol Precision: Protocol pieces touched by the signal score higher. Use them well.' },
   ],
+  tutorialSteps: [
+    {
+      id: 'confignode-intro',
+      label: 'CONFIG NODE',
+      targetRef: 'trayConfigNode',
+      eyeState: 'amber',
+      message: 'The Config Node. The first Protocol piece you will use. It does not carry signal blindly. It reads the current Configuration value and decides whether to pass or block. A gate with a condition.',
+      highlightAmberWords: ['Config Node'],
+      showDemo: true,
+      demoText: 'Signal arrives at the Config Node. The condition is checked. If the Configuration value matches, the gate opens. If it does not, the signal stops here.',
+      codexEntryId: 'config_node',
+    },
+    {
+      id: 'confignode-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'blue',
+      message: 'The Data Trail on this level sets the Configuration before the signal reaches the gate. Place the Config Node on the path. The condition is already met. The gate will open.',
+      highlightWords: ['Config Node', 'Data Trail'],
+    },
+  ],
 };
 
 pieceCounter = 300;
@@ -195,6 +237,27 @@ export const levelA1_4: LevelDefinition = {
   tutorialHints: [
     { key: 'a14_chain', trigger: 'onMount', text: 'Propulsion needs a longer path. Every piece you place should carry the signal. Nothing wasted.' },
     { key: 'a14_remove', trigger: 'onVoid', text: 'Remove any piece the signal did not reach. Dead weight costs points.' },
+  ],
+  tutorialSteps: [
+    {
+      id: 'splitter-intro',
+      label: 'SPLITTER',
+      targetRef: 'traySplitter',
+      eyeState: 'amber',
+      message: 'The Splitter. One input, two outputs. Used when the signal needs to reach multiple destinations or when a path must branch. Rarely optimal. Often necessary.',
+      highlightAmberWords: ['Splitter'],
+      showDemo: true,
+      demoText: 'Signal enters one side. Exits from two output ports simultaneously. Both paths must reach their destinations for the machine to complete.',
+      codexEntryId: 'splitter',
+    },
+    {
+      id: 'splitter-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: 'This route requires two Gears in sequence. Think about the direction the signal exits each Gear before placing the next piece. The path has a heading. Follow it.',
+      highlightWords: ['Gears'],
+    },
   ],
 };
 
@@ -225,6 +288,27 @@ export const levelA1_5: LevelDefinition = {
     { key: 'a15_trail', trigger: 'onMount', text: 'The Data Trail at the bottom is signal memory. The Scanner reads it cell by cell as the machine runs.' },
     { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
   ],
+  tutorialSteps: [
+    {
+      id: 'scanner-intro',
+      label: 'SCANNER',
+      targetRef: 'trayScanner',
+      eyeState: 'amber',
+      message: 'The Scanner. Reads the Data Trail at the current position and sets the Configuration value accordingly. What it reads determines what happens next. This is how the machine becomes aware of its own memory.',
+      highlightAmberWords: ['Scanner'],
+      showDemo: true,
+      demoText: 'The Scanner passes over the Data Trail. The value at that position is read. The Configuration updates. What the machine knows changes mid-execution.',
+      codexEntryId: 'scanner',
+    },
+    {
+      id: 'scanner-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'blue',
+      message: 'The Scanner reads. The Config Node decides. Connect them in sequence and the path will complete. The order of placement determines the order of execution.',
+      highlightWords: ['Scanner', 'Config Node'],
+    },
+  ],
 };
 
 pieceCounter = 500;
@@ -252,6 +336,23 @@ export const levelA1_6: LevelDefinition = {
   tutorialHints: [
     { key: 'a16_multi', trigger: 'onMount', text: 'Multiple Config Nodes. Each reads the trail and decides whether to pass the signal. Study the trail first.' },
     { key: 'a16_void', trigger: 'onVoid', text: 'A Config Node blocked the signal. The trail value there did not match. Rethink the sequence.' },
+  ],
+  tutorialSteps: [
+    {
+      id: 'multconfig-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'blue',
+      message: 'Multiple Config Nodes on this level. Each one checks the Configuration value independently. The Scanner sets it once. That value must be correct when the signal reaches every gate.',
+      highlightWords: ['Config Nodes', 'Scanner'],
+    },
+    {
+      id: 'multconfig-strategy',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'blue',
+      message: 'Read the full path before placing the first piece. If the Configuration is not set correctly before the first gate, nothing that follows will work. Plan in sequence.',
+    },
   ],
 };
 
@@ -281,6 +382,27 @@ export const levelA1_7: LevelDefinition = {
   tutorialHints: [
     { key: 'a17_transmitter', trigger: 'onMount', text: 'The Transmitter writes to the Data Trail. Scanner reads. Together they change what Config Nodes see. The machine can think.' },
     { key: 'a17_sequence', trigger: 'onFirstPiecePlaced', text: 'Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters.' },
+  ],
+  tutorialSteps: [
+    {
+      id: 'transmitter-intro',
+      label: 'TRANSMITTER',
+      targetRef: 'trayTransmitter',
+      eyeState: 'amber',
+      message: 'The Transmitter. Writes a value to the Data Trail. Where the Scanner reads, the Transmitter writes. Together they allow a machine to change what it knows mid-execution. The most powerful piece in the catalogue. Also the most dangerous to misplace.',
+      highlightAmberWords: ['Transmitter'],
+      showDemo: true,
+      demoText: 'The Transmitter writes to the Data Trail at its position. Place it before the Scanner on the signal path. The Scanner reads what the Transmitter wrote.',
+      codexEntryId: 'transmitter',
+    },
+    {
+      id: 'transmitter-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: 'The weapons systems were locked deliberately. The Transmitter sets the condition that unlocks them. Place it before the Config Node on the path. Sequence matters more than position.',
+      highlightWords: ['Transmitter', 'Config Node'],
+    },
   ],
 };
 
@@ -317,6 +439,23 @@ export const levelA1_8: LevelDefinition = {
     { key: 'a18_scoring', trigger: 'onMount', text: 'Your full score is now visible: Efficiency, Protocol, Integrity, Discipline, Speed. Three stars is the goal.' },
     { key: 'a18_discipline', trigger: 'onMount', text: 'Your discipline shapes your bonus. Play to your strengths — but every path to three stars is open.' },
     { key: 'a18_speed', trigger: 'onEngage', text: 'Timer running. Decisive solutions score higher.' },
+  ],
+  tutorialSteps: [
+    {
+      id: 'boss-tray',
+      label: 'PIECE TRAY',
+      targetRef: 'trayConveyor',
+      eyeState: 'blue',
+      message: 'The bridge is the last system. All piece types are available. Physics pieces move the signal. Protocol pieces condition it. The methodology built across this sector applies here.',
+      highlightWords: ['Physics', 'Protocol'],
+    },
+    {
+      id: 'boss-board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'blue',
+      message: 'No single piece solves this. Place them in the right sequence and the bridge comes online. The Axiom has been waiting for this.',
+    },
   ],
 };
 
