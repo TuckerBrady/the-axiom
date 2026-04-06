@@ -26,23 +26,29 @@ type Props = {
 
 const { width: W, height: H } = Dimensions.get('window');
 
-const BOOT_LINES = [
-  { text: '> AXIOM SYSTEMS — EMERGENCY RESTART INITIATED', color: Colors.red, delay: 300 },
-  { text: '> BIOS v4.7.2 ... OK', color: Colors.muted, delay: 900 },
-  { text: '> HULL INTEGRITY SYSTEMS ... OFFLINE', color: Colors.red, delay: 1300 },
-  { text: '> NAVIGATION MODULE ... OFFLINE', color: Colors.red, delay: 1700 },
-  { text: '> PROPULSION ARRAY ... DEGRADED', color: Colors.amber, delay: 2100 },
-  { text: '> LIFE SUPPORT ... DEGRADED', color: Colors.amber, delay: 2500 },
-  { text: '> COMMUNICATION ARRAY ... OFFLINE', color: Colors.red, delay: 2900 },
-  { text: '> SENSOR GRID ... OFFLINE', color: Colors.red, delay: 3300 },
-  { text: '> POWER CORE ... DEGRADED (31%)', color: Colors.amber, delay: 3700 },
-  { text: '> REPAIR PROTOCOLS ... MISSING', color: Colors.red, delay: 4100 },
-  { text: '', color: Colors.muted, delay: 4500 },
-  { text: '> C.O.G.S Unit 7 — locating AI core...', color: Colors.muted, delay: 4900 },
-  { text: '> C.O.G.S-7 core integrity ... 20% — CRITICAL', color: Colors.red, delay: 5600 },
-  { text: '', color: Colors.muted, delay: 6000 },
-  { text: '> Incoming transmission detected.', color: Colors.blue, delay: 6500 },
-  { text: '> Tap anywhere to receive.', color: Colors.starWhite, delay: 7200 },
+type BootEntry =
+  | { type: 'section'; text: string; delay: number }
+  | { type?: undefined; label: string; value: string; color: string; delay: number }
+  | { type?: undefined; text: string; color: string; plain: true; delay: number };
+
+const BOOT_LINES: BootEntry[] = [
+  { label: 'AXIOM SYSTEMS', value: 'EMERGENCY RESTART INITIATED', color: Colors.red, delay: 300 },
+  { label: 'BIOS v4.7.2', value: 'OK', color: Colors.muted, delay: 700 },
+  { type: 'section', text: '// SHIP SYSTEMS', delay: 950 },
+  { label: 'HULL INTEGRITY SYSTEMS', value: 'OFFLINE', color: Colors.red, delay: 1150 },
+  { label: 'NAVIGATION MODULE', value: 'OFFLINE', color: Colors.red, delay: 1450 },
+  { label: 'PROPULSION ARRAY', value: 'DEGRADED', color: Colors.amber, delay: 1750 },
+  { label: 'LIFE SUPPORT', value: 'DEGRADED', color: Colors.amber, delay: 2050 },
+  { label: 'COMMUNICATION ARRAY', value: 'OFFLINE', color: Colors.red, delay: 2350 },
+  { label: 'SENSOR GRID', value: 'OFFLINE', color: Colors.red, delay: 2650 },
+  { label: 'POWER CORE', value: 'DEGRADED (31%)', color: Colors.amber, delay: 2950 },
+  { label: 'REPAIR PROTOCOLS', value: 'MISSING', color: Colors.red, delay: 3250 },
+  { type: 'section', text: '// AI SYSTEMS', delay: 3500 },
+  { label: 'C.O.G.S UNIT 7', value: 'LOCATING AI CORE', color: Colors.muted, delay: 3750 },
+  { label: 'C.O.G.S UNIT 7 INTEGRITY', value: '20% — CRITICAL', color: Colors.red, delay: 4300 },
+  { type: 'section', text: '// INCOMING TRANSMISSION', delay: 4700 },
+  { text: 'Incoming transmission detected.', color: Colors.blue, plain: true, delay: 5000 },
+  { text: 'Tap anywhere to receive.', color: Colors.starWhite, plain: true, delay: 5600 },
 ];
 
 const BRACKET_SIZE = 20;
@@ -93,16 +99,42 @@ function ScanLine() {
   );
 }
 
-function BootLine({ text, color, delay }: { text: string; color: string; delay: number }) {
+function BootLine({ entry, isFirstSection }: { entry: BootEntry; isFirstSection: boolean }) {
   const opacity = useSharedValue(0);
   useEffect(() => {
-    opacity.value = withDelay(delay, withTiming(1, { duration: 150 }));
+    opacity.value = withDelay(entry.delay, withTiming(1, { duration: 200 }));
   }, []);
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  if (!text) return <View style={{ height: 8 }} />;
+
+  if (entry.type === 'section') {
+    return (
+      <Animated.Text
+        style={[
+          s.section,
+          isFirstSection && { marginTop: 0 },
+          style,
+        ]}
+      >
+        {entry.text}
+      </Animated.Text>
+    );
+  }
+
+  if ('plain' in entry) {
+    return (
+      <Animated.Text style={[s.bootLine, style]}>
+        <Text style={s.prompt}>{'> '}</Text>
+        <Text style={{ color: entry.color }}>{entry.text}</Text>
+      </Animated.Text>
+    );
+  }
+
   return (
-    <Animated.Text style={[s.bootLine, { color }, style]}>
-      {text}
+    <Animated.Text style={[s.bootLine, style]} numberOfLines={1}>
+      <Text style={s.prompt}>{'> '}</Text>
+      <Text style={{ color: entry.color }}>{entry.label}</Text>
+      <Text style={{ color: entry.color }}> ... </Text>
+      <Text style={{ color: entry.color }}>{entry.value}</Text>
     </Animated.Text>
   );
 }
@@ -113,7 +145,7 @@ export default function BootScreen({ navigation }: Props) {
 
   useEffect(() => {
     headerOpacity.value = withDelay(100, withTiming(1, { duration: 600 }));
-    const timer = setTimeout(() => setReady(true), 7000);
+    const timer = setTimeout(() => setReady(true), 5800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -155,9 +187,12 @@ export default function BootScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         pointerEvents="none"
       >
-        {BOOT_LINES.map((line, i) => (
-          <BootLine key={i} {...line} />
-        ))}
+        {BOOT_LINES.map((line, i) => {
+          const isFirstSection =
+            line.type === 'section' &&
+            BOOT_LINES.findIndex((l) => l.type === 'section') === i;
+          return <BootLine key={i} entry={line} isFirstSection={isFirstSection} />;
+        })}
         <Animated.Text style={[s.bootLine, { color: Colors.blue }, cursorStyle]}>
           {'> _'}
         </Animated.Text>
@@ -246,9 +281,24 @@ const s = StyleSheet.create({
   },
   bootLine: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 11,
+    fontSize: 11.5,
     letterSpacing: 0.5,
-    lineHeight: 20,
+    lineHeight: 26,
+  },
+  prompt: {
+    fontFamily: Fonts.spaceMono,
+    color: Colors.muted,
+  },
+  section: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 3,
+    color: '#e8f4ff',
+    marginTop: 14,
+    paddingBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(232,244,255,0.08)',
+    marginBottom: 3,
   },
   tapHint: {
     alignItems: 'center',
