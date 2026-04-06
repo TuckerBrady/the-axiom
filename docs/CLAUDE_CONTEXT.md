@@ -114,10 +114,18 @@ executes.
 - Conveyor directional indicator: input circle (signal enters) = amber #F0B429. Output circle (signal exits) = green #00C48C. Body rect and arrow = blue #00D4FF. Direction is legible at all 4 rotation states.
 - PieceIcon extracted to src/components/PieceIcon.tsx. Single source of truth used by both CodexScreen and GameplayScreen. Codex icon designs are canonical. Do not create local PieceIcon implementations in individual screens.
 - Codex detail view redesigned: hero (icon + name + type badge) -> first encountered -> field simulation -> C.O.G.S NOTES (teaching mode, single merged section). Stats row removed. Seen in missions section removed.
+- HUD tutorial overlay system: spotlight targeting, live demo
+  panels, Codex entry slide-up reveal with pixel dissolve,
+  back/forward navigation, AsyncStorage step persistence.
+  AsyncStorage keys: axiom_tutorial_step_${levelId},
+  axiom_tutorial_complete_${levelId},
+  axiom_tutorial_skipped_${levelId}.
 - CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 35 tests passing.
 
 **Known issues / in-flight:**
 
+- HUD tutorial system live on A1-1. A1-2 through A1-8 tutorial
+  steps to be added in Sprint 9.
 - Signal ball animation does not follow Gear bends correctly.
   Travels diagonally instead of hopping through each piece center.
 - Grid sizing: pieces still feel small on phone. CELL_SIZE min

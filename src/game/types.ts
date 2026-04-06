@@ -100,6 +100,7 @@ export type LevelDefinition = {
   systemRepaired?: string;
   budget?: number;
   tutorialHints?: TutorialHint[];
+  tutorialSteps?: TutorialStep[];
   scoringCategoriesVisible?: ScoringCategory[];
   // Consequence levels — undefined for normal levels
   consequence?: ConsequenceConfig;
@@ -201,6 +202,21 @@ export type TutorialHint = {
   key: string;
   trigger: TutorialTrigger;
   text: string;
+};
+
+export type TutorialStepEye = 'blue' | 'amber';
+
+export type TutorialStep = {
+  id: string;
+  label: string;
+  targetRef: string;
+  eyeState: TutorialStepEye;
+  message: string;
+  highlightWords?: string[];
+  highlightAmberWords?: string[];
+  showDemo?: boolean;
+  demoText?: string;
+  codexEntryId?: string;
 };
 
 // ─── Scoring Category Visibility ─────────────────────────────────────────────

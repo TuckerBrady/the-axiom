@@ -38,6 +38,7 @@ import { useEconomyStore } from '../store/economyStore';
 import { calculateScore, getCOGSScoreComment, getTutorialCOGSComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
+import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
@@ -130,6 +131,13 @@ export default function GameplayScreen({ navigation }: Props) {
   const [currentHint, setCurrentHint] = useState<{ key: string; text: string } | null>(null);
   const [hintQueue, setHintQueue] = useState<{ key: string; text: string }[]>([]);
   const hintTriggered = useRef<Set<string>>(new Set());
+  const sourceNodeRef = useRef<View>(null);
+  const outputNodeRef = useRef<View>(null);
+  const boardGridRef = useRef<View>(null);
+  const engageButtonRef = useRef<View>(null);
+  const trayConveyorRef = useRef<View>(null);
+  const [tutorialComplete, setTutorialComplete] = useState(false);
+  const [tutorialSkipped, setTutorialSkipped] = useState(false);
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
   const [creditError, setCreditError] = useState(false);
 
@@ -185,8 +193,21 @@ export default function GameplayScreen({ navigation }: Props) {
   const isReplay = level ? isLevelDone(level.id) : false;
   const isAxiomLevel = level?.sector === 'axiom';
 
+  // ── HUD tutorial overlay hydration ──
+  useEffect(() => {
+    if (!level || !isAxiomLevel || isReplay) return;
+    if (!level.tutorialSteps || level.tutorialSteps.length === 0) return;
+    (async () => {
+      const done = await AsyncStorage.getItem(`axiom_tutorial_complete_${level.id}`);
+      const skipped = await AsyncStorage.getItem(`axiom_tutorial_skipped_${level.id}`);
+      if (done) setTutorialComplete(true);
+      if (skipped) setTutorialSkipped(true);
+    })();
+  }, [level?.id, isAxiomLevel, isReplay]);
+
   useEffect(() => {
     if (!level || !isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if ((level.tutorialSteps?.length ?? 0) > 0) return;
     (async () => {
       const onMountHints: { key: string; text: string }[] = [];
       for (const h of level.tutorialHints!) {
@@ -610,7 +631,7 @@ export default function GameplayScreen({ navigation }: Props) {
             );
           }}
         >
-          <View style={[styles.canvas, { width: gridW, height: gridH }]}>
+          <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
             {/* Dot grid */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
@@ -685,6 +706,7 @@ export default function GameplayScreen({ navigation }: Props) {
               return (
                 <Pressable
                   key={piece.id}
+                  ref={isSource ? sourceNodeRef : isOutput ? outputNodeRef : undefined}
                   style={[
                     styles.piece,
                     {
@@ -802,6 +824,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 return (
                   <TouchableOpacity
                     key={pt}
+                    ref={pt === 'conveyor' ? trayConveyorRef : undefined}
                     style={[
                       styles.trayItem,
                       isActive && { borderColor: color, backgroundColor: `${color}15` },
@@ -872,6 +895,7 @@ export default function GameplayScreen({ navigation }: Props) {
               <Text style={styles.resetBtnText}>RESET</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              ref={engageButtonRef}
               style={[styles.engageBtn, !hasPlacedPieces && styles.engageBtnDisabled]}
               onPress={handleEngage}
               activeOpacity={0.85}
@@ -1232,6 +1256,24 @@ export default function GameplayScreen({ navigation }: Props) {
             <Text style={styles.completionText}>{completionText}</Text>
           </View>
         </View>
+      )}
+
+      {/* ── HUD Tutorial Overlay ── */}
+      {!tutorialComplete && !tutorialSkipped && !isReplay &&
+        level?.sector === 'axiom' && (level?.tutorialSteps?.length ?? 0) > 0 && (
+        <TutorialHUDOverlay
+          steps={level!.tutorialSteps!}
+          levelId={level!.id}
+          targetRefs={{
+            sourceNode: sourceNodeRef,
+            outputNode: outputNodeRef,
+            boardGrid: boardGridRef,
+            engageButton: engageButtonRef,
+            trayConveyor: trayConveyorRef,
+          }}
+          onComplete={() => setTutorialComplete(true)}
+          onSkip={() => setTutorialSkipped(true)}
+        />
       )}
     </Animated.View>
   );

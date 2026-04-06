@@ -1,0 +1,499 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Animated as RNAnimated,
+  Easing as RNEasing,
+} from 'react-native';
+import Svg, { Circle as SvgCircle, Rect as SvgRect, Line as SvgLine, Text as SvgText } from 'react-native-svg';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { PieceIcon } from './PieceIcon';
+import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+
+// ─── Local PieceEntry type (mirrors CodexScreen) ───────────────────────────
+
+export type CodexPieceType = 'Physics' | 'Protocol';
+
+export type PieceEntry = {
+  id: string;
+  name: string;
+  type: CodexPieceType;
+  description: string;
+  cogsNote: string;
+  firstEncountered: string;
+};
+
+// Minimal local Codex data covering the 8 unlocked pieces. Source of truth
+// is CodexScreen — kept in sync manually.
+export const CODEX_PIECES: PieceEntry[] = [
+  { id: 'conveyor', name: 'Conveyor', type: 'Physics',
+    description: 'A mechanical belt that accepts an item on one end and delivers it to the other. No branching. No memory.',
+    cogsNote: 'The Conveyor carries signal in a straight line. Input enters from the rear, output exits the front. It cannot bend, branch, or redirect \u2014 that is not what it is for. Direction is set before you place it, not after. A Conveyor facing away from the signal source is not a Conveyor. It is a dead end. Rotate first.',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
+  { id: 'source', name: 'Source', type: 'Physics',
+    description: 'Primary input node. The origin of all signal flow aboard the vessel.',
+    cogsNote: 'The Source is not a piece you place. It is fixed infrastructure \u2014 part of the ship itself. Signal begins here and nowhere else.',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
+  { id: 'output', name: 'Output', type: 'Physics',
+    description: 'Terminal destination node. Accepts the final signal and confirms circuit completion.',
+    cogsNote: 'The Output is also fixed \u2014 you route to it, not with it. When signal arrives here, the system activates.',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
+  { id: 'gear', name: 'Gear', type: 'Physics',
+    description: 'A rotational transmission component. Accepts signal from one direction and redirects it ninety degrees.',
+    cogsNote: 'The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns \u2014 90 degrees, to any perpendicular exit.',
+    firstEncountered: 'THE AXIOM \u2014 A1-2 Life Support' },
+  { id: 'splitter', name: 'Splitter', type: 'Physics',
+    description: 'Divides a single signal path into two parallel streams without amplification loss.',
+    cogsNote: 'The Splitter divides a single signal into two parallel paths. Both carry the complete signal \u2014 nothing is lost, nothing is reduced.',
+    firstEncountered: 'THE AXIOM \u2014 A1-4 Propulsion Core' },
+  { id: 'config_node', name: 'Config Node', type: 'Protocol',
+    description: 'A programmable routing node that modifies the behaviour of adjacent components based on set parameters.',
+    cogsNote: 'The Config Node is a conditional gate. Signal passes through only when the current Data Trail value satisfies the Node\u2019s configured condition.',
+    firstEncountered: 'THE AXIOM \u2014 A1-3 Navigation Array' },
+  { id: 'scanner', name: 'Scanner', type: 'Protocol',
+    description: 'Reads the state of a connected piece and broadcasts its status to any listening nodes on the circuit.',
+    cogsNote: 'The Scanner reads the Data Trail at the moment signal passes through it. That value is captured and stored \u2014 available to any Config Node that follows it.',
+    firstEncountered: 'THE AXIOM \u2014 A1-5 Communication Array' },
+  { id: 'transmitter', name: 'Transmitter', type: 'Protocol',
+    description: 'Broadcasts a signal wirelessly across non-adjacent grid positions to a designated receiver.',
+    cogsNote: 'The Transmitter writes a configured value to the Data Trail at the moment signal passes through it \u2014 overwriting whatever was there.',
+    firstEncountered: 'THE AXIOM \u2014 A1-7 Weapons Lock' },
+];
+
+export function getCodexEntry(id: string): PieceEntry | null {
+  return CODEX_PIECES.find(p => p.id === id) ?? null;
+}
+
+// ─── Local PieceSimulation (compact port) ──────────────────────────────────
+
+const SIM_W = 326;
+const SIM_H = 140;
+
+function getCell(col: number, row: number, cols: number, rows: number) {
+  const CELL = Math.min(Math.floor((SIM_W - 32) / cols), Math.floor((SIM_H - 24) / rows));
+  const ox = (SIM_W - cols * CELL) / 2;
+  const oy = (SIM_H - rows * CELL) / 2;
+  return { x: ox + col * CELL + CELL / 2, y: oy + row * CELL + CELL / 2, r: CELL };
+}
+
+function DrawConn({ x1, y1, x2, y2, lit }: { x1: number; y1: number; x2: number; y2: number; lit?: boolean }) {
+  return <SvgLine x1={x1} y1={y1} x2={x2} y2={y2} stroke={lit ? '#00D4FF' : 'rgba(0,212,255,0.1)'} strokeWidth={lit ? 2 : 1} />;
+}
+
+function SimPiece({ cell, type, color }: { cell: { x: number; y: number; r: number }; type: string; color: string }) {
+  const sz = cell.r * 0.8;
+  return (
+    <View style={{ position: 'absolute', left: cell.x - sz / 2, top: cell.y - sz / 2, width: sz, height: sz, alignItems: 'center', justifyContent: 'center' }}>
+      <PieceIcon type={type} size={sz} color={color} />
+    </View>
+  );
+}
+
+function interpPath(waypoints: { x: number; y: number }[], tVal: number, tEnd: number) {
+  const p = Math.min(tVal / tEnd, 1);
+  const seg = p * (waypoints.length - 1);
+  const i = Math.min(Math.floor(seg), waypoints.length - 2);
+  const frac = seg - i;
+  return {
+    x: waypoints[i].x + (waypoints[i + 1].x - waypoints[i].x) * frac,
+    y: waypoints[i].y + (waypoints[i + 1].y - waypoints[i].y) * frac,
+  };
+}
+
+function PieceSimulation({ pieceType }: { pieceType: string }) {
+  const animVal = useRef(new RNAnimated.Value(0)).current;
+  const [t, setT] = useState(0);
+
+  useEffect(() => {
+    const id = animVal.addListener(({ value }) => setT(value));
+    const loop = RNAnimated.loop(
+      RNAnimated.timing(animVal, { toValue: 1, duration: 3600, easing: RNEasing.linear, useNativeDriver: false }),
+    );
+    loop.start();
+    return () => { loop.stop(); animVal.removeListener(id); };
+  }, [pieceType]);
+
+  // Conveyor / output / source: simple straight track. Default catch-all.
+  const type = pieceType === 'config_node' ? 'configNode' : pieceType;
+  const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), C2 = getCell(2, 1, 5, 3), C3 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+  const ball = t < 0.85 ? interpPath([S, C1, C2, C3, O], t, 0.85) : O;
+
+  const pieces: { cell: { x: number; y: number; r: number }; type: string; color: string }[] = [
+    { cell: S, type: 'source', color: '#F0B429' },
+    { cell: C1, type: type === 'gear' ? 'gear' : 'conveyor', color: '#00D4FF' },
+    { cell: C2, type: type === 'gear' ? 'conveyor' : type === 'configNode' ? 'configNode' : type === 'scanner' ? 'scanner' : type === 'transmitter' ? 'transmitter' : type === 'splitter' ? 'splitter' : 'conveyor', color: type === 'configNode' || type === 'scanner' || type === 'transmitter' ? '#A78BFA' : '#00D4FF' },
+    { cell: C3, type: 'conveyor', color: '#00D4FF' },
+    { cell: O, type: 'output', color: '#00C48C' },
+  ];
+
+  return (
+    <View style={simStyles.container}>
+      <Text style={simStyles.label}>FIELD SIMULATION</Text>
+      <View style={[simStyles.canvas, { position: 'relative' }]}>
+        <Svg width={SIM_W} height={SIM_H}>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={C2.x} y2={C2.y} lit={t > 0.25} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={C3.x} y2={C3.y} lit={t > 0.48} />
+          <DrawConn x1={C3.x} y1={C3.y} x2={O.x} y2={O.y} lit={t > 0.68} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </Svg>
+        {pieces.map((p, i) => (
+          <SimPiece key={i} cell={p.cell} type={p.type} color={p.color} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── CodexDetailView component ─────────────────────────────────────────────
+
+interface Props {
+  entry: PieceEntry;
+  onUnderstood: () => void;
+  entryNumber?: number;
+}
+
+export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }: Props) {
+  const reveal = useSharedValue(0);
+  const loggedSlide = useSharedValue(-40);
+
+  const isPhysics = entry.type === 'Physics';
+  const accent = isPhysics
+    ? { bg: 'rgba(74,158,255,0.08)', border: 'rgba(74,158,255,0.28)', text: Colors.blue }
+    : { bg: 'rgba(200,121,65,0.08)', border: 'rgba(200,121,65,0.28)', text: Colors.copper };
+  const atmosphereColor = isPhysics ? 'rgba(74,158,255,0.06)' : 'rgba(200,121,65,0.06)';
+
+  useEffect(() => {
+    reveal.value = withTiming(1, { duration: 400 });
+    loggedSlide.value = withTiming(0, { duration: 600 });
+  }, []);
+
+  const screenStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
+  const loggedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: loggedSlide.value }],
+    opacity: reveal.value,
+  }));
+
+  return (
+    <Animated.View style={[{ flex: 1, backgroundColor: Colors.void }, screenStyle]}>
+      {/* Atmosphere gradient */}
+      <LinearGradient
+        colors={[atmosphereColor, 'transparent']}
+        style={st.atmosphereGradient}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+      />
+
+      {/* COGS chrome bar */}
+      <View style={st.chromeBar}>
+        <View style={st.chromeLeft}>
+          <View style={st.chromeDot} />
+          <Text style={st.chromeLabel}>C.O.G.S</Text>
+        </View>
+        <Text style={st.chromeRight}>ENTRY {String(entryNumber).padStart(3, '0')}</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={st.scroll} showsVerticalScrollIndicator={false}>
+        {/* Hero */}
+        <View style={st.hero}>
+          <View style={[st.iconBox, { backgroundColor: accent.bg, borderColor: accent.border }]}>
+            <PieceIcon type={entry.id} size={32} />
+          </View>
+          <Text style={st.heroName}>{entry.name.toUpperCase()}</Text>
+          <View style={[st.typeBadge, { backgroundColor: accent.bg, borderColor: accent.border }]}>
+            <Text style={[st.typeBadgeText, { color: accent.text }]}>
+              {isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE'}
+            </Text>
+          </View>
+          <Animated.View style={[st.loggedBadge, loggedStyle]}>
+            <Text style={st.loggedBadgeText}>LOGGED TO CODEX</Text>
+          </Animated.View>
+        </View>
+
+        {/* First encountered */}
+        <View style={st.firstEnc}>
+          <Text style={st.firstEncLabel}>FIRST ENCOUNTERED</Text>
+          <Text style={st.firstEncValue}>{entry.firstEncountered}</Text>
+        </View>
+
+        {/* Field simulation */}
+        <PieceSimulation pieceType={entry.id} />
+
+        {/* C.O.G.S NOTES */}
+        <View style={st.cogsCardWrap}>
+          <View style={st.cogsCard}>
+            <View style={st.cogsHeader}>
+              <View style={st.cogsEyeIcon}>
+                <View style={st.cogsEyeDot} />
+              </View>
+              <Text style={st.cogsLabel}>C.O.G.S NOTES</Text>
+              <View style={st.teachBadge}>
+                <Text style={st.teachBadgeText}>TEACHING</Text>
+              </View>
+            </View>
+            <Text style={st.cogsDescription}>{entry.description}</Text>
+            <Text style={st.cogsText}>{entry.cogsNote}</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Bottom action bar */}
+      <View style={st.actionBar}>
+        <Text style={st.actionLabel}>ENTRY LOGGED</Text>
+        <TouchableOpacity style={st.understoodBtn} onPress={onUnderstood} activeOpacity={0.8}>
+          <Text style={st.understoodText}>UNDERSTOOD</Text>
+        </TouchableOpacity>
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── Styles ────────────────────────────────────────────────────────────────
+
+const simStyles = StyleSheet.create({
+  container: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: '#0a1628',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.25)',
+    borderRadius: 14,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  label: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
+    letterSpacing: 2,
+  },
+  canvas: {
+    width: SIM_W,
+    height: SIM_H,
+    alignSelf: 'center',
+  },
+});
+
+const st = StyleSheet.create({
+  atmosphereGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '30%',
+  },
+  chromeBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg + 24,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,212,255,0.12)',
+  },
+  chromeLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  chromeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#00D4FF',
+  },
+  chromeLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#00D4FF',
+    letterSpacing: 2,
+  },
+  chromeRight: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: Colors.muted,
+    letterSpacing: 2,
+  },
+  scroll: {
+    paddingBottom: 100,
+  },
+  hero: {
+    alignItems: 'center',
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xl,
+    gap: Spacing.md,
+  },
+  iconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroName: {
+    fontFamily: Fonts.orbitron,
+    fontSize: FontSizes.xxl,
+    fontWeight: 'bold',
+    color: Colors.starWhite,
+    letterSpacing: 4,
+    marginTop: Spacing.sm,
+  },
+  typeBadge: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xs,
+  },
+  typeBadgeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: FontSizes.xs,
+    letterSpacing: 2,
+  },
+  loggedBadge: {
+    borderWidth: 1,
+    borderColor: Colors.copper,
+    backgroundColor: 'rgba(200,121,65,0.10)',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginTop: Spacing.sm,
+  },
+  loggedBadgeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.copper,
+    letterSpacing: 2,
+  },
+  firstEnc: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: 'rgba(78,203,141,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(78,203,141,0.2)',
+    borderRadius: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  firstEncLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.green,
+    letterSpacing: 1,
+  },
+  firstEncValue: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.starWhite,
+  },
+  cogsCardWrap: {
+    paddingHorizontal: Spacing.lg,
+    gap: Spacing.md,
+  },
+  cogsCard: {
+    backgroundColor: 'rgba(10,22,40,0.7)',
+    borderWidth: 1,
+    borderColor: 'rgba(240,180,41,0.2)',
+    borderRadius: 12,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  cogsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  cogsEyeIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: '#00C48C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cogsEyeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#00C48C',
+  },
+  cogsLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.amber,
+    letterSpacing: 2,
+    flex: 1,
+  },
+  teachBadge: {
+    borderWidth: 1,
+    borderColor: '#00C48C',
+    borderRadius: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  teachBadgeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: '#00C48C',
+    letterSpacing: 1,
+  },
+  cogsDescription: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13,
+    color: Colors.muted,
+    lineHeight: 13 * 1.6,
+  },
+  cogsText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13.5,
+    fontStyle: 'italic',
+    color: 'rgba(232,240,255,0.8)',
+    lineHeight: 13.5 * 1.65,
+  },
+  actionBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    paddingBottom: Spacing.xl,
+    backgroundColor: 'rgba(2,5,14,0.96)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,212,255,0.16)',
+  },
+  actionLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    letterSpacing: 2,
+  },
+  understoodBtn: {
+    borderWidth: 1,
+    borderColor: Colors.amber,
+    backgroundColor: 'rgba(240,180,41,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  understoodText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: Colors.amber,
+    letterSpacing: 2,
+  },
+});

@@ -65,6 +65,51 @@ export const levelA1_1: LevelDefinition = {
     { key: 'a11_void', trigger: 'onVoid', text: 'The signal could not reach Output. Check your connections.' },
     { key: 'a11_success', trigger: 'onSuccess', text: 'Emergency power restored. Source to Output. That is how every machine works.' },
   ],
+  tutorialSteps: [
+    {
+      id: 'source',
+      label: 'SOURCE NODE',
+      targetRef: 'sourceNode',
+      eyeState: 'blue',
+      message: 'This is the Source Node. Every machine on this ship starts here. Signal originates from this point. It is fixed. You work from it.',
+      highlightWords: ['Source Node'],
+    },
+    {
+      id: 'output',
+      label: 'OUTPUT NODE',
+      targetRef: 'outputNode',
+      eyeState: 'blue',
+      message: 'This is the Output Node. Your objective on every level. Connect a signal path from Source to Output and the circuit locks. Emergency power comes back online.',
+      highlightWords: ['Output Node'],
+    },
+    {
+      id: 'conveyor',
+      label: 'CONVEYOR',
+      targetRef: 'trayConveyor',
+      eyeState: 'amber',
+      message: 'First piece in your tray. The Conveyor. Before you place it, I am going to show you exactly how it works.',
+      highlightAmberWords: ['Conveyor'],
+      showDemo: true,
+      demoText: 'Signal enters one end. Exits the other. Straight line only. Tap a placed Conveyor to rotate it. Four orientations available.',
+      codexEntryId: 'conveyor',
+    },
+    {
+      id: 'board',
+      label: 'GAME BOARD',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: 'Place Conveyors in a straight line between Source and Output. Tap a placed piece to rotate it. The signal follows orientation. Build the path.',
+      highlightWords: ['rotate it'],
+    },
+    {
+      id: 'engage',
+      label: 'ENGAGE',
+      targetRef: 'engageButton',
+      eyeState: 'blue',
+      message: 'Path is set. Press Engage. The machine runs. Signal reaches Output. Emergency power restored. The Axiom comes back online.',
+      highlightWords: ['Engage'],
+    },
+  ],
 };
 
 pieceCounter = 100;

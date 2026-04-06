@@ -31,7 +31,7 @@ const { width: W } = Dimensions.get('window');
 type PieceType = 'Physics' | 'Protocol';
 type EntryStatus = 'unlocked' | 'redacted';
 
-type PieceEntry = {
+export type PieceEntry = {
   id: string;
   name: string;
   type: PieceType;
