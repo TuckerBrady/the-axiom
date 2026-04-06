@@ -333,7 +333,11 @@ No emojis in commit messages. Ever.
 
 1. Read this file completely before doing anything else.
 2. Read docs/DEVENV.md for full technical setup details.
-3. Check GitHub Actions tab to confirm CI is green before adding work.
+3. Read docs/NARRATIVE.md for the complete story bible, sector arcs, level cogsLines, and all approved dialogue.
+4. Read docs/DIALOGUE_SYSTEM.md for post-level COGS discipline dialogue and arc lines.
+5. Read docs/BOUNTY_SYSTEM.md for the daily challenge generative architecture and all bounty content.
+6. All story content requires Tucker Brady sign-off before implementation. Nothing in those documents enters the codebase without explicit approval.
+7. Check GitHub Actions tab to confirm CI is green before adding work.
 4. Ask Tucker what is needed. Do not assume from old context.
 5. Write a Claude Code prompt with QUALITY GATES block at the bottom.
 6. Tucker pastes into VS Code terminal. Claude Code runs autonomously.
