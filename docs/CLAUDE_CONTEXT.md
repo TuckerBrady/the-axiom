@@ -124,6 +124,10 @@ executes.
   introductions: Gear (A1-2), Config Node (A1-3), Splitter (A1-4),
   Scanner (A1-5), Transmitter (A1-7). Board strategy steps on
   A1-6 and A1-8.
+  Sprint 10: orb morph system replaces spotlight. COGS orb flies
+  between targets, morphs into portal square on arrival, collapses
+  back to orb on advance. Callout floats near portal. Minimal nav
+  strip. Demo ball positions fixed across all 5 piece types.
 - CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 35 tests passing.
 
 **Known issues / in-flight:**
