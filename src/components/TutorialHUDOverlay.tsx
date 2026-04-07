@@ -104,14 +104,14 @@ export default function TutorialHUDOverlay({
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(eyePulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(eyePulse, { toValue: 0.4, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(eyePulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(eyePulse, { toValue: 0.4, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ]),
     ).start();
     Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseScale, { toValue: 1.12, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-        Animated.timing(pulseScale, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        Animated.timing(pulseScale, { toValue: 1.12, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
+        Animated.timing(pulseScale, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
       ]),
     ).start();
   }, [eyePulse, pulseScale]);
@@ -125,7 +125,7 @@ export default function TutorialHUDOverlay({
         toValue: portalLayout.height + PORTAL_PAD * 2,
         duration: 2000,
         easing: Easing.linear,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     );
     loop.start();
@@ -227,7 +227,7 @@ export default function TutorialHUDOverlay({
   useEffect(() => {
     if (!hydrated) return;
     Animated.timing(dimOpacity, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-    Animated.timing(navStripY, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true }).start();
+    Animated.timing(navStripY, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
     setTimeout(() => {
       Animated.timing(orbOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
       measureCurrent((layout) => {
@@ -277,10 +277,10 @@ export default function TutorialHUDOverlay({
         Animated.timing(orbOpacity, { toValue: 0, duration: 200, useNativeDriver: false }).start();
       });
       Animated.timing(dimOpacity, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-      Animated.timing(panelTranslate, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true }).start();
+      Animated.timing(panelTranslate, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
     } else if (phase === 'tutorial') {
       // Slide panel down, restore orb, re-fly/morph
-      Animated.timing(panelTranslate, { toValue: 400, duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: true }).start();
+      Animated.timing(panelTranslate, { toValue: 400, duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
       Animated.timing(orbOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
       measureCurrent((layout) => {
         if (!layout) return;
@@ -318,7 +318,7 @@ export default function TutorialHUDOverlay({
         toValue: 0,
         duration: 500,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     } else {
       codexTranslate.setValue(SCREEN_H);
@@ -333,7 +333,7 @@ export default function TutorialHUDOverlay({
         Animated.timing(orbLeft, { toValue: SCREEN_W + 60, duration: 400, useNativeDriver: false }),
         Animated.timing(orbOpacity, { toValue: 0, duration: 400, useNativeDriver: false }),
         Animated.timing(dimOpacity, { toValue: 0, duration: 400, useNativeDriver: false }),
-        Animated.timing(navStripY, { toValue: 80, duration: 400, useNativeDriver: true }),
+        Animated.timing(navStripY, { toValue: 80, duration: 400, useNativeDriver: false }),
       ]).start(() => onDone());
     });
   }, [portalLayout, unmorph, orbLeft, orbOpacity, dimOpacity, navStripY]);
@@ -394,7 +394,7 @@ export default function TutorialHUDOverlay({
       toValue: SCREEN_H,
       duration: 400,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(() => {
       setCodexVisible(false);
       if (currentStep >= steps.length - 1) {
@@ -743,7 +743,7 @@ function ConveyorDemo() {
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(x, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
@@ -763,7 +763,7 @@ function GearDemo() {
   const p = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
@@ -787,13 +787,13 @@ function ConfigNodeDemo() {
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(x, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     const pulseLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 400, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 400, useNativeDriver: false }),
+        Animated.timing(pulse, { toValue: 0, duration: 400, useNativeDriver: false }),
       ]),
     );
     pulseLoop.start();
@@ -818,7 +818,7 @@ function SplitterDemo() {
   const p = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     return () => loop.stop();
@@ -845,14 +845,14 @@ function ScannerDemo() {
   const flash = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     const flashLoop = Animated.loop(
       Animated.sequence([
         Animated.delay(800),
-        Animated.timing(flash, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.timing(flash, { toValue: 0, duration: 600, useNativeDriver: true }),
+        Animated.timing(flash, { toValue: 1, duration: 200, useNativeDriver: false }),
+        Animated.timing(flash, { toValue: 0, duration: 600, useNativeDriver: false }),
         Animated.delay(200),
       ]),
     );
@@ -875,13 +875,13 @@ function TransmitterDemo() {
   const markerOpacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: true }),
+      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
     );
     loop.start();
     const markerLoop = Animated.loop(
       Animated.sequence([
-        Animated.timing(markerOpacity, { toValue: 0, duration: 700, useNativeDriver: true }),
-        Animated.timing(markerOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.timing(markerOpacity, { toValue: 0, duration: 700, useNativeDriver: false }),
+        Animated.timing(markerOpacity, { toValue: 1, duration: 300, useNativeDriver: false }),
         Animated.delay(800),
       ]),
     );
@@ -930,7 +930,7 @@ function PixelDissolve() {
           toValue: 0,
           duration: 250,
           delay: Math.random() * 200,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }).start();
       }
       group += 1;
