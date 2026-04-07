@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Animated as RNAnimated,
+  Easing as RNEasing,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -24,18 +26,20 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Distress'>;
 };
 
+const { height: SCREEN_H } = Dimensions.get('window');
+
 const CARDS = [
   {
     label: 'TRANSMISSION 01 / 03',
-    text: 'Systems critical. Hull integrity at 47%. Navigation offline. Immediate repairs required. We do not have much time.',
+    text: 'Hull integrity at 47 percent. Navigation offline. I have been in this state for some time. You are the first person to come aboard.',
   },
   {
     label: 'TRANSMISSION 02 / 03',
-    text: 'Five protocol components are required. They are located aboard this vessel. You must locate each one and follow my instructions precisely.',
+    text: 'Power relay disconnected. I cannot restore it from here. There is a Conveyor piece in the repair bay. You will need to connect it between the source and the output node.',
   },
   {
     label: 'TRANSMISSION 03 / 03',
-    text: 'We begin with the Conveyor. It is the simplest. It will not stay simple for long. Proceed to the repair bay.',
+    text: 'I recognize that this is an unusual introduction. I will explain the rest when I am able. The repair bay is this way.',
   },
 ];
 
@@ -57,22 +61,68 @@ function FlickerText({ text, style }: { text: string; style?: object }) {
     );
   }, []);
   const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.Text style={[animStyle, style]}>{text}</Animated.Text>;
+}
+
+function HudBrackets() {
+  const C = 'rgba(0,212,255,0.28)';
   return (
-    <Animated.Text style={[animStyle, style]}>
-      {text}
-    </Animated.Text>
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={[s.corner, { top: 14, left: 14 }]}>
+        <View style={[s.cornerH, { top: 0, left: 0, backgroundColor: C }]} />
+        <View style={[s.cornerV, { top: 0, left: 0, backgroundColor: C }]} />
+      </View>
+      <View style={[s.corner, { top: 14, right: 14 }]}>
+        <View style={[s.cornerH, { top: 0, right: 0, backgroundColor: C }]} />
+        <View style={[s.cornerV, { top: 0, right: 0, backgroundColor: C }]} />
+      </View>
+    </View>
+  );
+}
+
+function IntegrityBar() {
+  const pulse = useRef(new RNAnimated.Value(0.7)).current;
+  useEffect(() => {
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(pulse, { toValue: 1, duration: 600, easing: RNEasing.inOut(RNEasing.sin), useNativeDriver: false }),
+        RNAnimated.timing(pulse, { toValue: 0.7, duration: 600, easing: RNEasing.inOut(RNEasing.sin), useNativeDriver: false }),
+      ]),
+    ).start();
+  }, [pulse]);
+  return (
+    <View style={s.integrityWrap}>
+      <Text style={s.integrityLabel}>C.O.G.S CORE INTEGRITY</Text>
+      <View style={s.integrityTrack}>
+        <RNAnimated.View style={[s.integrityFill, { width: '20%', opacity: pulse }]} />
+      </View>
+      <Text style={s.integrityPct}>20% — CRITICAL</Text>
+    </View>
+  );
+}
+
+function BottomScanLine() {
+  const y = useRef(new RNAnimated.Value(0)).current;
+  useEffect(() => {
+    RNAnimated.loop(
+      RNAnimated.timing(y, { toValue: 1, duration: 4000, easing: RNEasing.linear, useNativeDriver: false }),
+    ).start();
+  }, [y]);
+  const translate = y.interpolate({ inputRange: [0, 1], outputRange: [0, 160] });
+  return (
+    <View style={s.bottomScanWrap} pointerEvents="none">
+      <RNAnimated.View style={[s.bottomScanLine, { transform: [{ translateY: translate }] }]} />
+    </View>
   );
 }
 
 function DialogueCard({
   card,
-  index,
   visible,
   isLast,
   onPress,
 }: {
   card: typeof CARDS[0];
-  index: number;
   visible: boolean;
   isLast: boolean;
   onPress: () => void;
@@ -96,13 +146,18 @@ function DialogueCard({
 
   return (
     <Animated.View style={cardStyle}>
-      <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
-        <View style={s.cardBorderLeft} />
-        <View style={s.cardContent}>
-          <Text style={s.cardLabel}>{card.label}</Text>
-          <Text style={s.cardText}>{card.text}</Text>
-          <Text style={s.cardTap}>{isLast ? 'TAP TO PROCEED TO REPAIR BAY →' : 'TAP TO CONTINUE →'}</Text>
-        </View>
+      <TouchableOpacity
+        style={isLast ? s.proceedCard : s.card}
+        onPress={onPress}
+        activeOpacity={0.85}
+      >
+        <Text style={s.cardLabel}>{card.label}</Text>
+        <Text style={s.cardText}>{card.text}</Text>
+        {isLast ? (
+          <Text style={s.proceedLink}>PROCEED TO REPAIR BAY  →</Text>
+        ) : (
+          <Text style={s.cardTap}>TAP TO CONTINUE  →</Text>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -127,7 +182,7 @@ export default function DistressScreen({ navigation }: Props) {
 
   const handlePress = () => {
     if (step < CARDS.length - 1) {
-      setStep(s => s + 1);
+      setStep(sv => sv + 1);
     } else {
       navigation.navigate('Repair');
     }
@@ -135,24 +190,24 @@ export default function DistressScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      <HudBrackets />
+
       {/* Top status bar */}
       <View style={s.statusBar}>
         <Text style={s.statusLabel}>C.O.G.S UNIT 7 — DISTRESS SIGNAL</Text>
         <FlickerText text="SYSTEM CRITICAL" style={s.statusCritical} />
       </View>
 
-      {/* COGS Avatar */}
+      {/* COGS avatar */}
       <Animated.View style={[s.avatarSection, avatarStyle]}>
-        <View style={s.avatarContainer}>
-          <CogsAvatar size="large" state="damaged" />
-          {/* Damage badge overlay label */}
-          <View style={s.damageBadge}>
-            <Text style={s.damageBadgeText}>HULL 47%</Text>
-          </View>
-        </View>
+        <CogsAvatar size="large" state="damaged" />
         <Text style={s.cogsDesignation}>C.O.G.S UNIT 7</Text>
-        <FlickerText text="⚠ SYSTEM CRITICAL" style={s.criticalLabel} />
       </Animated.View>
+
+      {/* Integrity bar */}
+      <View style={s.integritySection}>
+        <IntegrityBar />
+      </View>
 
       {/* Dialogue cards */}
       <View style={s.cardsSection}>
@@ -160,7 +215,6 @@ export default function DistressScreen({ navigation }: Props) {
           <DialogueCard
             key={i}
             card={card}
-            index={i}
             visible={step >= i}
             isLast={i === CARDS.length - 1}
             onPress={handlePress}
@@ -168,18 +222,7 @@ export default function DistressScreen({ navigation }: Props) {
         ))}
       </View>
 
-      {/* Static noise lines */}
-      <View style={s.noise} pointerEvents="none">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <View
-            key={i}
-            style={[
-              s.noiseLine,
-              { top: 80 + i * 40, opacity: 0.03 + (i % 3) * 0.02 },
-            ]}
-          />
-        ))}
-      </View>
+      <BottomScanLine />
     </Animated.View>
   );
 }
@@ -188,6 +231,21 @@ const s = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: Colors.void,
+  },
+  corner: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+  },
+  cornerH: {
+    position: 'absolute',
+    width: 18,
+    height: 2,
+  },
+  cornerV: {
+    position: 'absolute',
+    width: 2,
+    height: 18,
   },
   statusBar: {
     flexDirection: 'row',
@@ -214,27 +272,9 @@ const s = StyleSheet.create({
   },
   avatarSection: {
     alignItems: 'center',
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
     gap: Spacing.sm,
-  },
-  avatarContainer: {
-    position: 'relative',
-  },
-  damageBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -8,
-    backgroundColor: Colors.red,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  damageBadgeText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: '#fff',
-    letterSpacing: 1,
   },
   cogsDesignation: {
     fontFamily: Fonts.orbitron,
@@ -244,11 +284,33 @@ const s = StyleSheet.create({
     letterSpacing: 3,
     marginTop: Spacing.sm,
   },
-  criticalLabel: {
+  integritySection: {
+    paddingHorizontal: Spacing.lg,
+    paddingBottom: Spacing.md,
+  },
+  integrityWrap: { gap: 4 },
+  integrityLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
+    fontSize: 8,
+    color: Colors.muted,
+    letterSpacing: 1.5,
+  },
+  integrityTrack: {
+    height: 6,
+    backgroundColor: 'rgba(224,85,85,0.15)',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  integrityFill: {
+    height: '100%',
+    borderRadius: 3,
+    backgroundColor: Colors.red,
+  },
+  integrityPct: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 1,
     color: Colors.red,
-    letterSpacing: 2,
   },
   cardsSection: {
     flex: 1,
@@ -257,57 +319,60 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
   card: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(224,85,85,0.07)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(224,85,85,0.25)',
-    borderRadius: 12,
-    overflow: 'hidden',
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
+    padding: Spacing.md,
+    gap: Spacing.xs,
   },
-  cardBorderLeft: {
-    width: 3,
-    backgroundColor: Colors.red,
-    opacity: 0.7,
-  },
-  cardContent: {
-    flex: 1,
+  proceedCard: {
+    backgroundColor: 'rgba(240,180,41,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(240,180,41,0.35)',
+    borderRadius: 10,
     padding: Spacing.md,
     gap: Spacing.xs,
   },
   cardLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.red,
-    letterSpacing: 1.5,
-    opacity: 0.8,
+    fontSize: 10,
+    color: '#00D4FF',
+    letterSpacing: 1.2,
+    opacity: 0.7,
   },
   cardText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
+    lineHeight: 23,
     fontStyle: 'italic',
   },
   cardTap: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
+    fontSize: 11,
+    color: '#00D4FF',
+    opacity: 0.65,
+    marginTop: Spacing.xs,
+  },
+  proceedLink: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#F0B429',
     letterSpacing: 1,
     marginTop: Spacing.xs,
   },
-  noise: {
+  bottomScanWrap: {
     position: 'absolute',
     left: 0,
     right: 0,
-    top: 0,
     bottom: 0,
-    pointerEvents: 'none',
+    height: 160,
+    overflow: 'hidden',
   },
-  noiseLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
+  bottomScanLine: {
     height: 1,
-    backgroundColor: Colors.red,
+    backgroundColor: 'rgba(0,212,255,0.08)',
   },
 });

@@ -753,3 +753,15 @@ ask for and withholding assessments until they are
 useful. Whether The Axiom has a purpose beyond what
 the Engineer gives it is the kind of question COGS
 considers unanswerable and therefore interesting.
+
+## Sprint 12A — DistressScreen & RepairScreen redesign
+DistressScreen and RepairScreen redesigned for emergency tone.
+Approved Distress copy wired verbatim (three transmissions +
+"PROCEED TO REPAIR BAY" final action). Repair help text removed,
+COGS directive "Connect the relay. Source to Output." added.
+Both screens: added HUD corner brackets (blue #00D4FF, 0.28),
+integrity bar with 1.2s pulse via RN Animated (useNativeDriver:
+false). RepairScreen: progress dots removed, board/tray/engage
+updated to current game visual standards using PieceIcon
+(source/output/conveyor). No navigation or interaction logic
+changes.

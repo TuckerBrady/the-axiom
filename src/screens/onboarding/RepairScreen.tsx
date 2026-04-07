@@ -1,173 +1,128 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Dimensions,
+  Animated as RNAnimated,
+  Easing as RNEasing,
 } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withRepeat,
-  withSequence,
   withDelay,
-  Easing,
-  interpolate,
-  Extrapolation,
 } from 'react-native-reanimated';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
+import { PieceIcon } from '../../components/PieceIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Repair'>;
 };
 
-const { width: W } = Dimensions.get('window');
-
 type RepairState = 'idle' | 'selected' | 'placed' | 'engaging' | 'done';
 
-// ─── Progress dots ─────────────────────────────────────────────────────────────
+// ─── HUD brackets ──────────────────────────────────────────────────────────────
 
-function ProgressDots({ active }: { active: number }) {
+function HudBrackets() {
+  const C = 'rgba(0,212,255,0.28)';
   return (
-    <View style={s.dots}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <View
-          key={i}
-          style={[
-            s.dot,
-            i === active && s.dotActive,
-            i < active && s.dotDone,
-          ]}
-        />
-      ))}
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={[s.corner, { top: 14, left: 14 }]}>
+        <View style={[s.cornerH, { top: 0, left: 0, backgroundColor: C }]} />
+        <View style={[s.cornerV, { top: 0, left: 0, backgroundColor: C }]} />
+      </View>
+      <View style={[s.corner, { top: 14, right: 14 }]}>
+        <View style={[s.cornerH, { top: 0, right: 0, backgroundColor: C }]} />
+        <View style={[s.cornerV, { top: 0, right: 0, backgroundColor: C }]} />
+      </View>
     </View>
   );
 }
 
-// ─── Integrity bar ─────────────────────────────────────────────────────────────
+// ─── Integrity bar with pulse ─────────────────────────────────────────────────
 
 function IntegrityBar({ percent }: { percent: number }) {
-  const width = useSharedValue(20);
+  const width = useRef(new RNAnimated.Value(20)).current;
+  const pulse = useRef(new RNAnimated.Value(0.7)).current;
+
   useEffect(() => {
-    width.value = withTiming(percent, { duration: 1000, easing: Easing.out(Easing.cubic) });
-  }, [percent]);
-  const fillStyle = useAnimatedStyle(() => ({
-    width: `${width.value}%`,
-    backgroundColor: percent <= 20 ? Colors.red : percent <= 40 ? Colors.amber : Colors.green,
-  }));
+    RNAnimated.timing(width, {
+      toValue: percent,
+      duration: 1000,
+      easing: RNEasing.out(RNEasing.cubic),
+      useNativeDriver: false,
+    }).start();
+  }, [percent, width]);
+
+  useEffect(() => {
+    RNAnimated.loop(
+      RNAnimated.sequence([
+        RNAnimated.timing(pulse, { toValue: 1, duration: 600, easing: RNEasing.inOut(RNEasing.sin), useNativeDriver: false }),
+        RNAnimated.timing(pulse, { toValue: 0.7, duration: 600, easing: RNEasing.inOut(RNEasing.sin), useNativeDriver: false }),
+      ]),
+    ).start();
+  }, [pulse]);
+
+  const widthPct = width.interpolate({ inputRange: [0, 100], outputRange: ['0%', '100%'] });
+  const fillColor = percent <= 20 ? Colors.red : percent <= 40 ? Colors.amber : Colors.green;
+  const labelColor = percent <= 20 ? Colors.red : Colors.amber;
+
   return (
     <View style={s.integrityWrap}>
       <Text style={s.integrityLabel}>C.O.G.S CORE INTEGRITY</Text>
       <View style={s.integrityTrack}>
-        <Animated.View style={[s.integrityFill, fillStyle]} />
+        <RNAnimated.View
+          style={[s.integrityFill, { width: widthPct, backgroundColor: fillColor, opacity: pulse }]}
+        />
       </View>
-      <Text style={[s.integrityPct, { color: percent <= 20 ? Colors.red : Colors.amber }]}>
+      <Text style={[s.integrityPct, { color: labelColor }]}>
         {percent}% {percent <= 20 ? '— CRITICAL' : '— RECOVERING'}
       </Text>
     </View>
   );
 }
 
-// ─── Grid cell ─────────────────────────────────────────────────────────────────
+// ─── Board cell ───────────────────────────────────────────────────────────────
 
-type CellType = 'source' | 'empty' | 'output' | 'conveyor';
+type CellKind = 'source' | 'output' | 'empty' | 'conveyor';
 
-function GridCell({
-  type,
+function BoardCell({
+  kind,
   isTarget,
-  isSelected,
   onPress,
 }: {
-  type: CellType;
+  kind: CellKind;
   isTarget?: boolean;
-  isSelected?: boolean;
   onPress?: () => void;
 }) {
-  const pulse = useSharedValue(0.4);
-  useEffect(() => {
-    if (isTarget && type === 'empty') {
-      pulse.value = withRepeat(
-        withSequence(
-          withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) }),
-          withTiming(0.3, { duration: 700, easing: Easing.inOut(Easing.sin) }),
-        ),
-        -1,
-        false,
-      );
-    } else {
-      pulse.value = 1;
-    }
-  }, [isTarget, type]);
+  const content =
+    kind === 'source' ? <PieceIcon type="source" size={40} /> :
+    kind === 'output' ? <PieceIcon type="output" size={40} /> :
+    kind === 'conveyor' ? <PieceIcon type="conveyor" size={44} /> :
+    isTarget ? <Text style={s.emptyPlus}>+</Text> : null;
 
-  const borderStyle = useAnimatedStyle(() => ({
-    borderColor: isTarget && type === 'empty'
-      ? `rgba(74,158,255,${pulse.value})`
-      : type === 'source' ? Colors.amber
-      : type === 'output' ? Colors.green
-      : type === 'conveyor' ? Colors.copper
-      : Colors.dim,
-  }));
-
-  const label =
-    type === 'source' ? 'SRC\nSOURCE'
-    : type === 'output' ? 'OUT\nOUTPUT'
-    : type === 'conveyor' ? '>>\nCONVEYOR'
-    : isTarget ? '+' : '';
-
-  const labelColor =
-    type === 'source' ? Colors.amber
-    : type === 'output' ? Colors.green
-    : type === 'conveyor' ? Colors.copper
-    : Colors.blue;
+  const cellStyle =
+    kind === 'source' ? s.cellSource :
+    kind === 'output' ? s.cellOutput :
+    s.cellRegular;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={onPress ? 0.75 : 1} disabled={!onPress}>
-      <Animated.View
-        style={[
-          s.gridCell,
-          borderStyle,
-          isTarget && type === 'empty' && s.gridCellTarget,
-          isSelected && s.gridCellSelected,
-          type !== 'empty' && s.gridCellFilled,
-        ]}
-      >
-        <Text style={[s.cellLabel, { color: labelColor }]}>{label}</Text>
-      </Animated.View>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.75 : 1}
+      disabled={!onPress}
+      style={[s.cell, cellStyle, isTarget && kind === 'empty' && s.cellTarget]}
+    >
+      {content}
     </TouchableOpacity>
   );
 }
 
-// ─── Signal animation ──────────────────────────────────────────────────────────
-
-function SignalFlow({ playing }: { playing: boolean }) {
-  const progress = useSharedValue(0);
-  useEffect(() => {
-    if (playing) {
-      progress.value = withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.cubic) });
-    }
-  }, [playing]);
-
-  const CELL_W = 80;
-  const TOTAL = CELL_W * 3 + Spacing.md * 2;
-
-  const dotStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: interpolate(progress.value, [0, 1], [0, TOTAL], Extrapolation.CLAMP) }],
-    opacity: playing ? 1 : 0,
-  }));
-
-  return (
-    <View style={s.signalTrack} pointerEvents="none">
-      <Animated.View style={[s.signalDot, dotStyle]} />
-    </View>
-  );
-}
-
-// ─── Main screen ───────────────────────────────────────────────────────────────
+// ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function RepairScreen({ navigation }: Props) {
   const [repairState, setRepairState] = useState<RepairState>('idle');
@@ -207,92 +162,78 @@ export default function RepairScreen({ navigation }: Props) {
     }, 1500);
   };
 
-  const placedType: CellType = repairState === 'placed' || repairState === 'engaging' || repairState === 'done'
-    ? 'conveyor' : 'empty';
+  const centerKind: CellKind =
+    repairState === 'placed' || repairState === 'engaging' || repairState === 'done'
+      ? 'conveyor'
+      : 'empty';
 
   const conveyorInTray = repairState === 'idle' || repairState === 'selected';
+  const enabled = repairState === 'placed';
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      <HudBrackets />
+
       {/* Header */}
       <View style={s.header}>
-        <Text style={s.headerTitle}>BOOT SEQUENCE T-1</Text>
-        <Text style={s.headerSub}>REPAIR PROTOCOL — COMPONENT INSTALLATION</Text>
+        <Text style={s.headerTitle}>C.O.G.S UNIT 7 — CRITICAL SYSTEMS</Text>
       </View>
 
       <Animated.View style={[s.content, contentStyle]}>
-        {/* Progress dots */}
-        <ProgressDots active={0} />
-
         {/* COGS + integrity */}
         <View style={s.cogsRow}>
-          <CogsAvatar size="small" state={repairState === 'engaging' || repairState === 'done' ? 'partial' : 'damaged'} />
+          <CogsAvatar
+            size="small"
+            state={repairState === 'engaging' || repairState === 'done' ? 'partial' : 'damaged'}
+          />
           <View style={{ flex: 1 }}>
             <IntegrityBar percent={integrity} />
           </View>
         </View>
 
-        {/* COGS instruction */}
-        <View style={s.instruction}>
-          <Text style={s.instructionText}>
-            {repairState === 'idle'
-              ? 'The Conveyor piece is in the parts tray. Select it.'
-              : repairState === 'selected'
-              ? 'Good. Now tap the empty target slot to install it.'
-              : repairState === 'placed'
-              ? 'Circuit connected. Engage the machine to test signal flow.'
-              : repairState === 'engaging'
-              ? 'Signal propagating... stand by.'
-              : 'Component nominal. Integrity recovering. Proceed.'}
-          </Text>
+        {/* COGS directive */}
+        <Text style={s.directive}>Connect the relay. Source to Output.</Text>
+
+        {/* Board */}
+        <View style={s.board}>
+          <BoardCell kind="source" />
+          <BoardCell
+            kind={centerKind}
+            isTarget={centerKind === 'empty'}
+            onPress={repairState === 'selected' ? handleSlotPress : undefined}
+          />
+          <BoardCell kind="output" />
         </View>
 
-        {/* Grid canvas */}
-        <View style={s.gridWrap}>
-          <Text style={s.gridLabel}>REPAIR GRID — BAY T-1</Text>
-          <View style={s.grid}>
-            <GridCell type="source" />
-            <View style={s.connector} />
-            <GridCell
-              type={placedType}
-              isTarget={placedType === 'empty'}
-              onPress={repairState === 'selected' ? handleSlotPress : undefined}
-            />
-            <View style={s.connector} />
-            <GridCell type="output" />
-          </View>
-          <SignalFlow playing={repairState === 'engaging' || repairState === 'done'} />
-        </View>
+        {/* Spacer */}
+        <View style={{ flex: 1 }} />
 
-        {/* Parts tray */}
+        {/* Tray */}
         <View style={s.tray}>
-          <Text style={s.trayLabel}>PARTS TRAY</Text>
           {conveyorInTray ? (
-            <TouchableOpacity onPress={handleConveyorSelect} activeOpacity={0.8}>
-              <View style={[s.trayPiece, repairState === 'selected' && s.trayPieceSelected]}>
-                <Text style={s.trayPieceIcon}>▶▶</Text>
-                <Text style={s.trayPieceName}>CONVEYOR</Text>
-                <Text style={s.trayPieceType}>PHYSICS PIECE</Text>
-              </View>
+            <TouchableOpacity
+              onPress={handleConveyorSelect}
+              activeOpacity={0.8}
+              style={[s.trayChip, repairState === 'selected' && s.trayChipSelected]}
+            >
+              <PieceIcon type="conveyor" size={34} />
+              <Text style={s.trayChipLabel}>CONV</Text>
             </TouchableOpacity>
           ) : (
-            <View style={s.trayEmpty}>
-              <Text style={s.trayEmptyText}>— INSTALLED —</Text>
+            <View style={[s.trayChip, s.trayChipEmpty]}>
+              <Text style={s.trayEmptyText}>—</Text>
             </View>
           )}
         </View>
 
-        {/* Engage button */}
+        {/* Engage */}
         <TouchableOpacity
-          style={[
-            s.engageBtn,
-            repairState !== 'placed' && s.engageBtnDisabled,
-          ]}
+          style={[s.engageBtn, !enabled && s.engageBtnDisabled]}
           onPress={handleEngage}
-          activeOpacity={repairState === 'placed' ? 0.8 : 1}
-          disabled={repairState !== 'placed'}
+          activeOpacity={enabled ? 0.85 : 1}
+          disabled={!enabled}
         >
-          <Text style={[s.engageBtnText, repairState !== 'placed' && s.engageBtnTextDim]}>
+          <Text style={[s.engageBtnText, !enabled && { color: Colors.muted }]}>
             {repairState === 'engaging' ? 'ENGAGING...' : 'ENGAGE MACHINE'}
           </Text>
         </TouchableOpacity>
@@ -303,26 +244,22 @@ export default function RepairScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
+  corner: { position: 'absolute', width: 18, height: 18 },
+  cornerH: { position: 'absolute', width: 18, height: 2 },
+  cornerV: { position: 'absolute', width: 2, height: 18 },
+
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: 60,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,158,255,0.12)',
+    borderBottomColor: 'rgba(240,180,41,0.18)',
     alignItems: 'center',
-    gap: 4,
   },
   headerTitle: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 3,
-  },
-  headerSub: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
+    fontSize: 11,
+    color: 'rgba(240,180,41,0.75)',
     letterSpacing: 2,
   },
   content: {
@@ -331,32 +268,12 @@ const s = StyleSheet.create({
     paddingTop: Spacing.lg,
     gap: Spacing.lg,
   },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.dim,
-  },
-  dotActive: {
-    backgroundColor: Colors.blue,
-    width: 20,
-  },
-  dotDone: {
-    backgroundColor: Colors.green,
-  },
   cogsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
   },
-  integrityWrap: {
-    gap: 4,
-  },
+  integrityWrap: { gap: 4 },
   integrityLabel: {
     fontFamily: Fonts.spaceMono,
     fontSize: 8,
@@ -378,159 +295,103 @@ const s = StyleSheet.create({
     fontSize: 9,
     letterSpacing: 1,
   },
-  instruction: {
-    backgroundColor: 'rgba(10,22,40,0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 10,
-    padding: Spacing.md,
-  },
-  instructionText: {
+  directive: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
     fontStyle: 'italic',
-    lineHeight: 22,
   },
-  gridWrap: {
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  gridLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.muted,
-    letterSpacing: 2,
-  },
-  grid: {
+  board: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  gridCell: {
-    width: 80,
-    height: 80,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: Colors.dim,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(10,18,30,0.8)',
+    gap: 0,
   },
-  gridCellTarget: {
+  cell: {
+    width: 68,
+    height: 68,
+    borderRadius: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cellRegular: {
+    backgroundColor: '#0C1628',
+    borderWidth: 1,
+    borderColor: '#141E30',
+  },
+  cellSource: {
+    backgroundColor: '#1F1000',
+    borderWidth: 1,
+    borderColor: '#4A2800',
+  },
+  cellOutput: {
+    backgroundColor: '#001F10',
+    borderWidth: 1,
+    borderColor: '#004A28',
+  },
+  cellTarget: {
     borderStyle: 'dashed',
-    borderColor: Colors.blue,
-    backgroundColor: 'rgba(74,158,255,0.05)',
+    borderColor: '#00D4FF',
   },
-  gridCellSelected: {
-    borderColor: Colors.blue,
-    backgroundColor: 'rgba(74,158,255,0.1)',
-  },
-  gridCellFilled: {
-    backgroundColor: 'rgba(26,58,92,0.5)',
-  },
-  cellLabel: {
+  emptyPlus: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  connector: {
-    width: Spacing.md,
-    height: 2,
-    backgroundColor: Colors.dim,
-    opacity: 0.5,
-  },
-  signalTrack: {
-    position: 'absolute',
-    bottom: -12,
-    left: 0,
-    right: 0,
-    height: 8,
-    alignItems: 'flex-start',
-  },
-  signalDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.amber,
+    fontSize: 20,
+    color: 'rgba(0,212,255,0.35)',
   },
   tray: {
-    backgroundColor: 'rgba(10,18,30,0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.15)',
-    borderRadius: 12,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  trayLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.muted,
-    letterSpacing: 2,
-  },
-  trayPiece: {
+    backgroundColor: '#08101C',
+    borderTopWidth: 1,
+    borderTopColor: '#141E30',
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: 'rgba(200,121,65,0.08)',
+    justifyContent: 'center',
+  },
+  trayChip: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    backgroundColor: '#0C1628',
     borderWidth: 1,
-    borderColor: 'rgba(200,121,65,0.3)',
-    borderRadius: 10,
-    padding: Spacing.md,
-  },
-  trayPieceSelected: {
-    borderColor: Colors.blue,
-    backgroundColor: 'rgba(74,158,255,0.1)',
-  },
-  trayPieceIcon: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.lg,
-    color: Colors.copper,
-  },
-  trayPieceName: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    flex: 1,
-  },
-  trayPieceType: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.copper,
-    letterSpacing: 1,
-  },
-  trayEmpty: {
+    borderColor: '#1A2840',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
+    justifyContent: 'center',
+  },
+  trayChipSelected: {
+    borderColor: '#00D4FF',
+  },
+  trayChipEmpty: {
+    opacity: 0.4,
+  },
+  trayChipLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#2A3F5F',
+    marginTop: 1,
   },
   trayEmptyText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.green,
-    letterSpacing: 2,
+    fontSize: 14,
+    color: Colors.muted,
   },
   engageBtn: {
-    backgroundColor: Colors.blue,
+    backgroundColor: Colors.amber,
     borderRadius: 12,
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
-    marginBottom: Spacing.xxxl,
+    marginBottom: Spacing.xl,
   },
   engageBtnDisabled: {
-    backgroundColor: 'rgba(74,158,255,0.15)',
+    backgroundColor: 'rgba(240,180,41,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
+    borderColor: 'rgba(240,180,41,0.25)',
   },
   engageBtnText: {
     fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
+    fontSize: 11,
     fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 3,
-  },
-  engageBtnTextDim: {
-    color: Colors.dim,
+    letterSpacing: 2,
+    color: Colors.void,
   },
 });
