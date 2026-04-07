@@ -302,13 +302,21 @@ function DisciplineLabel() {
   );
 }
 
-export default function SettingsScreen(_: Props) {
+export default function SettingsScreen({ navigation }: Props) {
   const [sfx, setSfx] = useState(true);
   const [music, setMusic] = useState(true);
   const [haptics, setHaptics] = useState(true);
   const [notifications, setNotifications] = useState(false);
   const [cogsHints, setCogsHints] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [forceShowTutorial, setForceShowTutorial] = useState(false);
+
+  // Hydrate force-show toggle
+  useEffect(() => {
+    AsyncStorage.getItem('axiom_tutorial_force_show').then(v => {
+      setForceShowTutorial(v === '1');
+    });
+  }, []);
 
   const screenOpacity = useSharedValue(0);
   const headerReveal = useSharedValue(0);
@@ -516,9 +524,9 @@ export default function SettingsScreen(_: Props) {
                 <View style={styles.divider} />
                 <TapRow
                   icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>↺</Text>}
-                  label="Reset Tutorial Progress (Dev)"
+                  label="Reset Tutorial Progress"
                   labelColor={Colors.amber}
-                  sub="Clears HUD tutorial state for all A1 levels"
+                  sub="Clears all 24 tutorial AsyncStorage keys"
                   delay={790}
                   onPress={async () => {
                     const keys: string[] = [];
@@ -532,6 +540,99 @@ export default function SettingsScreen(_: Props) {
                     Alert.alert('Tutorial Progress', 'Tutorial progress cleared.');
                   }}
                 />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.red, fontSize: 14, fontWeight: 'bold' }}>⌫</Text>}
+                  label="Reset Level Progress"
+                  labelColor={Colors.red}
+                  sub="Clears stars, completion, and sector unlock state"
+                  delay={795}
+                  onPress={async () => {
+                    const all = await AsyncStorage.getAllKeys();
+                    const patterns = [
+                      'level_complete', 'level_stars', 'sector_unlock',
+                      'axiom_sector', 'kepler', 'nova', 'rift', 'void',
+                      'cradle', 'completion', 'progress',
+                    ];
+                    const matched = all.filter(k =>
+                      patterns.some(p => k.toLowerCase().includes(p)),
+                    );
+                    const extra = [
+                      'axiom_economy_intro_seen',
+                      'axiom_a13_discipline_seen',
+                      'axiom_daily_challenge_last_date',
+                    ];
+                    const toRemove = Array.from(new Set([...matched, ...extra]));
+                    await AsyncStorage.multiRemove(toRemove);
+                    Alert.alert('Level Progress', 'Level progress cleared. Restart the app to see changes.');
+                  }}
+                />
+                <View style={styles.divider} />
+                <ToggleRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>!</Text>}
+                  label="Force Show Tutorial"
+                  sub="Clears skip/complete for current level on next launch"
+                  value={forceShowTutorial}
+                  onChange={async (v) => {
+                    setForceShowTutorial(v);
+                    if (v) {
+                      await AsyncStorage.setItem('axiom_tutorial_force_show', '1');
+                      // Clear complete/skipped so GameplayScreen does not suppress the overlay
+                      const keys: string[] = [];
+                      for (let i = 1; i <= 8; i++) {
+                        keys.push(`axiom_tutorial_complete_A1-${i}`);
+                        keys.push(`axiom_tutorial_skipped_A1-${i}`);
+                        keys.push(`axiom_tutorial_step_A1-${i}`);
+                      }
+                      await AsyncStorage.multiRemove(keys);
+                    } else {
+                      await AsyncStorage.removeItem('axiom_tutorial_force_show');
+                    }
+                  }}
+                  delay={798}
+                />
+                <View style={styles.divider} />
+                <View style={styles.devLevelJumpWrap}>
+                  <Text style={styles.devLevelJumpLabel}>JUMP TO LEVEL</Text>
+                  {[
+                    { sector: 'THE AXIOM', ids: ['A1-1','A1-2','A1-3','A1-4','A1-5','A1-6','A1-7','A1-8'] },
+                    { sector: 'KEPLER BELT', ids: ['2-1','2-2','2-3'] },
+                  ].map(group => (
+                    <View key={group.sector} style={styles.devLevelJumpGroup}>
+                      <Text style={styles.devLevelJumpSector}>{group.sector}</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.devLevelJumpChips}>
+                        {group.ids.map(id => (
+                          <TouchableOpacity
+                            key={id}
+                            style={styles.devLevelJumpChip}
+                            onPress={() => {
+                              const num = parseInt(id.split('-')[1], 10) || 1;
+                              const parent = navigation.getParent();
+                              if (!parent) {
+                                Alert.alert('Jump', 'No parent navigator available.');
+                                return;
+                              }
+                              (parent as unknown as { navigate: (name: string, params: unknown) => void }).navigate('MissionDossier', {
+                                missionId: num,
+                                missionName: id,
+                                iconType: 'axiom',
+                                stars: 0,
+                                bestTime: '--',
+                                piecesUsed: 0,
+                                cogsQuote: '',
+                                levelId: id,
+                                nodeState: 'active',
+                              });
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Text style={styles.devLevelJumpChipText}>{id}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    </View>
+                  ))}
+                </View>
                 <View style={styles.divider} />
                 <TapRow
                   icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
@@ -737,6 +838,46 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(74,158,255,0.08)',
     marginLeft: Spacing.xxxl + Spacing.md,
+  },
+  devLevelJumpWrap: {
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  devLevelJumpLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: Colors.amber,
+    letterSpacing: 2,
+  },
+  devLevelJumpGroup: {
+    gap: 6,
+  },
+  devLevelJumpSector: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    letterSpacing: 1.5,
+  },
+  devLevelJumpChips: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingRight: Spacing.lg,
+  },
+  devLevelJumpChip: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.35)',
+    backgroundColor: 'rgba(0,212,255,0.06)',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  devLevelJumpChipText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#00D4FF',
+    letterSpacing: 1,
   },
   cogsCredit: {
     flexDirection: 'row',

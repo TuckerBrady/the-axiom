@@ -80,6 +80,15 @@ export default function TutorialHUDOverlay({
   useEffect(() => {
     (async () => {
       try {
+        const forceShow = await AsyncStorage.getItem('axiom_tutorial_force_show');
+        if (forceShow === '1') {
+          await AsyncStorage.removeItem('axiom_tutorial_force_show');
+          await AsyncStorage.removeItem(`axiom_tutorial_complete_${levelId}`);
+          await AsyncStorage.removeItem(`axiom_tutorial_skipped_${levelId}`);
+          await AsyncStorage.removeItem(`axiom_tutorial_step_${levelId}`);
+          setHydrated(true);
+          return;
+        }
         const saved = await AsyncStorage.getItem(`axiom_tutorial_step_${levelId}`);
         if (saved) {
           const idx = parseInt(saved, 10);

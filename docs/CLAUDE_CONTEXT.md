@@ -128,6 +128,11 @@ executes.
   between targets, morphs into portal square on arrival, collapses
   back to orb on advance. Callout floats near portal. Minimal nav
   strip. Demo ball positions fixed across all 5 piece types.
+  Sprint 11: DEV TOOLS panel in SettingsScreen (dev builds only):
+  Reset Tutorial Progress (24 AsyncStorage keys), Reset Level
+  Progress (all completion/star keys), Force Show Tutorial
+  (axiom_tutorial_force_show key), Level Jump (navigate to any
+  level dossier directly).
 - CI/CD pipeline: GitHub Actions, all green. ESLint zero warnings, TypeScript zero errors, 35 tests passing.
 
 **Known issues / in-flight:**
