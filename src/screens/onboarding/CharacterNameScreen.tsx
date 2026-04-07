@@ -104,6 +104,12 @@ export default function CharacterNameScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <Animated.View style={[s.root, screenStyle]}>
+        {/* HUD brackets */}
+        <View pointerEvents="none" style={[s.bracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopLeftRadius: 3 }]} />
+        <View pointerEvents="none" style={[s.bracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopRightRadius: 3 }]} />
+        <View pointerEvents="none" style={[s.bracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomLeftRadius: 3 }]} />
+        <View pointerEvents="none" style={[s.bracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomRightRadius: 3 }]} />
+
         {/* Header */}
         <View style={s.header}>
           <CogsAvatar size="small" state="online" />
@@ -127,7 +133,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
               value={nameInput}
               onChangeText={setNameInput}
               placeholder="Enter your name"
-              placeholderTextColor={Colors.dim}
+              placeholderTextColor="rgba(0,212,255,0.3)"
               maxLength={24}
               autoFocus
               returnKeyType="done"
@@ -180,6 +186,13 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
+  bracket: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    zIndex: 20,
+    elevation: 20,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -187,14 +200,17 @@ const s = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,158,255,0.12)',
+    borderBottomColor: 'rgba(0,212,255,0.08)',
+    backgroundColor: 'rgba(6,9,18,0.8)',
     gap: Spacing.sm,
+    height: 112,
   },
   headerText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.muted,
-    letterSpacing: 2,
+    fontSize: 10,
+    color: '#00D4FF',
+    opacity: 0.65,
+    letterSpacing: 1,
   },
   promptSection: {
     paddingHorizontal: Spacing.lg,
@@ -202,18 +218,20 @@ const s = StyleSheet.create({
     paddingBottom: Spacing.lg,
   },
   promptBubble: {
-    backgroundColor: 'rgba(74,158,255,0.06)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 14,
-    padding: Spacing.lg,
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
   },
   promptText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.lg,
-    color: Colors.starWhite,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
     fontStyle: 'italic',
-    lineHeight: 26,
+    lineHeight: 23,
     textAlign: 'center',
   },
   inputSection: {
@@ -221,36 +239,39 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
   nameInput: {
-    backgroundColor: 'rgba(26,58,92,0.5)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(74,158,255,0.35)',
-    borderRadius: 12,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.xl,
-    color: Colors.starWhite,
+    backgroundColor: 'rgba(0,212,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.2)',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontFamily: Fonts.exo2,
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#E8F4FF',
     textAlign: 'center',
   },
   confirmBtn: {
-    backgroundColor: Colors.blue,
-    borderRadius: 12,
-    paddingVertical: Spacing.lg,
+    backgroundColor: 'rgba(0,212,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.45)',
+    borderRadius: 8,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
   },
   confirmBtnDisabled: {
-    backgroundColor: 'rgba(74,158,255,0.15)',
+    backgroundColor: 'rgba(0,212,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
+    borderColor: 'rgba(0,212,255,0.12)',
   },
   confirmBtnText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 3,
+    color: '#00D4FF',
+    letterSpacing: 2,
   },
-  confirmBtnTextDim: { color: Colors.dim },
+  confirmBtnTextDim: { color: 'rgba(0,212,255,0.3)' },
   loggingSection: {
     position: 'absolute',
     top: 0, left: 0, right: 0, bottom: 0,
@@ -314,8 +335,9 @@ const s = StyleSheet.create({
   },
   tapHintText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.blue,
-    letterSpacing: 2,
+    fontSize: 11,
+    color: '#00D4FF',
+    opacity: 0.65,
+    letterSpacing: 1.5,
   },
 });

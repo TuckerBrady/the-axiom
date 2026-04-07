@@ -1,10 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -36,15 +31,33 @@ const CARDS = [
   },
 ];
 
+function HudBrackets() {
+  const C = 'rgba(0,212,255,0.28)';
+  return (
+    <>
+      <View pointerEvents="none" style={[s.bracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: C, borderTopLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: C, borderTopRightRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: C, borderBottomLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: C, borderBottomRightRadius: 3 }]} />
+    </>
+  );
+}
+
+function OnlinePill({ small }: { small?: boolean }) {
+  return (
+    <View style={[s.onlinePill, small && s.onlinePillSmall]}>
+      <Text style={[s.onlinePillText, small && s.onlinePillTextSmall]}>SYSTEMS ONLINE</Text>
+    </View>
+  );
+}
+
 function DialogueCard({
   card,
   visible,
-  isLast,
   onPress,
 }: {
   card: typeof CARDS[0];
   visible: boolean;
-  isLast: boolean;
   onPress: () => void;
 }) {
   const opacity = useSharedValue(0);
@@ -63,14 +76,9 @@ function DialogueCard({
   return (
     <Animated.View style={cardStyle}>
       <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
-        <View style={s.cardBorderLeft} />
-        <View style={s.cardContent}>
-          <Text style={s.cardLabel}>{card.label}</Text>
-          <Text style={s.cardText}>{card.text}</Text>
-          <Text style={s.cardTap}>
-            {isLast ? 'TAP TO CONTINUE →' : 'TAP TO CONTINUE →'}
-          </Text>
-        </View>
+        <Text style={s.cardLabel}>{card.label}</Text>
+        <Text style={s.cardText}>{card.text}</Text>
+        <Text style={s.cardTap}>TAP TO CONTINUE  →</Text>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -95,7 +103,7 @@ export default function IntroductionScreen({ navigation }: Props) {
 
   const handlePress = () => {
     if (step < CARDS.length - 1) {
-      setStep(s => s + 1);
+      setStep(sv => sv + 1);
     } else {
       navigation.navigate('CharacterName');
     }
@@ -103,35 +111,25 @@ export default function IntroductionScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
-      {/* Status bar */}
-      <View style={s.statusBar}>
-        <Text style={s.statusLabel}>C.O.G.S UNIT 7 — SYSTEMS NOMINAL</Text>
-        <View style={s.onlineBadge}>
-          <View style={s.onlineDot} />
-          <Text style={s.onlineText}>ONLINE</Text>
-        </View>
+      <HudBrackets />
+
+      {/* Header */}
+      <View style={s.header}>
+        <Text style={s.headerLabel}>C.O.G.S UNIT 7 — SYSTEMS NOMINAL</Text>
+        <OnlinePill small />
       </View>
 
-      {/* COGS avatar — now online */}
+      {/* Avatar */}
       <Animated.View style={[s.avatarSection, avatarStyle]}>
         <CogsAvatar size="large" state="online" />
         <Text style={s.cogsDesignation}>C.O.G.S UNIT 7</Text>
-        <View style={s.onlineBadgeLarge}>
-          <View style={s.onlineDotLarge} />
-          <Text style={s.onlineTextLarge}>SYSTEMS ONLINE</Text>
-        </View>
+        <OnlinePill />
       </Animated.View>
 
-      {/* Dialogue cards */}
+      {/* Cards */}
       <View style={s.cardsSection}>
         {CARDS.map((card, i) => (
-          <DialogueCard
-            key={i}
-            card={card}
-            visible={step >= i}
-            isLast={i === CARDS.length - 1}
-            onPress={handlePress}
-          />
+          <DialogueCard key={i} card={card} visible={step >= i} onPress={handlePress} />
         ))}
       </View>
     </Animated.View>
@@ -140,7 +138,14 @@ export default function IntroductionScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
-  statusBar: {
+  bracket: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    zIndex: 20,
+    elevation: 20,
+  },
+  header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -148,37 +153,35 @@ const s = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(78,203,141,0.2)',
+    borderBottomColor: 'rgba(0,212,255,0.08)',
   },
-  statusLabel: {
+  headerLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.muted,
+    fontSize: 10,
+    color: '#00D4FF',
+    opacity: 0.65,
     letterSpacing: 1,
   },
-  onlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(78,203,141,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(78,203,141,0.3)',
+  onlinePill: {
+    backgroundColor: '#00C48C',
     borderRadius: 12,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 5,
+  },
+  onlinePillSmall: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: 3,
+    borderRadius: 10,
   },
-  onlineDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: Colors.green,
-  },
-  onlineText: {
+  onlinePillText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.green,
+    fontSize: 10,
+    color: '#001A10',
     letterSpacing: 1,
+    textTransform: 'uppercase',
+    fontWeight: 'bold',
   },
+  onlinePillTextSmall: { fontSize: 8 },
   avatarSection: {
     alignItems: 'center',
     paddingTop: Spacing.xxl,
@@ -193,29 +196,6 @@ const s = StyleSheet.create({
     letterSpacing: 3,
     marginTop: Spacing.sm,
   },
-  onlineBadgeLarge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(78,203,141,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(78,203,141,0.3)',
-    borderRadius: 14,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 5,
-  },
-  onlineDotLarge: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.green,
-  },
-  onlineTextLarge: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.green,
-    letterSpacing: 1,
-  },
   cardsSection: {
     flex: 1,
     paddingHorizontal: Spacing.lg,
@@ -223,42 +203,33 @@ const s = StyleSheet.create({
     gap: Spacing.md,
   },
   card: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(74,158,255,0.06)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.22)',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  cardBorderLeft: {
-    width: 3,
-    backgroundColor: Colors.blue,
-    opacity: 0.7,
-  },
-  cardContent: {
-    flex: 1,
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
     padding: Spacing.md,
     gap: Spacing.xs,
   },
   cardLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.blue,
-    letterSpacing: 1.5,
-    opacity: 0.8,
+    fontSize: 10,
+    color: '#00D4FF',
+    letterSpacing: 1.2,
+    opacity: 0.7,
   },
   cardText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
-    lineHeight: 22,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
+    lineHeight: 23,
     fontStyle: 'italic',
   },
   cardTap: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
-    letterSpacing: 1,
+    fontSize: 11,
+    color: '#00D4FF',
+    opacity: 0.65,
     marginTop: Spacing.xs,
   },
 });

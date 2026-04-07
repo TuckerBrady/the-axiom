@@ -221,6 +221,7 @@ export default function DistressScreen({ navigation }: Props) {
         <Text style={s.statusLabel}>C.O.G.S UNIT 7 — DISTRESS SIGNAL</Text>
         <FlickerText text="SYSTEM CRITICAL" style={s.statusCritical} />
       </View>
+      <View style={s.statusSeparator} />
 
       {/* COGS avatar */}
       <Animated.View style={[s.avatarSection, avatarStyle]}>
@@ -275,16 +276,23 @@ const s = StyleSheet.create({
   },
   statusLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.muted,
+    fontSize: 10,
+    color: '#FF3B3B',
+    opacity: 0.75,
     letterSpacing: 1,
   },
   statusCritical: {
     fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.xs,
-    color: Colors.red,
-    letterSpacing: 2,
-    fontWeight: 'bold',
+    fontSize: 10,
+    color: '#FF3B3B',
+    opacity: 0.9,
+    letterSpacing: 1.2,
+    fontWeight: '500',
+  },
+  statusSeparator: {
+    width: '100%',
+    height: 1,
+    backgroundColor: 'rgba(255,59,59,0.15)',
   },
   avatarSection: {
     alignItems: 'center',

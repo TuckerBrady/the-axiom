@@ -37,7 +37,7 @@ const DISCIPLINES: Array<{
     id: 'architect',
     name: 'Systems Architect',
     tag: 'PROTOCOL',
-    tagColor: Colors.circuit,
+    tagColor: '#00D4FF',
     description: 'You design the logic. You plan before you act. Protocol pieces are your native language.',
     cogsResponse: 'Protocol logic. Precise. Good.',
   },
@@ -45,7 +45,7 @@ const DISCIPLINES: Array<{
     id: 'engineer',
     name: 'Drive Engineer',
     tag: 'PHYSICS',
-    tagColor: Colors.copper,
+    tagColor: '#F0B429',
     description: 'You work with mechanisms. Movement, force, consequence. Physics pieces respond to your instincts.',
     cogsResponse: 'Mechanical focus. Your skills will be needed.',
   },
@@ -53,7 +53,7 @@ const DISCIPLINES: Array<{
     id: 'operative',
     name: 'Field Operative',
     tag: 'BALANCED',
-    tagColor: Colors.blue,
+    tagColor: '#00C48C',
     description: 'You adapt. You improvise. No specialisation means no limitation. We will see how that holds up.',
     cogsResponse: 'Generalist. Adaptable. We will see.',
   },
@@ -125,7 +125,7 @@ function CogsResponseCard({
   return (
     <Animated.View style={[s.cogsResponse, style]}>
       <View style={s.cogsResponseHeader}>
-        <CogsAvatar size="small" state="online" />
+        <CogsAvatar size="small" state="engaged" />
         <Text style={s.cogsResponseLabel}>C.O.G.S RESPONSE</Text>
       </View>
       <Text style={s.cogsResponseText}>{'"'}{response}{'"'}</Text>
@@ -174,6 +174,10 @@ export default function DisciplineScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      <View pointerEvents="none" style={[s.bracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopRightRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomRightRadius: 3 }]} />
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={s.header}>
@@ -222,6 +226,10 @@ export default function DisciplineScreen({ navigation }: Props) {
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
+              <View style={s.confirmCornerTL} />
+              <View style={s.confirmCornerTR} />
+              <View style={s.confirmCornerBL} />
+              <View style={s.confirmCornerBR} />
               <Text style={s.confirmBtnText}>CONFIRM DISCIPLINE  →</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -233,24 +241,28 @@ export default function DisciplineScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
-  scroll: {
-    flexGrow: 1,
-    paddingBottom: 60,
+  bracket: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    zIndex: 20,
+    elevation: 20,
   },
+  scroll: { flexGrow: 1, paddingBottom: 60 },
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: 60,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,158,255,0.12)',
+    borderBottomColor: 'rgba(0,212,255,0.08)',
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.xl,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 4,
+    fontFamily: Fonts.spaceMono,
+    fontSize: 15,
+    fontWeight: '400',
+    color: '#E8F4FF',
+    letterSpacing: 2,
   },
   greeting: {
     flexDirection: 'row',
@@ -263,34 +275,32 @@ const s = StyleSheet.create({
   greetAvatar: { paddingTop: 4 },
   greetBubble: {
     flex: 1,
-    backgroundColor: 'rgba(74,158,255,0.05)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.18)',
-    borderRadius: 14,
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
     padding: Spacing.md,
   },
   greetText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  cards: {
-    paddingHorizontal: Spacing.lg,
-    gap: Spacing.md,
-  },
+  cards: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
   disciplineCard: {
-    backgroundColor: 'rgba(10,22,40,0.8)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(74,158,255,0.18)',
-    borderRadius: 14,
+    backgroundColor: 'rgba(6,9,18,0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 10,
     padding: Spacing.lg,
     gap: Spacing.sm,
   },
   disciplineCardSelected: {
-    borderColor: Colors.blue,
-    backgroundColor: 'rgba(74,158,255,0.08)',
+    borderColor: 'rgba(0,212,255,0.35)',
+    backgroundColor: 'rgba(0,212,255,0.05)',
   },
   cardTop: {
     flexDirection: 'row',
@@ -299,28 +309,29 @@ const s = StyleSheet.create({
     gap: Spacing.sm,
   },
   cardName: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.md,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
+    fontFamily: Fonts.exo2,
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#E8F4FF',
     flex: 1,
   },
   cardTag: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: Spacing.sm,
+    borderRadius: 4,
+    paddingHorizontal: 8,
     paddingVertical: 3,
   },
   cardTagText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    letterSpacing: 1.5,
+    fontSize: 9,
+    letterSpacing: 1.2,
   },
   cardDesc: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.sm,
-    color: Colors.muted,
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '300',
+    color: '#7A9AB8',
+    lineHeight: 21,
   },
   selectedIndicator: {
     flexDirection: 'row',
@@ -329,9 +340,9 @@ const s = StyleSheet.create({
   },
   selectedText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.green,
-    letterSpacing: 1.5,
+    fontSize: 11,
+    color: '#00D4FF',
+    letterSpacing: 1.2,
   },
   responseSection: {
     paddingHorizontal: Spacing.lg,
@@ -339,10 +350,10 @@ const s = StyleSheet.create({
     minHeight: 80,
   },
   cogsResponse: {
-    backgroundColor: 'rgba(74,158,255,0.06)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 14,
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
     padding: Spacing.md,
     gap: Spacing.sm,
   },
@@ -354,31 +365,49 @@ const s = StyleSheet.create({
   cogsResponseLabel: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
-    color: Colors.blue,
-    letterSpacing: 1.5,
+    color: '#00D4FF',
+    opacity: 0.7,
+    letterSpacing: 1.2,
   },
   cogsResponseText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: 23,
   },
-  confirmSection: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
-  },
+  confirmSection: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg },
   confirmBtn: {
-    backgroundColor: Colors.blue,
-    borderRadius: 12,
-    paddingVertical: Spacing.lg,
+    backgroundColor: 'rgba(240,180,41,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(240,180,41,0.45)',
+    borderRadius: 8,
+    paddingVertical: Spacing.md,
     alignItems: 'center',
+    position: 'relative',
   },
   confirmBtnText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
     fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 3,
+    color: '#F0B429',
+    letterSpacing: 1.5,
+  },
+  confirmCornerTL: {
+    position: 'absolute', top: 4, left: 4, width: 8, height: 8,
+    borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
+  },
+  confirmCornerTR: {
+    position: 'absolute', top: 4, right: 4, width: 8, height: 8,
+    borderTopWidth: 1, borderRightWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
+  },
+  confirmCornerBL: {
+    position: 'absolute', bottom: 4, left: 4, width: 8, height: 8,
+    borderBottomWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
+  },
+  confirmCornerBR: {
+    position: 'absolute', bottom: 4, right: 4, width: 8, height: 8,
+    borderBottomWidth: 1, borderRightWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
   },
 });

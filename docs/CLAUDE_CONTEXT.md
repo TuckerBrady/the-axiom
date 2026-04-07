@@ -765,3 +765,19 @@ false). RepairScreen: progress dots removed, board/tray/engage
 updated to current game visual standards using PieceIcon
 (source/output/conveyor). No navigation or interaction logic
 changes.
+
+## Sprint 12B — Onboarding polish (6 screens)
+CodexEntryScreen now wraps CodexDetailView with the approved
+Conveyor entry (no bespoke 4-card layout). IntroductionScreen,
+CharacterNameScreen, DisciplineScreen, LoginScreen updated to
+current design standards: cyan HUD brackets on all four corners
+(#00D4FF/0.28, zIndex 20), card bg rgba(6,9,18,0.95) border
+rgba(0,212,255,0.12), body text 14/300/#B0CCE8 italic. Login
+house/pentagon icon replaced with inline simplified Axiom ship
+SVG (viewBox 0 0 200 100, hull/command/sensor-wing/engine
+polygons). DisciplineScreen COGS response card uses
+state="engaged" and amber CONFIRM DISCIPLINE button with corner
+bracket accents. CharacterNameScreen designation reveal section
+preserved unchanged; only input-state chrome updated. DistressScreen
+header restyled (red #FF3B3B 10px) with 1px rgba(255,59,59,0.15)
+separator line. No copy or navigation changes.

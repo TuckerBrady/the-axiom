@@ -1,11 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -16,18 +10,22 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Svg, { Path, G, Circle } from 'react-native-svg';
+import Svg, {
+  Path,
+  Polygon,
+  Rect,
+  Ellipse,
+  Text as SvgText,
+} from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import CogsAvatar from '../../components/CogsAvatar';
-import AxiomShipSVG from '../../components/icons/AxiomShipSVG';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
 };
 
-// ─── Apple logo SVG ───────────────────────────────────────────────────────────
+// ─── Apple logo ───────────────────────────────────────────────────────────────
 
 function AppleLogo({ size = 18, color = '#fff' }: { size?: number; color?: string }) {
   return (
@@ -40,7 +38,7 @@ function AppleLogo({ size = 18, color = '#fff' }: { size?: number; color?: strin
   );
 }
 
-// ─── Google G logo ────────────────────────────────────────────────────────────
+// ─── Google logo ──────────────────────────────────────────────────────────────
 
 function GoogleLogo({ size = 18 }: { size?: number }) {
   return (
@@ -53,36 +51,124 @@ function GoogleLogo({ size = 18 }: { size?: number }) {
   );
 }
 
-// ─── Floating saucer ─────────────────────────────────────────────────────────
+// ─── Simplified Axiom ship SVG ───────────────────────────────────────────────
 
-function FloatingSaucer() {
+function AxiomShip({ width = 180, height = 90 }: { width?: number; height?: number }) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 200 100" fill="none">
+      {/* Main hull (lower) */}
+      <Polygon
+        points="20,75 140,75 158,62 158,42 20,42"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1.2"
+        opacity="0.35"
+      />
+      {/* Main hull (upper) */}
+      <Polygon
+        points="20,42 36,18 140,18 158,42"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1.2"
+        opacity="0.35"
+      />
+      {/* Command section (right) */}
+      <Polygon
+        points="140,18 158,42 158,62 140,75 168,56 168,30"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1"
+        opacity="0.28"
+      />
+      {/* Sensor wing (upper-left extending) */}
+      <Polygon
+        points="68,26 88,18 118,10 112,18 86,22"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1"
+        opacity="0.25"
+      />
+      {/* Engine block (left) */}
+      <Rect
+        x="8"
+        y="48"
+        width="22"
+        height="20"
+        rx="4"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1.2"
+        opacity="0.3"
+      />
+      {/* Engine glow */}
+      <Ellipse
+        cx="8"
+        cy="58"
+        rx="5"
+        ry="8"
+        fill="none"
+        stroke="#00D4FF"
+        strokeWidth="1"
+        opacity="0.25"
+      />
+      {/* Hull designation */}
+      <SvgText
+        x="60"
+        y="52"
+        fontSize="8"
+        fontFamily="monospace"
+        fill="#00D4FF"
+        opacity="0.2"
+        letterSpacing="4"
+      >
+        THE AXIOM
+      </SvgText>
+      {/* Copper accent (AX-MOD port) */}
+      <Rect
+        x="88"
+        y="38"
+        width="6"
+        height="8"
+        rx="2"
+        fill="none"
+        stroke="#C87941"
+        strokeWidth="1.2"
+        opacity="0.45"
+      />
+    </Svg>
+  );
+}
+
+// ─── Floating wrapper ────────────────────────────────────────────────────────
+
+function FloatingShip() {
   const float = useSharedValue(0);
   useEffect(() => {
     float.value = withRepeat(
       withSequence(
-        withTiming(-12, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
-        withTiming(0, { duration: 1600, easing: Easing.inOut(Easing.sin) }),
+        withTiming(-10, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
+        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.sin) }),
       ),
       -1,
       false,
     );
   }, []);
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: float.value }],
-  }));
+  const style = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
   return (
-    <Animated.View style={[style]}>
-      <AxiomShipSVG width={80} height={54} />
+    <Animated.View style={style}>
+      <AxiomShip width={180} height={90} />
     </Animated.View>
   );
 }
 
-// ─── Main screen ─────────────────────────────────────────────────────────────
+// ─── Complete onboarding ─────────────────────────────────────────────────────
 
 const completeOnboarding = async (nav: Props['navigation']) => {
   await AsyncStorage.setItem('@axiom_onboarding_complete', 'true');
   nav.reset({ index: 0, routes: [{ name: 'Tabs' }] });
 };
+
+// ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function LoginScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(0);
@@ -101,18 +187,23 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      {/* HUD brackets */}
+      <View pointerEvents="none" style={[s.bracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopRightRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[s.bracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomRightRadius: 3 }]} />
+
       {/* Header */}
       <View style={s.header}>
-        <CogsAvatar size="small" state="online" />
         <Text style={s.headerText}>PRESERVE PROGRESS</Text>
       </View>
 
-      {/* Saucer */}
-      <View style={s.saucerSection}>
-        <FloatingSaucer />
+      {/* Ship */}
+      <View style={s.shipSection}>
+        <FloatingShip />
       </View>
 
-      {/* COGS line */}
+      {/* COGS quote */}
       <Animated.View style={[s.cogsLine, contentStyle]}>
         <View style={s.cogsLineBubble}>
           <Text style={s.cogsLineText}>
@@ -124,7 +215,6 @@ export default function LoginScreen({ navigation }: Props) {
 
       {/* Auth buttons */}
       <Animated.View style={[s.buttons, contentStyle]}>
-        {/* Apple */}
         <TouchableOpacity
           style={s.appleBtn}
           onPress={() => completeOnboarding(navigation)}
@@ -134,7 +224,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={s.appleBtnText}>Continue with Apple</Text>
         </TouchableOpacity>
 
-        {/* Google */}
         <TouchableOpacity
           style={s.googleBtn}
           onPress={() => completeOnboarding(navigation)}
@@ -144,7 +233,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={s.googleBtnText}>Continue with Google</Text>
         </TouchableOpacity>
 
-        {/* Email */}
         <TouchableOpacity
           style={s.emailBtn}
           onPress={() => completeOnboarding(navigation)}
@@ -153,7 +241,6 @@ export default function LoginScreen({ navigation }: Props) {
           <Text style={s.emailBtnText}>Continue with Email</Text>
         </TouchableOpacity>
 
-        {/* Skip */}
         <TouchableOpacity
           style={s.skipBtn}
           onPress={() => completeOnboarding(navigation)}
@@ -168,45 +255,51 @@ export default function LoginScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
+  bracket: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    zIndex: 20,
+    elevation: 20,
+  },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
     paddingTop: 60,
     paddingBottom: Spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,158,255,0.12)',
-    gap: Spacing.sm,
+    borderBottomColor: 'rgba(0,212,255,0.08)',
+    alignItems: 'center',
   },
   headerText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.lg,
-    fontWeight: 'bold',
-    color: Colors.starWhite,
-    letterSpacing: 3,
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
+    letterSpacing: 2,
+    color: '#E8F4FF',
+    opacity: 0.75,
   },
-  saucerSection: {
+  shipSection: {
     alignItems: 'center',
-    paddingTop: Spacing.xxl,
-    paddingBottom: Spacing.lg,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.md,
   },
   cogsLine: {
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.xl,
   },
   cogsLineBubble: {
-    backgroundColor: 'rgba(74,158,255,0.05)',
+    backgroundColor: 'rgba(6,9,18,0.95)',
     borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.18)',
-    borderRadius: 14,
+    borderColor: 'rgba(0,212,255,0.12)',
+    borderRadius: 10,
     padding: Spacing.lg,
   },
   cogsLineText: {
     fontFamily: Fonts.exo2,
-    fontSize: FontSizes.md,
-    color: Colors.starWhite,
+    fontSize: 14,
+    fontWeight: '300',
+    color: '#B0CCE8',
     fontStyle: 'italic',
-    lineHeight: 22,
+    lineHeight: 23,
     textAlign: 'center',
   },
   buttons: {
@@ -219,7 +312,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: '#000',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: Spacing.md + 2,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
@@ -236,7 +329,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: Spacing.md + 2,
   },
   googleBtnText: {
@@ -250,7 +343,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
-    borderRadius: 12,
+    borderRadius: 10,
     paddingVertical: Spacing.md + 2,
     borderWidth: 1.5,
     borderColor: Colors.blue,
@@ -266,9 +359,9 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.md,
   },
   skipText: {
-    fontFamily: Fonts.exo2,
-    fontSize: FontSizes.sm,
-    color: Colors.muted,
-    textDecorationLine: 'underline',
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#2A4060',
+    opacity: 0.7,
   },
 });
