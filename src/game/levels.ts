@@ -87,7 +87,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CONVEYOR',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
-      message: 'First piece in your tray. The Conveyor. Before you place it, I am going to show you exactly how it works.',
+      message: 'The Conveyor. You have used one already. You did not know what it was called at the time. Now you do. It carries signal in a straight line. It does not think. Neither should you when placing it.',
       highlightAmberWords: ['Conveyor'],
       showDemo: true,
       demoText: 'Signal enters one end. Exits the other. Straight line only. Tap a placed Conveyor to rotate it. Four orientations available.',

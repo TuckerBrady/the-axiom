@@ -6,7 +6,7 @@ import CodexDetailView, { PieceEntry } from '../../components/CodexDetailView';
 import { Colors } from '../../theme/tokens';
 
 type Props = {
-  navigation: NativeStackNavigationProp<RootStackParamList, 'OnboardingCodexEntry'>;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Introduction'>;
 };
 
 const CONVEYOR_ENTRY: PieceEntry = {

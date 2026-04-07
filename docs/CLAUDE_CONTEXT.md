@@ -781,3 +781,18 @@ bracket accents. CharacterNameScreen designation reveal section
 preserved unchanged; only input-state chrome updated. DistressScreen
 header restyled (red #FF3B3B 10px) with 1px rgba(255,59,59,0.15)
 separator line. No copy or navigation changes.
+
+## Sprint 13 — Pause modal, timer, gesture/orb fixes, onboarding cleanup
+Pause modal with RESUME / RESTART / ABANDON MISSION (life cost
++ confirmation). Elapsed timer in gameplay header (MM:SS) and
+pause modal — starts on level mount, pauses with modal, stops
+on engage; elapsedSeconds piped into calculateScore for the
+Speed Bonus category (new optional param, defaults to engage
+duration for backward compat). Swipe-down gesture disabled on
+GameplayScreen (gestureEnabled: false). Orb measurement now
+uses 120ms delayed measure() for boardGrid/engageButton/tray
+refs (sourceNode/outputNode still direct). CodexEntryScreen
+removed from onboarding navigator — RepairScreen navigates
+directly to Introduction. A1-1 Conveyor tutorial line updated.
+Decryption bar increment-driven (40ms / +3.5..9.5) ~1.6s.
+Pixel dissolve batches 100 cells / 20ms ~320ms.

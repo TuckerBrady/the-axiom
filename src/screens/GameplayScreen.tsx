@@ -27,7 +27,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
-import { BackButton } from '../components/BackButton';
 import { PieceIcon } from '../components/PieceIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -90,6 +89,12 @@ function getPieceColor(type: PieceType): string {
     default:
       return Colors.blue;
   }
+}
+
+function formatMMSS(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -155,6 +160,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showResults, setShowResults] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timerRunning = useRef(false);
+  const lockedRef = useRef(false);
   const [showSystemRestored, setShowSystemRestored] = useState<string | null>(null);
   const [showCompletionScene, setShowCompletionScene] = useState(false);
   const [completionText, setCompletionText] = useState('');
@@ -197,6 +208,32 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Tutorial hints setup (suppress on replay) ──
   const isReplay = level ? isLevelDone(level.id) : false;
   const isAxiomLevel = level?.sector === 'axiom';
+
+  // ── Elapsed timer ──
+  useEffect(() => {
+    if (!level) return;
+    setElapsedSeconds(0);
+    lockedRef.current = false;
+    timerRunning.current = true;
+    timerRef.current = setInterval(() => {
+      if (timerRunning.current) {
+        setElapsedSeconds(prev => prev + 1);
+      }
+    }, 1000);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      timerRunning.current = false;
+    };
+  }, [level?.id]);
+
+  // ── Pause modal stops/resumes timer ──
+  useEffect(() => {
+    if (lockedRef.current) return;
+    timerRunning.current = !showPauseModal;
+  }, [showPauseModal]);
 
   // ── HUD tutorial overlay hydration ──
   useEffect(() => {
@@ -385,6 +422,14 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     triggerHints('onEngage');
+    // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
+    timerRunning.current = false;
+    lockedRef.current = true;
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    const lockedElapsed = elapsedSeconds;
     const engageStartTime = Date.now();
     const steps = engage();
 
@@ -409,6 +454,7 @@ export default function GameplayScreen({ navigation }: Props) {
         optimalPieces: level.optimalPieces,
         discipline: currentDiscipline,
         engageDurationMs,
+        elapsedSeconds: lockedElapsed,
       });
 
       // Axiom tutorial levels: always 3 stars, honest COGS quote
@@ -529,6 +575,16 @@ export default function GameplayScreen({ navigation }: Props) {
     setShowVoid(false);
     setAnimatingStep(-1);
     reset();
+    // Restart the elapsed timer from zero.
+    setElapsedSeconds(0);
+    lockedRef.current = false;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      if (timerRunning.current) {
+        setElapsedSeconds(prev => prev + 1);
+      }
+    }, 1000);
+    timerRunning.current = true;
   }, [reset]);
 
   // ── Debug ──
@@ -562,7 +618,9 @@ export default function GameplayScreen({ navigation }: Props) {
       <View style={styles.root}>
         <SafeAreaView style={styles.safeArea}>
           <Text style={styles.errorText}>No level loaded</Text>
-          <BackButton onPress={() => navigation.goBack()} />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ alignSelf: 'center', padding: 16 }}>
+            <Text style={{ color: Colors.muted, fontFamily: Fonts.spaceMono }}>BACK</Text>
+          </TouchableOpacity>
         </SafeAreaView>
       </View>
     );
@@ -575,11 +633,21 @@ export default function GameplayScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safeArea}>
         {/* ── Top Bar ── */}
         <View style={styles.topBar}>
-          <BackButton onPress={() => navigation.goBack()} />
+          <TouchableOpacity
+            style={styles.pauseBtn}
+            activeOpacity={0.7}
+            onPress={() => setShowPauseModal(true)}
+          >
+            <View style={styles.pauseBar} />
+            <View style={styles.pauseBar} />
+          </TouchableOpacity>
           <View style={styles.topBarCenter}>
             <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
             <Text style={styles.levelTag}>{level.id}</Text>
             <Text style={styles.levelName}>{level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}</Text>
+            {!showResults && !showVoid && (
+              <Text style={styles.timerText}>{formatMMSS(elapsedSeconds)}</Text>
+            )}
           </View>
           <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7} onPress={() => setShowBriefing(true)}>
             <Svg width={18} height={18} viewBox="0 0 24 24">
@@ -1271,6 +1339,102 @@ export default function GameplayScreen({ navigation }: Props) {
         </View>
       )}
 
+      {/* ── Pause Modal ── */}
+      {showPauseModal && (
+        <View style={styles.pauseDim}>
+          <View style={styles.pauseCard}>
+            {/* HUD corner brackets */}
+            <View style={[styles.pauseCorner, { top: 6, left: 6, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderTopLeftRadius: 3 }]} />
+            <View style={[styles.pauseCorner, { top: 6, right: 6, borderTopWidth: 1.5, borderRightWidth: 1.5, borderTopRightRadius: 3 }]} />
+            <View style={[styles.pauseCorner, { bottom: 6, left: 6, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderBottomLeftRadius: 3 }]} />
+            <View style={[styles.pauseCorner, { bottom: 6, right: 6, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderBottomRightRadius: 3 }]} />
+
+            {!showAbandonConfirm ? (
+              <>
+                <Text style={styles.pauseLabel}>MISSION PAUSED</Text>
+                <Text style={styles.pauseLevelName}>
+                  {level.id} {(level.systemRepaired ?? level.name).toUpperCase()}
+                </Text>
+
+                <View style={styles.pauseTimerWrap}>
+                  <Text style={styles.pauseTimerBig}>{formatMMSS(elapsedSeconds)}</Text>
+                  <Text style={styles.pauseTimerLabel}>ELAPSED</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.pauseResumeBtn}
+                  onPress={() => setShowPauseModal(false)}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.pauseBtnCornerTL, { borderColor: 'rgba(0,212,255,0.5)' }]} />
+                  <View style={[styles.pauseBtnCornerTR, { borderColor: 'rgba(0,212,255,0.5)' }]} />
+                  <View style={[styles.pauseBtnCornerBL, { borderColor: 'rgba(0,212,255,0.5)' }]} />
+                  <View style={[styles.pauseBtnCornerBR, { borderColor: 'rgba(0,212,255,0.5)' }]} />
+                  <Text style={styles.pauseResumeText}>RESUME</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pauseRestartBtn}
+                  onPress={() => {
+                    handleReset();
+                    setShowPauseModal(false);
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.pauseRestartText}>RESTART LEVEL</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.pauseAbandonBtn}
+                  onPress={() => setShowAbandonConfirm(true)}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.pauseAbandonText}>ABANDON MISSION</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.pauseLabel}>CONFIRM ABANDON</Text>
+                <Text style={[styles.pauseAbandonWarn, { marginTop: 16 }]}>
+                  Abandoning this mission will cost 1 life.
+                </Text>
+                <Text style={styles.pauseAbandonSub}>This cannot be undone.</Text>
+
+                <View style={styles.pauseConfirmRow}>
+                  <TouchableOpacity
+                    style={styles.pauseCancelBtn}
+                    onPress={() => setShowAbandonConfirm(false)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.pauseCancelText}>CANCEL</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.pauseConfirmBtn}
+                    onPress={() => {
+                      // Lives store: lives <= 1 means about to hit 0
+                      if (lives <= 1) {
+                        loseLife();
+                        setShowAbandonConfirm(false);
+                        setShowPauseModal(false);
+                        setShowOutOfLives(true);
+                      } else {
+                        loseLife();
+                        setShowAbandonConfirm(false);
+                        setShowPauseModal(false);
+                        navigation.goBack();
+                      }
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.pauseConfirmText}>CONFIRM ABANDON</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      )}
+
       {/* ── HUD Tutorial Overlay ── */}
       {!tutorialComplete && !tutorialSkipped && !isReplay &&
         level?.sector === 'axiom' && (level?.tutorialSteps?.length ?? 0) > 0 && (
@@ -1318,6 +1482,179 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backArrow: { fontFamily: Fonts.orbitron, fontSize: 18, color: Colors.muted },
+  pauseBtn: {
+    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: 4,
+  },
+  pauseBar: {
+    width: 3, height: 10, backgroundColor: '#00D4FF', opacity: 0.7, borderRadius: 1,
+  },
+  timerText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 13,
+    color: '#00D4FF',
+    opacity: 0.7,
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  pauseDim: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,6,18,0.88)',
+    zIndex: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pauseCard: {
+    width: screenWidth - 48,
+    backgroundColor: 'rgba(4,8,20,0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.18)',
+    borderRadius: 14,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    alignItems: 'center',
+  },
+  pauseCorner: {
+    position: 'absolute',
+    width: 14,
+    height: 14,
+    borderColor: 'rgba(0,212,255,0.35)',
+  },
+  pauseLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#00D4FF',
+    opacity: 0.6,
+    letterSpacing: 2,
+  },
+  pauseLevelName: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#E8F4FF',
+    marginTop: 4,
+    letterSpacing: 1,
+  },
+  pauseTimerWrap: {
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  pauseTimerBig: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 28,
+    fontWeight: '300',
+    color: '#E8F4FF',
+  },
+  pauseTimerLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#00D4FF',
+    opacity: 0.5,
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  pauseResumeBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(0,212,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.35)',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+    position: 'relative',
+  },
+  pauseResumeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
+    color: '#00D4FF',
+    letterSpacing: 1.5,
+  },
+  pauseBtnCornerTL: { position: 'absolute', top: 4, left: 4, width: 8, height: 8, borderTopWidth: 1, borderLeftWidth: 1 },
+  pauseBtnCornerTR: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderTopWidth: 1, borderRightWidth: 1 },
+  pauseBtnCornerBL: { position: 'absolute', bottom: 4, left: 4, width: 8, height: 8, borderBottomWidth: 1, borderLeftWidth: 1 },
+  pauseBtnCornerBR: { position: 'absolute', bottom: 4, right: 4, width: 8, height: 8, borderBottomWidth: 1, borderRightWidth: 1 },
+  pauseRestartBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(0,0,0,0)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pauseRestartText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 1.5,
+  },
+  pauseAbandonBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(255,59,59,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,59,59,0.25)',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  pauseAbandonText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: 'rgba(255,59,59,0.7)',
+    letterSpacing: 1.5,
+  },
+  pauseAbandonWarn: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#FF3B3B',
+    opacity: 0.8,
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  pauseAbandonSub: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#B0CCE8',
+    opacity: 0.6,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  pauseConfirmRow: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: 10,
+  },
+  pauseCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  pauseCancelText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 1.5,
+  },
+  pauseConfirmBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255,59,59,0.4)',
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  pauseConfirmText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#FF3B3B',
+    letterSpacing: 1.5,
+  },
   topBarCenter: { flex: 1, alignItems: 'center' },
   sectorTag: {
     fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.dim,

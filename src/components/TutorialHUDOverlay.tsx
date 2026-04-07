@@ -142,15 +142,30 @@ export default function TutorialHUDOverlay({
   }, [morphed, portalLayout, scanY]);
 
   // ── Measure target for current step (tutorial phase) ──
+  // Large layout elements (board / engage / tray chips) need extra delay so
+  // their layout settles before measure() is called, otherwise the orb jumps.
+  // Source/output node refs are board children whose position settles
+  // immediately and use direct measure().
+  const DELAYED_REFS = new Set([
+    'boardGrid',
+    'engageButton',
+    'trayConveyor',
+    'trayGear',
+    'trayConfigNode',
+    'traySplitter',
+    'trayScanner',
+    'trayTransmitter',
+  ]);
   const measureCurrent = useCallback((cb: (layout: Layout | null) => void) => {
     if (!step) return cb(null);
     const ref = targetRefs[step.targetRef];
     if (!ref?.current?.measure) return cb(null);
+    const delay = DELAYED_REFS.has(step.targetRef) ? 120 : 0;
     setTimeout(() => {
       ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
         cb({ x: pageX, y: pageY, width, height });
       });
-    }, 60);
+    }, delay);
   }, [step, targetRefs]);
 
   // ── Compute callout position relative to portal ──
@@ -318,17 +333,17 @@ export default function TutorialHUDOverlay({
     if (phase !== 'announce') return;
     setAnnProgress(0);
     setAnnComplete(false);
-    const start = Date.now();
-    const totalMs = 3500;
     const id = setInterval(() => {
-      const elapsed = Date.now() - start;
-      const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
-      setAnnProgress(pct);
-      if (pct >= 100) {
-        setAnnComplete(true);
-        clearInterval(id);
-      }
-    }, 60);
+      setAnnProgress(prev => {
+        const next = prev + Math.random() * 6 + 3.5;
+        if (next >= 100) {
+          setAnnComplete(true);
+          clearInterval(id);
+          return 100;
+        }
+        return next;
+      });
+    }, 40);
     return () => clearInterval(id);
   }, [phase]);
 
@@ -644,7 +659,7 @@ export default function TutorialHUDOverlay({
                 />
               </View>
               <Text style={s.progressText}>
-                {annComplete ? 'DECRYPTION COMPLETE' : `DECRYPTING... ${annProgress}%`}
+                {annComplete ? 'DECRYPTION COMPLETE' : `DECRYPTING... ${Math.round(annProgress)}%`}
               </Text>
             </View>
           )}
@@ -943,7 +958,7 @@ function PixelDissolve() {
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
     let group = 0;
-    const groupSize = 50;
+    const groupSize = 100;
     const id = setInterval(() => {
       const start = group * groupSize;
       const end = Math.min(total, start + groupSize);
@@ -961,7 +976,7 @@ function PixelDissolve() {
         clearInterval(id);
         setTimeout(() => force(1), 1200);
       }
-    }, 30);
+    }, 20);
     return () => clearInterval(id);
   }, []);
 

@@ -18,7 +18,6 @@ import TabNavigator from './TabNavigator';
 import BootScreen from '../screens/onboarding/BootScreen';
 import DistressScreen from '../screens/onboarding/DistressScreen';
 import RepairScreen from '../screens/onboarding/RepairScreen';
-import CodexEntryScreen from '../screens/onboarding/CodexEntryScreen';
 import IntroductionScreen from '../screens/onboarding/IntroductionScreen';
 import CharacterNameScreen from '../screens/onboarding/CharacterNameScreen';
 import DisciplineScreen from '../screens/onboarding/DisciplineScreen';
@@ -33,7 +32,6 @@ export type RootStackParamList = {
   Boot: undefined;
   Distress: undefined;
   Repair: undefined;
-  OnboardingCodexEntry: undefined;
   Introduction: undefined;
   CharacterName: undefined;
   Discipline: undefined;
@@ -142,7 +140,6 @@ export default function RootNavigator() {
         <Stack.Screen name="Boot" component={BootScreen} />
         <Stack.Screen name="Distress" component={DistressScreen} />
         <Stack.Screen name="Repair" component={RepairScreen} />
-        <Stack.Screen name="OnboardingCodexEntry" component={CodexEntryScreen} />
         <Stack.Screen name="Introduction" component={IntroductionScreen} />
         <Stack.Screen name="CharacterName" component={CharacterNameScreen} />
         <Stack.Screen name="Discipline" component={DisciplineScreen} />
@@ -167,7 +164,7 @@ export default function RootNavigator() {
         <Stack.Screen
           name="Gameplay"
           component={GameplayScreen}
-          options={{ animation: 'slide_from_bottom' }}
+          options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
         />
         <Stack.Screen name="Store" component={StoreScreen} />
       </Stack.Navigator>

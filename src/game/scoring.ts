@@ -90,8 +90,10 @@ function calcDisciplineBonus(
 
 // ─── Category 5: Speed Bonus (max 10) ────────────────────────────────────────
 
-function calcSpeedBonus(engageDurationMs: number): number {
-  const seconds = engageDurationMs / 1000;
+function calcSpeedBonus(engageDurationMs: number, elapsedSeconds?: number): number {
+  // Prefer elapsed level time when provided (mount → engage). Falls back to
+  // engage execution duration for backward compatibility with existing tests.
+  const seconds = elapsedSeconds && elapsedSeconds > 0 ? elapsedSeconds : engageDurationMs / 1000;
   if (seconds < 10) return 10;
   if (seconds <= 20) return 7;
   if (seconds <= 45) return 4;
@@ -120,15 +122,16 @@ export function calculateScore(params: {
   optimalPieces: number;
   discipline: NonNullable<Discipline>;
   engageDurationMs: number;
+  elapsedSeconds?: number;
 }): ScoreResult {
-  const { executionSteps, placedPieces, optimalPieces, discipline, engageDurationMs } = params;
+  const { executionSteps, placedPieces, optimalPieces, discipline, engageDurationMs, elapsedSeconds } = params;
 
   const playerPieces = placedPieces.filter(p => !p.isPrePlaced);
   const efficiency = calcEfficiency(playerPieces.length, optimalPieces);
   const protocolPrecision = calcProtocolPrecision(executionSteps);
   const chainIntegrity = calcChainIntegrity(executionSteps, playerPieces);
   const disciplineBonus = calcDisciplineBonus(executionSteps, playerPieces, discipline);
-  const speedBonus = calcSpeedBonus(engageDurationMs);
+  const speedBonus = calcSpeedBonus(engageDurationMs, elapsedSeconds);
 
   const total = efficiency + protocolPrecision + chainIntegrity + disciplineBonus + speedBonus;
   const stars = starsFromTotal(total);

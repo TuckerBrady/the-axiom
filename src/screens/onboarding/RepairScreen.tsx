@@ -157,7 +157,7 @@ export default function RepairScreen({ navigation }: Props) {
       setIntegrity(40);
       setTimeout(() => {
         setRepairState('done');
-        navigation.navigate('OnboardingCodexEntry');
+        navigation.navigate('Introduction');
       }, 1800);
     }, 1500);
   };
