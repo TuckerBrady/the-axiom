@@ -515,6 +515,25 @@ export default function SettingsScreen(_: Props) {
                 />
                 <View style={styles.divider} />
                 <TapRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>↺</Text>}
+                  label="Reset Tutorial Progress (Dev)"
+                  labelColor={Colors.amber}
+                  sub="Clears HUD tutorial state for all A1 levels"
+                  delay={790}
+                  onPress={async () => {
+                    const keys: string[] = [];
+                    for (let i = 1; i <= 8; i++) {
+                      const id = `A1-${i}`;
+                      keys.push(`axiom_tutorial_step_${id}`);
+                      keys.push(`axiom_tutorial_complete_${id}`);
+                      keys.push(`axiom_tutorial_skipped_${id}`);
+                    }
+                    await AsyncStorage.multiRemove(keys);
+                    Alert.alert('Tutorial Progress', 'Tutorial progress cleared.');
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
                   icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
                   label="Preview Next 7 Days (Dev)"
                   labelColor={Colors.green}

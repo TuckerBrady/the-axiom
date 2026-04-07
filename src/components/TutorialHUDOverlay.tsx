@@ -147,17 +147,29 @@ export default function TutorialHUDOverlay({
   // ── Compute callout position relative to portal ──
   const computeCalloutPos = useCallback((layout: Layout) => {
     const CALLOUT_W = Math.min(270, SCREEN_W * 0.79);
-    const NAV_H = 70;
+    const NAV_STRIP_HEIGHT = 88;
+    const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
+    const CALLOUT_EST_H = 140;
+    const MIN_TOP = 60;
+    const midY = USABLE_HEIGHT * 0.45;
     const centerY = layout.y + layout.height / 2;
-    const above = centerY > (SCREEN_H - NAV_H) / 2;
+    const belowTop = layout.y + layout.height + 18;
+    const belowOverflow = belowTop + CALLOUT_EST_H > USABLE_HEIGHT;
+    const above = centerY > midY || belowOverflow;
     const centerX = layout.x + layout.width / 2;
     let left = centerX - CALLOUT_W / 2;
     if (left < 12) left = 12;
     if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
     if (above) {
-      return { bottom: SCREEN_H - (layout.y - 18), left, width: CALLOUT_W, pointerAt: 'bottom' as const };
+      // Prefer bottom anchoring, but ensure the callout top does not go above MIN_TOP.
+      const bottomAnchor = SCREEN_H - (layout.y - 18);
+      const topIfBottomAnchored = SCREEN_H - bottomAnchor - CALLOUT_EST_H;
+      if (topIfBottomAnchored < MIN_TOP) {
+        return { top: MIN_TOP, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
+      }
+      return { bottom: bottomAnchor, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
     }
-    return { top: layout.y + layout.height + 18, left, width: CALLOUT_W, pointerAt: 'top' as const };
+    return { top: belowTop, left, width: CALLOUT_W, pointerAt: 'top' as const };
   }, []);
 
   // ── Fly orb to center of a layout (no morph) ──
@@ -504,8 +516,9 @@ export default function TutorialHUDOverlay({
                   {
                     width: 32,
                     height: 32,
-                    marginLeft: -5,
-                    marginTop: -5,
+                    borderRadius: 16,
+                    top: -5,
+                    left: -5,
                     borderColor: eyeColor,
                     opacity: Animated.multiply(pulseRingOpacity, 0.5),
                     transform: [{ scale: pulseScale }],
@@ -519,8 +532,9 @@ export default function TutorialHUDOverlay({
                   {
                     width: 46,
                     height: 46,
-                    marginLeft: -12,
-                    marginTop: -12,
+                    borderRadius: 23,
+                    top: -12,
+                    left: -12,
                     borderColor: eyeColor,
                     opacity: Animated.multiply(pulseRingOpacity, 0.25),
                     transform: [{ scale: pulseScale }],
@@ -1000,9 +1014,6 @@ const s = StyleSheet.create({
   },
   pulseRing: {
     position: 'absolute',
-    top: '50%',
-    left: '50%',
-    borderRadius: 999,
     borderWidth: 1.5,
   },
   portalCorner: {
