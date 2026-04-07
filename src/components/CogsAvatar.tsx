@@ -3,7 +3,6 @@ import Svg, {
   Rect,
   Circle,
   Line,
-  Path,
   G,
   Defs,
   RadialGradient,
@@ -359,17 +358,6 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
             </>
           )}
 
-          {/* Damage crack */}
-          {isDamaged && (
-            <Path
-              d="M 52 14 L 46 36 L 50 48 L 44 64"
-              stroke={Colors.red}
-              strokeWidth="1.5"
-              strokeOpacity="0.7"
-              fill="none"
-              strokeLinecap="round"
-            />
-          )}
         </G>
 
         {/* ── Neck ── */}
@@ -417,14 +405,6 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
         <Rect x="22" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
         <Rect x="56" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
 
-        {/* ── Damage badge (damaged only) ── */}
-        {isDamaged && (
-          <G>
-            <Circle cx="84" cy="16" r="12" fill={Colors.red} opacity="0.9" />
-            <Rect x="82.5" y="10" width="3" height="7" rx="1.5" fill="#fff" />
-            <Circle cx="84" cy="20" r="1.5" fill="#fff" />
-          </G>
-        )}
       </Svg>
     </Animated.View>
   );

@@ -65,18 +65,42 @@ function FlickerText({ text, style }: { text: string; style?: object }) {
 }
 
 function HudBrackets() {
-  const C = 'rgba(0,212,255,0.28)';
+  const C = 'rgba(255,59,59,0.28)';
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <View style={[s.corner, { top: 14, left: 14 }]}>
-        <View style={[s.cornerH, { top: 0, left: 0, backgroundColor: C }]} />
-        <View style={[s.cornerV, { top: 0, left: 0, backgroundColor: C }]} />
-      </View>
-      <View style={[s.corner, { top: 14, right: 14 }]}>
-        <View style={[s.cornerH, { top: 0, right: 0, backgroundColor: C }]} />
-        <View style={[s.cornerV, { top: 0, right: 0, backgroundColor: C }]} />
-      </View>
-    </View>
+    <>
+      <View
+        pointerEvents="none"
+        style={[s.bracket, {
+          top: 8, left: 8,
+          borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: C,
+          borderTopLeftRadius: 3,
+        }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[s.bracket, {
+          top: 8, right: 8,
+          borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: C,
+          borderTopRightRadius: 3,
+        }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[s.bracket, {
+          bottom: 8, left: 8,
+          borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: C,
+          borderBottomLeftRadius: 3,
+        }]}
+      />
+      <View
+        pointerEvents="none"
+        style={[s.bracket, {
+          bottom: 8, right: 8,
+          borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: C,
+          borderBottomRightRadius: 3,
+        }]}
+      />
+    </>
   );
 }
 
@@ -232,20 +256,12 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.void,
   },
-  corner: {
+  bracket: {
     position: 'absolute',
     width: 18,
     height: 18,
-  },
-  cornerH: {
-    position: 'absolute',
-    width: 18,
-    height: 2,
-  },
-  cornerV: {
-    position: 'absolute',
-    width: 2,
-    height: 18,
+    zIndex: 20,
+    elevation: 20,
   },
   statusBar: {
     flexDirection: 'row',
