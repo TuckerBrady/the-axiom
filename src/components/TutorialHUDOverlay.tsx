@@ -176,7 +176,13 @@ export default function TutorialHUDOverlay({
         // threshold (100) because it is expected to be big; all other
         // targets (tray pieces, engage button, source/output) use 10.
         const threshold = step.targetRef === 'boardGrid' ? 100 : 10;
-        if ((width < threshold || height < threshold) && retry) {
+        const badSize = width < threshold || height < threshold;
+        // Additional guard: the engage button lives in the lower half of
+        // the screen. If measure returns a y in the top half, the layout
+        // has not settled and we should retry.
+        const badEngagePos =
+          step.targetRef === 'engageButton' && pageY < SCREEN_H / 2;
+        if ((badSize || badEngagePos) && retry) {
           setTimeout(() => doMeasure(false), 200);
           return;
         }
@@ -200,12 +206,31 @@ export default function TutorialHUDOverlay({
       };
     }
     const CALLOUT_W = Math.min(270, SCREEN_W * 0.79);
+    const centerX = layout.x + layout.width / 2;
+    let left = centerX - CALLOUT_W / 2;
+    if (left < 12) left = 12;
+    if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
+
+    // ENGAGE step: the button sits below the parts tray at the very bottom
+    // of the screen, and the nav strip is lifted to bottom: 136 on this
+    // step. A measurement-derived bottom anchor has been unreliable — the
+    // engage button ref (TouchableOpacity) sometimes returns stale pageY,
+    // pushing the callout into or below the tray. Use a deterministic
+    // bottom anchor that always clears the lifted nav strip, the tray,
+    // and the engage row.
+    //   nav strip lift (136) + nav strip height (~80) + tray (~80) +
+    //   margin (~14) = 310
+    if (step?.targetRef === 'engageButton') {
+      return {
+        bottom: 310,
+        left,
+        width: CALLOUT_W,
+        pointerAt: 'bottom' as const,
+      };
+    }
+
     const NAV_STRIP_HEIGHT = 88;
-    // When the nav strip is lifted (engageButton step), the usable area
-    // above it shrinks — the callout must clear the lifted strip.
-    const NAV_LIFT = step?.targetRef === 'engageButton' ? 136 : 0;
-    const EFFECTIVE_NAV_AREA = NAV_STRIP_HEIGHT + NAV_LIFT;
-    const USABLE_HEIGHT = SCREEN_H - EFFECTIVE_NAV_AREA;
+    const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
     const CALLOUT_EST_H = 140;
     const MIN_TOP = 60;
     const centerY = layout.y + layout.height / 2;
@@ -213,15 +238,10 @@ export default function TutorialHUDOverlay({
     const belowOverflow = belowTop + CALLOUT_EST_H > USABLE_HEIGHT;
     // Place above target when target sits in the lower half of the screen.
     const above = centerY > SCREEN_H / 2 || belowOverflow;
-    const centerX = layout.x + layout.width / 2;
-    let left = centerX - CALLOUT_W / 2;
-    if (left < 12) left = 12;
-    if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
     if (above) {
       // Bottom-anchor the callout so its bottom sits 18px above the target.
-      // Ensure it also clears the (possibly lifted) nav strip.
       const desiredBottom = SCREEN_H - (layout.y - 18);
-      const minBottom = EFFECTIVE_NAV_AREA + 8;
+      const minBottom = NAV_STRIP_HEIGHT + 8;
       const bottomAnchor = Math.max(desiredBottom, minBottom);
       const topIfBottomAnchored = SCREEN_H - bottomAnchor - CALLOUT_EST_H;
       if (topIfBottomAnchored < MIN_TOP) {
