@@ -221,8 +221,13 @@ export default function TutorialHUDOverlay({
     //   nav strip lift (136) + nav strip height (~80) + tray (~80) +
     //   margin (~14) = 310
     if (step?.targetRef === 'engageButton') {
+      // Use a top anchor instead of bottom: the overlay container's height
+      // is not reliably full-screen, so bottom-anchored offsets can land in
+      // the wrong place. Top-anchored values are stable from the top of the
+      // screen. Clamp below the gameplay header (80px) at minimum.
+      const top = Math.max(80, SCREEN_H - 360);
       return {
-        bottom: 310,
+        top,
         left,
         width: CALLOUT_W,
         pointerAt: 'bottom' as const,
