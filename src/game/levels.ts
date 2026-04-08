@@ -90,14 +90,6 @@ export const levelA1_1: LevelDefinition = {
       message: 'Place Conveyors in a straight line between Source and Output. Tap a placed piece to rotate it. The signal follows orientation. Build the path.',
       highlightWords: ['rotate it'],
     },
-    {
-      id: 'engage',
-      label: 'ENGAGE',
-      targetRef: 'engageButton',
-      eyeState: 'blue',
-      message: 'Path is set. Press Engage. The machine runs. Signal reaches Output. Emergency power restored. The Axiom comes back online.',
-      highlightWords: ['Engage'],
-    },
   ],
 };
 

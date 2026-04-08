@@ -220,21 +220,6 @@ export default function TutorialHUDOverlay({
     // and the engage row.
     //   nav strip lift (136) + nav strip height (~80) + tray (~80) +
     //   margin (~14) = 310
-    if (step?.targetRef === 'engageButton') {
-      // Use a top anchor instead of bottom: the overlay container's height
-      // is not reliably full-screen, so bottom-anchored offsets can land in
-      // the wrong place. Top-anchored values are stable from the top of the
-      // screen. Clamp below the gameplay header (80px) at minimum.
-      const top = Math.max(80, SCREEN_H - 360);
-      return {
-        top,
-        bottom: undefined,
-        left,
-        width: CALLOUT_W,
-        pointerAt: 'bottom' as const,
-      };
-    }
-
     const NAV_STRIP_HEIGHT = 88;
     const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
     const CALLOUT_EST_H = 140;
@@ -532,22 +517,6 @@ export default function TutorialHUDOverlay({
       setCurrentStep(idx);
     }
   }, [currentStep, phase]);
-
-  // Lift nav strip when targeting bottom-of-screen elements so it doesn't
-  // cover what COGS is pointing at.
-  useEffect(() => {
-    if (!step) return;
-    // Only the ENGAGE button sits below the nav strip — it's the only
-    // target that needs the strip lifted. Tray pieces render above the
-    // nav strip already, so lifting for them strands the strip mid-screen.
-    const NAV_LIFT_TARGETS = new Set(['engageButton']);
-    const lift = NAV_LIFT_TARGETS.has(step.targetRef);
-    Animated.timing(navStripBottom, {
-      toValue: lift ? 136 : 0,
-      duration: 250,
-      useNativeDriver: false,
-    }).start();
-  }, [step, navStripBottom]);
 
   if (!hydrated || !step) return null;
 
