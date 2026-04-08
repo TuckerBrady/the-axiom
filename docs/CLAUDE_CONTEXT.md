@@ -44,10 +44,48 @@ executes.
 
 ## CURRENT BUILD STATE
 
-**Last completed sprint:** Sprint 6 (UI polish, game board, Codex redesign)
+**Last completed sprint:** Sprint 17 (17A + 17B + 17C all complete). Most recent commit: 15b68cc.
 
 **What is live and working:**
 
+- Sprint 17C: Five new pieces added (Kepler Belt, not yet assigned to
+  any level): Merger (Physics), Bridge (Physics), Inverter (Protocol),
+  Counter (Protocol), Latch (Protocol). All have engine cases
+  (success + failure paths), rotation-aware input/output ports,
+  PieceIcon SVGs, animation props (merging, bridging, inverting,
+  counting, latching + latchMode), and full Codex entries in both
+  CodexDetailView and CodexScreen. Tutorial steps and tray
+  assignments deferred until Kepler Belt levels are built.
+- Sprint 17C: Piece creation standard published at
+  docs/PIECE_CREATION_STANDARD.md. Required checklist for every new
+  piece — engine, icon, animations, Codex entry, tutorial, gameplay
+  integration, COGS voice sign-off. No piece ships without it.
+- Sprint 17B: Piece interaction animation system. Every piece animates
+  when the beam passes through. PieceIcon props: charging (inputPort,
+  280ms), locking (outputPort, 400ms), rolling (conveyor, 180ms),
+  spinning (gear, 400ms), splitting (splitter, 160ms), scanning
+  (scanner, 200ms), gating + gateResult (configNode, 240ms),
+  transmitting (transmitter, 150ms). Failure states: void beam death
+  with red head transition + red X, Config Node block with red gate
+  flash + rings, wrong output tape comparison with bit-by-bit
+  mismatch highlight. activeAnimations Map drives all prop passing
+  from GameplayScreen to PieceIcon.
+- Sprint 17A: Turing machine tape system. Levels define
+  inputTape: number[] and expectedOutput: number[]. Engine fires
+  N pulses (one per tape bit). Scanner reads inputTape[pulseIndex],
+  Transmitter writes outputTape[pulseIndex], Config Node gates on
+  the current tape bit. After all pulses, outputTape compared to
+  expectedOutput — match = lock, mismatch = wrong output failure
+  state. Tape UI renders above board: input tape with head
+  indicator, output tape filling as Transmitter writes; pulse
+  counter shows during execution. Tape-enabled levels: A1-5, A1-6,
+  A1-7, A1-8. Levels without inputTape run as single pulse —
+  unchanged.
+- Sprint 17A: Input Port / Output Port rename. Formerly Source node
+  and Output node. All piece type string references updated across
+  11 files: 'source' → 'inputPort', 'output' → 'outputPort'
+  everywhere in engine, types, levels, stores, screens, and
+  components. Codex IDs, names, and field simulations all updated.
 - Sprint 16B: Segmented beam color system. Purple for source/output
   (data layer), amber for Physics pieces (conveyor/gear/splitter), blue
   for Protocol pieces (scanner/configNode/transmitter), green for lock,
@@ -147,18 +185,25 @@ executes.
 
 - HUD tutorial system complete across all 8 Axiom levels (A1-1
   through A1-8). Full PieceSimulation parity in CodexDetailView.
-- Signal ball animation does not follow Gear bends correctly.
-  Travels diagonally instead of hopping through each piece center.
 - Grid sizing: pieces still feel small on phone. CELL_SIZE min
   raised to 58. Level grid dimensions being tightened.
+- Kepler Belt levels not yet built (10 levels planned).
+- Five new pieces (Merger, Bridge, Inverter, Counter, Latch) not
+  yet assigned to any level tray — awaiting Kepler Belt build.
+- Wrong output results modal not yet implemented. Sprint 17B
+  triggers existing void/fail state as a placeholder.
+- Gameplay canvas rendering bug (carried from before Sprint 17).
 
-**Queued for next sprint:**
+**Queued for next sprint (On the horizon):**
 
-- Tighter A1 level grid dimensions (reduce gridWidth/gridHeight)
-- Signal ball sequential hop animation per execution step
-- Progressive COGS teaching fully verified for A1-3
-- Continue button final verification across all A1 levels
-- Daily challenge template library verification via dev utility
+- Kepler Belt level design and build (Sector 1, 10 levels)
+- Assign Merger, Bridge, Inverter, Counter, Latch to Kepler Belt
+  levels and write tutorial steps for each
+- Wrong output results modal implementation
+- Gameplay canvas rendering bug fix
+- Tutorial system improvements (Tucker has ideas — next session)
+- Complete narrative document review (Parts One, Four–Ten)
+- MVP launch prep
 
 ---
 
@@ -241,6 +286,11 @@ Star thresholds: 80-100=3 stars, 55-79=2 stars, 30-54=1 star, 0-29=void
 | 5 | TBD | TBD | TBD |
 
 Total: 48+ levels. Sector 5 name and story TBD.
+
+**Next sector to build:** Sector 1 Kepler Belt (10 levels planned).
+The five new pieces from Sprint 17C — Merger, Bridge, Inverter,
+Counter, Latch — are ready for Kepler Belt assignment. Tutorial
+steps and tray inclusion deferred until those levels are designed.
 
 ---
 
@@ -820,3 +870,25 @@ transmitter wave pulse (150ms in-out). Wire keys use
 `${fromId}_${toId}` convention (both directions stored in
 litWires). Every piece icon now has distinctive secondary
 accents that survive the board's primary color override.
+
+## Sprint 17 — Tape system, piece animations, new pieces (commit 15b68cc)
+17A: Source/Output renamed to Input Port / Output Port across 11
+files. Turing tape system added — levels can declare inputTape and
+expectedOutput; engine runs N pulses threading pulseIndex through
+Scanner / Transmitter / Config Node. Tape UI rendered above the
+board with head indicator and pulse counter. A1-5..A1-8 converted
+to tape-driven levels.
+17B: Per-piece interaction animations driven by activeAnimations
+Map in GameplayScreen. Props on PieceIcon: charging, locking,
+rolling, spinning, splitting, scanning, gating + gateResult,
+transmitting. Failure states: void beam death (red head + X),
+Config Node block flash, wrong-output bit-by-bit mismatch.
+17C: Five new pieces — Merger, Bridge, Inverter, Counter, Latch.
+Engine cases, rotation-aware ports, PieceIcon SVGs, animation
+props (merging, bridging, inverting, counting, latching +
+latchMode), Codex entries in both CodexDetailView and CodexScreen.
+docs/PIECE_CREATION_STANDARD.md published as the authoritative
+checklist for every new piece. New pieces intentionally NOT yet
+added to any level tray or tutorial — deferred until Kepler Belt
+levels are built. Also fixed legacy `config_node` Codex IDs to
+the canonical `configNode`.
