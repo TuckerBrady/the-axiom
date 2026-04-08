@@ -1024,12 +1024,16 @@ export default function GameplayScreen({ navigation }: Props) {
               })}
             </Svg>
 
-            {/* Signal beam overlay */}
+            {/* Signal beam overlay — wrapped in View so pointerEvents
+                component prop reliably passes touches through on iOS. */}
+            <View
+              pointerEvents="none"
+              style={[StyleSheet.absoluteFill, { zIndex: 20 }]}
+            >
             <Svg
               width={gridW}
               height={gridH}
-              style={[StyleSheet.absoluteFill, { zIndex: 20 }]}
-              pointerEvents="none"
+              style={StyleSheet.absoluteFill}
             >
               {signalPhase === 'charge' && chargePos && (
                 <>
@@ -1072,6 +1076,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 />
               ))}
             </Svg>
+            </View>
 
             {/* Pieces */}
             {pieces.map(piece => {
