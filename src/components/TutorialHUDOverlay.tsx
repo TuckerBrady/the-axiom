@@ -160,12 +160,18 @@ export default function TutorialHUDOverlay({
     if (!step) return cb(null);
     const ref = targetRefs[step.targetRef];
     if (!ref?.current?.measure) return cb(null);
-    const delay = DELAYED_REFS.has(step.targetRef) ? 120 : 0;
+    const BOARD_DELAY = 180;
+    const TRAY_DELAY = 120;
+    const delayMs = step.targetRef === 'boardGrid'
+      ? BOARD_DELAY
+      : DELAYED_REFS.has(step.targetRef)
+      ? TRAY_DELAY
+      : 0;
     setTimeout(() => {
       ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
         cb({ x: pageX, y: pageY, width, height });
       });
-    }, delay);
+    }, delayMs);
   }, [step, targetRefs]);
 
   // ── Compute callout position relative to portal ──
@@ -212,12 +218,20 @@ export default function TutorialHUDOverlay({
     const targetH = layout.height + PORTAL_PAD * 2;
     const targetL = layout.x - PORTAL_PAD;
     const targetT = layout.y - PORTAL_PAD;
+    // Clamp portal to viewport so large targets (board) don't render off-screen
+    const NAV_STRIP_HEIGHT = 88;
+    const MAX_PORTAL_W = SCREEN_W - 24;
+    const MAX_PORTAL_H = SCREEN_H - NAV_STRIP_HEIGHT - 80;
+    const clampedW = Math.min(targetW, MAX_PORTAL_W);
+    const clampedH = Math.min(targetH, MAX_PORTAL_H);
+    const clampedL = Math.max(8, Math.min(targetL, SCREEN_W - clampedW - 8));
+    const clampedT = Math.max(56, Math.min(targetT, SCREEN_H - NAV_STRIP_HEIGHT - clampedH - 8));
     const ease = Easing.bezier(0.34, 1.4, 0.64, 1);
     Animated.parallel([
-      Animated.timing(orbLeft, { toValue: targetL, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbTop, { toValue: targetT, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbW, { toValue: targetW, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbH, { toValue: targetH, duration: 420, easing: ease, useNativeDriver: false }),
+      Animated.timing(orbLeft, { toValue: clampedL, duration: 420, easing: ease, useNativeDriver: false }),
+      Animated.timing(orbTop, { toValue: clampedT, duration: 420, easing: ease, useNativeDriver: false }),
+      Animated.timing(orbW, { toValue: clampedW, duration: 420, easing: ease, useNativeDriver: false }),
+      Animated.timing(orbH, { toValue: clampedH, duration: 420, easing: ease, useNativeDriver: false }),
       Animated.timing(orbRadius, { toValue: 10, duration: 420, easing: ease, useNativeDriver: false }),
       Animated.timing(orbFillOpacity, { toValue: 0, duration: 320, useNativeDriver: false }),
       Animated.timing(pulseRingOpacity, { toValue: 0, duration: 300, useNativeDriver: false }),
@@ -484,6 +498,11 @@ export default function TutorialHUDOverlay({
     );
   };
 
+  // Bracket inset: when the portal covers a large target (board) the brackets
+  // would clip off-screen at the default -5 outside offset. Tuck them inside
+  // (positive 4) for large portals.
+  const bracketOffset = portalLayout && portalLayout.width > SCREEN_W * 0.6 ? 4 : -5;
+
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {/* Single dim layer */}
@@ -584,10 +603,10 @@ export default function TutorialHUDOverlay({
               ]}
             />
             {/* Corner brackets */}
-            <View style={[s.portalCorner, { top: -5, left: -5, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3 }]} />
-            <View style={[s.portalCorner, { top: -5, right: -5, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3 }]} />
-            <View style={[s.portalCorner, { bottom: -5, left: -5, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3 }]} />
-            <View style={[s.portalCorner, { bottom: -5, right: -5, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3 }]} />
+            <View style={[s.portalCorner, { top: bracketOffset, left: bracketOffset, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3 }]} />
+            <View style={[s.portalCorner, { top: bracketOffset, right: bracketOffset, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3 }]} />
+            <View style={[s.portalCorner, { bottom: bracketOffset, left: bracketOffset, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3 }]} />
+            <View style={[s.portalCorner, { bottom: bracketOffset, right: bracketOffset, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3 }]} />
             {/* Scan line */}
             <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden', borderRadius: 10 }]}>
               <Animated.View style={[s.scanLine, { transform: [{ translateY: scanY }] }]} />
@@ -958,7 +977,7 @@ function PixelDissolve() {
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
     let group = 0;
-    const groupSize = 100;
+    const groupSize = 200;
     const id = setInterval(() => {
       const start = group * groupSize;
       const end = Math.min(total, start + groupSize);
@@ -966,8 +985,8 @@ function PixelDissolve() {
         const idx = indices[i];
         Animated.timing(opacities[idx], {
           toValue: 0,
-          duration: 250,
-          delay: Math.random() * 200,
+          duration: 100,
+          delay: Math.random() * 60,
           useNativeDriver: false,
         }).start();
       }
@@ -976,7 +995,7 @@ function PixelDissolve() {
         clearInterval(id);
         setTimeout(() => force(1), 1200);
       }
-    }, 20);
+    }, 15);
     return () => clearInterval(id);
   }, []);
 

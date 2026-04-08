@@ -60,7 +60,7 @@ function HudCorners() {
     reveal.value = withDelay(200, withTiming(1, { duration: 800 }));
   }, []);
   const style = useAnimatedStyle(() => ({ opacity: reveal.value }));
-  const C = 'rgba(224,85,85,0.45)';
+  const C = 'rgba(255,59,59,0.55)';
   const corners: Array<{
     pos: object;
     h: object;
@@ -68,25 +68,25 @@ function HudCorners() {
   }> = [
     // Top-left: H along top, V along left
     {
-      pos: { top: 14, left: 14 },
+      pos: { top: 8, left: 8 },
       h: { top: 0, left: 0 },
       v: { top: 0, left: 0 },
     },
     // Top-right: H along top, V along right
     {
-      pos: { top: 14, right: 14 },
+      pos: { top: 8, right: 8 },
       h: { top: 0, right: 0 },
       v: { top: 0, right: 0 },
     },
     // Bottom-left: H along bottom, V along left
     {
-      pos: { bottom: 14, left: 14 },
+      pos: { bottom: 8, left: 8 },
       h: { bottom: 0, left: 0 },
       v: { bottom: 0, left: 0 },
     },
     // Bottom-right: H along bottom, V along right
     {
-      pos: { bottom: 14, right: 14 },
+      pos: { bottom: 8, right: 8 },
       h: { bottom: 0, right: 0 },
       v: { bottom: 0, right: 0 },
     },

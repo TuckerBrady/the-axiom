@@ -13,11 +13,14 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
+import Svg, { Circle as SvgCircle } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
 import { PieceIcon } from '../../components/PieceIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
+
+const AnimatedCircle = RNAnimated.createAnimatedComponent(SvgCircle);
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Repair'>;
@@ -127,9 +130,21 @@ function BoardCell({
 export default function RepairScreen({ navigation }: Props) {
   const [repairState, setRepairState] = useState<RepairState>('idle');
   const [integrity, setIntegrity] = useState(20);
+  const [beamPts, setBeamPts] = useState<{ x: number; y: number }[]>([]);
 
   const screenOpacity = useSharedValue(0);
   const contentReveal = useSharedValue(0);
+
+  // ── Engage signal beam animation ──
+  const beamHead = useRef(new RNAnimated.ValueXY({ x: 0, y: 0 })).current;
+  const beamOpacity = useRef(new RNAnimated.Value(0)).current;
+  const chargeOpacity = useRef(new RNAnimated.Value(0)).current;
+  const chargeRadius = useRef(new RNAnimated.Value(4)).current;
+
+  const boardRef = useRef<View>(null);
+  const srcRef = useRef<View>(null);
+  const convRef = useRef<View>(null);
+  const outRef = useRef<View>(null);
 
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 400 });
@@ -153,13 +168,79 @@ export default function RepairScreen({ navigation }: Props) {
   const handleEngage = () => {
     if (repairState !== 'placed') return;
     setRepairState('engaging');
-    setTimeout(() => {
-      setIntegrity(40);
+
+    type Pt = { x: number; y: number };
+    const doMeasure = (
+      ref: React.RefObject<View | null>,
+    ): Promise<Pt> => new Promise(resolve => {
       setTimeout(() => {
-        setRepairState('done');
-        navigation.navigate('Introduction');
-      }, 1800);
-    }, 1500);
+        ref.current?.measureInWindow((x, y, w, h) => {
+          boardRef.current?.measureInWindow((bx, by) => {
+            resolve({ x: x - bx + w / 2, y: y - by + h / 2 });
+          });
+        });
+      }, 80);
+    });
+
+    Promise.all([doMeasure(srcRef), doMeasure(convRef), doMeasure(outRef)]).then(pts => {
+      setBeamPts(pts);
+
+      // Phase 1 — CHARGE at source (280ms)
+      chargeOpacity.setValue(0);
+      chargeRadius.setValue(4);
+      RNAnimated.parallel([
+        RNAnimated.timing(chargeOpacity, { toValue: 0.8, duration: 140, useNativeDriver: false }),
+        RNAnimated.timing(chargeRadius, { toValue: 26, duration: 280, useNativeDriver: false }),
+      ]).start(() => {
+        chargeOpacity.setValue(0);
+
+        // Phase 2 — BEAM (400ms across 3 waypoints)
+        beamOpacity.setValue(0.8);
+        const totalMs = 400;
+        const start = Date.now();
+        const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
+        const dx1 = pts[1].x - pts[0].x;
+        const dy1 = pts[1].y - pts[0].y;
+        const dx2 = pts[2].x - pts[1].x;
+        const dy2 = pts[2].y - pts[1].y;
+        const d1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+        const d2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+        const total = d1 + d2;
+
+        const tick = () => {
+          const elapsed = Date.now() - start;
+          const t = Math.min(1, easeOut(elapsed / totalMs));
+          const headDist = t * total;
+          let hx: number;
+          let hy: number;
+          if (headDist <= d1) {
+            const sFrac = d1 > 0 ? headDist / d1 : 0;
+            hx = pts[0].x + dx1 * sFrac;
+            hy = pts[0].y + dy1 * sFrac;
+          } else {
+            const sFrac = d2 > 0 ? (headDist - d1) / d2 : 0;
+            hx = pts[1].x + dx2 * sFrac;
+            hy = pts[1].y + dy2 * sFrac;
+          }
+          beamHead.setValue({ x: hx, y: hy });
+
+          if (elapsed < totalMs) {
+            requestAnimationFrame(tick);
+          } else {
+            beamOpacity.setValue(0);
+            // Phase 3 — LOCK then continue with existing flow
+            setTimeout(() => {
+              setIntegrity(40);
+              setTimeout(() => {
+                setRepairState('done');
+                navigation.navigate('Introduction');
+              }, 1200);
+            }, 400);
+          }
+        };
+        requestAnimationFrame(tick);
+      });
+    });
   };
 
   const centerKind: CellKind =
@@ -195,14 +276,49 @@ export default function RepairScreen({ navigation }: Props) {
         <Text style={s.directive}>Connect the relay. Source to Output.</Text>
 
         {/* Board */}
-        <View style={s.board}>
-          <BoardCell kind="source" />
-          <BoardCell
-            kind={centerKind}
-            isTarget={centerKind === 'empty'}
-            onPress={repairState === 'selected' ? handleSlotPress : undefined}
-          />
-          <BoardCell kind="output" />
+        <View ref={boardRef} style={s.board}>
+          <View ref={srcRef} collapsable={false}>
+            <BoardCell kind="source" />
+          </View>
+          <View ref={convRef} collapsable={false}>
+            <BoardCell
+              kind={centerKind}
+              isTarget={centerKind === 'empty'}
+              onPress={repairState === 'selected' ? handleSlotPress : undefined}
+            />
+          </View>
+          <View ref={outRef} collapsable={false}>
+            <BoardCell kind="output" />
+          </View>
+          {/* Signal beam SVG overlay */}
+          <Svg
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none"
+          >
+            <AnimatedCircle
+              cx={beamPts[0]?.x ?? 0}
+              cy={beamPts[0]?.y ?? 0}
+              r={chargeRadius as unknown as number}
+              stroke="#F0B429"
+              strokeWidth={1.8}
+              fill="none"
+              opacity={chargeOpacity as unknown as number}
+            />
+            <AnimatedCircle
+              cx={beamHead.x as unknown as number}
+              cy={beamHead.y as unknown as number}
+              r={10}
+              fill="#00D4FF"
+              opacity={beamOpacity as unknown as number}
+            />
+            <AnimatedCircle
+              cx={beamHead.x as unknown as number}
+              cy={beamHead.y as unknown as number}
+              r={4}
+              fill="#FFFFFF"
+              opacity={beamOpacity as unknown as number}
+            />
+          </Svg>
         </View>
 
         {/* Spacer */}
