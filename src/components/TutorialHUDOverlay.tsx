@@ -180,7 +180,7 @@ export default function TutorialHUDOverlay({
       : DELAYED_REFS.has(step.targetRef)
       ? TRAY_DELAY
       : 0;
-    const doMeasure = (retry: boolean) => {
+    const doMeasure = (retriesLeft: number) => {
       ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
         // Stale/collapsed layout guard: any target can return a near-zero
         // size if measured before layout settles. boardGrid uses a larger
@@ -193,14 +193,16 @@ export default function TutorialHUDOverlay({
         // has not settled and we should retry.
         const badEngagePos =
           step.targetRef === 'engageButton' && pageY < SCREEN_H / 2;
-        if ((badSize || badEngagePos) && retry) {
-          setTimeout(() => doMeasure(false), 200);
+        if ((badSize || badEngagePos) && retriesLeft > 0) {
+          setTimeout(() => doMeasure(retriesLeft - 1), 200);
           return;
         }
         cb({ x: pageX, y: pageY, width, height });
       });
     };
-    setTimeout(() => doMeasure(true), delayMs);
+    // Up to 3 retries (200ms each) for tray pieces and other delayed refs
+    // whose layout can take longer to settle than the initial delay window.
+    setTimeout(() => doMeasure(3), delayMs);
   }, [step, targetRefs]);
 
   // ── Compute callout position relative to portal ──
@@ -362,6 +364,14 @@ export default function TutorialHUDOverlay({
     if (phase !== 'tutorial') return;
     if (prevStepRef.current === currentStep) return;
     prevStepRef.current = currentStep;
+    // Bug fix: hide the previous step's callout instantly so the new step's
+    // message text never flashes on screen at the old opacity. setValue is
+    // synchronous — Animated.timing here would race with the React render.
+    // Also clear morphed/calloutPos so no stale portal or position bleeds
+    // into the new step's entrance animation.
+    calloutOpacity.setValue(0);
+    setMorphed(false);
+    setCalloutPos(null);
     const oldLayout = portalLayout;
     unmorph(oldLayout, () => {
       measureCurrent((layout) => {
@@ -374,7 +384,7 @@ export default function TutorialHUDOverlay({
         });
       });
     });
-  }, [currentStep, hydrated, phase, portalLayout, unmorph, measureCurrent, flyTo, morphInto]);
+  }, [currentStep, hydrated, phase, portalLayout, unmorph, measureCurrent, flyTo, morphInto, calloutOpacity]);
 
   // ── Phase change: tutorial <-> demo/announce/codex ──
   const prevPhaseRef = useRef<Phase>('tutorial');

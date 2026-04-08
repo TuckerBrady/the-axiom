@@ -1517,18 +1517,22 @@ export default function GameplayScreen({ navigation }: Props) {
                 const color = getPieceColor(pt);
                 const cost = isAxiomLevel ? 0 : getPieceCost(pt, discipline);
                 const canAfford = cost === 0 || (useEconomyStore.getState().levelBudget - useEconomyStore.getState().levelSpent + useEconomyStore.getState().credits) >= cost;
+                const measureRef =
+                  pt === 'conveyor' ? trayConveyorRef
+                  : pt === 'gear' ? trayGearRef
+                  : pt === 'configNode' ? trayConfigNodeRef
+                  : pt === 'splitter' ? traySplitterRef
+                  : pt === 'scanner' ? traScannerRef
+                  : pt === 'transmitter' ? trayTransmitterRef
+                  : undefined;
                 return (
+                  // Wrap TouchableOpacity in a non-collapsable View so the
+                  // tutorial overlay's .measure() call returns the actual
+                  // tray-piece bounds. TouchableOpacity refs are unreliable
+                  // for measure() across platforms; a wrapping View with
+                  // collapsable={false} forces the native view to exist.
+                  <View key={pt} ref={measureRef} collapsable={false}>
                   <TouchableOpacity
-                    key={pt}
-                    ref={
-                      pt === 'conveyor' ? trayConveyorRef
-                      : pt === 'gear' ? trayGearRef
-                      : pt === 'configNode' ? trayConfigNodeRef
-                      : pt === 'splitter' ? traySplitterRef
-                      : pt === 'scanner' ? traScannerRef
-                      : pt === 'transmitter' ? trayTransmitterRef
-                      : undefined
-                    }
                     style={[
                       styles.trayItem,
                       isActive && { borderColor: color, backgroundColor: `${color}15` },
@@ -1548,6 +1552,7 @@ export default function GameplayScreen({ navigation }: Props) {
                       <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
                     )}
                   </TouchableOpacity>
+                  </View>
                 );
               })}
             </ScrollView>
