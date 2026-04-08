@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
+  Pressable,
   Animated as RNAnimated,
   Easing as RNEasing,
 } from 'react-native';
@@ -214,6 +215,7 @@ export default function DistressScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={handlePress} />
       <HudBrackets />
 
       {/* Top status bar */}

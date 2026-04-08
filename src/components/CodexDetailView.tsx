@@ -165,27 +165,26 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
         ] };
       }
       case 'splitter': {
-        const S = getCell(1, 1, 7, 4), C1 = getCell(2, 1, 7, 4), SP = getCell(3, 1, 7, 4);
-        const C2 = getCell(4, 1, 7, 4), O1 = getCell(5, 1, 7, 4), C3 = getCell(3, 2, 7, 4), O2 = getCell(3, 3, 7, 4);
-        const SPLIT_T = 0.38;
+        // 4-wide, 2-tall grid: S → C1 → SP → {O1 right, O2 down}
+        const S = getCell(0, 0, 4, 2), C1 = getCell(1, 0, 4, 2), SP = getCell(2, 0, 4, 2);
+        const O1 = getCell(3, 0, 4, 2), O2 = getCell(2, 1, 4, 2);
+        const SPLIT_T = 0.45;
         const preBall = t < SPLIT_T ? interpPath([S, C1, SP], t, SPLIT_T) : null;
-        const postT = Math.min((t - SPLIT_T) / (0.9 - SPLIT_T), 1);
-        const ballR = t >= SPLIT_T && t < 0.9 ? interpPath([SP, C2, O1], postT * 0.85, 0.85) : null;
-        const ballD = t >= SPLIT_T && t < 0.9 ? interpPath([SP, C3, O2], postT * 0.85, 0.85) : null;
+        const ballR = t >= SPLIT_T && t < 0.9 ? interpPath([SP, O1], t - SPLIT_T, 0.9 - SPLIT_T) : null;
+        const ballD = t >= SPLIT_T && t < 0.9 ? interpPath([SP, O2], t - SPLIT_T, 0.9 - SPLIT_T) : null;
         return { svgContent: (<>
           <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
-          <DrawConn x1={C1.x} y1={C1.y} x2={SP.x} y2={SP.y} lit={t > 0.2} />
-          <DrawConn x1={SP.x} y1={SP.y} x2={C2.x} y2={C2.y} lit={t > SPLIT_T} />
-          <DrawConn x1={C2.x} y1={C2.y} x2={O1.x} y2={O1.y} lit={t > 0.6} />
-          <DrawConn x1={SP.x} y1={SP.y} x2={C3.x} y2={C3.y} lit={t > SPLIT_T} />
-          <DrawConn x1={C3.x} y1={C3.y} x2={O2.x} y2={O2.y} lit={t > 0.6} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={SP.x} y2={SP.y} lit={t > 0.25} />
+          <DrawConn x1={SP.x} y1={SP.y} x2={O1.x} y2={O1.y} lit={t > SPLIT_T} />
+          <DrawConn x1={SP.x} y1={SP.y} x2={O2.x} y2={O2.y} lit={t > SPLIT_T} />
           {preBall && <SvgCircle cx={preBall.x} cy={preBall.y} r="5" fill="#00D4FF" />}
           {ballR && <SvgCircle cx={ballR.x} cy={ballR.y} r="5" fill="#00D4FF" />}
           {ballD && <SvgCircle cx={ballD.x} cy={ballD.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'source', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: SP, type: 'splitter', color: '#00D4FF' }, { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O1, type: 'output', color: '#00C48C' }, { cell: C3, type: 'conveyor', color: '#00D4FF' },
+          { cell: S, type: 'source', color: '#F0B429' },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: SP, type: 'splitter', color: '#00D4FF' },
+          { cell: O1, type: 'output', color: '#00C48C' },
           { cell: O2, type: 'output', color: '#00C48C' },
         ] };
       }
@@ -244,7 +243,7 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
         let ball: { x: number; y: number };
         if (t < SCAN_T) ball = interpPath([S, C1, SC], t, SCAN_T);
         else if (isReading) ball = SC;
-        else if (t < 0.9) ball = interpPath([SC, C2, O], (t - DONE_T) / (0.9 - DONE_T) * 0.85, 0.85);
+        else if (t < 0.9) ball = interpPath([SC, C2, O], t - DONE_T, 0.9 - DONE_T);
         else ball = O;
         return { svgContent: (<>
           <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />

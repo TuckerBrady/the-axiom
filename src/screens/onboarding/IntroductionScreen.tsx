@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -111,6 +111,7 @@ export default function IntroductionScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
+      <Pressable style={StyleSheet.absoluteFill} onPress={handlePress} />
       <HudBrackets />
 
       {/* Header */}

@@ -254,6 +254,26 @@ export default function GameplayScreen({ navigation }: Props) {
   const isReplay = level ? isLevelDone(level.id) : false;
   const isAxiomLevel = level?.sector === 'axiom';
 
+  // ── Tutorial active derivation (matches overlay render gate) ──
+  const tutorialIsActive =
+    !tutorialComplete &&
+    !tutorialSkipped &&
+    !isReplay &&
+    level?.sector === 'axiom' &&
+    (level?.tutorialSteps?.length ?? 0) > 0;
+  const tutorialIsActiveRef = useRef(tutorialIsActive);
+  useEffect(() => {
+    tutorialIsActiveRef.current = tutorialIsActive;
+  }, [tutorialIsActive]);
+
+  // ── Auto-dismiss COGS briefing strip after 4s (wait for tutorial to finish) ──
+  useEffect(() => {
+    if (!showBriefing) return;
+    if (tutorialIsActive) return;
+    const t = setTimeout(() => setShowBriefing(false), 4000);
+    return () => clearTimeout(t);
+  }, [showBriefing, tutorialIsActive]);
+
   // ── Elapsed timer ──
   useEffect(() => {
     if (!level) return;
@@ -261,7 +281,7 @@ export default function GameplayScreen({ navigation }: Props) {
     lockedRef.current = false;
     timerRunning.current = true;
     timerRef.current = setInterval(() => {
-      if (timerRunning.current) {
+      if (timerRunning.current && !tutorialIsActiveRef.current) {
         setElapsedSeconds(prev => prev + 1);
       }
     }, 1000);
@@ -847,7 +867,7 @@ export default function GameplayScreen({ navigation }: Props) {
     lockedRef.current = false;
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
-      if (timerRunning.current) {
+      if (timerRunning.current && !tutorialIsActiveRef.current) {
         setElapsedSeconds(prev => prev + 1);
       }
     }, 1000);
@@ -912,7 +932,7 @@ export default function GameplayScreen({ navigation }: Props) {
             <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
             <Text style={styles.levelTag}>{level.id}</Text>
             <Text style={styles.levelName}>{level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}</Text>
-            {!showResults && !showVoid && (
+            {!showResults && !showVoid && !tutorialIsActive && (
               <Text style={styles.timerText}>{formatMMSS(elapsedSeconds)}</Text>
             )}
           </View>

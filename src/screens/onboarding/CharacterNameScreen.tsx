@@ -116,6 +116,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
           <Text style={s.headerText}>C.O.G.S UNIT 7</Text>
         </View>
 
+        <View style={s.contentArea}>
         {/* COGS prompt */}
         <View style={s.promptSection}>
           <View style={s.promptBubble}>
@@ -179,6 +180,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
             </Animated.View>
           </View>
         )}
+        </View>
       </Animated.View>
     </KeyboardAvoidingView>
   );
@@ -186,6 +188,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
+  contentArea: { flex: 1, justifyContent: 'center' },
   bracket: {
     position: 'absolute',
     width: 18,
@@ -214,7 +217,6 @@ const s = StyleSheet.create({
   },
   promptSection: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl,
     paddingBottom: Spacing.lg,
   },
   promptBubble: {

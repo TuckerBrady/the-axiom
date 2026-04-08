@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -49,11 +50,12 @@ export default function TutorialHUDOverlay({
   // Portal layout (current target measure result)
   const [portalLayout, setPortalLayout] = useState<Layout | null>(null);
   const [morphed, setMorphed] = useState(false);
-  const [calloutPos, setCalloutPos] = useState<{ top?: number; bottom?: number; left: number; width: number; pointerAt: 'top' | 'bottom' } | null>(null);
+  const [calloutPos, setCalloutPos] = useState<{ top?: number; bottom?: number; left: number; width: number; pointerAt: 'top' | 'bottom' | 'none'; insidePortal?: boolean } | null>(null);
 
   // ── Animated values ──
   const dimOpacity = useRef(new Animated.Value(0)).current;
   const navStripY = useRef(new Animated.Value(80)).current;
+  const navStripBottom = useRef(new Animated.Value(0)).current;
 
   const orbLeft = useRef(new Animated.Value(SCREEN_W + 60)).current;
   const orbTop = useRef(new Animated.Value(80)).current;
@@ -176,6 +178,17 @@ export default function TutorialHUDOverlay({
 
   // ── Compute callout position relative to portal ──
   const computeCalloutPos = useCallback((layout: Layout) => {
+    // Large portal (board): drop the callout inside the portal at the top.
+    if (layout.width > SCREEN_W * 0.6) {
+      const W = SCREEN_W - 32;
+      return {
+        top: layout.y + 8,
+        left: 16,
+        width: W,
+        pointerAt: 'none' as const,
+        insidePortal: true,
+      };
+    }
     const CALLOUT_W = Math.min(270, SCREEN_W * 0.79);
     const NAV_STRIP_HEIGHT = 88;
     const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
@@ -329,16 +342,28 @@ export default function TutorialHUDOverlay({
       Animated.timing(dimOpacity, { toValue: 1, duration: 200, useNativeDriver: false }).start();
       Animated.timing(panelTranslate, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
     } else if (phase === 'tutorial') {
-      // Slide panel down, restore orb, re-fly/morph
+      // Slide panel down, restore orb, re-fly/morph.
+      // After Codex/demo close: wait for the panel slide-down (300ms) PLUS a
+      // 400ms layout-settle buffer, then warm up every ref so stale measurements
+      // are discarded, then re-measure the current target.
       Animated.timing(panelTranslate, { toValue: 400, duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
       Animated.timing(orbOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-      measureCurrent((layout) => {
-        if (!layout) return;
-        setPortalLayout(layout);
-        const cx = layout.x + layout.width / 2;
-        const cy = layout.y + layout.height / 2;
-        flyTo(cx, cy, () => morphInto(layout));
-      });
+      const remeasureAllRefs = () => {
+        for (const key of Object.keys(targetRefs)) {
+          const r = targetRefs[key];
+          r?.current?.measure?.(() => { /* warm-up only */ });
+        }
+      };
+      setTimeout(() => {
+        remeasureAllRefs();
+        measureCurrent((layout) => {
+          if (!layout) return;
+          setPortalLayout(layout);
+          const cx = layout.x + layout.width / 2;
+          const cy = layout.y + layout.height / 2;
+          flyTo(cx, cy, () => morphInto(layout));
+        });
+      }, 700);
     }
   }, [phase, hydrated, portalLayout, unmorph, measureCurrent, flyTo, morphInto, dimOpacity, orbOpacity, panelTranslate]);
 
@@ -463,6 +488,22 @@ export default function TutorialHUDOverlay({
       setCurrentStep(idx);
     }
   }, [currentStep, phase]);
+
+  // Lift nav strip when targeting bottom-of-screen elements so it doesn't
+  // cover what COGS is pointing at.
+  useEffect(() => {
+    if (!step) return;
+    const NAV_LIFT_TARGETS = new Set([
+      'engageButton', 'trayConveyor', 'trayGear', 'trayConfigNode',
+      'traySplitter', 'trayScanner', 'trayTransmitter',
+    ]);
+    const lift = NAV_LIFT_TARGETS.has(step.targetRef);
+    Animated.timing(navStripBottom, {
+      toValue: lift ? 136 : 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start();
+  }, [step, navStripBottom]);
 
   if (!hydrated || !step) return null;
 
@@ -612,8 +653,8 @@ export default function TutorialHUDOverlay({
               <Animated.View style={[s.scanLine, { transform: [{ translateY: scanY }] }]} />
             </View>
             {/* Target label */}
-            <View style={s.targetLabelWrap}>
-              <Text style={s.targetLabel}>
+            <View style={[s.targetLabelWrap, { minWidth: 80, paddingHorizontal: 10 }]}>
+              <Text style={s.targetLabel} numberOfLines={1}>
                 <Text style={s.targetLabelDim}>[ </Text>
                 {step.label}
                 <Text style={s.targetLabelDim}> ]</Text>
@@ -629,6 +670,7 @@ export default function TutorialHUDOverlay({
           pointerEvents="auto"
           style={[
             s.callout,
+            calloutPos.insidePortal && { backgroundColor: 'rgba(2,5,14,0.92)' },
             {
               left: calloutPos.left,
               width: calloutPos.width,
@@ -689,7 +731,7 @@ export default function TutorialHUDOverlay({
       {phase !== 'codex' && (
         <Animated.View
           pointerEvents="auto"
-          style={[s.navStrip, { transform: [{ translateY: navStripY }] }]}
+          style={[s.navStrip, { bottom: navStripBottom, transform: [{ translateY: navStripY }] }]}
         >
           <View style={s.navLeft}>
             <Animated.View style={[s.eyeDot, { backgroundColor: eyeColor, opacity: eyePulse }]} />
@@ -977,7 +1019,11 @@ function PixelDissolve() {
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
     let group = 0;
-    const groupSize = 200;
+    const isWeb = Platform.OS === 'web';
+    const groupSize = isWeb ? 40 : 200;
+    const tickMs = isWeb ? 30 : 15;
+    const fadeDur = isWeb ? 180 : 100;
+    const delayMax = isWeb ? 120 : 60;
     const id = setInterval(() => {
       const start = group * groupSize;
       const end = Math.min(total, start + groupSize);
@@ -985,8 +1031,8 @@ function PixelDissolve() {
         const idx = indices[i];
         Animated.timing(opacities[idx], {
           toValue: 0,
-          duration: 100,
-          delay: Math.random() * 60,
+          duration: fadeDur,
+          delay: Math.random() * delayMax,
           useNativeDriver: false,
         }).start();
       }
@@ -995,7 +1041,7 @@ function PixelDissolve() {
         clearInterval(id);
         setTimeout(() => force(1), 1200);
       }
-    }, 15);
+    }, tickMs);
     return () => clearInterval(id);
   }, []);
 
