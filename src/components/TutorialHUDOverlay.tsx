@@ -228,6 +228,7 @@ export default function TutorialHUDOverlay({
       const top = Math.max(80, SCREEN_H - 360);
       return {
         top,
+        bottom: undefined,
         left,
         width: CALLOUT_W,
         pointerAt: 'bottom' as const,
@@ -717,10 +718,14 @@ export default function TutorialHUDOverlay({
             {
               left: calloutPos.left,
               width: calloutPos.width,
-              top: calloutPos.top,
-              bottom: calloutPos.bottom,
               opacity: calloutOpacity,
             },
+            // Apply exactly one of top / bottom — never both. Explicitly
+            // clear the other so it cannot inherit a stale value from the
+            // base style.
+            calloutPos.top !== undefined
+              ? { top: calloutPos.top, bottom: undefined }
+              : { bottom: calloutPos.bottom, top: undefined },
           ]}
         >
           {renderMessage()}
