@@ -470,6 +470,10 @@ export default function TutorialHUDOverlay({
       setPhase('demo');
       return;
     }
+    if (phase === 'tutorial' && step?.codexEntryId) {
+      setPhase('announce');
+      return;
+    }
     if (phase === 'demo') {
       if (step?.codexEntryId) {
         setPhase('announce');
