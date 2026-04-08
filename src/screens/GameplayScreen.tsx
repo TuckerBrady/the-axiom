@@ -1126,18 +1126,6 @@ export default function GameplayScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* ── COGS Briefing ── */}
-        {showBriefing && (
-          <TouchableOpacity
-            style={styles.briefingStrip}
-            onPress={() => setShowBriefing(false)}
-            activeOpacity={0.8}
-          >
-            <CogsAvatar size="small" state="online" />
-            <Text style={styles.briefingText} numberOfLines={2}>{level.cogsLine}</Text>
-          </TouchableOpacity>
-        )}
-
         {/* ── Configuration Toggle (for levels with configNodes) ── */}
         {pieces.some(p => p.type === 'configNode') && (
           <View style={styles.configRow}>
