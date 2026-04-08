@@ -47,9 +47,9 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
       return [rotateSide('left', rot)];      // input from left at 0°
     case 'splitter':
       return [rotateSide('left', rot)];      // input from left at 0°
-    case 'source':
+    case 'inputPort':
       return [];                              // Source has no input
-    case 'output':
+    case 'outputPort':
     case 'gear':
     case 'configNode':
     case 'scanner':
@@ -70,9 +70,9 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
       return [rotateSide('right', rot)];     // output to right at 0°
     case 'splitter':
       return [rotateSide('right', rot), rotateSide('bottom', rot)]; // right + bottom at 0°
-    case 'output':
+    case 'outputPort':
       return [];                              // Output has no output
-    case 'source':
+    case 'inputPort':
     case 'gear':
     case 'configNode':
     case 'scanner':
@@ -199,13 +199,23 @@ const MAX_STEPS = 50;
 
 /**
  * Directional signal tracer. Follows output→input port matching.
+ *
+ * For tape-enabled levels, pass pulseIndex (0-based) to drive protocol
+ * piece behavior off state.inputTape[pulseIndex]. Transmitter writes back
+ * into state.outputTape[pulseIndex]. Callers should pass the same state
+ * object across pulses so outputTape accumulates.
  */
-export function executeMachine(state: MachineState): ExecutionStep[] {
+export function executeMachine(state: MachineState, pulseIndex: number = 0): ExecutionStep[] {
   const { pieces, dataTrail, configuration } = state;
   const steps: ExecutionStep[] = [];
   let stepTime = 0;
 
-  const source = pieces.find(p => p.type === 'source');
+  // Current pulse value read from inputTape (if present). This is the
+  // "what the machine knows right now" driving configNode gating and
+  // scanner reads.
+  const tapeValue: number | undefined = state.inputTape?.[pulseIndex];
+
+  const source = pieces.find(p => p.type === 'inputPort');
   if (!source) {
     steps.push({ pieceId: 'none', type: 'error', timestamp: stepTime, success: false, message: 'No source piece found' });
     return steps;
@@ -235,7 +245,7 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
     };
 
     switch (piece.type) {
-      case 'source':
+      case 'inputPort':
         step.message = 'Signal initiated';
         break;
 
@@ -253,7 +263,10 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
 
       case 'configNode':
         if (piece.condition) {
-          const passes = piece.condition(configuration);
+          // Tape-enabled levels gate off the current pulse tape value.
+          // Legacy levels use the machine's configuration value.
+          const gateInput = tapeValue !== undefined ? tapeValue : configuration;
+          const passes = piece.condition(gateInput);
           if (!passes) {
             step.success = false;
             step.message = 'Configuration check failed — signal blocked';
@@ -267,7 +280,9 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
         break;
 
       case 'scanner':
-        if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
+        if (tapeValue !== undefined) {
+          step.message = `Scanned tape[${pulseIndex}] = ${tapeValue}`;
+        } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
           const value = trail.cells[trail.headPosition];
           trail.headPosition++;
           step.message = `Scanned value: ${value}`;
@@ -277,7 +292,11 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
         break;
 
       case 'transmitter':
-        if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
+        if (state.inputTape !== undefined && state.outputTape !== undefined) {
+          // Write the current pulse value to outputTape[pulseIndex].
+          state.outputTape[pulseIndex] = tapeValue ?? 0;
+          step.message = `Wrote outputTape[${pulseIndex}] = ${tapeValue ?? 0}`;
+        } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
           trail.cells[trail.headPosition] = 1;
           step.message = `Transmitted value to cell ${trail.headPosition}`;
         } else {
@@ -285,7 +304,7 @@ export function executeMachine(state: MachineState): ExecutionStep[] {
         }
         break;
 
-      case 'output':
+      case 'outputPort':
         step.message = 'Signal reached output — success!';
         steps.push(step);
         return steps;
@@ -321,7 +340,7 @@ export function calculateStars(
   piecesUsed: number,
   optimalPieces: number,
 ): 0 | 1 | 2 | 3 {
-  const succeeded = steps.some(s => s.type === 'output' && s.success);
+  const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
   if (!succeeded) return 1;
 
   if (piecesUsed <= optimalPieces) return 3;
@@ -342,8 +361,8 @@ export function getDefaultPorts(type: PlacedPiece['type']): PlacedPiece['ports']
 
 export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['category'] {
   switch (type) {
-    case 'source':
-    case 'output':
+    case 'inputPort':
+    case 'outputPort':
     case 'conveyor':
     case 'gear':
     case 'splitter':

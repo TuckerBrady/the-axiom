@@ -88,6 +88,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         signalPath: [],
         currentSignalStep: 0,
         status: 'idle',
+        inputTape: level.inputTape ? [...level.inputTape] : undefined,
+        outputTape: level.inputTape ? new Array(level.inputTape.length).fill(-1) : undefined,
       },
       selectedPieceFromTray: null,
       selectedPlacedPiece: null,
@@ -188,35 +190,70 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const { machineState, currentLevel, configuration } = state;
 
+    const inputTape = currentLevel?.inputTape;
+    const expectedOutput = currentLevel?.expectedOutput;
+    const outputTape: number[] | undefined = inputTape
+      ? new Array(inputTape.length).fill(-1)
+      : undefined;
+
     const stateWithConfig: MachineState = {
       ...machineState,
       configuration,
       isRunning: true,
       status: 'running',
+      inputTape: inputTape ? [...inputTape] : undefined,
+      outputTape,
     };
 
-    const steps = executeMachine(stateWithConfig);
-    const succeeded = steps.some(s => s.type === 'output' && s.success);
+    // Tape-enabled levels: run one pulse per tape cell, concatenating
+    // execution steps. The animation layer already detects pulse
+    // boundaries by counting inputPort-typed steps.
+    const pulseCount = inputTape ? inputTape.length : 1;
+    let allSteps: ExecutionStep[] = [];
+    for (let i = 0; i < pulseCount; i++) {
+      const pulseSteps = executeMachine(stateWithConfig, i);
+      allSteps = allSteps.concat(pulseSteps);
+    }
+
+    const reachedOutputEveryPulse =
+      pulseCount > 0 &&
+      allSteps.filter(s => s.type === 'outputPort' && s.success).length >= pulseCount;
+
+    // For tape levels, success additionally requires outputTape to match
+    // expectedOutput. For legacy levels, the single-pulse output success
+    // is sufficient.
+    let succeeded: boolean;
+    if (inputTape && expectedOutput) {
+      const tapeMatches =
+        outputTape !== undefined &&
+        outputTape.length === expectedOutput.length &&
+        outputTape.every((v, i) => v === expectedOutput[i]);
+      succeeded = reachedOutputEveryPulse && tapeMatches;
+    } else {
+      succeeded = allSteps.some(s => s.type === 'outputPort' && s.success);
+    }
 
     const playerPiecesUsed = machineState.pieces.filter(p => !p.isPrePlaced).length;
     const stars = succeeded && currentLevel
-      ? calculateStars(steps, playerPiecesUsed, currentLevel.optimalPieces)
+      ? calculateStars(allSteps, playerPiecesUsed, currentLevel.optimalPieces)
       : 0;
 
     set({
-      executionSteps: steps,
+      executionSteps: allSteps,
       isExecuting: true,
       stars,
       machineState: {
         ...machineState,
         isRunning: true,
         status: succeeded ? 'idle' : 'void',
-        signalPath: steps.map(s => s.pieceId),
+        signalPath: allSteps.map(s => s.pieceId),
         currentSignalStep: 0,
+        inputTape: inputTape ? [...inputTape] : undefined,
+        outputTape: outputTape ? [...outputTape] : undefined,
       },
     });
 
-    return steps;
+    return allSteps;
   },
 
   reset: () => {

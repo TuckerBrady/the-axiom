@@ -70,8 +70,8 @@ type Props = {
 // ─── Piece label ──────────────────────────────────────────────────────────────
 
 const PIECE_LABELS: Record<PieceType, string> = {
-  source: 'SRC',
-  output: 'OUT',
+  inputPort: 'IN',
+  outputPort: 'OUT',
   conveyor: 'CONV',
   gear: 'GEAR',
   splitter: 'SPLIT',
@@ -97,8 +97,8 @@ function getPieceColor(type: PieceType): string {
 // Blue   = protocol layer (scanner, configNode, transmitter)
 function getBeamColor(pieceType: string): string {
   switch (pieceType) {
-    case 'source':
-    case 'output':
+    case 'inputPort':
+    case 'outputPort':
       return '#8B5CF6';
     case 'conveyor':
     case 'gear':
@@ -240,6 +240,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
+  const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -444,7 +445,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Auto-orientation: face away from Source if adjacent ──
   const getAutoRotation = useCallback((gridX: number, gridY: number): number => {
-    const source = pieces.find(p => p.type === 'source');
+    const source = pieces.find(p => p.type === 'inputPort');
     if (!source) return 0;
     const dx = gridX - source.gridX;
     const dy = gridY - source.gridY;
@@ -545,7 +546,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // step begins a new traversal.
     const pulseStarts: number[] = [];
     for (let i = 0; i < steps.length; i++) {
-      if (steps[i].type === 'source') pulseStarts.push(i);
+      if (steps[i].type === 'inputPort') pulseStarts.push(i);
     }
     if (pulseStarts.length === 0) pulseStarts.push(0);
     const pulses: typeof steps[] = [];
@@ -582,7 +583,7 @@ export default function GameplayScreen({ navigation }: Props) {
         // Single-piece pulse: just flash it.
         if (pulseSteps[0]) {
           const p = pieces.find(pp => pp.id === pulseSteps[0].pieceId);
-          flashPiece(pulseSteps[0].pieceId, p?.type === 'output' ? '#00C48C' : '#00D4FF');
+          flashPiece(pulseSteps[0].pieceId, p?.type === 'outputPort' ? '#00C48C' : '#00D4FF');
         }
         setTimeout(resolveAll, 180);
         return;
@@ -706,7 +707,7 @@ export default function GameplayScreen({ navigation }: Props) {
     });
 
     // PHASE 1 — CHARGE (300ms)
-    const sourcePiece = machineState.pieces.find(p => p.type === 'source');
+    const sourcePiece = machineState.pieces.find(p => p.type === 'inputPort');
     if (sourcePiece) {
       const sp = getPieceCenter(sourcePiece.id);
       if (sp) {
@@ -732,6 +733,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // PHASE 2 — BEAM (one or more pulses)
     setSignalPhase('beam');
     for (let p = 0; p < pulses.length; p++) {
+      setCurrentPulseIndex(p);
       await runPulse(pulses[p]);
       if (p < pulses.length - 1) {
         // Brief gap + source re-flash
@@ -741,9 +743,9 @@ export default function GameplayScreen({ navigation }: Props) {
     }
 
     // PHASE 3 — LOCK (400ms) — only on success
-    const succeededFinal = steps.some(s => s.type === 'output' && s.success);
+    const succeededFinal = steps.some(s => s.type === 'outputPort' && s.success);
     if (succeededFinal) {
-      const outputPiece = machineState.pieces.find(p => p.type === 'output');
+      const outputPiece = machineState.pieces.find(p => p.type === 'outputPort');
       if (outputPiece) {
         const op = getPieceCenter(outputPiece.id);
         if (op) {
@@ -788,7 +790,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setSignalPhase('idle');
 
     // Flash effect before showing overlay
-    const succeeded = steps.some(s => s.type === 'output' && s.success);
+    const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
     if (succeeded) {
       // Calculate score using new scoring engine
       const engageDurationMs = Date.now() - engageStartTime;
@@ -933,6 +935,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setChargePos(null);
     setLockRings([]);
     setSignalPhase('idle');
+    setCurrentPulseIndex(0);
     reset();
     // Restart the elapsed timer from zero.
     setElapsedSeconds(0);
@@ -1007,6 +1010,11 @@ export default function GameplayScreen({ navigation }: Props) {
             {!showResults && !showVoid && !tutorialIsActive && (
               <Text style={styles.timerText}>{formatMMSS(elapsedSeconds)}</Text>
             )}
+            {level.inputTape && level.inputTape.length > 0 && signalPhase === 'beam' && (
+              <Text style={styles.pulseCounterText}>
+                PULSE {Math.min(currentPulseIndex + 1, level.inputTape.length)} / {level.inputTape.length}
+              </Text>
+            )}
           </View>
           <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7} onPress={() => setShowBriefing(true)}>
             <Svg width={18} height={18} viewBox="0 0 24 24">
@@ -1048,6 +1056,77 @@ export default function GameplayScreen({ navigation }: Props) {
                 {configuration === 0 ? 'INACTIVE' : 'ACTIVE'}
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+
+        {/* ── Turing Tape Display ── */}
+        {level.inputTape && level.inputTape.length > 0 && (
+          <View style={styles.tapeSection}>
+            <View style={styles.tapeRow}>
+              <Text style={styles.tapeLabel}>IN</Text>
+              <View style={styles.tapeCells}>
+                {level.inputTape.map((bit, i) => {
+                  const isActive = signalPhase === 'beam' && i === currentPulseIndex;
+                  const isPast = signalPhase === 'beam' && i < currentPulseIndex;
+                  return (
+                    <View key={`in-${i}`} style={styles.tapeCellWrap}>
+                      <View style={[styles.tapeHead, !isActive && { opacity: 0 }]} />
+                      <View
+                        style={[
+                          styles.tapeCell,
+                          isActive && styles.tapeCellActive,
+                          isPast && styles.tapeCellPast,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tapeCellText,
+                            isActive && styles.tapeCellTextActive,
+                            isPast && styles.tapeCellTextPast,
+                          ]}
+                        >
+                          {bit}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+            <View style={styles.tapeRow}>
+              <Text style={styles.tapeLabel}>OUT</Text>
+              <View style={styles.tapeCells}>
+                {level.inputTape.map((_, i) => {
+                  const written = machineState.outputTape?.[i];
+                  const expected = level.expectedOutput?.[i];
+                  const hasValue = written !== undefined && written !== -1;
+                  const correct = hasValue && expected !== undefined && written === expected;
+                  const wrong = hasValue && expected !== undefined && written !== expected;
+                  return (
+                    <View key={`out-${i}`} style={styles.tapeCellWrap}>
+                      <View style={[styles.tapeHead, { opacity: 0 }]} />
+                      <View
+                        style={[
+                          styles.tapeCell,
+                          correct && styles.tapeCellCorrect,
+                          wrong && styles.tapeCellWrong,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.tapeCellText,
+                            correct && styles.tapeCellTextCorrect,
+                            wrong && styles.tapeCellTextWrong,
+                          ]}
+                        >
+                          {hasValue ? written : '_'}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
           </View>
         )}
 
@@ -1183,8 +1262,8 @@ export default function GameplayScreen({ navigation }: Props) {
             {/* Pieces */}
             {pieces.map(piece => {
               const isPrePlaced = piece.isPrePlaced;
-              const isSource = piece.type === 'source';
-              const isOutput = piece.type === 'output';
+              const isSource = piece.type === 'inputPort';
+              const isOutput = piece.type === 'outputPort';
               const isHeld = heldPieceId === piece.id;
               const pieceSize = CELL_SIZE - 4;
               const offset = (CELL_SIZE - pieceSize) / 2;
@@ -2506,5 +2585,85 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
     lineHeight: 28,
+  },
+  // Turing tape UI
+  pulseCounterText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#1A3050',
+    marginTop: 2,
+    letterSpacing: 1,
+  },
+  tapeSection: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: 6,
+  },
+  tapeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tapeLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#1A3050',
+    letterSpacing: 1,
+    width: 24,
+  },
+  tapeCells: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  tapeCellWrap: {
+    alignItems: 'center',
+  },
+  tapeHead: {
+    width: 6,
+    height: 4,
+    backgroundColor: '#8B5CF6',
+    marginBottom: 2,
+  },
+  tapeCell: {
+    width: 24,
+    height: 24,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#0D1E30',
+    backgroundColor: '#08101C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tapeCellActive: {
+    borderColor: '#8B5CF6',
+    backgroundColor: 'rgba(139,92,246,0.1)',
+  },
+  tapeCellPast: {
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  tapeCellCorrect: {
+    borderColor: '#00C48C',
+    backgroundColor: 'rgba(0,196,140,0.08)',
+  },
+  tapeCellWrong: {
+    borderColor: '#FF3B3B',
+    backgroundColor: 'rgba(255,59,59,0.08)',
+  },
+  tapeCellText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#1A3050',
+  },
+  tapeCellTextActive: {
+    color: '#8B5CF6',
+  },
+  tapeCellTextPast: {
+    color: 'rgba(139,92,246,0.3)',
+  },
+  tapeCellTextCorrect: {
+    color: '#00C48C',
+  },
+  tapeCellTextWrong: {
+    color: '#FF3B3B',
   },
 });

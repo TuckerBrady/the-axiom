@@ -93,7 +93,7 @@ export function PieceIcon({
         </Svg>
       );
 
-    case 'source':
+    case 'inputPort':
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
           <Circle cx="20" cy="20" r="18" fill="none" stroke={color ?? Colors.amber} strokeWidth="0.8" strokeOpacity="0.2" />
@@ -103,7 +103,7 @@ export function PieceIcon({
         </Svg>
       );
 
-    case 'output':
+    case 'outputPort':
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
           <Circle cx="20" cy="20" r="16" fill="#0e1f36" stroke={color ?? Colors.green} strokeWidth="1.5" />

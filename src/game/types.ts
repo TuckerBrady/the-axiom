@@ -1,8 +1,8 @@
 // ─── Piece System ─────────────────────────────────────────────────────────────
 
 export type PieceType =
-  | 'source'
-  | 'output'
+  | 'inputPort'
+  | 'outputPort'
   | 'conveyor'
   | 'gear'
   | 'splitter'
@@ -63,6 +63,10 @@ export type MachineState = {
   signalPath: string[];
   currentSignalStep: number;
   status: MachineStatus;
+  // Turing tape — populated for tape-enabled levels. outputTape accumulates
+  // across pulses; inputTape is read-only per pulse.
+  inputTape?: number[];
+  outputTape?: number[];
 };
 
 // ─── Level Definition ─────────────────────────────────────────────────────────
@@ -104,6 +108,11 @@ export type LevelDefinition = {
   scoringCategoriesVisible?: ScoringCategory[];
   // Consequence levels — undefined for normal levels
   consequence?: ConsequenceConfig;
+  // Turing tape — optional. When defined, level runs N pulses and the
+  // engine threads pulseIndex through protocol pieces. Single-pulse
+  // levels leave both undefined.
+  inputTape?: number[];
+  expectedOutput?: number[];
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────
