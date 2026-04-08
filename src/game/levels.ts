@@ -83,6 +83,15 @@ export const levelA1_1: LevelDefinition = {
       highlightWords: ['Output Node'],
     },
     {
+      id: 'conveyor-intro',
+      label: 'CONVEYOR',
+      targetRef: 'trayConveyor',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Conveyor. Moves signal in a straight line. Nothing more. The Codex entry is opening — read it.',
+      highlightAmberWords: ['Conveyor'],
+      codexEntryId: 'conveyor',
+    },
+    {
       id: 'board',
       label: 'GAME BOARD',
       targetRef: 'boardGrid',
@@ -120,6 +129,15 @@ export const levelA1_2: LevelDefinition = {
     { key: 'a12_integrity', trigger: 'onSuccess', text: 'Chain Integrity: every piece you place should carry the signal. Pieces the signal skips cost points.' },
   ],
   tutorialSteps: [
+    {
+      id: 'gear-intro',
+      label: 'GEAR',
+      targetRef: 'trayGear',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Gear. Changes signal direction at a corner. The Codex entry is opening — read it before you place one.',
+      highlightAmberWords: ['Gear'],
+      codexEntryId: 'gear',
+    },
     {
       id: 'gear-board',
       label: 'GAME BOARD',
@@ -161,6 +179,15 @@ export const levelA1_3: LevelDefinition = {
   ],
   tutorialSteps: [
     {
+      id: 'confignode-intro',
+      label: 'CONFIG NODE',
+      targetRef: 'trayConfigNode',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Config Node. A gate with a condition. It reads the Configuration value and decides whether to pass the signal. Codex entry is opening.',
+      highlightAmberWords: ['Config Node'],
+      codexEntryId: 'configNode',
+    },
+    {
       id: 'confignode-board',
       label: 'GAME BOARD',
       targetRef: 'boardGrid',
@@ -198,6 +225,15 @@ export const levelA1_4: LevelDefinition = {
     { key: 'a14_remove', trigger: 'onVoid', text: 'Remove any piece the signal did not reach. Dead weight costs points.' },
   ],
   tutorialSteps: [
+    {
+      id: 'splitter-intro',
+      label: 'SPLITTER',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Splitter. One input, two outputs. Rarely optimal. Sometimes necessary. Codex entry is opening.',
+      highlightAmberWords: ['Splitter'],
+      codexEntryId: 'splitter',
+    },
     {
       id: 'splitter-board',
       label: 'GAME BOARD',
@@ -237,6 +273,15 @@ export const levelA1_5: LevelDefinition = {
     { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
   ],
   tutorialSteps: [
+    {
+      id: 'scanner-intro',
+      label: 'SCANNER',
+      targetRef: 'boardGrid',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Scanner. Reads the Data Trail at its position and sets the Configuration accordingly. The machine becomes aware of its own memory. Codex entry is opening.',
+      highlightAmberWords: ['Scanner'],
+      codexEntryId: 'scanner',
+    },
     {
       id: 'scanner-board',
       label: 'GAME BOARD',
@@ -321,6 +366,15 @@ export const levelA1_7: LevelDefinition = {
     { key: 'a17_sequence', trigger: 'onFirstPiecePlaced', text: 'Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters.' },
   ],
   tutorialSteps: [
+    {
+      id: 'transmitter-intro',
+      label: 'TRANSMITTER',
+      targetRef: 'trayTransmitter',
+      eyeState: 'amber',
+      message: '[PROPOSED] The Transmitter. Writes a value to the Data Trail where the Scanner reads. Together they let a machine change what it knows mid-execution. Codex entry is opening.',
+      highlightAmberWords: ['Transmitter'],
+      codexEntryId: 'transmitter',
+    },
     {
       id: 'transmitter-board',
       label: 'GAME BOARD',
