@@ -160,6 +160,17 @@ export default function TutorialHUDOverlay({
   ]);
   const measureCurrent = useCallback((cb: (layout: Layout | null) => void) => {
     if (!step) return cb(null);
+    // Special targetRef 'center' has no DOM ref — synthesize a layout that
+    // places the orb at screen center. Used for COGS-only steps that have
+    // no spatial anchor (intros, transitions).
+    if (step.targetRef === 'center') {
+      return cb({
+        x: SCREEN_W / 2 - ORB_SIZE / 2,
+        y: SCREEN_H / 2 - ORB_SIZE / 2,
+        width: ORB_SIZE,
+        height: ORB_SIZE,
+      });
+    }
     const ref = targetRefs[step.targetRef];
     if (!ref?.current?.measure) return cb(null);
     const BOARD_DELAY = 180;
@@ -255,6 +266,16 @@ export default function TutorialHUDOverlay({
 
   // ── Morph orb into portal over a target layout ──
   const morphInto = useCallback((layout: Layout, done?: () => void) => {
+    // 'center' steps skip the portal morph entirely. The orb has already
+    // flown to screen center via flyTo — it stays as an orb, no portal
+    // square, no corner brackets, no scan line. Callout still renders.
+    if (step?.targetRef === 'center') {
+      setMorphed(true);
+      setCalloutPos(computeCalloutPos(layout));
+      Animated.timing(calloutOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
+      done?.();
+      return;
+    }
     const pad = step?.targetRef === 'boardGrid' ? 6 : PORTAL_PAD;
     const targetW = layout.width + pad * 2;
     const targetH = layout.height + pad * 2;
