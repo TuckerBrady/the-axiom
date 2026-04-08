@@ -235,6 +235,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const [voidPulse, setVoidPulse] = useState<{ x: number; y: number; r: number; opacity: number } | null>(null);
   const [litWires, setLitWires] = useState<Set<string>>(new Set());
   const [flashingPieces, setFlashingPieces] = useState<Map<string, string>>(new Map());
+  // Active per-piece animations (rolling, spinning, charging, etc.) keyed by
+  // piece id. Values are animation tags matching PieceIcon props.
+  const [activeAnimations, setActiveAnimations] = useState<Map<string, string>>(new Map());
+  const [gateResults, setGateResults] = useState<Map<string, 'pass' | 'block'>>(new Map());
+  // Per-piece failure colors for red-X overlay on wrong output / void.
+  const [failColors, setFailColors] = useState<Map<string, string>>(new Map());
   const [lockedPieces, setLockedPieces] = useState<Set<string>>(new Set());
   const [chargePos, setChargePos] = useState<Pt | null>(null);
   const [chargeProgress, setChargeProgress] = useState(0);
@@ -672,6 +678,42 @@ export default function GameplayScreen({ navigation }: Props) {
             const isVoidBlocker = pulseHasVoid && i === waypoints.length - 1;
             const flashCol = isVoidBlocker ? '#FF3B3B' : getBeamColor(stp.type);
             flashPiece(stp.pieceId, flashCol);
+            // Drive per-piece animation prop via activeAnimations map.
+            const animMap: Record<string, { tag: string; duration: number }> = {
+              inputPort: { tag: 'charging', duration: 280 },
+              outputPort: { tag: 'locking', duration: 400 },
+              conveyor: { tag: 'rolling', duration: 180 },
+              gear: { tag: 'spinning', duration: 400 },
+              splitter: { tag: 'splitting', duration: 180 },
+              scanner: { tag: 'scanning', duration: 200 },
+              configNode: { tag: 'gating', duration: 300 },
+              transmitter: { tag: 'transmitting', duration: 180 },
+            };
+            const anim = animMap[stp.type];
+            if (anim) {
+              const pieceId = stp.pieceId;
+              setActiveAnimations(prev => {
+                const next = new Map(prev);
+                next.set(pieceId, anim.tag);
+                return next;
+              });
+              if (stp.type === 'configNode') {
+                const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
+                setGateResults(prev => {
+                  const next = new Map(prev);
+                  next.set(pieceId, result);
+                  return next;
+                });
+              }
+              const t = setTimeout(() => {
+                setActiveAnimations(prev => {
+                  const next = new Map(prev);
+                  next.delete(pieceId);
+                  return next;
+                });
+              }, anim.duration);
+              flashTimersRef.current.push(t);
+            }
           }
         }
 
@@ -742,8 +784,59 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
 
-    // PHASE 3 — LOCK (400ms) — only on success
-    const succeededFinal = steps.some(s => s.type === 'outputPort' && s.success);
+    // Wrong-output detection for tape-enabled levels. If the tape didn't
+    // match expectedOutput, suppress the green lock sequence and show a
+    // red wrong-output ring burst instead.
+    const hasTape = !!(level.inputTape && level.expectedOutput);
+    const storeOutputTape = useGameStore.getState().machineState.outputTape;
+    const tapeMatches = hasTape && !!storeOutputTape && !!level.expectedOutput &&
+      storeOutputTape.length === level.expectedOutput.length &&
+      storeOutputTape.every((v, i) => v === (level.expectedOutput as number[])[i]);
+    const reachedOutputEveryPulse = steps.filter(s => s.type === 'outputPort' && s.success).length >= (pulses.length || 1);
+    const wrongOutput = hasTape && reachedOutputEveryPulse && !tapeMatches;
+
+    if (wrongOutput) {
+      // Mark mismatched outputTape cells for X overlay on output port.
+      const outputPiece = machineState.pieces.find(p => p.type === 'outputPort');
+      if (outputPiece) {
+        setFailColors(prev => {
+          const next = new Map(prev);
+          next.set(outputPiece.id, '#FF3B3B');
+          return next;
+        });
+        const op = getPieceCenter(outputPiece.id);
+        if (op) {
+          // 2 red rings expanding from output, 200ms each, staggered.
+          const ringStart = performance.now();
+          await new Promise<void>(res => {
+            const tick = () => {
+              const elapsed = performance.now() - ringStart;
+              const ringsState: { x: number; y: number; r: number; opacity: number }[] = [];
+              for (let ri = 0; ri < 2; ri++) {
+                const ringElapsed = elapsed - ri * 100;
+                if (ringElapsed >= 0 && ringElapsed <= 200) {
+                  const rt = ringElapsed / 200;
+                  ringsState.push({ x: op.x, y: op.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
+                }
+              }
+              // Reuse lockRings state but the rendering will still show
+              // green rings; for simplicity we overlay via voidPulse too.
+              if (ringsState[0]) setVoidPulse({ x: ringsState[0].x, y: ringsState[0].y, r: ringsState[0].r, opacity: ringsState[0].opacity });
+              if (elapsed < 320) {
+                animFrameRef.current = requestAnimationFrame(tick);
+              } else {
+                setVoidPulse(null);
+                res();
+              }
+            };
+            animFrameRef.current = requestAnimationFrame(tick);
+          });
+        }
+      }
+    }
+
+    // PHASE 3 — LOCK (400ms) — only on success (and matching tape if tape level)
+    const succeededFinal = !wrongOutput && steps.some(s => s.type === 'outputPort' && s.success);
     if (succeededFinal) {
       const outputPiece = machineState.pieces.find(p => p.type === 'outputPort');
       if (outputPiece) {
@@ -790,7 +883,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setSignalPhase('idle');
 
     // Flash effect before showing overlay
-    const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
+    const succeeded = !wrongOutput && steps.some(s => s.type === 'outputPort' && s.success);
     if (succeeded) {
       // Calculate score using new scoring engine
       const engageDurationMs = Date.now() - engageStartTime;
@@ -936,6 +1029,9 @@ export default function GameplayScreen({ navigation }: Props) {
     setLockRings([]);
     setSignalPhase('idle');
     setCurrentPulseIndex(0);
+    setActiveAnimations(new Map());
+    setGateResults(new Map());
+    setFailColors(new Map());
     reset();
     // Restart the elapsed timer from zero.
     setElapsedSeconds(0);
@@ -1312,9 +1408,16 @@ export default function GameplayScreen({ navigation }: Props) {
                       type={piece.type}
                       size={iconSize}
                       color={iconColor}
-                      spinning={piece.type === 'gear' && !!flashColorP}
-                      scanning={piece.type === 'scanner' && !!flashColorP}
-                      transmitting={piece.type === 'transmitter' && !!flashColorP}
+                      spinning={activeAnimations.get(piece.id) === 'spinning'}
+                      scanning={activeAnimations.get(piece.id) === 'scanning'}
+                      transmitting={activeAnimations.get(piece.id) === 'transmitting'}
+                      rolling={activeAnimations.get(piece.id) === 'rolling'}
+                      splitting={activeAnimations.get(piece.id) === 'splitting'}
+                      gating={activeAnimations.get(piece.id) === 'gating'}
+                      gateResult={gateResults.get(piece.id) ?? null}
+                      locking={activeAnimations.get(piece.id) === 'locking'}
+                      charging={activeAnimations.get(piece.id) === 'charging'}
+                      failColor={failColors.get(piece.id) ?? null}
                     />
                   </View>
                 </Pressable>
