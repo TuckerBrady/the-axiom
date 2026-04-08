@@ -1857,7 +1857,7 @@ export default function GameplayScreen({ navigation }: Props) {
                         loseLife();
                         setShowAbandonConfirm(false);
                         setShowPauseModal(false);
-                        navigation.navigate('LevelSelect');
+                        navigation.pop(2);
                       }
                     }}
                     activeOpacity={0.85}
