@@ -171,9 +171,12 @@ export default function TutorialHUDOverlay({
       : 0;
     const doMeasure = (retry: boolean) => {
       ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
-        // Stale/collapsed layout guard: boardGrid occasionally returns a
-        // near-zero size if measured before layout settles. Retry once.
-        if (step.targetRef === 'boardGrid' && (width < 100 || height < 100) && retry) {
+        // Stale/collapsed layout guard: any target can return a near-zero
+        // size if measured before layout settles. boardGrid uses a larger
+        // threshold (100) because it is expected to be big; all other
+        // targets (tray pieces, engage button, source/output) use 10.
+        const threshold = step.targetRef === 'boardGrid' ? 100 : 10;
+        if ((width < threshold || height < threshold) && retry) {
           setTimeout(() => doMeasure(false), 200);
           return;
         }

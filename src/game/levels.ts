@@ -83,17 +83,6 @@ export const levelA1_1: LevelDefinition = {
       highlightWords: ['Output Node'],
     },
     {
-      id: 'conveyor',
-      label: 'CONVEYOR',
-      targetRef: 'trayConveyor',
-      eyeState: 'amber',
-      message: 'The Conveyor. You have used one already. You did not know what it was called at the time. Now you do. It carries signal in a straight line. It does not think. Neither should you when placing it.',
-      highlightAmberWords: ['Conveyor'],
-      showDemo: true,
-      demoText: 'Signal enters one end. Exits the other. Straight line only. Tap a placed Conveyor to rotate it. Four orientations available.',
-      codexEntryId: 'conveyor',
-    },
-    {
       id: 'board',
       label: 'GAME BOARD',
       targetRef: 'boardGrid',
@@ -140,17 +129,6 @@ export const levelA1_2: LevelDefinition = {
   ],
   tutorialSteps: [
     {
-      id: 'gear-intro',
-      label: 'GEAR',
-      targetRef: 'trayGear',
-      eyeState: 'amber',
-      message: 'The Gear. The only Physics piece that changes signal direction. It accepts input from any adjacent port and routes the signal outward. This is how a machine bends.',
-      highlightAmberWords: ['Gear'],
-      showDemo: true,
-      demoText: 'Signal enters from any side. Exits in a new direction. Place it at the corner of your path. Tap to rotate and set the output direction.',
-      codexEntryId: 'gear',
-    },
-    {
       id: 'gear-board',
       label: 'GAME BOARD',
       targetRef: 'boardGrid',
@@ -191,17 +169,6 @@ export const levelA1_3: LevelDefinition = {
   ],
   tutorialSteps: [
     {
-      id: 'confignode-intro',
-      label: 'CONFIG NODE',
-      targetRef: 'trayConfigNode',
-      eyeState: 'amber',
-      message: 'The Config Node. The first Protocol piece you will use. It does not carry signal blindly. It reads the current Configuration value and decides whether to pass or block. A gate with a condition.',
-      highlightAmberWords: ['Config Node'],
-      showDemo: true,
-      demoText: 'Signal arrives at the Config Node. The condition is checked. If the Configuration value matches, the gate opens. If it does not, the signal stops here.',
-      codexEntryId: 'config_node',
-    },
-    {
       id: 'confignode-board',
       label: 'GAME BOARD',
       targetRef: 'boardGrid',
@@ -239,17 +206,6 @@ export const levelA1_4: LevelDefinition = {
     { key: 'a14_remove', trigger: 'onVoid', text: 'Remove any piece the signal did not reach. Dead weight costs points.' },
   ],
   tutorialSteps: [
-    {
-      id: 'splitter-intro',
-      label: 'SPLITTER',
-      targetRef: 'boardGrid',
-      eyeState: 'amber',
-      message: 'The Splitter. One input, two outputs. Used when the signal needs to reach multiple destinations or when a path must branch. Rarely optimal. Often necessary.',
-      highlightAmberWords: ['Splitter'],
-      showDemo: true,
-      demoText: 'Signal enters one side. Exits from two output ports simultaneously. Both paths must reach their destinations for the machine to complete.',
-      codexEntryId: 'splitter',
-    },
     {
       id: 'splitter-board',
       label: 'GAME BOARD',
@@ -289,17 +245,6 @@ export const levelA1_5: LevelDefinition = {
     { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
   ],
   tutorialSteps: [
-    {
-      id: 'scanner-intro',
-      label: 'SCANNER',
-      targetRef: 'boardGrid',
-      eyeState: 'amber',
-      message: 'The Scanner. Reads the Data Trail at the current position and sets the Configuration value accordingly. What it reads determines what happens next. This is how the machine becomes aware of its own memory.',
-      highlightAmberWords: ['Scanner'],
-      showDemo: true,
-      demoText: 'The Scanner passes over the Data Trail. The value at that position is read. The Configuration updates. What the machine knows changes mid-execution.',
-      codexEntryId: 'scanner',
-    },
     {
       id: 'scanner-board',
       label: 'GAME BOARD',
@@ -384,17 +329,6 @@ export const levelA1_7: LevelDefinition = {
     { key: 'a17_sequence', trigger: 'onFirstPiecePlaced', text: 'Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters.' },
   ],
   tutorialSteps: [
-    {
-      id: 'transmitter-intro',
-      label: 'TRANSMITTER',
-      targetRef: 'trayTransmitter',
-      eyeState: 'amber',
-      message: 'The Transmitter. Writes a value to the Data Trail. Where the Scanner reads, the Transmitter writes. Together they allow a machine to change what it knows mid-execution. The most powerful piece in the catalogue. Also the most dangerous to misplace.',
-      highlightAmberWords: ['Transmitter'],
-      showDemo: true,
-      demoText: 'The Transmitter writes to the Data Trail at its position. Place it before the Scanner on the signal path. The Scanner reads what the Transmitter wrote.',
-      codexEntryId: 'transmitter',
-    },
     {
       id: 'transmitter-board',
       label: 'GAME BOARD',
