@@ -21,12 +21,23 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 type Phase = 'tutorial' | 'demo' | 'announce' | 'codex';
 type Layout = { x: number; y: number; width: number; height: number };
 
+export type SpotlightCell = {
+  col: number;
+  row: number;
+  color: string;
+};
+
 interface Props {
   steps: TutorialStep[];
   levelId: string;
   targetRefs: Record<string, React.RefObject<View | null>>;
   onComplete: () => void;
   onSkip: () => void;
+  // Optional spotlight rings rendered over the board portal when the
+  // current step targets 'boardGrid'. Each ring pulses continuously while
+  // the board step is active.
+  spotlightCells?: SpotlightCell[];
+  spotlightCellSize?: number;
 }
 
 const ORB_SIZE = 22;
@@ -38,6 +49,8 @@ export default function TutorialHUDOverlay({
   targetRefs,
   onComplete,
   onSkip,
+  spotlightCells,
+  spotlightCellSize,
 }: Props) {
   // ── Core phase / step state ──
   const [currentStep, setCurrentStep] = useState(0);
@@ -72,6 +85,7 @@ export default function TutorialHUDOverlay({
   const scanY = useRef(new Animated.Value(0)).current;
   const panelTranslate = useRef(new Animated.Value(400)).current;
   const codexTranslate = useRef(new Animated.Value(SCREEN_H)).current;
+  const spotlightPulse = useRef(new Animated.Value(0)).current;
 
   const step = steps[currentStep];
   const eyeColor = step?.eyeState === 'amber' ? '#F0B429' : '#00D4FF';
@@ -142,6 +156,39 @@ export default function TutorialHUDOverlay({
     loop.start();
     return () => loop.stop();
   }, [morphed, portalLayout, scanY]);
+
+  // ── Spotlight pulse loop (board step) ──
+  const isBoardStep = step?.targetRef === 'boardGrid';
+  const showSpotlights =
+    isBoardStep &&
+    morphed &&
+    !!portalLayout &&
+    !!spotlightCells &&
+    spotlightCells.length > 0 &&
+    !!spotlightCellSize &&
+    spotlightCellSize > 0;
+  useEffect(() => {
+    if (!showSpotlights) return;
+    spotlightPulse.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(spotlightPulse, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+        Animated.timing(spotlightPulse, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showSpotlights, spotlightPulse]);
 
   // ── Measure target for current step (tutorial phase) ──
   // Large layout elements (board / engage / tray chips) need extra delay so
@@ -711,6 +758,37 @@ export default function TutorialHUDOverlay({
           </Animated.View>
         </Animated.View>
       )}
+
+      {/* Board spotlight rings — pulse over Input/Output cells inside the
+          board portal during the boardGrid step. Positioned in absolute
+          screen coordinates from portalLayout + cell offsets. */}
+      {showSpotlights && portalLayout && spotlightCellSize && spotlightCells && spotlightCells.map((sc, i) => {
+        const cs = spotlightCellSize;
+        const radius = cs * 0.45;
+        const cx = portalLayout.x + sc.col * cs + cs / 2;
+        const cy = portalLayout.y + sc.row * cs + cs / 2;
+        const opacity = spotlightPulse.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0.3, 0.8],
+        });
+        return (
+          <Animated.View
+            key={`spot-${i}`}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: cx - radius,
+              top: cy - radius,
+              width: radius * 2,
+              height: radius * 2,
+              borderRadius: radius,
+              borderWidth: 2,
+              borderColor: sc.color,
+              opacity,
+            }}
+          />
+        );
+      })}
 
       {/* Callout */}
       {phase === 'tutorial' && calloutPos && (

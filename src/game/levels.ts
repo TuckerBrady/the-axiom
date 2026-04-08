@@ -82,22 +82,6 @@ export const levelA1_1: LevelDefinition = {
       highlightWords: ['Input Port', 'Output Port'],
     },
     {
-      id: 'input-port',
-      label: 'INPUT PORT',
-      targetRef: 'sourceNode',
-      eyeState: 'blue',
-      message: 'This is the Input Port. Signal originates here. It is fixed. Everything you build starts from this point.',
-      highlightWords: ['Input Port'],
-    },
-    {
-      id: 'output-port',
-      label: 'OUTPUT PORT',
-      targetRef: 'outputNode',
-      eyeState: 'blue',
-      message: 'This is the Output Port. Your objective on every level. When the signal reaches it, the circuit locks. The system comes back online.',
-      highlightWords: ['Output Port'],
-    },
-    {
       id: 'codex-intro',
       label: 'CODEX',
       targetRef: 'center',

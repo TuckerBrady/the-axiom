@@ -2069,6 +2069,14 @@ export default function GameplayScreen({ navigation }: Props) {
             trayScanner: traScannerRef,
             trayTransmitter: trayTransmitterRef,
           }}
+          spotlightCells={level!.prePlacedPieces
+            .filter(p => p.type === 'inputPort' || p.type === 'outputPort')
+            .map(p => ({
+              col: p.gridX,
+              row: p.gridY,
+              color: p.type === 'inputPort' ? '#8B5CF6' : '#00C48C',
+            }))}
+          spotlightCellSize={CELL_SIZE}
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}
         />
