@@ -78,6 +78,11 @@ const PIECE_LABELS: Record<PieceType, string> = {
   configNode: 'CFG',
   scanner: 'SCAN',
   transmitter: 'XMIT',
+  merger: 'MERGE',
+  bridge: 'BRIDGE',
+  inverter: 'INV',
+  counter: 'CNT',
+  latch: 'LATCH',
 };
 
 function getPieceColor(type: PieceType): string {

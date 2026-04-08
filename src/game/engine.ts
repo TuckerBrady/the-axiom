@@ -49,6 +49,14 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
       return [rotateSide('left', rot)];      // input from left at 0°
     case 'inputPort':
       return [];                              // Source has no input
+    case 'merger':
+      return [rotateSide('left', rot), rotateSide('top', rot)];
+    case 'bridge':
+      return [rotateSide('left', rot), rotateSide('top', rot)];
+    case 'inverter':
+    case 'counter':
+    case 'latch':
+      return [rotateSide('left', rot)];
     case 'outputPort':
     case 'gear':
     case 'configNode':
@@ -72,6 +80,14 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
       return [rotateSide('right', rot), rotateSide('bottom', rot)]; // right + bottom at 0°
     case 'outputPort':
       return [];                              // Output has no output
+    case 'merger':
+      return [rotateSide('right', rot)];
+    case 'bridge':
+      return [rotateSide('right', rot), rotateSide('bottom', rot)];
+    case 'inverter':
+    case 'counter':
+    case 'latch':
+      return [rotateSide('right', rot)];
     case 'inputPort':
     case 'gear':
     case 'configNode':
@@ -304,6 +320,57 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         }
         break;
 
+      case 'merger':
+        step.message = 'Signal merged from input path';
+        break;
+
+      case 'bridge':
+        step.message = 'Signal crossed bridge without interaction';
+        break;
+
+      case 'inverter': {
+        if (tapeValue !== undefined) {
+          const inverted = 1 - tapeValue;
+          step.message = `Inverted ${tapeValue} -> ${inverted}`;
+        } else {
+          step.message = 'Inverter: passing signal unchanged (no tape)';
+        }
+        break;
+      }
+
+      case 'counter': {
+        const threshold = piece.threshold ?? 2;
+        const next = (piece.count ?? 0) + 1;
+        if (next >= threshold) {
+          piece.count = 0;
+          step.message = `Counter reached threshold ${threshold} — signal released`;
+        } else {
+          piece.count = next;
+          step.success = false;
+          step.message = `Counter at ${next}/${threshold} — signal blocked`;
+          steps.push(step);
+          continue;
+        }
+        break;
+      }
+
+      case 'latch': {
+        const mode = piece.latchMode ?? 'write';
+        if (mode === 'write') {
+          piece.storedValue = tapeValue ?? 0;
+          step.message = `Latch WRITE — stored ${piece.storedValue}`;
+        } else {
+          if (piece.storedValue == null) {
+            step.success = false;
+            step.message = 'Latch READ — no stored value, signal blocked';
+            steps.push(step);
+            continue;
+          }
+          step.message = `Latch READ — output stored value ${piece.storedValue}`;
+        }
+        break;
+      }
+
       case 'outputPort':
         step.message = 'Signal reached output — success!';
         steps.push(step);
@@ -366,10 +433,15 @@ export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['catego
     case 'conveyor':
     case 'gear':
     case 'splitter':
+    case 'merger':
+    case 'bridge':
       return 'physics';
     case 'configNode':
     case 'scanner':
     case 'transmitter':
+    case 'inverter':
+    case 'counter':
+    case 'latch':
       return 'protocol';
   }
 }

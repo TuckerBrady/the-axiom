@@ -8,7 +8,12 @@ export type PieceType =
   | 'splitter'
   | 'configNode'
   | 'scanner'
-  | 'transmitter';
+  | 'transmitter'
+  | 'merger'
+  | 'bridge'
+  | 'inverter'
+  | 'counter'
+  | 'latch';
 
 export type PieceCategory = 'physics' | 'protocol';
 
@@ -31,6 +36,12 @@ export type PlacedPiece = {
   rotation: number;
   isPrePlaced?: boolean;
   condition?: (configuration: number) => boolean;
+  // Counter state — increments per pulse, resets when threshold reached
+  threshold?: number;
+  count?: number;
+  // Latch state — persists across pulses within one run
+  latchMode?: 'write' | 'read';
+  storedValue?: number | null;
 };
 
 // ─── Connections ──────────────────────────────────────────────────────────────
