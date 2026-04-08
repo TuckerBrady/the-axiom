@@ -290,10 +290,11 @@ export default function RepairScreen({ navigation }: Props) {
           <View ref={outRef} collapsable={false}>
             <BoardCell kind="output" />
           </View>
-          {/* Signal beam SVG overlay */}
+          {/* Signal beam SVG overlay — wrapped so pointerEvents
+              component prop reliably passes touches through on iOS. */}
+          <View pointerEvents="none" style={StyleSheet.absoluteFill}>
           <Svg
             style={StyleSheet.absoluteFill}
-            pointerEvents="none"
           >
             <AnimatedCircle
               cx={beamPts[0]?.x ?? 0}
@@ -319,6 +320,7 @@ export default function RepairScreen({ navigation }: Props) {
               opacity={beamOpacity as unknown as number}
             />
           </Svg>
+          </View>
         </View>
 
         {/* Spacer */}
