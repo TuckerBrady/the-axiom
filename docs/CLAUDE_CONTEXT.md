@@ -796,3 +796,19 @@ removed from onboarding navigator — RepairScreen navigates
 directly to Introduction. A1-1 Conveyor tutorial line updated.
 Decryption bar increment-driven (40ms / +3.5..9.5) ~1.6s.
 Pixel dissolve batches 100 cells / 20ms ~320ms.
+
+## Sprint 14 — Signal beam animation + piece color polish
+Full three-phase signal animation system replaces the old
+discrete signalDot. CHARGE (280ms expanding rings at source)
+→ BEAM (rAF-driven path traversal with trail polyline,
+white-core head, easeOut3, speed scales to path length with
+reference CELL_SIZE*4, clamped 300-1200ms) → LOCK (two
+expanding rings from output, 200ms staggered, then full
+path/wires lit green). Multi-pulse support: pulse count =
+number of source-typed steps in executionSteps, with 80ms
+gaps and source re-flash between. Per-piece special anims:
+gear spin (400ms), scanner sweep (200ms vertical line),
+transmitter wave pulse (150ms in-out). Wire keys use
+`${fromId}_${toId}` convention (both directions stored in
+litWires). Every piece icon now has distinctive secondary
+accents that survive the board's primary color override.

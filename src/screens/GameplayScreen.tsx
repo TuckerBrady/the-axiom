@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Line, Rect, Path, G } from 'react-native-svg';
+import Svg, { Circle, Line, Rect, Path, G, Polyline } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -97,6 +97,39 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// ─── Signal beam path utilities ───────────────────────────────────────────────
+
+type Pt = { x: number; y: number };
+type Segment = { s: number; e: number; l: number; dx: number; dy: number; x0: number; y0: number };
+type SignalPath = { segs: Segment[]; total: number };
+
+function buildSignalPath(points: Pt[]): SignalPath {
+  const segs: Segment[] = [];
+  let total = 0;
+  for (let i = 1; i < points.length; i++) {
+    const dx = points[i].x - points[i - 1].x;
+    const dy = points[i].y - points[i - 1].y;
+    const l = Math.sqrt(dx * dx + dy * dy);
+    segs.push({ s: total, e: total + l, l, dx, dy, x0: points[i - 1].x, y0: points[i - 1].y });
+    total += l;
+  }
+  return { segs, total };
+}
+
+function posAlongPath(path: SignalPath, d: number): Pt {
+  d = Math.max(0, Math.min(d, path.total));
+  for (const seg of path.segs) {
+    if (d <= seg.e) {
+      const t = seg.l > 0 ? (d - seg.s) / seg.l : 0;
+      return { x: seg.x0 + seg.dx * t, y: seg.y0 + seg.dy * t };
+    }
+  }
+  const last = path.segs[path.segs.length - 1];
+  return last ? { x: last.x0 + last.dx, y: last.y0 + last.dy } : { x: 0, y: 0 };
+}
+
+const easeOut3 = (t: number) => 1 - Math.pow(1 - t, 3);
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function GameplayScreen({ navigation }: Props) {
@@ -170,9 +203,21 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showCompletionScene, setShowCompletionScene] = useState(false);
   const [completionText, setCompletionText] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
-  const [animatingStep, setAnimatingStep] = useState(-1);
-  const [signalDot, setSignalDot] = useState<{ x: number; y: number } | null>(null);
   const [flashColor, setFlashColor] = useState<string | null>(null);
+
+  // ── New signal beam animation state ──
+  const [beamHead, setBeamHead] = useState<Pt | null>(null);
+  const [beamTrail, setBeamTrail] = useState<Pt[]>([]);
+  const [beamColor, setBeamColor] = useState('#00D4FF');
+  const [litWires, setLitWires] = useState<Set<string>>(new Set());
+  const [flashingPieces, setFlashingPieces] = useState<Map<string, string>>(new Map());
+  const [lockedPieces, setLockedPieces] = useState<Set<string>>(new Set());
+  const [chargePos, setChargePos] = useState<Pt | null>(null);
+  const [chargeProgress, setChargeProgress] = useState(0);
+  const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
+  const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
+  const animFrameRef = useRef<number | null>(null);
+  const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Screen is immediately visible — slide_from_bottom handles entry transition
   const screenOpacity = useSharedValue(1);
@@ -228,6 +273,18 @@ export default function GameplayScreen({ navigation }: Props) {
       timerRunning.current = false;
     };
   }, [level?.id]);
+
+  // ── Cleanup beam animation on unmount ──
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current != null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+      flashTimersRef.current.forEach(t => clearTimeout(t));
+      flashTimersRef.current = [];
+    };
+  }, []);
 
   // ── Pause modal stops/resumes timer ──
   useEffect(() => {
@@ -433,14 +490,211 @@ export default function GameplayScreen({ navigation }: Props) {
     const engageStartTime = Date.now();
     const steps = engage();
 
-    // Animate signal dot visiting each piece center in sequence (300ms per hop)
+    // ── New beam animation pipeline ─────────────────────────────────────────
+    // Determine pulse boundaries by counting source-typed steps. Each source
+    // step begins a new traversal.
+    const pulseStarts: number[] = [];
     for (let i = 0; i < steps.length; i++) {
-      const pos = getPieceCenter(steps[i].pieceId);
-      if (pos) setSignalDot(pos);
-      setAnimatingStep(i);
-      await new Promise(resolve => setTimeout(resolve, 300));
+      if (steps[i].type === 'source') pulseStarts.push(i);
     }
-    setSignalDot(null);
+    if (pulseStarts.length === 0) pulseStarts.push(0);
+    const pulses: typeof steps[] = [];
+    for (let pi = 0; pi < pulseStarts.length; pi++) {
+      const start = pulseStarts[pi];
+      const end = pi + 1 < pulseStarts.length ? pulseStarts[pi + 1] : steps.length;
+      pulses.push(steps.slice(start, end));
+    }
+
+    const flashPiece = (pieceId: string, c: string) => {
+      setFlashingPieces(prev => {
+        const m = new Map(prev);
+        m.set(pieceId, c);
+        return m;
+      });
+      const t = setTimeout(() => {
+        setFlashingPieces(prev => {
+          const m = new Map(prev);
+          m.delete(pieceId);
+          return m;
+        });
+      }, 180);
+      flashTimersRef.current.push(t);
+    };
+
+    const runPulse = (pulseSteps: typeof steps): Promise<void> => new Promise<void>(resolveAll => {
+      // Build waypoints from piece centers
+      const waypoints: Pt[] = [];
+      for (const st of pulseSteps) {
+        const c = getPieceCenter(st.pieceId);
+        if (c) waypoints.push(c);
+      }
+      if (waypoints.length < 2) {
+        // Single-piece pulse: just flash it.
+        if (pulseSteps[0]) {
+          const p = pieces.find(pp => pp.id === pulseSteps[0].pieceId);
+          flashPiece(pulseSteps[0].pieceId, p?.type === 'output' ? '#00C48C' : '#00D4FF');
+        }
+        setTimeout(resolveAll, 180);
+        return;
+      }
+      const path = buildSignalPath(waypoints);
+      const refLen = CELL_SIZE * 4;
+      const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen)));
+      // Color per pulse: protocol pieces yellow-amber, otherwise cyan
+      const hasProtocol = pulseSteps.some(s => s.type === 'configNode' || s.type === 'scanner' || s.type === 'transmitter');
+      setBeamColor(hasProtocol ? '#F0B429' : '#00D4FF');
+
+      const start = performance.now();
+      // Track which waypoint indices we've already lit (wires) and flashed (nodes).
+      const lit = new Set<number>(); // wire index = i means wire from waypoints[i] to waypoints[i+1]
+      const flashed = new Set<number>();
+
+      const tick = () => {
+        const now = performance.now();
+        const rawT = Math.min(1, (now - start) / totalMs);
+        const t = easeOut3(rawT);
+        const headDist = t * path.total;
+        const trailLen = Math.min(path.total * 0.45, 80);
+        const trailStart = Math.max(0, headDist - trailLen);
+
+        const head = posAlongPath(path, headDist);
+        const trail: Pt[] = [];
+        for (let i = 0; i <= 10; i++) {
+          const d = trailStart + ((headDist - trailStart) * i) / 10;
+          trail.push(posAlongPath(path, d));
+        }
+        setBeamHead(head);
+        setBeamTrail(trail);
+
+        // Light wires whose midpoint we've passed
+        for (let i = 0; i < path.segs.length; i++) {
+          if (lit.has(i)) continue;
+          const mid = path.segs[i].s + path.segs[i].l / 2;
+          if (headDist >= mid) {
+            lit.add(i);
+            const fromId = pulseSteps[i].pieceId;
+            const toId = pulseSteps[i + 1]?.pieceId;
+            if (fromId && toId) {
+              setLitWires(prev => {
+                const next = new Set(prev);
+                next.add(`${fromId}_${toId}`);
+                next.add(`${toId}_${fromId}`);
+                return next;
+              });
+            }
+          }
+        }
+
+        // Flash nodes within 4px of waypoint
+        for (let i = 0; i < waypoints.length; i++) {
+          if (flashed.has(i)) continue;
+          const wp = waypoints[i];
+          const dx = head.x - wp.x;
+          const dy = head.y - wp.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 4 || (i === waypoints.length - 1 && rawT >= 1)) {
+            flashed.add(i);
+            const stp = pulseSteps[i];
+            const piece = pieces.find(p => p.id === stp.pieceId);
+            const flashCol = stp.type === 'output' ? '#00C48C'
+              : stp.type === 'configNode' || stp.type === 'scanner' || stp.type === 'transmitter' ? '#F0B429'
+              : '#00D4FF';
+            flashPiece(stp.pieceId, flashCol);
+            void piece;
+          }
+        }
+
+        if (rawT < 1) {
+          animFrameRef.current = requestAnimationFrame(tick);
+        } else {
+          setBeamHead(null);
+          setBeamTrail([]);
+          resolveAll();
+        }
+      };
+      animFrameRef.current = requestAnimationFrame(tick);
+    });
+
+    // PHASE 1 — CHARGE (300ms)
+    const sourcePiece = machineState.pieces.find(p => p.type === 'source');
+    if (sourcePiece) {
+      const sp = getPieceCenter(sourcePiece.id);
+      if (sp) {
+        setChargePos(sp);
+        setSignalPhase('charge');
+        const chargeStart = performance.now();
+        await new Promise<void>(res => {
+          const tick = () => {
+            const ct = Math.min(1, (performance.now() - chargeStart) / 280);
+            setChargeProgress(ct);
+            if (ct < 1) {
+              animFrameRef.current = requestAnimationFrame(tick);
+            } else {
+              res();
+            }
+          };
+          animFrameRef.current = requestAnimationFrame(tick);
+        });
+        setChargePos(null);
+      }
+    }
+
+    // PHASE 2 — BEAM (one or more pulses)
+    setSignalPhase('beam');
+    for (let p = 0; p < pulses.length; p++) {
+      await runPulse(pulses[p]);
+      if (p < pulses.length - 1) {
+        // Brief gap + source re-flash
+        if (sourcePiece) flashPiece(sourcePiece.id, '#F0B429');
+        await new Promise(r => setTimeout(r, 80));
+      }
+    }
+
+    // PHASE 3 — LOCK (400ms) — only on success
+    const succeededFinal = steps.some(s => s.type === 'output' && s.success);
+    if (succeededFinal) {
+      const outputPiece = machineState.pieces.find(p => p.type === 'output');
+      if (outputPiece) {
+        const op = getPieceCenter(outputPiece.id);
+        if (op) {
+          setSignalPhase('lock');
+          // Two expanding rings (200ms each, staggered)
+          const ringStart = performance.now();
+          await new Promise<void>(res => {
+            const tick = () => {
+              const elapsed = performance.now() - ringStart;
+              const ringsState: { x: number; y: number; r: number; opacity: number }[] = [];
+              for (let ri = 0; ri < 2; ri++) {
+                const ringElapsed = elapsed - ri * 100;
+                if (ringElapsed >= 0 && ringElapsed <= 200) {
+                  const rt = ringElapsed / 200;
+                  ringsState.push({ x: op.x, y: op.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
+                }
+              }
+              setLockRings(ringsState);
+              if (elapsed < 320) {
+                animFrameRef.current = requestAnimationFrame(tick);
+              } else {
+                setLockRings([]);
+                res();
+              }
+            };
+            animFrameRef.current = requestAnimationFrame(tick);
+          });
+          // Lock all pieces and wires
+          setLockedPieces(new Set(machineState.pieces.map(p => p.id)));
+          setLitWires(prev => {
+            const next = new Set(prev);
+            for (const w of wires) {
+              next.add(`${w.fromPieceId}_${w.toPieceId}`);
+              next.add(`${w.toPieceId}_${w.fromPieceId}`);
+            }
+            return next;
+          });
+          await new Promise(r => setTimeout(r, 160));
+        }
+      }
+    }
+    setSignalPhase('idle');
 
     // Flash effect before showing overlay
     const succeeded = steps.some(s => s.type === 'output' && s.success);
@@ -566,14 +820,27 @@ export default function GameplayScreen({ navigation }: Props) {
       setShowVoid(true);
       triggerHints('onVoid');
     }
-    setAnimatingStep(-1);
   }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
 
   // ── Reset ──
   const handleReset = useCallback(() => {
     setShowResults(false);
     setShowVoid(false);
-    setAnimatingStep(-1);
+    // Cancel beam animation and clear all visual signal state
+    if (animFrameRef.current != null) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    flashTimersRef.current.forEach(t => clearTimeout(t));
+    flashTimersRef.current = [];
+    setBeamHead(null);
+    setBeamTrail([]);
+    setLitWires(new Set());
+    setFlashingPieces(new Map());
+    setLockedPieces(new Set());
+    setChargePos(null);
+    setLockRings([]);
+    setSignalPhase('idle');
     reset();
     // Restart the elapsed timer from zero.
     setElapsedSeconds(0);
@@ -736,31 +1003,75 @@ export default function GameplayScreen({ navigation }: Props) {
                 const dashOn = Math.round(CELL_SIZE / 5);
                 const dashOff = Math.round(CELL_SIZE / 8);
 
-                const isAnimating = animatingStep >= 0 && executionSteps.length > 0;
-                const animatedPieceIds = isAnimating
-                  ? executionSteps.slice(0, animatingStep + 1).map(s => s.pieceId)
-                  : [];
-                const isLit = animatedPieceIds.includes(wire.fromPieceId) &&
-                              animatedPieceIds.includes(wire.toPieceId);
+                const wireKey = `${wire.fromPieceId}_${wire.toPieceId}`;
+                const isLit = litWires.has(wireKey);
+                const isLocked = signalPhase === 'lock' && lockedPieces.size > 0;
+                const strokeC = isLocked ? '#00C48C' : isLit ? beamColor : wireColor;
+                const strokeOp = isLocked ? 0.45 : isLit ? 0.85 : 0.5;
+                const sw = isLit || isLocked ? wireSW * 1.6 : wireSW;
 
                 return (
                   <Line
                     key={wire.id}
                     x1={fx} y1={fy} x2={tx} y2={ty}
-                    stroke={isLit ? Colors.green : wireColor}
-                    strokeWidth={isLit ? wireSW * 1.5 : wireSW}
-                    strokeDasharray={isLit ? undefined : `${dashOn},${dashOff}`}
-                    strokeOpacity={isLit ? 0.9 : 0.5}
+                    stroke={strokeC}
+                    strokeWidth={sw}
+                    strokeDasharray={isLit || isLocked ? undefined : `${dashOn},${dashOff}`}
+                    strokeOpacity={strokeOp}
                     strokeLinecap="round"
                   />
                 );
               })}
             </Svg>
 
-            {/* Signal dot */}
-            {signalDot && (
-              <View style={[styles.signalDot, { left: signalDot.x - 6, top: signalDot.y - 6 }]} />
-            )}
+            {/* Signal beam overlay */}
+            <Svg
+              width={gridW}
+              height={gridH}
+              style={[StyleSheet.absoluteFill, { zIndex: 20 }]}
+              pointerEvents="none"
+            >
+              {signalPhase === 'charge' && chargePos && (
+                <>
+                  <Circle
+                    cx={chargePos.x} cy={chargePos.y}
+                    r={6 + chargeProgress * 18}
+                    fill="none" stroke="#F0B429" strokeWidth={2}
+                    opacity={0.8 * (1 - chargeProgress)}
+                  />
+                  <Circle
+                    cx={chargePos.x} cy={chargePos.y}
+                    r={2 + chargeProgress * 26}
+                    fill="none" stroke="#F0B429" strokeWidth={1.5}
+                    opacity={0.5 * (1 - chargeProgress)}
+                  />
+                </>
+              )}
+              {beamTrail.length > 1 && (
+                <Polyline
+                  points={beamTrail.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none"
+                  stroke={beamColor}
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  opacity={0.72}
+                />
+              )}
+              {beamHead && (
+                <>
+                  <Circle cx={beamHead.x} cy={beamHead.y} r={11} fill={beamColor} opacity={0.25} />
+                  <Circle cx={beamHead.x} cy={beamHead.y} r={3.5} fill="white" opacity={0.95} />
+                </>
+              )}
+              {lockRings.map((ring, i) => (
+                <Circle
+                  key={`lockring-${i}`}
+                  cx={ring.x} cy={ring.y} r={ring.r}
+                  stroke="#00C48C" strokeWidth={2.5}
+                  fill="none" opacity={ring.opacity}
+                />
+              ))}
+            </Svg>
 
             {/* Pieces */}
             {pieces.map(piece => {
@@ -774,7 +1085,14 @@ export default function GameplayScreen({ navigation }: Props) {
               const cellPy = piece.gridY * CELL_SIZE + offset;
               const iconSize = (CELL_SIZE - 4) * 0.60;
               const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
-              const isAnimStep = animatingStep >= 0 && executionSteps[animatingStep]?.pieceId === piece.id;
+              const flashColorP = flashingPieces.get(piece.id);
+              const isLocked = lockedPieces.has(piece.id);
+              const borderColorP = isHeld ? Colors.copper
+                : flashColorP ? flashColorP
+                : isLocked ? '#00C48C'
+                : undefined;
+              const borderWidthP = isHeld || flashColorP || isLocked ? 2 : 0;
+              const shadowC = flashColorP ?? (isLocked ? '#00C48C' : undefined);
 
               return (
                 <Pressable
@@ -787,12 +1105,16 @@ export default function GameplayScreen({ navigation }: Props) {
                       top: cellPy,
                       width: pieceSize,
                       height: pieceSize,
-                      borderWidth: isHeld ? 2 : 0,
-                      borderColor: isHeld ? Colors.copper : undefined,
-                      backgroundColor: isAnimStep ? `${iconColor}25` : 'transparent',
+                      borderWidth: borderWidthP,
+                      borderColor: borderColorP,
+                      backgroundColor: 'transparent',
                       opacity: isHeld ? 0.6 : 1,
                       transform: [{ scale: isHeld ? 1.15 : 1 }],
                       zIndex: isHeld ? 10 : 0,
+                      shadowColor: shadowC,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: shadowC ? (flashColorP ? 0.5 : 0.3) : 0,
+                      shadowRadius: flashColorP ? 16 : isLocked ? 8 : 0,
                     },
                   ]}
                   onPress={() => handlePieceTap(piece)}
@@ -800,7 +1122,14 @@ export default function GameplayScreen({ navigation }: Props) {
                   delayLongPress={500}
                 >
                   <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
-                    <PieceIcon type={piece.type} size={iconSize} color={iconColor} />
+                    <PieceIcon
+                      type={piece.type}
+                      size={iconSize}
+                      color={iconColor}
+                      spinning={piece.type === 'gear' && !!flashColorP}
+                      scanning={piece.type === 'scanner' && !!flashColorP}
+                      transmitting={piece.type === 'transmitter' && !!flashColorP}
+                    />
                   </View>
                 </Pressable>
               );
@@ -1736,20 +2065,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
-  // Signal dot
-  signalDot: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: Colors.green,
-    shadowColor: Colors.green,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 8,
-    elevation: 10,
-    zIndex: 50,
-  },
 
   // Flash overlay
   flashOverlay: {
