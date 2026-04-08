@@ -242,7 +242,7 @@ export const levelA1_4: LevelDefinition = {
     {
       id: 'splitter-intro',
       label: 'SPLITTER',
-      targetRef: 'traySplitter',
+      targetRef: 'boardGrid',
       eyeState: 'amber',
       message: 'The Splitter. One input, two outputs. Used when the signal needs to reach multiple destinations or when a path must branch. Rarely optimal. Often necessary.',
       highlightAmberWords: ['Splitter'],
@@ -292,7 +292,7 @@ export const levelA1_5: LevelDefinition = {
     {
       id: 'scanner-intro',
       label: 'SCANNER',
-      targetRef: 'trayScanner',
+      targetRef: 'boardGrid',
       eyeState: 'amber',
       message: 'The Scanner. Reads the Data Trail at the current position and sets the Configuration value accordingly. What it reads determines what happens next. This is how the machine becomes aware of its own memory.',
       highlightAmberWords: ['Scanner'],

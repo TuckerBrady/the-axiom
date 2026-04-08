@@ -91,6 +91,29 @@ function getPieceColor(type: PieceType): string {
   }
 }
 
+// Segmented beam color by piece layer.
+// Purple = data entry/exit (source, output)
+// Amber  = physics layer (conveyor, gear, splitter)
+// Blue   = protocol layer (scanner, configNode, transmitter)
+function getBeamColor(pieceType: string): string {
+  switch (pieceType) {
+    case 'source':
+    case 'output':
+      return '#8B5CF6';
+    case 'conveyor':
+    case 'gear':
+    case 'splitter':
+      return '#F0B429';
+    case 'scanner':
+    case 'configNode':
+    case 'config_node':
+    case 'transmitter':
+      return '#00D4FF';
+    default:
+      return '#F0B429';
+  }
+}
+
 function formatMMSS(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -207,8 +230,9 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── New signal beam animation state ──
   const [beamHead, setBeamHead] = useState<Pt | null>(null);
-  const [beamTrail, setBeamTrail] = useState<Pt[]>([]);
-  const [beamColor, setBeamColor] = useState('#00D4FF');
+  const [beamHeadColor, setBeamHeadColor] = useState('#8B5CF6');
+  const [trailSegments, setTrailSegments] = useState<{ points: Pt[]; color: string }[]>([]);
+  const [voidPulse, setVoidPulse] = useState<{ x: number; y: number; r: number; opacity: number } | null>(null);
   const [litWires, setLitWires] = useState<Set<string>>(new Set());
   const [flashingPieces, setFlashingPieces] = useState<Map<string, string>>(new Map());
   const [lockedPieces, setLockedPieces] = useState<Set<string>>(new Set());
@@ -266,10 +290,16 @@ export default function GameplayScreen({ navigation }: Props) {
     tutorialIsActiveRef.current = tutorialIsActive;
   }, [tutorialIsActive]);
 
-  // ── Auto-dismiss COGS briefing strip after 4s (wait for tutorial to finish) ──
+  // ── Auto-dismiss COGS briefing strip ──
+  // During an active tutorial, hide it immediately — the tutorial overlay
+  // is already narrating; COGS should not compete with it. Otherwise fade
+  // after 4 seconds.
   useEffect(() => {
     if (!showBriefing) return;
-    if (tutorialIsActive) return;
+    if (tutorialIsActive) {
+      setShowBriefing(false);
+      return;
+    }
     const t = setTimeout(() => setShowBriefing(false), 4000);
     return () => clearTimeout(t);
   }, [showBriefing, tutorialIsActive]);
@@ -560,13 +590,22 @@ export default function GameplayScreen({ navigation }: Props) {
       const path = buildSignalPath(waypoints);
       const refLen = CELL_SIZE * 4;
       const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen)));
-      // Color per pulse: protocol pieces yellow-amber, otherwise cyan
-      const hasProtocol = pulseSteps.some(s => s.type === 'configNode' || s.type === 'scanner' || s.type === 'transmitter');
-      setBeamColor(hasProtocol ? '#F0B429' : '#00D4FF');
+
+      // Segment colors derived from piece type per waypoint.
+      // Segment i (from waypoints[i] to waypoints[i+1]) is colored by
+      // the piece the beam is leaving — waypoints[i]'s piece type.
+      const segColors: string[] = pulseSteps.map(s => getBeamColor(s.type));
+
+      // Void detection: if this pulse ends in a void step, the beam dies red
+      // at the piece BEFORE the void waypoint. We detect by checking the last
+      // step — if it's 'void', the preceding piece is the blocker.
+      const pulseHasVoid = pulseSteps.some(s => s.type === 'void');
+
+      // Initialize a fresh purple segment at the source.
+      setTrailSegments([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
 
       const start = performance.now();
-      // Track which waypoint indices we've already lit (wires) and flashed (nodes).
-      const lit = new Set<number>(); // wire index = i means wire from waypoints[i] to waypoints[i+1]
+      const lit = new Set<number>();
       const flashed = new Set<number>();
 
       const tick = () => {
@@ -574,17 +613,32 @@ export default function GameplayScreen({ navigation }: Props) {
         const rawT = Math.min(1, (now - start) / totalMs);
         const t = easeOut3(rawT);
         const headDist = t * path.total;
-        const trailLen = Math.min(path.total * 0.45, 80);
-        const trailStart = Math.max(0, headDist - trailLen);
 
         const head = posAlongPath(path, headDist);
-        const trail: Pt[] = [];
-        for (let i = 0; i <= 10; i++) {
-          const d = trailStart + ((headDist - trailStart) * i) / 10;
-          trail.push(posAlongPath(path, d));
+
+        // Rebuild segments from path up to headDist. Each path seg i
+        // corresponds to waypoints[i] → waypoints[i+1] and is colored by
+        // segColors[i] (the piece being left).
+        const newSegs: { points: Pt[]; color: string }[] = [];
+        for (let i = 0; i < path.segs.length; i++) {
+          const sg = path.segs[i];
+          const color = segColors[i] ?? '#F0B429';
+          if (headDist >= sg.e) {
+            newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy }], color });
+          } else if (headDist > sg.s) {
+            const tt = sg.l > 0 ? (headDist - sg.s) / sg.l : 0;
+            newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt }], color });
+            break;
+          }
         }
+        setTrailSegments(newSegs);
+
+        // Beam head color = current segment color (or red on void)
+        const currentColor = pulseHasVoid && rawT > 0.85
+          ? '#FF3B3B'
+          : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
         setBeamHead(head);
-        setBeamTrail(trail);
+        setBeamHeadColor(currentColor);
 
         // Light wires whose midpoint we've passed
         for (let i = 0; i < path.segs.length; i++) {
@@ -614,21 +668,38 @@ export default function GameplayScreen({ navigation }: Props) {
           if (Math.sqrt(dx * dx + dy * dy) < 4 || (i === waypoints.length - 1 && rawT >= 1)) {
             flashed.add(i);
             const stp = pulseSteps[i];
-            const piece = pieces.find(p => p.id === stp.pieceId);
-            const flashCol = stp.type === 'output' ? '#00C48C'
-              : stp.type === 'configNode' || stp.type === 'scanner' || stp.type === 'transmitter' ? '#F0B429'
-              : '#00D4FF';
+            const isVoidBlocker = pulseHasVoid && i === waypoints.length - 1;
+            const flashCol = isVoidBlocker ? '#FF3B3B' : getBeamColor(stp.type);
             flashPiece(stp.pieceId, flashCol);
-            void piece;
           }
         }
 
         if (rawT < 1) {
           animFrameRef.current = requestAnimationFrame(tick);
         } else {
-          setBeamHead(null);
-          setBeamTrail([]);
-          resolveAll();
+          if (pulseHasVoid) {
+            // Red pulse expanding from the final (blocker) waypoint
+            const blocker = waypoints[waypoints.length - 1];
+            const pulseStart = performance.now();
+            const pulseTick = () => {
+              const e = performance.now() - pulseStart;
+              const p = Math.min(1, e / 320);
+              setVoidPulse({ x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
+              if (p < 1) {
+                animFrameRef.current = requestAnimationFrame(pulseTick);
+              } else {
+                setVoidPulse(null);
+                setBeamHead(null);
+                setTrailSegments([]);
+                resolveAll();
+              }
+            };
+            animFrameRef.current = requestAnimationFrame(pulseTick);
+          } else {
+            setBeamHead(null);
+            setTrailSegments([]);
+            resolveAll();
+          }
         }
       };
       animFrameRef.current = requestAnimationFrame(tick);
@@ -854,7 +925,8 @@ export default function GameplayScreen({ navigation }: Props) {
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
     setBeamHead(null);
-    setBeamTrail([]);
+    setTrailSegments([]);
+    setVoidPulse(null);
     setLitWires(new Set());
     setFlashingPieces(new Map());
     setLockedPieces(new Set());
@@ -1026,7 +1098,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 const wireKey = `${wire.fromPieceId}_${wire.toPieceId}`;
                 const isLit = litWires.has(wireKey);
                 const isLocked = signalPhase === 'lock' && lockedPieces.size > 0;
-                const strokeC = isLocked ? '#00C48C' : isLit ? beamColor : wireColor;
+                const strokeC = isLocked ? '#00C48C' : isLit ? getBeamColor(toPiece.type) : wireColor;
                 const strokeOp = isLocked ? 0.45 : isLit ? 0.85 : 0.5;
                 const sw = isLit || isLocked ? wireSW * 1.6 : wireSW;
 
@@ -1060,32 +1132,42 @@ export default function GameplayScreen({ navigation }: Props) {
                   <Circle
                     cx={chargePos.x} cy={chargePos.y}
                     r={6 + chargeProgress * 18}
-                    fill="none" stroke="#F0B429" strokeWidth={2}
+                    fill="none" stroke="#8B5CF6" strokeWidth={2}
                     opacity={0.8 * (1 - chargeProgress)}
                   />
                   <Circle
                     cx={chargePos.x} cy={chargePos.y}
                     r={2 + chargeProgress * 26}
-                    fill="none" stroke="#F0B429" strokeWidth={1.5}
+                    fill="none" stroke="#8B5CF6" strokeWidth={1.5}
                     opacity={0.5 * (1 - chargeProgress)}
                   />
                 </>
               )}
-              {beamTrail.length > 1 && (
-                <Polyline
-                  points={beamTrail.map(p => `${p.x},${p.y}`).join(' ')}
-                  fill="none"
-                  stroke={beamColor}
-                  strokeWidth={2.5}
-                  strokeLinecap="round"
-                  opacity={0.72}
-                />
-              )}
+              {trailSegments.map((seg, i) => (
+                seg.points.length > 1 ? (
+                  <Polyline
+                    key={`seg-${i}`}
+                    points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={i === trailSegments.length - 1 ? 2.5 : 2}
+                    strokeLinecap="round"
+                    opacity={i === trailSegments.length - 1 ? 0.72 : 0.45}
+                  />
+                ) : null
+              ))}
               {beamHead && (
                 <>
-                  <Circle cx={beamHead.x} cy={beamHead.y} r={11} fill={beamColor} opacity={0.25} />
+                  <Circle cx={beamHead.x} cy={beamHead.y} r={11} fill={beamHeadColor} opacity={0.25} />
                   <Circle cx={beamHead.x} cy={beamHead.y} r={3.5} fill="white" opacity={0.95} />
                 </>
+              )}
+              {voidPulse && (
+                <Circle
+                  cx={voidPulse.x} cy={voidPulse.y} r={voidPulse.r}
+                  stroke="#FF3B3B" strokeWidth={2.5}
+                  fill="none" opacity={voidPulse.opacity}
+                />
               )}
               {lockRings.map((ring, i) => (
                 <Circle
@@ -2052,6 +2134,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: Spacing.xs,
     gap: Spacing.sm,
+    zIndex: 30,
+    elevation: 30,
   },
   configLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, letterSpacing: 1,

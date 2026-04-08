@@ -48,6 +48,14 @@ executes.
 
 **What is live and working:**
 
+- Sprint 16B: Segmented beam color system. Purple for source/output
+  (data layer), amber for Physics pieces (conveyor/gear/splitter), blue
+  for Protocol pieces (scanner/configNode/transmitter), green for lock,
+  red for void. Trail segments retain their color showing the signal's
+  history. CFG activation panel z-index fix. Board portal measurement
+  retry on stale layout. Tutorial targetRef audit for A1-4 and A1-5.
+
+
 - Full navigation stack: Hub > Sector Map > Level Select >
   Mission Dossier > Gameplay > Results > Hub
 - All 8 Axiom levels defined (A1-1 Emergency Power through

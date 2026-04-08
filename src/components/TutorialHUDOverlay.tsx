@@ -169,11 +169,18 @@ export default function TutorialHUDOverlay({
       : DELAYED_REFS.has(step.targetRef)
       ? TRAY_DELAY
       : 0;
-    setTimeout(() => {
+    const doMeasure = (retry: boolean) => {
       ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
+        // Stale/collapsed layout guard: boardGrid occasionally returns a
+        // near-zero size if measured before layout settles. Retry once.
+        if (step.targetRef === 'boardGrid' && (width < 100 || height < 100) && retry) {
+          setTimeout(() => doMeasure(false), 200);
+          return;
+        }
         cb({ x: pageX, y: pageY, width, height });
       });
-    }, delayMs);
+    };
+    setTimeout(() => doMeasure(true), delayMs);
   }, [step, targetRefs]);
 
   // ── Compute callout position relative to portal ──
@@ -227,10 +234,11 @@ export default function TutorialHUDOverlay({
 
   // ── Morph orb into portal over a target layout ──
   const morphInto = useCallback((layout: Layout, done?: () => void) => {
-    const targetW = layout.width + PORTAL_PAD * 2;
-    const targetH = layout.height + PORTAL_PAD * 2;
-    const targetL = layout.x - PORTAL_PAD;
-    const targetT = layout.y - PORTAL_PAD;
+    const pad = step?.targetRef === 'boardGrid' ? 6 : PORTAL_PAD;
+    const targetW = layout.width + pad * 2;
+    const targetH = layout.height + pad * 2;
+    const targetL = layout.x - pad;
+    const targetT = layout.y - pad;
     // Clamp portal to viewport so large targets (board) don't render off-screen
     const NAV_STRIP_HEIGHT = 88;
     const MAX_PORTAL_W = SCREEN_W - 24;
@@ -259,7 +267,7 @@ export default function TutorialHUDOverlay({
       Animated.timing(calloutOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
       done?.();
     });
-  }, [orbLeft, orbTop, orbW, orbH, orbRadius, orbFillOpacity, pulseRingOpacity, portalDetailOpacity, calloutOpacity, computeCalloutPos]);
+  }, [step, orbLeft, orbTop, orbW, orbH, orbRadius, orbFillOpacity, pulseRingOpacity, portalDetailOpacity, calloutOpacity, computeCalloutPos]);
 
   // ── Collapse portal back to orb ──
   const unmorph = useCallback((layout: Layout | null, done?: () => void) => {
