@@ -2135,7 +2135,6 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     gap: Spacing.sm,
     zIndex: 30,
-    elevation: 30,
   },
   configLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, letterSpacing: 1,
