@@ -198,21 +198,28 @@ export default function TutorialHUDOverlay({
     }
     const CALLOUT_W = Math.min(270, SCREEN_W * 0.79);
     const NAV_STRIP_HEIGHT = 88;
-    const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
+    // When the nav strip is lifted (engageButton step), the usable area
+    // above it shrinks — the callout must clear the lifted strip.
+    const NAV_LIFT = step?.targetRef === 'engageButton' ? 136 : 0;
+    const EFFECTIVE_NAV_AREA = NAV_STRIP_HEIGHT + NAV_LIFT;
+    const USABLE_HEIGHT = SCREEN_H - EFFECTIVE_NAV_AREA;
     const CALLOUT_EST_H = 140;
     const MIN_TOP = 60;
-    const midY = USABLE_HEIGHT * 0.45;
     const centerY = layout.y + layout.height / 2;
     const belowTop = layout.y + layout.height + 18;
     const belowOverflow = belowTop + CALLOUT_EST_H > USABLE_HEIGHT;
-    const above = centerY > midY || belowOverflow;
+    // Place above target when target sits in the lower half of the screen.
+    const above = centerY > SCREEN_H / 2 || belowOverflow;
     const centerX = layout.x + layout.width / 2;
     let left = centerX - CALLOUT_W / 2;
     if (left < 12) left = 12;
     if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
     if (above) {
-      // Prefer bottom anchoring, but ensure the callout top does not go above MIN_TOP.
-      const bottomAnchor = SCREEN_H - (layout.y - 18);
+      // Bottom-anchor the callout so its bottom sits 18px above the target.
+      // Ensure it also clears the (possibly lifted) nav strip.
+      const desiredBottom = SCREEN_H - (layout.y - 18);
+      const minBottom = EFFECTIVE_NAV_AREA + 8;
+      const bottomAnchor = Math.max(desiredBottom, minBottom);
       const topIfBottomAnchored = SCREEN_H - bottomAnchor - CALLOUT_EST_H;
       if (topIfBottomAnchored < MIN_TOP) {
         return { top: MIN_TOP, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
@@ -220,7 +227,7 @@ export default function TutorialHUDOverlay({
       return { bottom: bottomAnchor, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
     }
     return { top: belowTop, left, width: CALLOUT_W, pointerAt: 'top' as const };
-  }, []);
+  }, [step]);
 
   // ── Fly orb to center of a layout (no morph) ──
   const flyTo = useCallback((cx: number, cy: number, done?: () => void) => {
@@ -501,10 +508,10 @@ export default function TutorialHUDOverlay({
   // cover what COGS is pointing at.
   useEffect(() => {
     if (!step) return;
-    const NAV_LIFT_TARGETS = new Set([
-      'engageButton', 'trayConveyor', 'trayGear', 'trayConfigNode',
-      'traySplitter', 'trayScanner', 'trayTransmitter',
-    ]);
+    // Only the ENGAGE button sits below the nav strip — it's the only
+    // target that needs the strip lifted. Tray pieces render above the
+    // nav strip already, so lifting for them strands the strip mid-screen.
+    const NAV_LIFT_TARGETS = new Set(['engageButton']);
     const lift = NAV_LIFT_TARGETS.has(step.targetRef);
     Animated.timing(navStripBottom, {
       toValue: lift ? 136 : 0,
@@ -547,10 +554,10 @@ export default function TutorialHUDOverlay({
     );
   };
 
-  // Bracket inset: when the portal covers a large target (board) the brackets
-  // would clip off-screen at the default -5 outside offset. Tuck them inside
-  // (positive 4) for large portals.
-  const bracketOffset = portalLayout && portalLayout.width > SCREEN_W * 0.6 ? 4 : -5;
+  // Portal corner brackets always render OUTSIDE the portal rectangle.
+  // Previous versions tucked them inside for large (board) portals to avoid
+  // clipping, but that visually placed decorations inside the framed area.
+  const bracketOffset = -5;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -1093,6 +1100,7 @@ const s = StyleSheet.create({
     width: 18,
     height: 18,
     opacity: 0.28,
+    zIndex: 100,
   },
   hudBH: {
     position: 'absolute',
