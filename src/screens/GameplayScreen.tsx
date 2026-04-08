@@ -51,7 +51,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const DOT_R = 1.5;
 const PIECE_RADIUS = 10;
 const CANVAS_PAD = 16;  // padding inside canvas area
-const MIN_CELL = 52;
+const MIN_CELL = 58;
 const MAX_CELL = 88;
 
 const VOID_QUOTES = [
