@@ -48,6 +48,19 @@ executes.
 
 **What is live and working:**
 
+- Design bible complete: Three documentation files establish
+  the full computational vision for The Axiom.
+  COMPUTATIONAL_MODEL.md — three-layer architecture, complete
+  piece vocabulary with CS concept mappings, 20 pieces total
+  including Navigator (Legendary) and Resonator.
+  TEACHING_PROGRESSION.md — sector-by-sector teaching arc,
+  narrative and mechanic integration principles, tape visibility
+  progression by sector.
+  LEVEL_DESIGN_FRAMEWORK.md — seven-step design sequence,
+  quality checklist, retrofit guidance for A1-5 through A1-8,
+  four-step tutorial pattern (instructor, collector interrupts,
+  Codex, instructor resumes), sector-specific design notes.
+  All level design going forward follows this framework.
 - Sprint 17C: Five new pieces added (Kepler Belt, not yet assigned to
   any level): Merger (Physics), Bridge (Physics), Inverter (Protocol),
   Counter (Protocol), Latch (Protocol). All have engine cases
@@ -193,6 +206,11 @@ executes.
 - Wrong output results modal not yet implemented. Sprint 17B
   triggers existing void/fail state as a placeholder.
 - Gameplay canvas rendering bug (carried from before Sprint 17).
+- A1-5 through A1-8 require tape retrofit per Level Design
+  Framework Part 3 before Kepler Belt launches. Current tapes
+  are uniform pass-through and do not test the computational
+  rule of each level. See docs/LEVEL_DESIGN_FRAMEWORK.md for
+  specific retrofit guidance per level.
 
 **Queued for next sprint (On the horizon):**
 
@@ -219,6 +237,8 @@ executes.
 | Config Node | Protocol | 25 CR | Passes signal only when trail condition met. |
 | Scanner | Protocol | 30 CR | Reads Data Trail, sets Configuration value. |
 | Transmitter | Protocol | 35 CR | Writes to Data Trail. |
+| Navigator | Protocol | Legendary (Deep Void) | COGS-operated head controller. 3 modes: Single, Dual, Sync. |
+| Resonator | Protocol | Pre-placed (The Cradle) | Pattern recognition, not player-placed. |
 
 ### Discipline Cost Discounts
 
@@ -417,6 +437,13 @@ No emojis in commit messages. Ever.
 3. Read docs/NARRATIVE.md for the complete story bible, sector arcs, level cogsLines, and all approved dialogue.
 4. Read docs/DIALOGUE_SYSTEM.md for post-level COGS discipline dialogue and arc lines.
 5. Read docs/BOUNTY_SYSTEM.md for the daily challenge generative architecture and all bounty content.
+5a. Read docs/COMPUTATIONAL_MODEL.md for the full piece catalog,
+    three-layer architecture, and computational concept mapping.
+5b. Read docs/TEACHING_PROGRESSION.md for the sector-by-sector
+    teaching arc and narrative/mechanic integration principles.
+5c. Read docs/LEVEL_DESIGN_FRAMEWORK.md for the seven-step level
+    design sequence, quality checklist, retrofit guidance for
+    existing levels, and the four-step tutorial pattern.
 6. All story content requires Tucker Brady sign-off before implementation. Nothing in those documents enters the codebase without explicit approval.
 7. Check GitHub Actions tab to confirm CI is green before adding work.
 4. Ask Tucker what is needed. Do not assume from old context.

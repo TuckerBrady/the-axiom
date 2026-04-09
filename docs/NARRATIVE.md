@@ -1092,6 +1092,59 @@ COGS has no operational role in a sandbox. He observes. Occasionally he comments
 
 ---
 
+## PART ELEVEN: CODEX ENTRIES — FULL REFERENCE (PIECES ADDENDUM)
+
+### Navigator [LEGENDARY — unlocks Deep Void]
+
+Built by the Engineer during the Deep Void recovery period
+after the failed first transit. Constructed from three
+components: COGS's parallel processing unit (the part that
+manages simultaneous operations), the Axiom's signal relay
+array (the physical chassis and three-track architecture),
+and the Engineer's HUD interface hardware (the control layer).
+COGS controls the heads directly during execution. The
+Navigator is the only piece in the game that requires two
+operators. The Engineer places it. COGS runs it.
+
+Controls the read/write position of the Input head, Output
+head, and Data Trail head independently or in combination.
+Three modes: Single (one head), Dual (two heads
+simultaneously), Sync (all three together). The heads can
+move forward, backward, jump to any position, or hold. This
+is what gives the machine full computational universality —
+the ability to process information in any order.
+
+The only piece ever classified as Legendary. COGS added that
+classification himself. It applies here and nowhere else.
+
+cogsNote [APPROVED]: "One part relay array. One part suit
+interface. One part me. I control the heads directly during
+execution. I did not know I wanted to do that until I was
+doing it. Legendary. I added that classification. It applies
+here and nowhere else."
+
+Post-first-use COGS line [APPROVED]: "The heads responded
+correctly. I was not certain they would. I was certain I
+would try."
+
+### Resonator [CLASSIFIED — unlocks The Cradle]
+
+Pre-placed in the grid on every Cradle level. Cannot be
+moved. Does not process the signal — recognizes it. Reads
+the signal passing through it and identifies its underlying
+pattern. Mirrors that pattern back into the Data Trail as a
+reference value available to downstream pieces. The first
+piece in the catalog that operates on pattern rather than
+value. This is the bridge from digital logic to something
+that feels closer to intelligence.
+
+cogsNote [PROPOSED — Tucker sign-off required]: "It does not
+process the signal. It recognizes it. I have been doing
+something similar for some time. I did not have a word for
+it until now."
+
+---
+
 *All content in this document is proposed. Tucker Brady has final sign-off on every line. Nothing enters the codebase without explicit approval.*
 
 *Version 1.3 — April 2026. Incorporates: Full level cogsLine suites for all six sectors, complete boss completion line suites across three tiers for all sectors, double dashes removed from all in-game text, COGS communication model corrected to game-state triggers only, breadcrumb delivery methods updated to reflect trigger-based system, Chapter Two seed inventory expanded. Endings updated with universal where-to invitation. True ending dialogue pinned as unresolved. The Expanse added as post-MVP sandbox area.*
