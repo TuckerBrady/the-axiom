@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,29 @@ import {
   Animated,
   Easing,
   Dimensions,
-  Platform,
+  findNodeHandle,
+  UIManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { TutorialStep } from '../game/types';
-import { Colors, Fonts, Spacing } from '../theme/tokens';
-import { PieceIcon } from './PieceIcon';
+import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry } from './CodexDetailView';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-type Phase = 'tutorial' | 'demo' | 'announce' | 'codex';
+const ORB_SIZE = 24;
+const PORTAL_PAD = 12;
+const PORTAL_MIN = 64;
+const PORTAL_MARGIN = 8;
+const NAV_HEIGHT = 64;
+const CALLOUT_MAX_W = 360;
+const CALLOUT_GAP = 12;
+const CALLOUT_SIDE_PAD = 24;
+
+type Phase = 'idle' | 'flying' | 'arrived' | 'codex' | 'complete';
+
 type Layout = { x: number; y: number; width: number; height: number };
 
 export type SpotlightCell = {
@@ -33,15 +44,33 @@ interface Props {
   targetRefs: Record<string, React.RefObject<View | null>>;
   onComplete: () => void;
   onSkip: () => void;
-  // Optional spotlight rings rendered over the board portal when the
-  // current step targets 'boardGrid'. Each ring pulses continuously while
-  // the board step is active.
   spotlightCells?: SpotlightCell[];
   spotlightCellSize?: number;
 }
 
-const ORB_SIZE = 22;
-const PORTAL_PAD = 10;
+// Targets that are section-level (no individual piece glow)
+const SECTION_TARGETS = new Set([
+  'boardGrid',
+  'center',
+  'inputTapeRow',
+  'outputTapeRow',
+  'dataTrailRow',
+]);
+
+// Purple port targets
+const PORT_TARGETS = new Set(['sourceNode', 'outputNode']);
+
+function eyeStateColor(eye?: string): string {
+  switch (eye) {
+    case 'amber': return '#F0B429';
+    case 'green': return '#00C48C';
+    case 'red': return '#FF3B3B';
+    case 'blue':
+    default: return '#00D4FF';
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function TutorialHUDOverlay({
   steps,
@@ -52,48 +81,32 @@ export default function TutorialHUDOverlay({
   spotlightCells,
   spotlightCellSize,
 }: Props) {
-  // ── Core phase / step state ──
-  const [currentStep, setCurrentStep] = useState(0);
-  const [phase, setPhase] = useState<Phase>('tutorial');
+  // ── State ──
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [phase, setPhase] = useState<Phase>('idle');
   const [hydrated, setHydrated] = useState(false);
-  const [annProgress, setAnnProgress] = useState(0);
-  const [annComplete, setAnnComplete] = useState(false);
+  const [targetLayout, setTargetLayout] = useState<Layout | null>(null);
   const [codexVisible, setCodexVisible] = useState(false);
 
-  // Portal layout (current target measure result)
-  const [portalLayout, setPortalLayout] = useState<Layout | null>(null);
-  const [morphed, setMorphed] = useState(false);
-  const [calloutPos, setCalloutPos] = useState<{ top?: number; bottom?: number; left: number; width: number; pointerAt: 'top' | 'bottom' | 'none'; insidePortal?: boolean } | null>(null);
-
   // ── Animated values ──
-  const dimOpacity = useRef(new Animated.Value(0)).current;
-  const navStripY = useRef(new Animated.Value(80)).current;
-  const navStripBottom = useRef(new Animated.Value(0)).current;
-
-  const orbLeft = useRef(new Animated.Value(SCREEN_W + 60)).current;
-  const orbTop = useRef(new Animated.Value(80)).current;
-  const orbW = useRef(new Animated.Value(ORB_SIZE)).current;
-  const orbH = useRef(new Animated.Value(ORB_SIZE)).current;
-  const orbRadius = useRef(new Animated.Value(ORB_SIZE / 2)).current;
-  const orbOpacity = useRef(new Animated.Value(0)).current;
-  const orbFillOpacity = useRef(new Animated.Value(1)).current;
-  const pulseRingOpacity = useRef(new Animated.Value(1)).current;
-  const pulseScale = useRef(new Animated.Value(1)).current;
-  const portalDetailOpacity = useRef(new Animated.Value(0)).current;
+  const orbX = useRef(new Animated.Value(SCREEN_W - 40)).current;
+  const orbY = useRef(new Animated.Value(60)).current;
+  const portalOpacity = useRef(new Animated.Value(0)).current;
+  const portalW = useRef(new Animated.Value(0)).current;
+  const portalH = useRef(new Animated.Value(0)).current;
   const calloutOpacity = useRef(new Animated.Value(0)).current;
-  const eyePulse = useRef(new Animated.Value(0.4)).current;
-  const scanY = useRef(new Animated.Value(0)).current;
-  const panelTranslate = useRef(new Animated.Value(400)).current;
+  const glowOpacity = useRef(new Animated.Value(0.25)).current;
+  const glowPulse = useRef(new Animated.Value(0)).current;
+  const dimOpacity = useRef(new Animated.Value(0)).current;
   const codexTranslate = useRef(new Animated.Value(SCREEN_H)).current;
-  const spotlightPulse = useRef(new Animated.Value(0)).current;
-  const portalGlowPulse = useRef(new Animated.Value(0)).current;
+  const exitOpacity = useRef(new Animated.Value(1)).current;
 
-  const step = steps[currentStep];
-  const eyeColor = step?.eyeState === 'amber' ? '#F0B429' : '#00D4FF';
-  const isLastStep = currentStep === steps.length - 1;
-  const exitingRef = useRef(false);
+  const step = steps[currentStepIndex];
+  const totalSteps = steps.length;
+  const isLastStep = currentStepIndex >= totalSteps - 1;
+  const eyeColor = eyeStateColor(step?.eyeState);
 
-  // ── Hydration from AsyncStorage ──
+  // ── Hydration ──
   useEffect(() => {
     (async () => {
       try {
@@ -110,79 +123,266 @@ export default function TutorialHUDOverlay({
         if (saved) {
           const idx = parseInt(saved, 10);
           if (!isNaN(idx) && idx >= 0 && idx < steps.length) {
-            setCurrentStep(idx);
+            setCurrentStepIndex(idx);
           }
         }
       } catch {
-        // ignore
+        /* ignore */
       }
       setHydrated(true);
     })();
   }, [levelId, steps.length]);
 
-  // ── Persist step ──
+  // Persist step progress
   useEffect(() => {
     if (!hydrated) return;
-    AsyncStorage.setItem(`axiom_tutorial_step_${levelId}`, String(currentStep)).catch(() => {});
-  }, [currentStep, hydrated, levelId]);
+    AsyncStorage.setItem(`axiom_tutorial_step_${levelId}`, String(currentStepIndex)).catch(() => {});
+  }, [currentStepIndex, levelId, hydrated]);
 
-  // ── Ambient loops (eye pulse, pulse rings) ──
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(eyePulse, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(eyePulse, { toValue: 0.4, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ]),
-    ).start();
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseScale, { toValue: 1.12, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-        Animated.timing(pulseScale, { toValue: 1, duration: 800, easing: Easing.inOut(Easing.sin), useNativeDriver: false }),
-      ]),
-    ).start();
-  }, [eyePulse, pulseScale]);
+  // ── Measurement ──
+  const measureTarget = useCallback((targetRef: string, cb: (layout: Layout | null) => void) => {
+    if (targetRef === 'center') {
+      cb({
+        x: SCREEN_W / 2 - ORB_SIZE / 2,
+        y: SCREEN_H / 2 - ORB_SIZE / 2,
+        width: ORB_SIZE,
+        height: ORB_SIZE,
+      });
+      return;
+    }
+    const ref = targetRefs[targetRef];
+    const node = ref?.current;
+    if (!node) {
+      cb(null);
+      return;
+    }
 
-  // ── Scan line loop (inside portal) ──
-  useEffect(() => {
-    if (!morphed || !portalLayout) return;
-    scanY.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(scanY, {
-        toValue: portalLayout.height + PORTAL_PAD * 2,
-        duration: 2000,
-        easing: Easing.linear,
+    let attempt = 0;
+    const tryMeasure = () => {
+      attempt += 1;
+      const handle = findNodeHandle(node);
+      if (handle == null) {
+        if (attempt < 3) {
+          setTimeout(tryMeasure, 150);
+        } else {
+          cb(null);
+        }
+        return;
+      }
+      UIManager.measureInWindow(handle, (x: number, y: number, width: number, height: number) => {
+        if (width < 4 || height < 4) {
+          if (attempt < 3) {
+            setTimeout(tryMeasure, 150);
+          } else {
+            cb(null);
+          }
+          return;
+        }
+        cb({ x, y, width, height });
+      });
+    };
+    tryMeasure();
+  }, [targetRefs]);
+
+  // ── Portal geometry helpers ──
+  const computePortalBox = useCallback((layout: Layout) => {
+    const rawW = layout.width + PORTAL_PAD * 2;
+    const rawH = layout.height + PORTAL_PAD * 2;
+    const w = Math.max(PORTAL_MIN, Math.min(rawW, SCREEN_W - PORTAL_MARGIN * 2));
+    const h = Math.max(PORTAL_MIN, Math.min(rawH, SCREEN_H - PORTAL_MARGIN * 2 - NAV_HEIGHT));
+    const cx = layout.x + layout.width / 2;
+    const cy = layout.y + layout.height / 2;
+    let left = cx - w / 2;
+    let top = cy - h / 2;
+    if (left < PORTAL_MARGIN) left = PORTAL_MARGIN;
+    if (left + w > SCREEN_W - PORTAL_MARGIN) left = SCREEN_W - PORTAL_MARGIN - w;
+    if (top < PORTAL_MARGIN) top = PORTAL_MARGIN;
+    if (top + h > SCREEN_H - NAV_HEIGHT - PORTAL_MARGIN) top = SCREEN_H - NAV_HEIGHT - PORTAL_MARGIN - h;
+    return { left, top, width: w, height: h };
+  }, []);
+
+  const portalBox = useMemo(() => {
+    if (!targetLayout) return null;
+    if (step?.targetRef === 'center') return null;
+    return computePortalBox(targetLayout);
+  }, [targetLayout, step, computePortalBox]);
+
+  // ── Callout position ──
+  const CALLOUT_W = Math.min(CALLOUT_MAX_W, SCREEN_W - CALLOUT_SIDE_PAD * 2);
+  const CALLOUT_H_EST = 140;
+
+  const calloutPos = useMemo((): { top: number; left: number } | null => {
+    if (!targetLayout) return null;
+    const midY = SCREEN_H / 2;
+    // Horizontal: centered, clamped to margins
+    let left = SCREEN_W / 2 - CALLOUT_W / 2;
+    if (left < 12) left = 12;
+    if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
+
+    if (step?.targetRef === 'center') {
+      // Above the orb center
+      const bottomOfCallout = SCREEN_H / 2 - ORB_SIZE / 2 - CALLOUT_GAP;
+      const top = Math.max(80, bottomOfCallout - CALLOUT_H_EST);
+      return { top, left };
+    }
+
+    if (!portalBox) return null;
+    const portalTop = portalBox.top;
+    const portalBottom = portalBox.top + portalBox.height;
+    const portalCenterY = portalBox.top + portalBox.height / 2;
+
+    if (portalCenterY < midY) {
+      // Target in top half → callout below portal
+      let top = portalBottom + CALLOUT_GAP;
+      const maxTop = SCREEN_H - NAV_HEIGHT - CALLOUT_H_EST - 8;
+      if (top > maxTop) top = maxTop;
+      return { top, left };
+    } else {
+      // Target in bottom half → callout above portal
+      let top = portalTop - CALLOUT_GAP - CALLOUT_H_EST;
+      if (top < 80) top = 80;
+      return { top, left };
+    }
+  }, [targetLayout, portalBox, step, CALLOUT_W]);
+
+  // ── Synchronous reset (between steps) ──
+  const resetVisualState = useCallback(() => {
+    portalOpacity.setValue(0);
+    portalW.setValue(0);
+    portalH.setValue(0);
+    calloutOpacity.setValue(0);
+    glowOpacity.setValue(0);
+  }, [portalOpacity, portalW, portalH, calloutOpacity, glowOpacity]);
+
+  // ── Fly orb to target ──
+  const flyOrbTo = useCallback((cx: number, cy: number, done?: () => void) => {
+    Animated.parallel([
+      Animated.spring(orbX, {
+        toValue: cx - ORB_SIZE / 2,
+        tension: 80,
+        friction: 12,
         useNativeDriver: false,
       }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [morphed, portalLayout, scanY]);
+      Animated.spring(orbY, {
+        toValue: cy - ORB_SIZE / 2,
+        tension: 80,
+        friction: 12,
+        useNativeDriver: false,
+      }),
+    ]).start(() => done?.());
+  }, [orbX, orbY]);
 
-  // ── Spotlight pulse loop (board step) ──
-  const isBoardStep = step?.targetRef === 'boardGrid';
-  // Spotlight rings are an A1-1 teaching affordance only. Suppress on
-  // all other levels even when inputPort/outputPort cells are present.
-  const showSpotlights =
-    isBoardStep &&
-    levelId === 'A1-1' &&
-    morphed &&
-    !!portalLayout &&
-    !!spotlightCells &&
-    spotlightCells.length > 0 &&
-    !!spotlightCellSize &&
-    spotlightCellSize > 0;
+  // ── Morph portal in ──
+  const morphPortalIn = useCallback((box: { width: number; height: number }, done?: () => void) => {
+    portalW.setValue(0);
+    portalH.setValue(0);
+    portalOpacity.setValue(0);
+    Animated.parallel([
+      Animated.timing(portalW, {
+        toValue: box.width,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(portalH, {
+        toValue: box.height,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(portalOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start(() => {
+      Animated.timing(glowOpacity, {
+        toValue: 0.25,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+      Animated.timing(calloutOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: false,
+      }).start();
+      done?.();
+    });
+  }, [portalW, portalH, portalOpacity, glowOpacity, calloutOpacity]);
+
+  // ── Advance to the current step's target ──
+  const runStep = useCallback((idx: number) => {
+    const s = steps[idx];
+    if (!s) return;
+    resetVisualState();
+    setTargetLayout(null);
+    setPhase('flying');
+
+    measureTarget(s.targetRef, (layout) => {
+      if (!layout) {
+        // Fallback: treat as center so something still shows
+        const fallback: Layout = {
+          x: SCREEN_W / 2 - ORB_SIZE / 2,
+          y: SCREEN_H / 2 - ORB_SIZE / 2,
+          width: ORB_SIZE,
+          height: ORB_SIZE,
+        };
+        setTargetLayout(fallback);
+        flyOrbTo(SCREEN_W / 2, SCREEN_H / 2, () => {
+          setPhase('arrived');
+        });
+        return;
+      }
+      setTargetLayout(layout);
+      const isCenter = s.targetRef === 'center';
+      const box = isCenter ? null : computePortalBox(layout);
+      const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
+      const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
+      flyOrbTo(centerX, centerY, () => {
+        setPhase('arrived');
+        if (box) {
+          morphPortalIn({ width: box.width, height: box.height });
+        } else {
+          // Center step: no portal. Just fade callout in.
+          Animated.timing(calloutOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: false,
+          }).start();
+        }
+      });
+    });
+  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, calloutOpacity]);
+
+  // ── Mount / hydration entrance (runs once when hydrated) ──
+  const entranceRanRef = useRef(false);
   useEffect(() => {
-    if (!showSpotlights) return;
-    spotlightPulse.setValue(0);
+    if (!hydrated || entranceRanRef.current) return;
+    entranceRanRef.current = true;
+    Animated.timing(dimOpacity, {
+      toValue: 1,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+    // Short delay so GameplayScreen's layout settles before first measure
+    const t = setTimeout(() => runStep(currentStepIndex), 400);
+    return () => clearTimeout(t);
+  }, [hydrated, currentStepIndex, runStep, dimOpacity]);
+
+  // ── Glow pulse loop ──
+  const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
+  useEffect(() => {
+    if (!showPieceGlow) return;
+    glowPulse.setValue(0);
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(spotlightPulse, {
+        Animated.timing(glowPulse, {
           toValue: 1,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: false,
         }),
-        Animated.timing(spotlightPulse, {
+        Animated.timing(glowPulse, {
           toValue: 0,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
@@ -192,363 +392,14 @@ export default function TutorialHUDOverlay({
     );
     loop.start();
     return () => loop.stop();
-  }, [showSpotlights, spotlightPulse]);
+  }, [showPieceGlow, glowPulse]);
 
-  // ── Portal glow ring (piece-targeted steps) ──
-  const PIECE_PORTAL_TARGETS = new Set([
-    'sourceNode', 'outputNode', 'boardScanner',
-    'trayConveyor', 'trayGear', 'trayConfigNode',
-    'traySplitter', 'trayScanner', 'trayTransmitter',
-  ]);
-  const PROTOCOL_PORTAL_TARGETS = new Set([
-    'trayConfigNode', 'trayScanner', 'trayTransmitter', 'boardScanner',
-  ]);
-  const PORT_PORTAL_TARGETS = new Set(['sourceNode', 'outputNode']);
-  const showPortalGlow = morphed && !!step && PIECE_PORTAL_TARGETS.has(step.targetRef);
-  const portalGlowColor = step && PORT_PORTAL_TARGETS.has(step.targetRef)
-    ? '#8B5CF6'
-    : step && PROTOCOL_PORTAL_TARGETS.has(step.targetRef)
-    ? '#00D4FF'
-    : '#F0B429';
-  useEffect(() => {
-    if (!showPortalGlow) return;
-    portalGlowPulse.setValue(0);
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(portalGlowPulse, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
-        Animated.timing(portalGlowPulse, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [showPortalGlow, portalGlowPulse]);
-
-  // ── Measure target for current step (tutorial phase) ──
-  // Large layout elements (board / engage / tray chips) need extra delay so
-  // their layout settles before measure() is called, otherwise the orb jumps.
-  // Source/output node refs are board children whose position settles
-  // immediately and use direct measure().
-  const DELAYED_REFS = new Set([
-    'boardGrid',
-    'engageButton',
-    'trayConveyor',
-    'trayGear',
-    'trayConfigNode',
-    'traySplitter',
-    'trayScanner',
-    'trayTransmitter',
-    'boardScanner',
-    'inputTapeRow',
-    'outputTapeRow',
-    'dataTrailRow',
-  ]);
-  const measureCurrent = useCallback((cb: (layout: Layout | null) => void) => {
-    if (!step) return cb(null);
-    // Special targetRef 'center' has no DOM ref — synthesize a layout that
-    // places the orb at screen center. Used for COGS-only steps that have
-    // no spatial anchor (intros, transitions).
-    if (step.targetRef === 'center') {
-      return cb({
-        x: SCREEN_W / 2 - ORB_SIZE / 2,
-        y: SCREEN_H / 2 - ORB_SIZE / 2,
-        width: ORB_SIZE,
-        height: ORB_SIZE,
-      });
-    }
-    const ref = targetRefs[step.targetRef];
-    if (!ref?.current?.measure) return cb(null);
-    const BOARD_DELAY = 180;
-    const TRAY_DELAY = 120;
-    const delayMs = step.targetRef === 'boardGrid'
-      ? BOARD_DELAY
-      : DELAYED_REFS.has(step.targetRef)
-      ? TRAY_DELAY
-      : 0;
-    const doMeasure = (retriesLeft: number) => {
-      ref.current?.measure?.((_x, _y, width, height, pageX, pageY) => {
-        // Stale/collapsed layout guard: any target can return a near-zero
-        // size if measured before layout settles. boardGrid uses a larger
-        // threshold (100) because it is expected to be big; all other
-        // targets (tray pieces, engage button, source/output) use 10.
-        const threshold = step.targetRef === 'boardGrid' ? 100 : 10;
-        const badSize = width < threshold || height < threshold;
-        // Additional guard: the engage button lives in the lower half of
-        // the screen. If measure returns a y in the top half, the layout
-        // has not settled and we should retry.
-        const badEngagePos =
-          step.targetRef === 'engageButton' && pageY < SCREEN_H / 2;
-        if ((badSize || badEngagePos) && retriesLeft > 0) {
-          setTimeout(() => doMeasure(retriesLeft - 1), 200);
-          return;
-        }
-        cb({ x: pageX, y: pageY, width, height });
-      });
-    };
-    // Up to 3 retries (200ms each) for tray pieces and other delayed refs
-    // whose layout can take longer to settle than the initial delay window.
-    setTimeout(() => doMeasure(3), delayMs);
-  }, [step, targetRefs]);
-
-  // ── Compute callout position relative to portal ──
-  const computeCalloutPos = useCallback((layout: Layout) => {
-    // Large portal (board): drop the callout inside the portal at the top.
-    if (layout.width > SCREEN_W * 0.6) {
-      const W = SCREEN_W - 32;
-      return {
-        top: layout.y + 8,
-        left: 16,
-        width: W,
-        pointerAt: 'none' as const,
-        insidePortal: true,
-      };
-    }
-    const CALLOUT_W = Math.min(270, SCREEN_W * 0.79);
-    const centerX = layout.x + layout.width / 2;
-    let left = centerX - CALLOUT_W / 2;
-    if (left < 12) left = 12;
-    // Clamp right edge so callout never overhangs the screen.
-    left = Math.min(left, SCREEN_W - CALLOUT_W - 12);
-    if (left < 12) left = 12;
-
-    // ENGAGE step: the button sits below the parts tray at the very bottom
-    // of the screen, and the nav strip is lifted to bottom: 136 on this
-    // step. A measurement-derived bottom anchor has been unreliable — the
-    // engage button ref (TouchableOpacity) sometimes returns stale pageY,
-    // pushing the callout into or below the tray. Use a deterministic
-    // bottom anchor that always clears the lifted nav strip, the tray,
-    // and the engage row.
-    //   nav strip lift (136) + nav strip height (~80) + tray (~80) +
-    //   margin (~14) = 310
-    const NAV_STRIP_HEIGHT = 88;
-    const USABLE_HEIGHT = SCREEN_H - NAV_STRIP_HEIGHT;
-    const CALLOUT_EST_H = 140;
-    const MIN_TOP = 60;
-    const centerY = layout.y + layout.height / 2;
-    const belowTop = layout.y + layout.height + 18;
-    const belowOverflow = belowTop + CALLOUT_EST_H > USABLE_HEIGHT;
-    // Place above target when target sits in the lower half of the screen.
-    const above = centerY > SCREEN_H / 2 || belowOverflow;
-    if (above) {
-      // Bottom-anchor the callout so its bottom sits 18px above the target.
-      const desiredBottom = SCREEN_H - (layout.y - 18);
-      const minBottom = NAV_STRIP_HEIGHT + 8;
-      const bottomAnchor = Math.max(desiredBottom, minBottom);
-      const topIfBottomAnchored = SCREEN_H - bottomAnchor - CALLOUT_EST_H;
-      if (topIfBottomAnchored < MIN_TOP) {
-        return { top: MIN_TOP, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
-      }
-      return { bottom: bottomAnchor, left, width: CALLOUT_W, pointerAt: 'bottom' as const };
-    }
-    return { top: belowTop, left, width: CALLOUT_W, pointerAt: 'top' as const };
-  }, [step]);
-
-  // ── Fly orb to center of a layout (no morph) ──
-  const flyTo = useCallback((cx: number, cy: number, done?: () => void) => {
-    Animated.parallel([
-      Animated.timing(orbLeft, { toValue: cx - ORB_SIZE / 2, duration: 520, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-      Animated.timing(orbTop, { toValue: cy - ORB_SIZE / 2, duration: 520, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-    ]).start(() => {
-      done?.();
-    });
-  }, [orbLeft, orbTop]);
-
-  // ── Morph orb into portal over a target layout ──
-  const morphInto = useCallback((layout: Layout, done?: () => void) => {
-    // 'center' steps skip the portal morph entirely. The orb has already
-    // flown to screen center via flyTo — it stays as an orb, no portal
-    // square, no corner brackets, no scan line. Callout still renders.
-    if (step?.targetRef === 'center') {
-      setMorphed(true);
-      setCalloutPos(computeCalloutPos(layout));
-      Animated.timing(calloutOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-      done?.();
-      return;
-    }
-    // Board-piece portals (source/output/scanner) use a tighter pad so
-    // the portal rectangle stays visually centered on the piece itself
-    // instead of its loose Pressable hitbox.
-    const pad =
-      step?.targetRef === 'boardGrid'
-        ? 6
-        : step?.targetRef === 'sourceNode' ||
-          step?.targetRef === 'outputNode' ||
-          step?.targetRef === 'boardScanner'
-        ? 4
-        : PORTAL_PAD;
-    const targetW = layout.width + pad * 2;
-    const targetH = layout.height + pad * 2;
-    const targetL = layout.x - pad;
-    const targetT = layout.y - pad;
-    // Clamp portal to viewport so large targets (board) don't render off-screen
-    const NAV_STRIP_HEIGHT = 88;
-    const MAX_PORTAL_W = SCREEN_W - 24;
-    const MAX_PORTAL_H = SCREEN_H - NAV_STRIP_HEIGHT - 80;
-    const clampedW = Math.min(targetW, MAX_PORTAL_W);
-    const clampedH = Math.min(targetH, MAX_PORTAL_H);
-    const clampedL = Math.max(8, Math.min(targetL, SCREEN_W - clampedW - 8));
-    const clampedT = Math.max(56, Math.min(targetT, SCREEN_H - NAV_STRIP_HEIGHT - clampedH - 8));
-    const ease = Easing.bezier(0.34, 1.4, 0.64, 1);
-    Animated.parallel([
-      Animated.timing(orbLeft, { toValue: clampedL, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbTop, { toValue: clampedT, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbW, { toValue: clampedW, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbH, { toValue: clampedH, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbRadius, { toValue: 10, duration: 420, easing: ease, useNativeDriver: false }),
-      Animated.timing(orbFillOpacity, { toValue: 0, duration: 320, useNativeDriver: false }),
-      Animated.timing(pulseRingOpacity, { toValue: 0, duration: 300, useNativeDriver: false }),
-      // Portal details fade in starting ~200ms in
-      Animated.sequence([
-        Animated.delay(200),
-        Animated.timing(portalDetailOpacity, { toValue: 1, duration: 250, useNativeDriver: false }),
-      ]),
-    ]).start(() => {
-      setMorphed(true);
-      setCalloutPos(computeCalloutPos(layout));
-      Animated.timing(calloutOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-      done?.();
-    });
-  }, [step, orbLeft, orbTop, orbW, orbH, orbRadius, orbFillOpacity, pulseRingOpacity, portalDetailOpacity, calloutOpacity, computeCalloutPos]);
-
-  // ── Collapse portal back to orb ──
-  const unmorph = useCallback((layout: Layout | null, done?: () => void) => {
-    Animated.parallel([
-      Animated.timing(calloutOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-      Animated.timing(portalDetailOpacity, { toValue: 0, duration: 200, useNativeDriver: false }),
-    ]).start();
-    setTimeout(() => {
-      setMorphed(false);
-      setCalloutPos(null);
-      const centerX = layout ? layout.x + layout.width / 2 : SCREEN_W / 2;
-      const centerY = layout ? layout.y + layout.height / 2 : 80;
-      Animated.parallel([
-        Animated.timing(orbW, { toValue: ORB_SIZE, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-        Animated.timing(orbH, { toValue: ORB_SIZE, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-        Animated.timing(orbRadius, { toValue: ORB_SIZE / 2, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-        Animated.timing(orbLeft, { toValue: centerX - ORB_SIZE / 2, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-        Animated.timing(orbTop, { toValue: centerY - ORB_SIZE / 2, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }),
-        Animated.timing(orbFillOpacity, { toValue: 1, duration: 300, useNativeDriver: false }),
-        Animated.timing(pulseRingOpacity, { toValue: 1, duration: 300, useNativeDriver: false }),
-      ]).start(() => {
-        done?.();
-      });
-    }, 150);
-  }, [calloutOpacity, portalDetailOpacity, orbW, orbH, orbRadius, orbLeft, orbTop, orbFillOpacity, pulseRingOpacity]);
-
-  // ── Mount entrance: fade dim, slide nav, appear orb, fly to first target, morph ──
-  useEffect(() => {
-    if (!hydrated) return;
-    Animated.timing(dimOpacity, { toValue: 1, duration: 400, useNativeDriver: false }).start();
-    Animated.timing(navStripY, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
-    setTimeout(() => {
-      Animated.timing(orbOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-      measureCurrent((layout) => {
-        if (!layout) return;
-        setPortalLayout(layout);
-        const cx = layout.x + layout.width / 2;
-        const cy = layout.y + layout.height / 2;
-        flyTo(cx, cy, () => {
-          morphInto(layout);
-        });
-      });
-    }, 400);
-  }, [hydrated]);
-
-  // ── Step change (within tutorial phase): unmorph → fly → morph to new target ──
-  const prevStepRef = useRef(currentStep);
-  useEffect(() => {
-    if (!hydrated) return;
-    if (phase !== 'tutorial') return;
-    if (prevStepRef.current === currentStep) return;
-    prevStepRef.current = currentStep;
-    // Bug fix: hide the previous step's callout instantly so the new step's
-    // message text never flashes on screen at the old opacity. setValue is
-    // synchronous — Animated.timing here would race with the React render.
-    // Also clear morphed/calloutPos so no stale portal or position bleeds
-    // into the new step's entrance animation.
-    calloutOpacity.setValue(0);
-    setMorphed(false);
-    setCalloutPos(null);
-    setPortalLayout(null);
-    const oldLayout = portalLayout;
-    unmorph(oldLayout, () => {
-      measureCurrent((layout) => {
-        if (!layout) return;
-        setPortalLayout(layout);
-        const cx = layout.x + layout.width / 2;
-        const cy = layout.y + layout.height / 2;
-        flyTo(cx, cy, () => {
-          morphInto(layout);
-        });
-      });
-    });
-  }, [currentStep, hydrated, phase, portalLayout, unmorph, measureCurrent, flyTo, morphInto, calloutOpacity]);
-
-  // ── Phase change: tutorial <-> demo/announce/codex ──
-  const prevPhaseRef = useRef<Phase>('tutorial');
-  useEffect(() => {
-    if (!hydrated) return;
-    const prev = prevPhaseRef.current;
-    if (prev === phase) return;
-    prevPhaseRef.current = phase;
-
-    if (phase === 'demo' || phase === 'announce') {
-      // Unmorph orb, hide it, slide panel up, darken dim a bit
-      unmorph(portalLayout, () => {
-        Animated.timing(orbOpacity, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-      });
-      Animated.timing(dimOpacity, { toValue: 1, duration: 200, useNativeDriver: false }).start();
-      Animated.timing(panelTranslate, { toValue: 0, duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
-    } else if (phase === 'tutorial') {
-      // Slide panel down, restore orb, re-fly/morph.
-      // After Codex/demo close: wait for the panel slide-down (300ms) PLUS a
-      // 400ms layout-settle buffer, then warm up every ref so stale measurements
-      // are discarded, then re-measure the current target.
-      Animated.timing(panelTranslate, { toValue: 400, duration: 300, easing: Easing.bezier(0.4, 0, 0.2, 1), useNativeDriver: false }).start();
-      Animated.timing(orbOpacity, { toValue: 1, duration: 300, useNativeDriver: false }).start();
-      const remeasureAllRefs = () => {
-        for (const key of Object.keys(targetRefs)) {
-          const r = targetRefs[key];
-          r?.current?.measure?.(() => { /* warm-up only */ });
-        }
-      };
-      setTimeout(() => {
-        remeasureAllRefs();
-        measureCurrent((layout) => {
-          if (!layout) return;
-          setPortalLayout(layout);
-          const cx = layout.x + layout.width / 2;
-          const cy = layout.y + layout.height / 2;
-          flyTo(cx, cy, () => morphInto(layout));
-        });
-      }, 700);
-    }
-  }, [phase, hydrated, portalLayout, unmorph, measureCurrent, flyTo, morphInto, dimOpacity, orbOpacity, panelTranslate]);
-
-  // ── Announce progress bar ──
-  useEffect(() => {
-    if (phase !== 'announce') return;
-    setAnnProgress(0);
-    setAnnComplete(false);
-    const id = setInterval(() => {
-      setAnnProgress(prev => {
-        const next = prev + Math.random() * 6 + 3.5;
-        if (next >= 100) {
-          setAnnComplete(true);
-          clearInterval(id);
-          return 100;
-        }
-        return next;
-      });
-    }, 40);
-    return () => clearInterval(id);
-  }, [phase]);
-
-  // ── Codex slide-up animation ──
+  // ── Codex slide ──
   useEffect(() => {
     if (codexVisible) {
       Animated.timing(codexTranslate, {
         toValue: 0,
-        duration: 500,
+        duration: 400,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
         useNativeDriver: false,
       }).start();
@@ -558,67 +409,43 @@ export default function TutorialHUDOverlay({
   }, [codexVisible, codexTranslate]);
 
   // ── Exit animation ──
-  const exitOverlay = useCallback((onDone: () => void) => {
-    exitingRef.current = true;
-    unmorph(portalLayout, () => {
-      Animated.parallel([
-        Animated.timing(orbLeft, { toValue: SCREEN_W + 60, duration: 400, useNativeDriver: false }),
-        Animated.timing(orbOpacity, { toValue: 0, duration: 400, useNativeDriver: false }),
-        Animated.timing(dimOpacity, { toValue: 0, duration: 400, useNativeDriver: false }),
-        Animated.timing(navStripY, { toValue: 80, duration: 400, useNativeDriver: false }),
-      ]).start(() => onDone());
-    });
-  }, [portalLayout, unmorph, orbLeft, orbOpacity, dimOpacity, navStripY]);
+  const exitOverlay = useCallback((after: () => void) => {
+    setPhase('complete');
+    Animated.timing(exitOpacity, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    }).start(() => after());
+  }, [exitOpacity]);
 
-  // ── Advance / back / skip / primary ──
+  // ── Step controls ──
   const advanceStep = useCallback(() => {
-    if (currentStep >= steps.length - 1) {
+    if (currentStepIndex >= totalSteps - 1) {
       AsyncStorage.setItem(`axiom_tutorial_complete_${levelId}`, '1').catch(() => {});
       AsyncStorage.removeItem(`axiom_tutorial_step_${levelId}`).catch(() => {});
       exitOverlay(onComplete);
       return;
     }
-    setCurrentStep(prev => prev + 1);
-    setPhase('tutorial');
-  }, [currentStep, steps.length, levelId, onComplete, exitOverlay]);
-
-  const handleBack = useCallback(() => {
-    if (phase === 'demo') {
-      setPhase('tutorial');
-    } else if (phase === 'announce') {
-      setPhase('demo');
-    } else if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-      setPhase('tutorial');
-    }
-  }, [phase, currentStep]);
+    const next = currentStepIndex + 1;
+    setCurrentStepIndex(next);
+    runStep(next);
+  }, [currentStepIndex, totalSteps, levelId, onComplete, exitOverlay, runStep]);
 
   const handlePrimary = useCallback(() => {
-    if (phase === 'tutorial' && step?.showDemo) {
-      setPhase('demo');
-      return;
-    }
-    if (phase === 'tutorial' && step?.codexEntryId) {
-      setPhase('announce');
-      return;
-    }
-    if (phase === 'demo') {
-      if (step?.codexEntryId) {
-        setPhase('announce');
-      } else {
-        advanceStep();
-      }
-      return;
-    }
-    if (phase === 'announce') {
-      if (annComplete) {
-        setCodexVisible(true);
-        setPhase('codex');
-      }
+    if (phase === 'arrived' && step?.codexEntryId) {
+      setCodexVisible(true);
+      setPhase('codex');
       return;
     }
     advanceStep();
-  }, [phase, step, advanceStep, annComplete]);
+  }, [phase, step, advanceStep]);
+
+  const handleBack = useCallback(() => {
+    if (currentStepIndex === 0) return;
+    const prev = currentStepIndex - 1;
+    setCurrentStepIndex(prev);
+    runStep(prev);
+  }, [currentStepIndex, runStep]);
 
   const handleSkip = useCallback(() => {
     AsyncStorage.setItem(`axiom_tutorial_skipped_${levelId}`, '1').catch(() => {});
@@ -633,28 +460,42 @@ export default function TutorialHUDOverlay({
       useNativeDriver: false,
     }).start(() => {
       setCodexVisible(false);
-      if (currentStep >= steps.length - 1) {
-        AsyncStorage.setItem(`axiom_tutorial_complete_${levelId}`, '1').catch(() => {});
-        AsyncStorage.removeItem(`axiom_tutorial_step_${levelId}`).catch(() => {});
-        exitOverlay(onComplete);
-      } else {
-        setCurrentStep(prev => prev + 1);
-        setPhase('tutorial');
-      }
+      advanceStep();
     });
-  }, [codexTranslate, currentStep, steps.length, levelId, onComplete, exitOverlay]);
-
-  const navigateToStep = useCallback((idx: number) => {
-    if (idx <= currentStep && phase === 'tutorial') {
-      setCurrentStep(idx);
-    }
-  }, [currentStep, phase]);
+  }, [codexTranslate, advanceStep]);
 
   if (!hydrated || !step) return null;
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
 
-  // ── Highlighted message render ──
+  // ── Spotlight ring positions (A1-1 only) ──
+  const isBoardStep = step.targetRef === 'boardGrid';
+  const showSpotlights =
+    isBoardStep &&
+    levelId === 'A1-1' &&
+    phase === 'arrived' &&
+    !!targetLayout &&
+    !!spotlightCells &&
+    spotlightCells.length > 0 &&
+    !!spotlightCellSize &&
+    spotlightCellSize > 0;
+
+  const primaryLabel = step.codexEntryId && phase === 'arrived'
+    ? 'SHOW ME'
+    : isLastStep
+    ? 'READY'
+    : 'UNDERSTOOD';
+
+  // Glow circle geometry (for piece targets)
+  let glowCircle: { cx: number; cy: number; r: number } | null = null;
+  if (showPieceGlow && targetLayout) {
+    const cx = targetLayout.x + targetLayout.width / 2;
+    const cy = targetLayout.y + targetLayout.height / 2;
+    const r = Math.min(targetLayout.width, targetLayout.height) * 0.4;
+    glowCircle = { cx, cy, r };
+  }
+  const glowColor = step && PORT_TARGETS.has(step.targetRef) ? '#8B5CF6' : eyeColor;
+
   const renderMessage = () => {
     const text = step.message;
     const blueWords = step.highlightWords ?? [];
@@ -663,338 +504,185 @@ export default function TutorialHUDOverlay({
       ...amberWords.map(w => ({ word: w, color: '#F0B429' })),
       ...blueWords.map(w => ({ word: w, color: '#00D4FF' })),
     ];
-    if (all.length === 0) {
-      return <Text style={s.message}>{text}</Text>;
-    }
+    if (all.length === 0) return <Text style={st.message}>{text}</Text>;
     const escaped = all.map(h => h.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const re = new RegExp(`(${escaped.join('|')})`, 'g');
     const parts = text.split(re);
     return (
-      <Text style={s.message}>
+      <Text style={st.message}>
         {parts.map((part, i) => {
           const hit = all.find(h => h.word === part);
-          if (hit) {
-            return (
-              <Text key={i} style={[s.messageHighlight, { color: hit.color }]}>{part}</Text>
-            );
-          }
+          if (hit) return <Text key={i} style={{ color: hit.color, fontWeight: '600' }}>{part}</Text>;
           return <Text key={i}>{part}</Text>;
         })}
       </Text>
     );
   };
 
-  // Portal corner brackets always render OUTSIDE the portal rectangle.
-  // Previous versions tucked them inside for large (board) portals to avoid
-  // clipping, but that visually placed decorations inside the framed area.
-  const bracketOffset = -5;
-
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Single dim layer */}
-      <Animated.View pointerEvents="auto" style={[s.dim, { opacity: dimOpacity }]} />
+    <Animated.View
+      pointerEvents="box-none"
+      style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
+    >
+      {/* Dim backdrop */}
+      <Animated.View
+        pointerEvents="auto"
+        style={[st.dim, { opacity: dimOpacity }]}
+      />
 
-      {/* Top-corner HUD brackets (decorative, static) */}
-      <View pointerEvents="none" style={[s.hudBracket, { top: 8, left: 8 }]}>
-        <View style={[s.hudBH, { top: 0, left: 0 }]} />
-        <View style={[s.hudBV, { top: 0, left: 0 }]} />
-      </View>
-      <View pointerEvents="none" style={[s.hudBracket, { top: 8, right: 8 }]}>
-        <View style={[s.hudBH, { top: 0, right: 0 }]} />
-        <View style={[s.hudBV, { top: 0, right: 0 }]} />
-      </View>
-
-      {/* Orb / portal (a single Animated.View that morphs) */}
-      {phase === 'tutorial' && (
+      {/* Portal (rendered when arrived/codex and not center) */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
-          style={[
-            s.orb,
-            {
-              left: orbLeft,
-              top: orbTop,
-              width: orbW,
-              height: orbH,
-              borderRadius: orbRadius,
-              opacity: orbOpacity,
-            },
-          ]}
+          style={{
+            position: 'absolute',
+            left: portalBox.left,
+            top: portalBox.top,
+            width: portalW,
+            height: portalH,
+            opacity: portalOpacity,
+            borderWidth: 1.5,
+            borderColor: eyeColor,
+            borderRadius: 10,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            zIndex: 150,
+          }}
         >
-          {/* Orb fill (hides during morph) */}
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFillObject,
-              {
-                borderRadius: orbRadius,
-                backgroundColor: eyeColor,
-                opacity: orbFillOpacity,
-                shadowColor: eyeColor,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.7,
-                shadowRadius: 10,
-              },
-            ]}
-          />
-          {/* Pulse rings (orb mode) */}
-          {!morphed && (
-            <>
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  s.pulseRing,
-                  {
-                    width: 32,
-                    height: 32,
-                    borderRadius: 16,
-                    top: -5,
-                    left: -5,
-                    borderColor: eyeColor,
-                    opacity: Animated.multiply(pulseRingOpacity, 0.5),
-                    transform: [{ scale: pulseScale }],
-                  },
-                ]}
-              />
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  s.pulseRing,
-                  {
-                    width: 46,
-                    height: 46,
-                    borderRadius: 23,
-                    top: -12,
-                    left: -12,
-                    borderColor: eyeColor,
-                    opacity: Animated.multiply(pulseRingOpacity, 0.25),
-                    transform: [{ scale: pulseScale }],
-                  },
-                ]}
-              />
-            </>
-          )}
-          {/* Portal details (morphed mode) */}
-          <Animated.View
-            pointerEvents="none"
-            style={[StyleSheet.absoluteFillObject, { opacity: portalDetailOpacity }]}
-          >
-            {/* Portal border */}
-            <View
-              style={[
-                StyleSheet.absoluteFillObject,
-                {
-                  borderWidth: 1.5,
-                  borderColor: eyeColor,
-                  borderRadius: 11,
-                },
-              ]}
-            />
-            {/* Pulsing glow ring over the piece (Bug 2 fix) */}
-            {showPortalGlow && (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFillObject,
-                  {
-                    borderRadius: 12,
-                    borderWidth: 2.5,
-                    borderColor: portalGlowColor,
-                    opacity: portalGlowPulse.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [0.4, 0.9],
-                    }),
-                  },
-                ]}
-              />
-            )}
-            {/* Corner brackets */}
-            <View style={[s.portalCorner, { top: bracketOffset, left: bracketOffset, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3 }]} />
-            <View style={[s.portalCorner, { top: bracketOffset, right: bracketOffset, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3 }]} />
-            <View style={[s.portalCorner, { bottom: bracketOffset, left: bracketOffset, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3 }]} />
-            <View style={[s.portalCorner, { bottom: bracketOffset, right: bracketOffset, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3 }]} />
-            {/* Scan line */}
-            <View pointerEvents="none" style={[StyleSheet.absoluteFillObject, { overflow: 'hidden', borderRadius: 10 }]}>
-              <Animated.View style={[s.scanLine, { transform: [{ translateY: scanY }] }]} />
-            </View>
-            {/* Target label */}
-            <View style={[s.targetLabelWrap, { minWidth: 80, paddingHorizontal: 10 }]}>
-              <Text style={s.targetLabel} numberOfLines={1}>
-                <Text style={s.targetLabelDim}>[ </Text>
-                {step.label}
-                <Text style={s.targetLabelDim}> ]</Text>
-              </Text>
-            </View>
-          </Animated.View>
+          {/* Corner brackets */}
+          <View style={[st.corner, { top: -1, left: -1, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 3 }]} />
+          <View style={[st.corner, { top: -1, right: -1, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 3 }]} />
+          <View style={[st.corner, { bottom: -1, left: -1, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 3 }]} />
+          <View style={[st.corner, { bottom: -1, right: -1, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 3 }]} />
         </Animated.View>
       )}
 
-      {/* Board spotlight rings — pulse over Input/Output cells inside the
-          board portal during the boardGrid step. Positioned in absolute
-          screen coordinates from portalLayout + cell offsets. */}
-      {showSpotlights && portalLayout && spotlightCellSize && spotlightCells && spotlightCells.map((sc, i) => {
+      {/* Portal label (above portal) */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: portalBox.top - 20,
+            left: portalBox.left,
+            width: portalBox.width,
+            alignItems: 'center',
+            opacity: portalOpacity,
+            zIndex: 151,
+          }}
+        >
+          <Text style={st.label}>{step.label}</Text>
+        </Animated.View>
+      )}
+
+      {/* Piece glow (steady fill + pulsing outer ring) */}
+      {showPieceGlow && glowCircle && (
+        <>
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: glowCircle.cx - glowCircle.r,
+              top: glowCircle.cy - glowCircle.r,
+              width: glowCircle.r * 2,
+              height: glowCircle.r * 2,
+              borderRadius: glowCircle.r,
+              backgroundColor: glowColor,
+              opacity: glowOpacity,
+              zIndex: 152,
+            }}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: glowCircle.cx - glowCircle.r * 1.2,
+              top: glowCircle.cy - glowCircle.r * 1.2,
+              width: glowCircle.r * 2.4,
+              height: glowCircle.r * 2.4,
+              borderRadius: glowCircle.r * 1.2,
+              borderWidth: 2,
+              borderColor: glowColor,
+              opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.9] }),
+              zIndex: 152,
+            }}
+          />
+        </>
+      )}
+
+      {/* A1-1 spotlight rings on inputPort/outputPort inside board portal */}
+      {showSpotlights && targetLayout && spotlightCells && spotlightCellSize && spotlightCells.map((sc, i) => {
         const cs = spotlightCellSize;
-        const radius = cs * 0.45;
-        const cx = portalLayout.x + sc.col * cs + cs / 2;
-        const cy = portalLayout.y + sc.row * cs + cs / 2;
-        const opacity = spotlightPulse.interpolate({
-          inputRange: [0, 1],
-          outputRange: [0.3, 0.8],
-        });
+        const r = cs * 0.45;
+        const cx = targetLayout.x + sc.col * cs + cs / 2;
+        const cy = targetLayout.y + sc.row * cs + cs / 2;
         return (
           <Animated.View
             key={`spot-${i}`}
             pointerEvents="none"
             style={{
               position: 'absolute',
-              left: cx - radius,
-              top: cy - radius,
-              width: radius * 2,
-              height: radius * 2,
-              borderRadius: radius,
+              left: cx - r,
+              top: cy - r,
+              width: r * 2,
+              height: r * 2,
+              borderRadius: r,
               borderWidth: 2,
               borderColor: sc.color,
-              opacity,
+              opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.4, 0.9] }),
+              zIndex: 153,
             }}
           />
         );
       })}
 
       {/* Callout */}
-      {phase === 'tutorial' && calloutPos && (
+      {phase === 'arrived' && calloutPos && (
         <Animated.View
           pointerEvents="auto"
           style={[
-            s.callout,
-            calloutPos.insidePortal && { backgroundColor: 'rgba(2,5,14,0.92)' },
+            st.callout,
             {
+              top: calloutPos.top,
               left: calloutPos.left,
-              width: calloutPos.width,
+              width: CALLOUT_W,
               opacity: calloutOpacity,
             },
-            // Apply exactly one of top / bottom — never both. Explicitly
-            // clear the other so it cannot inherit a stale value from the
-            // base style.
-            calloutPos.top !== undefined
-              ? { top: calloutPos.top, bottom: undefined }
-              : { bottom: calloutPos.bottom, top: undefined },
           ]}
         >
           {renderMessage()}
-          {calloutPos.pointerAt === 'top' && (
-            <View style={[s.pointerUp, { left: calloutPos.width / 2 - 6 }]} />
-          )}
-          {calloutPos.pointerAt === 'bottom' && (
-            <View style={[s.pointerDown, { left: calloutPos.width / 2 - 6 }]} />
-          )}
         </Animated.View>
       )}
 
-      {/* Demo / Announce panel (slides above nav strip) */}
-      {(phase === 'demo' || phase === 'announce') && (
+      {/* Orb (always above everything during tutorial) */}
+      {phase !== 'idle' && phase !== 'complete' && (
         <Animated.View
-          pointerEvents="auto"
-          style={[s.panel, { transform: [{ translateY: panelTranslate }] }]}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: orbX,
+            top: orbY,
+            width: ORB_SIZE,
+            height: ORB_SIZE,
+            borderRadius: ORB_SIZE / 2,
+            borderWidth: 1.5,
+            borderColor: eyeColor,
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: eyeColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.7,
+            shadowRadius: 10,
+            zIndex: 200,
+          }}
         >
-          {phase === 'demo' && (
-            <View style={s.body}>
-              <Text style={s.demoLabel}>LIVE DEMONSTRATION</Text>
-              <DemoVisual kind={step.codexEntryId ?? 'conveyor'} />
-              <Text style={s.demoText}>{step.demoText}</Text>
-            </View>
-          )}
-          {phase === 'announce' && codexEntry && (
-            <View style={[s.body, { alignItems: 'center' }]}>
-              <Text style={s.announceLabel}>INCOMING DATA PACKET</Text>
-              <View style={s.announceIcon}>
-                <PieceIcon type={codexEntry.id} size={48} />
-              </View>
-              <Text style={s.announceName}>{codexEntry.name.toUpperCase()}</Text>
-              <Text style={s.announceSub}>NEW CODEX ENTRY UNLOCKED</Text>
-              <View style={s.progressBarTrack}>
-                <LinearGradient
-                  colors={['#F0B429', '#00D4FF']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[s.progressBarFill, { width: `${annProgress}%` }]}
-                />
-              </View>
-              <Text style={s.progressText}>
-                {annComplete ? 'DECRYPTION COMPLETE' : `DECRYPTING... ${Math.round(annProgress)}%`}
-              </Text>
-            </View>
-          )}
-        </Animated.View>
-      )}
-
-      {/* Minimal nav strip (always present except during codex) */}
-      {phase !== 'codex' && (
-        <Animated.View
-          pointerEvents="auto"
-          style={[s.navStrip, { bottom: navStripBottom, transform: [{ translateY: navStripY }] }]}
-        >
-          <View style={s.navLeft}>
-            <Animated.View style={[s.eyeDot, { backgroundColor: eyeColor, opacity: eyePulse }]} />
-            <Text style={[s.cogsLabel, { color: eyeColor }]}>C.O.G.S</Text>
-            <Text style={s.stepText}>STEP {currentStep + 1} / {steps.length}</Text>
-            <View style={s.dots}>
-              {steps.map((_, i) => {
-                const isCurrent = i === currentStep;
-                const isCompleted = i < currentStep;
-                return (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => navigateToStep(i)}
-                    disabled={!isCompleted}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={[
-                        s.dot,
-                        isCurrent && s.dotCurrent,
-                        isCompleted && s.dotCompleted,
-                      ]}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-          <View style={s.navRight}>
-            <TouchableOpacity onPress={handleSkip} activeOpacity={0.7}>
-              <Text style={s.skipText}>SKIP</Text>
-            </TouchableOpacity>
-            {(currentStep > 0 || phase !== 'tutorial') && (
-              <TouchableOpacity style={s.backBtn} onPress={handleBack} activeOpacity={0.8}>
-                <Text style={s.backText}>BACK</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[
-                s.primaryBtn,
-                phase === 'tutorial' && step.showDemo ? s.primaryAmber
-                : phase === 'demo' ? s.primaryAmber
-                : phase === 'announce' ? (annComplete ? s.primaryAmber : [s.primaryAmber, s.primaryDisabled])
-                : (step.eyeState === 'amber' ? s.primaryAmber : s.primaryBlue),
-              ]}
-              onPress={handlePrimary}
-              disabled={phase === 'announce' && !annComplete}
-              activeOpacity={0.8}
-            >
-              <Text
-                style={[
-                  s.primaryText,
-                  phase === 'tutorial' && step.showDemo ? s.primaryAmberText
-                  : phase === 'demo' || phase === 'announce' ? s.primaryAmberText
-                  : (step.eyeState === 'amber' ? s.primaryAmberText : s.primaryBlueText),
-                ]}
-              >
-                {phase === 'tutorial' && step.showDemo ? 'SHOW ME'
-                  : phase === 'demo' ? 'READY'
-                  : phase === 'announce' ? 'VIEW ENTRY'
-                  : isLastStep ? 'READY'
-                  : 'UNDERSTOOD'}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: eyeColor,
+            }}
+          />
         </Animated.View>
       )}
 
@@ -1004,659 +692,143 @@ export default function TutorialHUDOverlay({
           pointerEvents="auto"
           style={[
             StyleSheet.absoluteFill,
-            { transform: [{ translateY: codexTranslate }], backgroundColor: Colors.void },
+            { transform: [{ translateY: codexTranslate }], zIndex: 250, backgroundColor: '#02050c' },
           ]}
         >
-          <CodexDetailView
-            entry={codexEntry}
-            onUnderstood={handleCodexUnderstood}
-            entryNumber={currentStep + 1}
-          />
-          <PixelDissolve />
+          <CodexDetailView entry={codexEntry} onUnderstood={handleCodexUnderstood} />
         </Animated.View>
       )}
-    </View>
+
+      {/* Nav strip */}
+      {phase !== 'idle' && phase !== 'complete' && !codexVisible && (
+        <View pointerEvents="box-none" style={st.navStrip}>
+          <View style={st.eyeDot} />
+          <Text style={st.stepCounter}>STEP {currentStepIndex + 1} / {totalSteps}</Text>
+          <View style={st.progressRow}>
+            {steps.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  st.progressDot,
+                  i <= currentStepIndex && { backgroundColor: eyeColor, borderColor: eyeColor },
+                ]}
+              />
+            ))}
+          </View>
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity onPress={handleSkip} style={st.navBtn} activeOpacity={0.7}>
+            <Text style={st.navBtnTextDim}>SKIP</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleBack}
+            style={st.navBtn}
+            activeOpacity={0.7}
+            disabled={currentStepIndex === 0}
+          >
+            <Text style={[st.navBtnTextDim, currentStepIndex === 0 && { opacity: 0.35 }]}>BACK</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handlePrimary} style={st.primaryBtn} activeOpacity={0.8}>
+            <Text style={st.primaryBtnText}>{primaryLabel}</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </Animated.View>
   );
 }
 
-// ─── DemoVisual: switches on piece kind ────────────────────────────────────
-// Demo box is 80 wide, inner track is [8..72] (width 64).
-// Ball is 6x6 sitting at left:8. Travel range = 64 - 6 = 58 so the ball's
-// right edge stops at the track's right edge.
+// ─── Styles ───────────────────────────────────────────────────────────────────
 
-function DemoVisual({ kind }: { kind: string }) {
-  if (kind === 'gear') return <GearDemo />;
-  if (kind === 'config_node' || kind === 'configNode') return <ConfigNodeDemo />;
-  if (kind === 'splitter') return <SplitterDemo />;
-  if (kind === 'scanner') return <ScannerDemo />;
-  if (kind === 'transmitter') return <TransmitterDemo />;
-  return <ConveyorDemo />;
-}
-
-const TRACK_TRAVEL = 58; // inner track width 64 - ball 6
-const V_TRAVEL = 14;     // inner vertical track height 20 - ball 6
-
-function ConveyorDemo() {
-  const x = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1600, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [x]);
-  const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRACK_TRAVEL] });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.demoTrack} />
-      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
-    </View>
-  );
-}
-
-function GearDemo() {
-  // Horizontal segment: ball travels 0 → 26 (so right edge hits gear center).
-  // Vertical segment: 0 → V_TRAVEL.
-  const p = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [p]);
-  const tx = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 26, 26] });
-  const ty = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, V_TRAVEL] });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.gearTrackH} />
-      <View style={s.gearTrackV} />
-      <View style={s.gearCorner} />
-      <Animated.View
-        style={[s.demoBall, { transform: [{ translateX: tx }, { translateY: ty }] }]}
-      />
-    </View>
-  );
-}
-
-function ConfigNodeDemo() {
-  const x = useRef(new Animated.Value(0)).current;
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 2000, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    const pulseLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 400, useNativeDriver: false }),
-        Animated.timing(pulse, { toValue: 0, duration: 400, useNativeDriver: false }),
-      ]),
-    );
-    pulseLoop.start();
-    return () => { loop.stop(); pulseLoop.stop(); };
-  }, [x, pulse]);
-  // Travel to center 26, pause, continue to TRACK_TRAVEL.
-  const tx = x.interpolate({
-    inputRange: [0, 0.45, 0.55, 1],
-    outputRange: [0, 26, 26, TRACK_TRAVEL],
-  });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.demoTrack} />
-      <View style={s.configCenter} />
-      <Animated.View style={[s.configIndicator, { opacity: pulse }]} />
-      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
-    </View>
-  );
-}
-
-function SplitterDemo() {
-  const p = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(p, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [p]);
-  const preX = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 26, 26] });
-  const preOpacity = p.interpolate({ inputRange: [0, 0.49, 0.5], outputRange: [1, 1, 0] });
-  const rightX = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [26, 26, TRACK_TRAVEL] });
-  const downY = p.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0, V_TRAVEL] });
-  const postOpacity = p.interpolate({ inputRange: [0, 0.5, 0.51], outputRange: [0, 0, 1] });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.demoTrack} />
-      <View style={s.splitterTrackDown} />
-      <View style={s.configCenter} />
-      <Animated.View style={[s.demoBall, { opacity: preOpacity, transform: [{ translateX: preX }] }]} />
-      <Animated.View style={[s.demoBall, { opacity: postOpacity, transform: [{ translateX: rightX }] }]} />
-      <Animated.View style={[s.demoBall, { opacity: postOpacity, transform: [{ translateX: 26 }, { translateY: downY }] }]} />
-    </View>
-  );
-}
-
-function ScannerDemo() {
-  const x = useRef(new Animated.Value(0)).current;
-  const flash = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    const flashLoop = Animated.loop(
-      Animated.sequence([
-        Animated.delay(800),
-        Animated.timing(flash, { toValue: 1, duration: 200, useNativeDriver: false }),
-        Animated.timing(flash, { toValue: 0, duration: 600, useNativeDriver: false }),
-        Animated.delay(200),
-      ]),
-    );
-    flashLoop.start();
-    return () => { loop.stop(); flashLoop.stop(); };
-  }, [x, flash]);
-  const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRACK_TRAVEL] });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.demoTrack} />
-      <View style={s.dataMarker} />
-      <Animated.Text style={[s.scanReadout, { opacity: flash }]}>1</Animated.Text>
-      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
-    </View>
-  );
-}
-
-function TransmitterDemo() {
-  const x = useRef(new Animated.Value(0)).current;
-  const markerOpacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(x, { toValue: 1, duration: 1800, easing: Easing.linear, useNativeDriver: false }),
-    );
-    loop.start();
-    const markerLoop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(markerOpacity, { toValue: 0, duration: 700, useNativeDriver: false }),
-        Animated.timing(markerOpacity, { toValue: 1, duration: 300, useNativeDriver: false }),
-        Animated.delay(800),
-      ]),
-    );
-    markerLoop.start();
-    return () => { loop.stop(); markerLoop.stop(); };
-  }, [x, markerOpacity]);
-  const tx = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRACK_TRAVEL] });
-  return (
-    <View style={s.demoBox}>
-      <View style={s.demoTrack} />
-      <View style={s.configCenter} />
-      <Animated.View style={[s.dataMarker, { opacity: markerOpacity }]} />
-      <Animated.View style={[s.demoBall, { transform: [{ translateX: tx }] }]} />
-    </View>
-  );
-}
-
-// ─── PixelDissolve ──────────────────────────────────────────────────────────
-
-function PixelDissolve() {
-  const COLS = 40;
-  const ROWS = 20;
-  const CELL = Math.ceil(SCREEN_W / COLS);
-  const CELL_H = Math.ceil(SCREEN_H / ROWS);
-  const total = COLS * ROWS;
-
-  const opacities = useRef(
-    Array.from({ length: total }, () => new Animated.Value(1)),
-  ).current;
-  const [, force] = useState(0);
-
-  useEffect(() => {
-    const indices = Array.from({ length: total }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    let group = 0;
-    const isWeb = Platform.OS === 'web';
-    const groupSize = isWeb ? 40 : 200;
-    // Reduced 35% for snappier codex reveal (sprint bug fix).
-    const tickMs = isWeb ? 20 : 10;
-    const fadeDur = isWeb ? 117 : 65;
-    const delayMax = isWeb ? 78 : 39;
-    const id = setInterval(() => {
-      const start = group * groupSize;
-      const end = Math.min(total, start + groupSize);
-      for (let i = start; i < end; i++) {
-        const idx = indices[i];
-        Animated.timing(opacities[idx], {
-          toValue: 0,
-          duration: fadeDur,
-          delay: Math.random() * delayMax,
-          useNativeDriver: false,
-        }).start();
-      }
-      group += 1;
-      if (start + groupSize >= total) {
-        clearInterval(id);
-        setTimeout(() => force(1), 780);
-      }
-    }, tickMs);
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {opacities.map((op, i) => {
-        const col = i % COLS;
-        const row = Math.floor(i / COLS);
-        return (
-          <Animated.View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: col * CELL,
-              top: row * CELL_H,
-              width: CELL,
-              height: CELL_H,
-              backgroundColor: '#06090F',
-              opacity: op,
-            }}
-          />
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── Styles ────────────────────────────────────────────────────────────────
-
-const s = StyleSheet.create({
+const st = StyleSheet.create({
   dim: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,6,18,0.52)',
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(2,5,12,0.72)',
   },
-  hudBracket: {
+  corner: {
     position: 'absolute',
-    width: 18,
-    height: 18,
-    opacity: 0.28,
-    zIndex: 100,
-  },
-  hudBH: {
-    position: 'absolute',
-    width: 18,
-    height: 1.5,
-    backgroundColor: '#00D4FF',
-  },
-  hudBV: {
-    position: 'absolute',
-    width: 1.5,
-    height: 18,
-    backgroundColor: '#00D4FF',
-  },
-  orb: {
-    position: 'absolute',
-  },
-  pulseRing: {
-    position: 'absolute',
-    borderWidth: 1.5,
-  },
-  portalCorner: {
-    position: 'absolute',
-    width: 13,
-    height: 13,
+    width: 12,
+    height: 12,
     borderColor: '#F0B429',
   },
-  scanLine: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: 'rgba(0,212,255,0.45)',
-  },
-  targetLabelWrap: {
-    position: 'absolute',
-    top: -27,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  targetLabel: {
+  label: {
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
     color: '#F0B429',
-    letterSpacing: 1.2,
-  },
-  targetLabelDim: {
-    color: 'rgba(240,180,41,0.4)',
+    letterSpacing: 2,
   },
   callout: {
     position: 'absolute',
-    backgroundColor: 'rgba(2,5,14,0.97)',
+    backgroundColor: 'rgba(6,9,18,0.96)',
     borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.10)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingTop: 14,
-    paddingBottom: 12,
-    zIndex: 50,
-  },
-  pointerUp: {
-    position: 'absolute',
-    top: -6,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderBottomWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: 'rgba(2,5,14,0.97)',
-  },
-  pointerDown: {
-    position: 'absolute',
-    bottom: -6,
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 6,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: 'rgba(2,5,14,0.97)',
+    borderColor: 'rgba(0,212,255,0.15)',
+    borderRadius: 8,
+    padding: 16,
+    zIndex: 160,
   },
   message: {
-    fontFamily: Fonts.exo2,
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#B0CCE8',
-    lineHeight: 14 * 1.65,
-  },
-  messageHighlight: {
-    fontWeight: '500',
-  },
-  panel: {
-    position: 'absolute',
-    bottom: 70,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(2,5,14,0.97)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,212,255,0.10)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,212,255,0.10)',
-    maxHeight: 280,
-  },
-  body: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.md,
-    paddingBottom: Spacing.md,
-    gap: Spacing.sm + 2,
+    fontFamily: Fonts.spaceMono,
+    fontSize: 15,
+    lineHeight: 22,
+    color: '#FFFFFF',
   },
   navStrip: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: 'rgba(2,5,14,0.97)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,212,255,0.10)',
+    bottom: 0,
+    height: NAV_HEIGHT,
     paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 18,
-  },
-  navLeft: {
+    backgroundColor: 'rgba(2,5,12,0.97)',
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,212,255,0.1)',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
-  },
-  navRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    zIndex: 100,
   },
   eyeDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: 4,
-  },
-  cogsLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    letterSpacing: 1.5,
-    opacity: 0.65,
-  },
-  stepText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    color: Colors.muted,
-    letterSpacing: 1,
-  },
-  dots: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  dot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: 'rgba(74,158,255,0.18)',
-  },
-  dotCurrent: {
     backgroundColor: '#00D4FF',
   },
-  dotCompleted: {
-    backgroundColor: 'rgba(0,212,255,0.5)',
-  },
-  skipText: {
+  stepCounter: {
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
-    color: 'rgba(122,150,176,0.6)',
-    letterSpacing: 1.5,
+    color: '#4a6080',
+    letterSpacing: 1,
   },
-  backBtn: {
-    borderWidth: 1,
-    borderColor: 'rgba(122,150,176,0.4)',
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+  progressRow: {
+    flexDirection: 'row',
+    gap: 4,
   },
-  backText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    color: Colors.muted,
-    letterSpacing: 1.5,
-  },
-  primaryBtn: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-  },
-  primaryBlue: {
-    borderColor: '#00D4FF',
-    backgroundColor: 'rgba(0,212,255,0.12)',
-  },
-  primaryAmber: {
-    borderColor: '#F0B429',
-    backgroundColor: 'rgba(240,180,41,0.12)',
-  },
-  primaryDisabled: {
-    opacity: 0.4,
-  },
-  primaryText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    letterSpacing: 1.5,
-  },
-  primaryBlueText: {
-    color: '#00D4FF',
-  },
-  primaryAmberText: {
-    color: '#F0B429',
-  },
-  // Demo styles
-  demoLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.amber,
-    letterSpacing: 2,
-  },
-  demoBox: {
-    width: 80,
-    height: 48,
-    alignSelf: 'center',
-    backgroundColor: '#0a1628',
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.25)',
-    borderRadius: 6,
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  demoTrack: {
-    height: 2,
-    backgroundColor: 'rgba(0,212,255,0.3)',
-    marginHorizontal: 8,
-  },
-  demoBall: {
-    position: 'absolute',
-    left: 8,
-    top: 22,
+  progressDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00D4FF',
-  },
-  gearTrackH: {
-    position: 'absolute',
-    left: 8,
-    top: 23,
-    width: 26,
-    height: 2,
-    backgroundColor: 'rgba(0,212,255,0.3)',
-  },
-  gearTrackV: {
-    position: 'absolute',
-    left: 34,
-    top: 23,
-    width: 2,
-    height: 20,
-    backgroundColor: 'rgba(0,212,255,0.3)',
-  },
-  gearCorner: {
-    position: 'absolute',
-    left: 31,
-    top: 20,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#00D4FF',
-    backgroundColor: 'rgba(0,212,255,0.2)',
+    borderColor: '#2a3c56',
   },
-  configCenter: {
-    position: 'absolute',
-    left: 31,
-    top: 18,
-    width: 6,
-    height: 10,
-    borderRadius: 1,
-    backgroundColor: 'rgba(167,139,250,0.5)',
-    borderWidth: 1,
-    borderColor: '#A78BFA',
+  navBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
   },
-  configIndicator: {
-    position: 'absolute',
-    left: 32,
-    top: 10,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#4ecb8d',
-  },
-  splitterTrackDown: {
-    position: 'absolute',
-    left: 34,
-    top: 28,
-    width: 2,
-    height: 18,
-    backgroundColor: 'rgba(0,212,255,0.3)',
-  },
-  dataMarker: {
-    position: 'absolute',
-    left: 30,
-    top: 34,
-    width: 8,
-    height: 8,
-    borderRadius: 1,
-    backgroundColor: 'rgba(0,212,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.5)',
-  },
-  scanReadout: {
-    position: 'absolute',
-    left: 30,
-    top: 2,
-    width: 8,
-    textAlign: 'center',
+  navBtnTextDim: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.amber,
-  },
-  demoText: {
-    fontFamily: Fonts.exo2,
-    fontSize: 13,
-    color: '#B0CCE8',
-    fontWeight: '300',
-    lineHeight: 13 * 1.6,
-  },
-  // Announce styles
-  announceLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.amber,
-    letterSpacing: 2,
-  },
-  announceIcon: {
-    width: 64,
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  announceName: {
-    fontFamily: Fonts.exo2,
-    fontSize: 17,
-    fontWeight: '500',
-    color: Colors.starWhite,
-  },
-  announceSub: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
-    letterSpacing: 2,
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 2,
-    backgroundColor: 'rgba(74,158,255,0.18)',
-    borderRadius: 1,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-  },
-  progressText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
+    fontSize: 10,
+    color: '#6a7f9a',
     letterSpacing: 1.5,
+  },
+  primaryBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: Colors.amber,
+    borderRadius: 4,
+  },
+  primaryBtnText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: Colors.amber,
+    letterSpacing: 2,
   },
 });
