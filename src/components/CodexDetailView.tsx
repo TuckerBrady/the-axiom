@@ -114,11 +114,13 @@ function DrawDataTrail({ cx, cy, r, val, highlight }: { cx: number; cy: number; 
   );
 }
 
-function SimPiece({ cell, type, color }: { cell: { x: number; y: number; r: number }; type: string; color: string }) {
+function SimPiece({ cell, type, color, rotation = 0 }: { cell: { x: number; y: number; r: number }; type: string; color: string; rotation?: number }) {
   const sz = cell.r * 0.8;
   return (
     <View style={{ position: 'absolute', left: cell.x - sz / 2, top: cell.y - sz / 2, width: sz, height: sz, alignItems: 'center', justifyContent: 'center' }}>
-      <PieceIcon type={type} size={sz} color={color} />
+      <View style={{ transform: [{ rotate: `${rotation}deg` }] }}>
+        <PieceIcon type={type} size={sz} color={color} />
+      </View>
     </View>
   );
 }
@@ -150,7 +152,7 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
   const type = pieceType === 'config_node' ? 'configNode' : pieceType;
 
   type CellData = { x: number; y: number; r: number };
-  type PieceDef = { cell: CellData; type: string; color: string };
+  type PieceDef = { cell: CellData; type: string; color: string; rotation?: number };
 
   function getSimData(): { svgContent: React.ReactNode; pieces: PieceDef[] } {
     switch (type) {
@@ -179,9 +181,13 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.68} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: G, type: 'gear', color: '#00D4FF' }, { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          // Bug 9 fix: C1 flows horizontally (left->right into Gear),
+          // C2 flows vertically (top->bottom out of Gear toward Output).
+          { cell: S, type: 'inputPort', color: '#F0B429', rotation: 0 },
+          { cell: C1, type: 'conveyor', color: '#00D4FF', rotation: 0 },
+          { cell: G, type: 'gear', color: '#00D4FF', rotation: 0 },
+          { cell: C2, type: 'conveyor', color: '#00D4FF', rotation: 90 },
+          { cell: O, type: 'outputPort', color: '#00C48C', rotation: 0 },
         ] };
       }
       case 'splitter': {
@@ -321,7 +327,7 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
       <View style={[simStyles.canvas, { position: 'relative' }]}>
         <Svg width={SIM_W} height={SIM_H}>{svgContent}</Svg>
         {simPieces.map((p, i) => (
-          <SimPiece key={i} cell={p.cell} type={p.type} color={p.color} />
+          <SimPiece key={i} cell={p.cell} type={p.type} color={p.color} rotation={(p as { rotation?: number }).rotation ?? 0} />
         ))}
       </View>
     </View>

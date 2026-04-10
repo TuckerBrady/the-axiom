@@ -201,6 +201,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const outputNodeRef = useRef<View>(null);
   const boardGridRef = useRef<View>(null);
   const engageButtonRef = useRef<View>(null);
+  const boardScannerRef = useRef<View>(null);
+  const inputTapeRowRef = useRef<View>(null);
+  const outputTapeRowRef = useRef<View>(null);
+  const dataTrailRowRef = useRef<View>(null);
   const trayConveyorRef = useRef<View>(null);
   const trayGearRef = useRef<View>(null);
   const trayConfigNodeRef = useRef<View>(null);
@@ -219,6 +223,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showBriefing, setShowBriefing] = useState(true);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  // Bug 10: completion card gates Results screen. After a successful
+  // lock the lock sequence holds and a COGS completion line appears.
+  // Player taps Continue to dismiss the card, which triggers Results.
+  const [showCompletionCard, setShowCompletionCard] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
@@ -494,7 +502,13 @@ export default function GameplayScreen({ navigation }: Props) {
         }
         const rotation = getAutoRotation(gridX, gridY);
         placePiece(selectedPieceFromTray, gridX, gridY, rotation);
-        if (!hasPlacedPieces) triggerHints('onFirstPiecePlaced');
+        // Bug 7 fix: only fire the "tap ENGAGE MACHINE" hint once the
+        // player has placed enough pieces to plausibly have a complete
+        // path. Gate on optimalPieces as the minimum threshold.
+        const placedCountAfter = playerPieces.length + 1;
+        if (!hasPlacedPieces && placedCountAfter >= (level?.optimalPieces ?? 99)) {
+          triggerHints('onFirstPiecePlaced');
+        }
       }
     } else if (selectedPlacedPiece) {
       movePiece(selectedPlacedPiece, gridX, gridY);
@@ -971,7 +985,10 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       }
 
-      setShowResults(true);
+      // Bug 10: do not open Results immediately. Show the COGS
+      // completion card over the held lock state — player must
+      // tap Continue before Results animates in.
+      setShowCompletionCard(true);
     } else {
       // Red flash 3 times
       for (let f = 0; f < 3; f++) {
@@ -1126,17 +1143,15 @@ export default function GameplayScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* ── Configuration Toggle (for levels with configNodes) ── */}
+        {/* ── Configuration Display (read-only; level configNodes own state) ── */}
         {pieces.some(p => p.type === 'configNode') && (
           <View style={styles.configRow}>
             <Text style={styles.configLabel}>CONFIGURATION</Text>
-            <TouchableOpacity
+            <View
               style={[
                 styles.configToggle,
                 configuration === 1 && styles.configToggleActive,
               ]}
-              onPress={toggleConfiguration}
-              activeOpacity={0.7}
             >
               <Text style={[
                 styles.configToggleText,
@@ -1144,14 +1159,14 @@ export default function GameplayScreen({ navigation }: Props) {
               ]}>
                 {configuration === 0 ? 'INACTIVE' : 'ACTIVE'}
               </Text>
-            </TouchableOpacity>
+            </View>
           </View>
         )}
 
         {/* ── Turing Tape Display ── */}
         {level.inputTape && level.inputTape.length > 0 && (
-          <View style={styles.tapeSection}>
-            <View style={styles.tapeRow}>
+          <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeSection}>
+            <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel}>IN</Text>
               <View style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
@@ -1182,7 +1197,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
-            <View style={styles.tapeRow}>
+            <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel}>OUT</Text>
               <View style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
@@ -1353,6 +1368,7 @@ export default function GameplayScreen({ navigation }: Props) {
               const isPrePlaced = piece.isPrePlaced;
               const isSource = piece.type === 'inputPort';
               const isOutput = piece.type === 'outputPort';
+              const isPrePlacedScanner = isPrePlaced && piece.type === 'scanner';
               const isHeld = heldPieceId === piece.id;
               const pieceSize = CELL_SIZE - 4;
               const offset = (CELL_SIZE - pieceSize) / 2;
@@ -1372,7 +1388,7 @@ export default function GameplayScreen({ navigation }: Props) {
               return (
                 <Pressable
                   key={piece.id}
-                  ref={isSource ? sourceNodeRef : isOutput ? outputNodeRef : undefined}
+                  ref={isSource ? sourceNodeRef : isOutput ? outputNodeRef : isPrePlacedScanner ? boardScannerRef : undefined}
                   style={[
                     styles.piece,
                     {
@@ -1664,6 +1680,29 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
 
+        {/* ── COGS Completion Card (gates Results screen) ── */}
+        {showCompletionCard && !showResults && level?.cogsLine && (
+          <View style={styles.completionCardWrap} pointerEvents="box-none">
+            <View style={styles.completionCard}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <CogsAvatar size="small" state="engaged" />
+                <Text style={styles.completionCardLabel}>C.O.G.S</Text>
+              </View>
+              <Text style={styles.completionCardText}>{level.cogsLine}</Text>
+              <TouchableOpacity
+                style={styles.completionCardBtn}
+                onPress={() => {
+                  setShowCompletionCard(false);
+                  setShowResults(true);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.completionCardBtnText}>CONTINUE</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
         {/* ── Results Overlay (Success) ── */}
         {showResults && (
           <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
@@ -1782,6 +1821,11 @@ export default function GameplayScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.voidBtn}
                     onPress={() => {
+                      // Dev builds: skip the out-of-lives modal entirely.
+                      if (__DEV__) {
+                        handleReset();
+                        return;
+                      }
                       if (lives <= 0) {
                         setShowVoid(false);
                         setShowOutOfLives(true);
@@ -2027,6 +2071,13 @@ export default function GameplayScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.pauseConfirmBtn}
                     onPress={() => {
+                      // Dev builds: abandon does not cost a life.
+                      if (__DEV__) {
+                        setShowAbandonConfirm(false);
+                        setShowPauseModal(false);
+                        navigation.pop(2);
+                        return;
+                      }
                       // Lives store: lives <= 1 means about to hit 0
                       if (lives <= 1) {
                         loseLife();
@@ -2068,6 +2119,10 @@ export default function GameplayScreen({ navigation }: Props) {
             traySplitter: traySplitterRef,
             trayScanner: traScannerRef,
             trayTransmitter: trayTransmitterRef,
+            boardScanner: boardScannerRef,
+            inputTapeRow: inputTapeRowRef,
+            outputTapeRow: outputTapeRowRef,
+            dataTrailRow: dataTrailRowRef,
           }}
           spotlightCells={level!.prePlacedPieces
             .filter(p => p.type === 'inputPort' || p.type === 'outputPort')
@@ -2591,6 +2646,53 @@ const styles = StyleSheet.create({
     fontSize: 5,
     color: Colors.dim,
     letterSpacing: 0.5,
+  },
+
+  // Completion card (COGS post-level line, Bug 10)
+  completionCardWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingBottom: 140,
+    zIndex: 180,
+  },
+  completionCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: 'rgba(6,9,15,0.96)',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4a9eff',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+    padding: 14,
+  },
+  completionCardLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#4a9eff',
+    letterSpacing: 2,
+  },
+  completionCardText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 14,
+    color: '#D0E4FF',
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  completionCardBtn: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#4a9eff',
+    borderRadius: 4,
+  },
+  completionCardBtnText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: '#4a9eff',
+    letterSpacing: 2,
   },
 
   // Results

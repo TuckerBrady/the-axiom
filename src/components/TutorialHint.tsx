@@ -37,7 +37,7 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
   };
 
   return (
-    <Animated.View style={[st.container, { transform: [{ translateY }], opacity }]}>
+    <Animated.View pointerEvents="box-none" style={[st.container, { transform: [{ translateY }], opacity }]}>
       <View style={st.inner}>
         <View style={st.header}>
           <CogsAvatar size="small" state="engaged" />
@@ -54,8 +54,14 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
 
 const st = StyleSheet.create({
   container: {
+    // Absolute overlay above the tray so the hint never reflows the
+    // gameplay layout when it appears or dismisses.
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 180,
     paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.sm,
+    zIndex: 40,
   },
   inner: {
     backgroundColor: 'rgba(8,14,28,0.96)',

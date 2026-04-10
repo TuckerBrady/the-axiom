@@ -86,6 +86,7 @@ export default function TutorialHUDOverlay({
   const panelTranslate = useRef(new Animated.Value(400)).current;
   const codexTranslate = useRef(new Animated.Value(SCREEN_H)).current;
   const spotlightPulse = useRef(new Animated.Value(0)).current;
+  const portalGlowPulse = useRef(new Animated.Value(0)).current;
 
   const step = steps[currentStep];
   const eyeColor = step?.eyeState === 'amber' ? '#F0B429' : '#00D4FF';
@@ -159,8 +160,11 @@ export default function TutorialHUDOverlay({
 
   // ── Spotlight pulse loop (board step) ──
   const isBoardStep = step?.targetRef === 'boardGrid';
+  // Spotlight rings are an A1-1 teaching affordance only. Suppress on
+  // all other levels even when inputPort/outputPort cells are present.
   const showSpotlights =
     isBoardStep &&
+    levelId === 'A1-1' &&
     morphed &&
     !!portalLayout &&
     !!spotlightCells &&
@@ -190,6 +194,35 @@ export default function TutorialHUDOverlay({
     return () => loop.stop();
   }, [showSpotlights, spotlightPulse]);
 
+  // ── Portal glow ring (piece-targeted steps) ──
+  const PIECE_PORTAL_TARGETS = new Set([
+    'sourceNode', 'outputNode', 'boardScanner',
+    'trayConveyor', 'trayGear', 'trayConfigNode',
+    'traySplitter', 'trayScanner', 'trayTransmitter',
+  ]);
+  const PROTOCOL_PORTAL_TARGETS = new Set([
+    'trayConfigNode', 'trayScanner', 'trayTransmitter', 'boardScanner',
+  ]);
+  const PORT_PORTAL_TARGETS = new Set(['sourceNode', 'outputNode']);
+  const showPortalGlow = morphed && !!step && PIECE_PORTAL_TARGETS.has(step.targetRef);
+  const portalGlowColor = step && PORT_PORTAL_TARGETS.has(step.targetRef)
+    ? '#8B5CF6'
+    : step && PROTOCOL_PORTAL_TARGETS.has(step.targetRef)
+    ? '#00D4FF'
+    : '#F0B429';
+  useEffect(() => {
+    if (!showPortalGlow) return;
+    portalGlowPulse.setValue(0);
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(portalGlowPulse, { toValue: 1, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+        Animated.timing(portalGlowPulse, { toValue: 0, duration: 600, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [showPortalGlow, portalGlowPulse]);
+
   // ── Measure target for current step (tutorial phase) ──
   // Large layout elements (board / engage / tray chips) need extra delay so
   // their layout settles before measure() is called, otherwise the orb jumps.
@@ -204,6 +237,10 @@ export default function TutorialHUDOverlay({
     'traySplitter',
     'trayScanner',
     'trayTransmitter',
+    'boardScanner',
+    'inputTapeRow',
+    'outputTapeRow',
+    'dataTrailRow',
   ]);
   const measureCurrent = useCallback((cb: (layout: Layout | null) => void) => {
     if (!step) return cb(null);
@@ -269,7 +306,9 @@ export default function TutorialHUDOverlay({
     const centerX = layout.x + layout.width / 2;
     let left = centerX - CALLOUT_W / 2;
     if (left < 12) left = 12;
-    if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
+    // Clamp right edge so callout never overhangs the screen.
+    left = Math.min(left, SCREEN_W - CALLOUT_W - 12);
+    if (left < 12) left = 12;
 
     // ENGAGE step: the button sits below the parts tray at the very bottom
     // of the screen, and the nav strip is lifted to bottom: 136 on this
@@ -325,7 +364,17 @@ export default function TutorialHUDOverlay({
       done?.();
       return;
     }
-    const pad = step?.targetRef === 'boardGrid' ? 6 : PORTAL_PAD;
+    // Board-piece portals (source/output/scanner) use a tighter pad so
+    // the portal rectangle stays visually centered on the piece itself
+    // instead of its loose Pressable hitbox.
+    const pad =
+      step?.targetRef === 'boardGrid'
+        ? 6
+        : step?.targetRef === 'sourceNode' ||
+          step?.targetRef === 'outputNode' ||
+          step?.targetRef === 'boardScanner'
+        ? 4
+        : PORTAL_PAD;
     const targetW = layout.width + pad * 2;
     const targetH = layout.height + pad * 2;
     const targetL = layout.x - pad;
@@ -419,6 +468,7 @@ export default function TutorialHUDOverlay({
     calloutOpacity.setValue(0);
     setMorphed(false);
     setCalloutPos(null);
+    setPortalLayout(null);
     const oldLayout = portalLayout;
     unmorph(oldLayout, () => {
       measureCurrent((layout) => {
@@ -738,6 +788,24 @@ export default function TutorialHUDOverlay({
                 },
               ]}
             />
+            {/* Pulsing glow ring over the piece (Bug 2 fix) */}
+            {showPortalGlow && (
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFillObject,
+                  {
+                    borderRadius: 12,
+                    borderWidth: 2.5,
+                    borderColor: portalGlowColor,
+                    opacity: portalGlowPulse.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.4, 0.9],
+                    }),
+                  },
+                ]}
+              />
+            )}
             {/* Corner brackets */}
             <View style={[s.portalCorner, { top: bracketOffset, left: bracketOffset, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3 }]} />
             <View style={[s.portalCorner, { top: bracketOffset, right: bracketOffset, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3 }]} />
@@ -1151,9 +1219,10 @@ function PixelDissolve() {
     let group = 0;
     const isWeb = Platform.OS === 'web';
     const groupSize = isWeb ? 40 : 200;
-    const tickMs = isWeb ? 30 : 15;
-    const fadeDur = isWeb ? 180 : 100;
-    const delayMax = isWeb ? 120 : 60;
+    // Reduced 35% for snappier codex reveal (sprint bug fix).
+    const tickMs = isWeb ? 20 : 10;
+    const fadeDur = isWeb ? 117 : 65;
+    const delayMax = isWeb ? 78 : 39;
     const id = setInterval(() => {
       const start = group * groupSize;
       const end = Math.min(total, start + groupSize);
@@ -1169,7 +1238,7 @@ function PixelDissolve() {
       group += 1;
       if (start + groupSize >= total) {
         clearInterval(id);
-        setTimeout(() => force(1), 1200);
+        setTimeout(() => force(1), 780);
       }
     }, tickMs);
     return () => clearInterval(id);
