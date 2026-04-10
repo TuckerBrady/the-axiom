@@ -355,17 +355,26 @@ export default function TutorialHUDOverlay({
   }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, calloutOpacity]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
-  const entranceRanRef = useRef(false);
+  // The ref is checked *inside* the timeout callback, not before
+  // scheduling it. This survives React 18+ strict mode's
+  // effect → cleanup → effect re-run pattern: the first run's timeout
+  // is cancelled by cleanup, the second run reschedules, and the ref
+  // guards against double-firing when the second timeout resolves.
+  const didStartRef = useRef(false);
   useEffect(() => {
-    if (!hydrated || entranceRanRef.current) return;
-    entranceRanRef.current = true;
+    if (!hydrated) return;
+    if (didStartRef.current) return;
     Animated.timing(dimOpacity, {
       toValue: 1,
       duration: 400,
       useNativeDriver: false,
     }).start();
     // Short delay so GameplayScreen's layout settles before first measure
-    const t = setTimeout(() => runStep(currentStepIndex), 400);
+    const t = setTimeout(() => {
+      if (didStartRef.current) return;
+      didStartRef.current = true;
+      runStep(currentStepIndex);
+    }, 400);
     return () => clearTimeout(t);
   }, [hydrated, currentStepIndex, runStep, dimOpacity]);
 
