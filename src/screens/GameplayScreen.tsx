@@ -217,7 +217,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
   const [creditError, setCreditError] = useState(false);
 
-  const [heldPieceId, setHeldPieceId] = useState<string | null>(null);
   const [failCount, setFailCount] = useState(0);
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
   const [teachCardLine, setTeachCardLine] = useState(0);
@@ -481,14 +480,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
     if (isExecuting || showResults || showVoid) return;
 
-    // Held piece repositioning (from long press)
-    if (heldPieceId) {
-      movePiece(heldPieceId, gridX, gridY);
-      setHeldPieceId(null);
-      selectPlaced(null);
-      return;
-    }
-
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
       if (count > 0) {
@@ -515,19 +506,12 @@ export default function GameplayScreen({ navigation }: Props) {
       movePiece(selectedPlacedPiece, gridX, gridY);
       selectPlaced(null);
     }
-  }, [selectedPieceFromTray, selectedPlacedPiece, heldPieceId, isExecuting, showResults, showVoid, availableCounts, placePiece, movePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation]);
+  }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
     if (isExecuting || showResults || showVoid) return;
     if (piece.isPrePlaced) return;
-
-    // If this piece is held (long-pressed), cancel hold
-    if (heldPieceId === piece.id) {
-      setHeldPieceId(null);
-      selectPlaced(null);
-      return;
-    }
 
     // Type-specific tap actions
     if (piece.type === 'conveyor') {
@@ -541,16 +525,14 @@ export default function GameplayScreen({ navigation }: Props) {
       updatePiece(piece.id, { latchMode: nextMode });
     }
     // All other piece types: no tap action
-  }, [isExecuting, showResults, showVoid, rotatePiece, heldPieceId, selectPlaced, updatePiece]);
+  }, [isExecuting, showResults, showVoid, rotatePiece, updatePiece]);
 
-  // ── Long press to pick up piece for repositioning ──
+  // ── Long press returns piece to tray (no ghost/held state) ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
     if (isExecuting || showResults || showVoid) return;
-    // Enter "held" state — piece stays on board, ghost cells appear
-    setHeldPieceId(piece.id);
-    selectPlaced(piece.id);
-  }, [isExecuting, showResults, showVoid, selectPlaced]);
+    deletePiece(piece.id);
+  }, [isExecuting, showResults, showVoid, deletePiece]);
 
   // ── Helper: get piece center in canvas coords ──
   const getPieceCenter = useCallback((pieceId: string) => {
@@ -1360,7 +1342,6 @@ export default function GameplayScreen({ navigation }: Props) {
               const isSource = piece.type === 'inputPort';
               const isOutput = piece.type === 'outputPort';
               const isPrePlacedScanner = isPrePlaced && piece.type === 'scanner';
-              const isHeld = heldPieceId === piece.id;
               const pieceSize = CELL_SIZE - 4;
               const offset = (CELL_SIZE - pieceSize) / 2;
               const cellPx = piece.gridX * CELL_SIZE + offset;
@@ -1369,11 +1350,10 @@ export default function GameplayScreen({ navigation }: Props) {
               const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
               const flashColorP = flashingPieces.get(piece.id);
               const isLocked = lockedPieces.has(piece.id);
-              const borderColorP = isHeld ? Colors.copper
-                : flashColorP ? flashColorP
+              const borderColorP = flashColorP ? flashColorP
                 : isLocked ? '#00C48C'
                 : undefined;
-              const borderWidthP = isHeld || flashColorP || isLocked ? 2 : 0;
+              const borderWidthP = flashColorP || isLocked ? 2 : 0;
               const shadowC = flashColorP ?? (isLocked ? '#00C48C' : undefined);
 
               return (
@@ -1390,9 +1370,9 @@ export default function GameplayScreen({ navigation }: Props) {
                       borderWidth: borderWidthP,
                       borderColor: borderColorP,
                       backgroundColor: 'transparent',
-                      opacity: isHeld ? 0.6 : 1,
-                      transform: [{ scale: isHeld ? 1.15 : 1 }],
-                      zIndex: isHeld ? 10 : 0,
+                      opacity: 1,
+                      transform: [{ scale: 1 }],
+                      zIndex: 0,
                       shadowColor: shadowC,
                       shadowOffset: { width: 0, height: 0 },
                       shadowOpacity: shadowC ? (flashColorP ? 0.5 : 0.3) : 0,
@@ -1426,7 +1406,7 @@ export default function GameplayScreen({ navigation }: Props) {
             })}
 
             {/* Ghost cells — copper valid hints on Axiom, invisible taps elsewhere */}
-            {(selectedPieceFromTray || heldPieceId) &&
+            {selectedPieceFromTray &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
                   const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
