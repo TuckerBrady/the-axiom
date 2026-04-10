@@ -12,6 +12,7 @@ yarn-error.log*
 .DS_Store
 *.orig
 .claude/
+CLAUDE.local.md
 
 # Test coverage
 coverage/

@@ -77,6 +77,23 @@ for simple levels. Insufficient for complex ones.
 
 ## PART TWO: THE COMPLETE PIECE VOCABULARY
 
+### THE PLUMBER MODEL
+
+Direction is determined by connected pieces, not by piece
+rotation. The Conveyor is the pipe -- the only intrinsically
+directional piece. Everything else is a fitting that connects
+to whatever pipes touch it. A Gear is an elbow fitting. A
+Splitter is a T-junction. A Config Node is a valve.
+
+Only the Conveyor rotates on tap. All other pieces have
+piece-specific tap actions or none:
+
+- Conveyor: tap rotates 90 degrees
+- Config Node: tap cycles configValue between 0 and 1
+- Latch: tap toggles latchMode between write and read
+- All other pieces: no tap action
+- Any placed piece: long press returns to tray directly
+
 ### PHYSICS PIECES
 
 CONVEYOR

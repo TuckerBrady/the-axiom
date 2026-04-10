@@ -44,10 +44,19 @@ executes.
 
 ## CURRENT BUILD STATE
 
-**Last completed sprint:** Sprint 17 (17A + 17B + 17C all complete). Most recent commit: 15b68cc.
+**Last completed sprint:** Sprint 17 (17A + 17B + 17C all complete). Most recent commit: 961d8c3.
 
 **What is live and working:**
 
+- Config Node redesign: configValue (0/1) per piece, tap
+  cycles value, always Protocol purple (#8B5CF6), 0/1 badge
+  bottom-right, engine uses configValue not condition
+  function, CONFIGURATION header removed from gameplay.
+- Tap-to-rotate limited to Conveyor only (plumber model).
+  Config Node tap cycles configValue. Latch tap toggles
+  latchMode. All other pieces: no tap action.
+- Piece sandbox in dev tools (Settings > PIECE SANDBOX).
+- Dev mode lives disabled.
 - Design bible complete: Three documentation files establish
   the full computational vision for The Axiom.
   COMPUTATIONAL_MODEL.md — three-layer architecture, complete
@@ -134,10 +143,14 @@ executes.
 - Discipline affects scoring bonus category and piece cost discounts
 - Auto-orientation: pieces placed adjacent to Source auto-face
   away from it. Only Source triggers this, no other piece.
-- Rotation: tap a placed piece to rotate 90 degrees clockwise.
-  Direction affects signal path not just visual.
-- Long press 500ms: picks up a placed piece into held ghost state
-  ready to reposition. Does NOT return piece to tray.
+- Rotation: tap a placed Conveyor to rotate 90 degrees
+  clockwise. Only the Conveyor rotates on tap -- it is the
+  only directional piece (the plumber model). Config Node
+  tap cycles configValue. Latch tap toggles latchMode. All
+  other pieces: no tap action.
+- Long press 500ms: returns a placed piece directly to the
+  tray. No ghost/held state. To reposition a piece, return
+  it to tray and place it again.
 - Signal engine: directional port matching via getInputPorts,
   getOutputPorts, canSendTo, getDirectionalNeighbors.
   Bends require Gear pieces. Conveyors are straight only.
@@ -234,7 +247,7 @@ executes.
 | Conveyor | Physics | 5 CR | Single input/output. Directional. Straight only. |
 | Gear | Physics | 10 CR | Omnidirectional. The bend and corner piece. |
 | Splitter | Physics | 15 CR | One input, two outputs. |
-| Config Node | Protocol | 25 CR | Passes signal only when trail condition met. |
+| Config Node | Protocol | 25 CR | Reads Data Trail at its position. Gates signal when Data Trail value matches configured value (0 or 1). Tap to cycle configValue. Always Protocol purple (#8B5CF6). |
 | Scanner | Protocol | 30 CR | Reads Data Trail, sets Configuration value. |
 | Transmitter | Protocol | 35 CR | Writes to Data Trail. |
 | Navigator | Protocol | Legendary (Deep Void) | COGS-operated head controller. 3 modes: Single, Dual, Sync. |
@@ -475,7 +488,8 @@ docs/WORKFLOW_GENERAL.md for general principles.
 - Do not use a fixed CELL_SIZE -- always calculate dynamically
   from canvas dimensions and level grid size
 - Do not add HUD chrome (corner brackets) to personal screens
-- Do not return a piece to tray on long press -- it enters held state
+- Long press always returns piece to tray directly. There
+  is no ghost/held state for placed pieces.
 - Do not show wire connections on non-Axiom (Kepler+) levels
 - Do not show placement highlights on non-Axiom levels
 

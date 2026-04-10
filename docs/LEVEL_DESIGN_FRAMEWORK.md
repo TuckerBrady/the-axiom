@@ -190,6 +190,163 @@ Collector step voice rules:
   "uncatalogued", "logging", "filing", "correcting that"
 - The line is short. Three sentences maximum. Often one.
 
+### APPROVED TUTORIAL COPY — ALL 8 A1 LEVELS
+
+**A1-1 Emergency Power (5 steps):**
+
+cogs-intro [blue]: "You are looking at my HUD interface. I
+  use it to communicate with you. I will appear when there is
+  something worth knowing. You can ignore me. I have noted
+  that this does not stop me."
+
+board-intro [blue]: "This is the circuit board. Your job is
+  to connect the Input Port to the Output Port using the
+  pieces in your tray. You have done this before. You just
+  did not know what it was called."
+
+codex-intro [blue]: "The Codex is my personal record of
+  everything I have encountered. Pieces, places, systems. You
+  can access it at any time. Gotta catch 'em all. That is a
+  personal policy."
+
+conveyor-collect [amber]: "That piece is not in the Codex
+  yet. It will be." [codexEntryId: conveyor]
+
+board-resume [blue]: "As I was saying. Straight line, input
+  to output. Place it between the ports. The path will
+  complete."
+
+---
+
+**A1-2 Life Support (3 steps):**
+
+board-intro [blue]: "Life support requires a bend in the
+  path. The Input Port and Output Port are not aligned. A
+  straight line will not reach. The signal needs to change
+  direction once. Plan where that happens before placing
+  anything."
+
+gear-collect [amber]: "Uncatalogued. I am correcting that
+  immediately." [codexEntryId: gear]
+
+board-resume [blue]: "As I was saying. The Gear handles the
+  corner. Place the Conveyors approaching the bend, Gear at
+  the turn. Signal follows the direction it exits. Plan the
+  corner before you place anything."
+
+---
+
+**A1-3 Navigation Array (3 steps):**
+
+board-intro [blue]: "There is a gate on this board. It will
+  not open automatically. Something upstream needs to set the
+  condition before the signal arrives. Order of placement is
+  order of execution. Keep that in mind."
+
+confignode-collect [amber]: "A Protocol piece. New category
+  entry. This is a productive mission."
+  [codexEntryId: configNode]
+
+board-resume [blue]: "As I was saying. The condition is
+  already set on this level. The gate will open. Place it on
+  the path and the signal will pass. Future levels will not
+  be this accommodating."
+
+---
+
+**A1-4 Propulsion Core (2 steps — no new piece):**
+
+board-intro [blue]: "Two direction changes on this one. The
+  path bends twice before it reaches the Output Port. Each
+  bend requires its own solution. Plan the full route before
+  placing the first piece. Engineers who place as they go
+  tend to run out of board."
+
+board-resume [blue]: "Both corners need a Gear. Place it at
+  the bend, then tap it to rotate until the signal exits in
+  the right direction."
+
+---
+
+**A1-5 Communication Array (6 steps — tape intro + Scanner):**
+
+input-tape-intro [blue]: "This is the input tape. Each cell
+  is a bit value fed into the machine one pulse at a time.
+  The machine fires once per bit. Left to right."
+
+output-tape-intro [blue]: "This is the output tape. Empty
+  now. The machine writes here as it runs. When all pulses
+  complete, this is the answer."
+
+data-trail-intro [blue]: "This is the Data Trail. The
+  machine's working memory. Pieces read from it and write to
+  it as the signal passes through. What is here determines
+  what happens next."
+
+board-intro [blue]: "This board has a gate and a data trail.
+  The gate reads the trail before it decides whether to open.
+  Something needs to write the correct value to the trail
+  before the signal reaches the gate. The sequence matters
+  more than the placement."
+
+scanner-collect [amber]: "A piece that reads. I have opinions
+  about pieces that read. Logging it first."
+  [codexEntryId: scanner]
+
+board-resume [blue]: "As I was saying. Scanner before the
+  Config Node. Always. What it reads determines what the gate
+  sees. Sequence is not a suggestion."
+
+---
+
+**A1-6 Sensor Grid (2 steps — no new piece):**
+
+board-intro [blue]: "Multiple gates on this board. Each one
+  reads the same data trail independently. If the trail value
+  is wrong when the signal reaches any gate, that gate
+  blocks. One Scanner. Several gates. The Scanner has to do
+  its job before the signal reaches the first of them."
+
+board-resume [blue]: "Place the Scanner early in the path.
+  Every Config Node downstream reads what it wrote. One
+  correct write. Multiple correct reads."
+
+---
+
+**A1-7 Weapons Lock (3 steps):**
+
+board-intro [blue]: "The weapons systems were locked
+  deliberately. The lock is a gate with a condition. The
+  condition has to be written to the trail before the signal
+  checks it. There is a piece in the tray that writes. It
+  has not been logged yet."
+
+transmitter-collect [amber]: "The Scanner reads. This one
+  writes. The Codex entry for this has been pending since I
+  logged the Scanner. Filling it now."
+  [codexEntryId: transmitter]
+
+board-resume [blue]: "As I was saying. Place it before the
+  Config Node. It writes the condition the gate reads. If it
+  comes after, the gate checks before the value exists. The
+  weapons stay locked."
+
+---
+
+**A1-8 Bridge Systems (2 steps — no new piece, synthesis boss):**
+
+board-intro [blue]: "The bridge is the last system. The board
+  is larger than anything the Engineer has worked on in this
+  sector. All piece types are available. Physics pieces move
+  the signal. Protocol pieces condition it. The methodology
+  built across this sector applies here. There is nothing on
+  this board that has not been seen before. The work is
+  putting it together correctly."
+
+board-resume [blue]: "Plan the Protocol pieces first. They
+  determine the logic. Route the Physics pieces around them.
+  The path serves the logic, not the other way around."
+
 ---
 
 ## PART 5 — SECTOR-SPECIFIC DESIGN NOTES
