@@ -432,25 +432,33 @@ No emojis in commit messages. Ever.
 
 ## HOW TO START A NEW TASK
 
-1. Read this file completely before doing anything else.
-2. Read docs/DEVENV.md for full technical setup details.
-3. Read docs/NARRATIVE.md for the complete story bible, sector arcs, level cogsLines, and all approved dialogue.
-4. Read docs/DIALOGUE_SYSTEM.md for post-level COGS discipline dialogue and arc lines.
-5. Read docs/BOUNTY_SYSTEM.md for the daily challenge generative architecture and all bounty content.
-5a. Read docs/COMPUTATIONAL_MODEL.md for the full piece catalog,
-    three-layer architecture, and computational concept mapping.
-5b. Read docs/TEACHING_PROGRESSION.md for the sector-by-sector
-    teaching arc and narrative/mechanic integration principles.
-5c. Read docs/LEVEL_DESIGN_FRAMEWORK.md for the seven-step level
-    design sequence, quality checklist, retrofit guidance for
-    existing levels, and the four-step tutorial pattern.
-6. All story content requires Tucker Brady sign-off before implementation. Nothing in those documents enters the codebase without explicit approval.
+NOTE: This project now uses a Cowork + Code workflow. Code sessions
+should read CLAUDE.md (repo root) as the fast-start file and check
+/project-docs/BRIEFS/ for briefs from Cowork before starting work.
+See docs/WORKFLOW_AXIOM.md for the full operating manual and
+docs/WORKFLOW_GENERAL.md for general principles.
+
+1. Read CLAUDE.md (repo root) for the fast-start context.
+2. Check /project-docs/BRIEFS/ for a brief from Cowork.
+3. If a brief exists, read it and follow its instructions.
+4. If no brief, read this file for deep context, then ask Tucker.
+5. Read any referenced docs as needed:
+   - docs/DEVENV.md for CI/CD and technical setup
+   - docs/NARRATIVE.md for the complete story bible
+   - docs/DIALOGUE_SYSTEM.md for post-level COGS dialogue
+   - docs/BOUNTY_SYSTEM.md for daily challenge architecture
+   - docs/COMPUTATIONAL_MODEL.md for piece catalog and three-layer architecture
+   - docs/TEACHING_PROGRESSION.md for sector teaching arcs
+   - docs/LEVEL_DESIGN_FRAMEWORK.md for level design sequence
+6. All story content requires Tucker Brady sign-off before implementation.
 7. Check GitHub Actions tab to confirm CI is green before adding work.
-4. Ask Tucker what is needed. Do not assume from old context.
-5. Write a Claude Code prompt with QUALITY GATES block at the bottom.
-6. Tucker pastes into VS Code terminal. Claude Code runs autonomously.
-7. Review the output report. Confirm CI passes on GitHub.
-8. Update this file at the end of each sprint.
+8. Explore codebase first. Do not start coding yet.
+9. Write a plan and confirm with Tucker before implementing.
+10. Implement, test, lint, typecheck.
+11. Run QUALITY GATES -- all four must pass before pushing.
+12. Commit with appropriate prefix.
+13. If blocked, write to /project-docs/REPORTS/ and stop.
+14. Update this file at the end of each sprint.
 
 ---
 
