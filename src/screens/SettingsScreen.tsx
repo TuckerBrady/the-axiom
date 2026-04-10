@@ -635,6 +635,18 @@ export default function SettingsScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.divider} />
                 <TapRow
+                  icon={<Text style={{ color: Colors.blue, fontSize: 14 }}>▦</Text>}
+                  label="Piece Sandbox (Dev)"
+                  labelColor={Colors.blue}
+                  sub="Test all piece interactions in a sandbox board"
+                  delay={800}
+                  onPress={() => {
+                    const parent = navigation.getParent();
+                    parent?.navigate('PieceSandbox' as never);
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
                   icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
                   label="Preview Next 7 Days (Dev)"
                   labelColor={Colors.green}

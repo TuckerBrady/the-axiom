@@ -23,6 +23,7 @@ import CharacterNameScreen from '../screens/onboarding/CharacterNameScreen';
 import DisciplineScreen from '../screens/onboarding/DisciplineScreen';
 import LoginScreen from '../screens/onboarding/LoginScreen';
 
+import PieceSandboxScreen from '../screens/dev/PieceSandboxScreen';
 import { Colors } from '../theme/tokens';
 import { usePlayerStore } from '../store/playerStore';
 import { useChallengeStore } from '../store/challengeStore';
@@ -56,6 +57,7 @@ export type RootStackParamList = {
   DailyChallengeDossier: undefined;
   Gameplay: undefined;
   Store: undefined;
+  PieceSandbox: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -167,6 +169,7 @@ export default function RootNavigator() {
           options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
         />
         <Stack.Screen name="Store" component={StoreScreen} />
+        <Stack.Screen name="PieceSandbox" component={PieceSandboxScreen} options={{ animation: 'slide_from_bottom' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

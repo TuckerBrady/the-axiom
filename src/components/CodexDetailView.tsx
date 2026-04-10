@@ -310,6 +310,98 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           { cell: O, type: 'outputPort', color: '#00C48C' },
         ] };
       }
+      case 'merger': {
+        // Two inputs converge into one output
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3);
+        const S2 = getCell(1, 0, 5, 3), M = getCell(2, 1, 5, 3), O = getCell(3, 1, 5, 3);
+        const ball = t < 0.85 ? interpPath([S, C1, M, O], t, 0.85) : O;
+        return { svgContent: (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={S2.x} y1={S2.y} x2={M.x} y2={M.y} lit={t > 0.1} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={M.x} y2={M.y} lit={t > 0.3} />
+          <DrawConn x1={M.x} y1={M.y} x2={O.x} y2={O.y} lit={t > 0.55} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>), pieces: [
+          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S2, type: 'conveyor', color: '#00D4FF', rotation: 90 },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: M, type: 'merger', color: '#00D4FF' },
+          { cell: O, type: 'outputPort', color: '#00C48C' },
+        ] };
+      }
+      case 'bridge': {
+        // Horizontal path crosses a vertical conveyor
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3);
+        const B = getCell(2, 1, 5, 3), C2 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const VTop = getCell(2, 0, 5, 3), VBot = getCell(2, 2, 5, 3);
+        const ball = t < 0.85 ? interpPath([S, C1, B, C2, O], t, 0.85) : O;
+        return { svgContent: (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={B.x} y2={B.y} lit={t > 0.25} />
+          <DrawConn x1={B.x} y1={B.y} x2={C2.x} y2={C2.y} lit={t > 0.5} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
+          <DrawConn x1={VTop.x} y1={VTop.y} x2={B.x} y2={B.y} />
+          <DrawConn x1={B.x} y1={B.y} x2={VBot.x} y2={VBot.y} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>), pieces: [
+          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: B, type: 'bridge', color: '#00D4FF' },
+          { cell: C2, type: 'conveyor', color: '#00D4FF' },
+          { cell: O, type: 'outputPort', color: '#00C48C' },
+        ] };
+      }
+      case 'inverter': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), I = getCell(2, 1, 5, 3), C2 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const ball = t < 0.85 ? interpPath([S, C1, I, C2, O], t, 0.85) : O;
+        return { svgContent: (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={I.x} y2={I.y} lit={t > 0.25} />
+          <DrawConn x1={I.x} y1={I.y} x2={C2.x} y2={C2.y} lit={t > 0.5} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>), pieces: [
+          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: I, type: 'inverter', color: '#8B5CF6' },
+          { cell: C2, type: 'conveyor', color: '#00D4FF' },
+          { cell: O, type: 'outputPort', color: '#00C48C' },
+        ] };
+      }
+      case 'counter': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), CT = getCell(2, 1, 5, 3), C2 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const ball = t < 0.85 ? interpPath([S, C1, CT, C2, O], t, 0.85) : O;
+        return { svgContent: (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={CT.x} y2={CT.y} lit={t > 0.25} />
+          <DrawConn x1={CT.x} y1={CT.y} x2={C2.x} y2={C2.y} lit={t > 0.5} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>), pieces: [
+          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: CT, type: 'counter', color: '#8B5CF6' },
+          { cell: C2, type: 'conveyor', color: '#00D4FF' },
+          { cell: O, type: 'outputPort', color: '#00C48C' },
+        ] };
+      }
+      case 'latch': {
+        const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), L = getCell(2, 1, 5, 3), C2 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
+        const ball = t < 0.85 ? interpPath([S, C1, L, C2, O], t, 0.85) : O;
+        return { svgContent: (<>
+          <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} />
+          <DrawConn x1={C1.x} y1={C1.y} x2={L.x} y2={L.y} lit={t > 0.25} />
+          <DrawConn x1={L.x} y1={L.y} x2={C2.x} y2={C2.y} lit={t > 0.5} />
+          <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
+          {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
+        </>), pieces: [
+          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: L, type: 'latch', color: '#8B5CF6' },
+          { cell: C2, type: 'conveyor', color: '#00D4FF' },
+          { cell: O, type: 'outputPort', color: '#00C48C' },
+        ] };
+      }
       default: {
         const S = getCell(0, 1, 5, 3), O = getCell(4, 1, 5, 3);
         return { svgContent: null, pieces: [

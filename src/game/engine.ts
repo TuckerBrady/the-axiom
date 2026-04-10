@@ -277,23 +277,19 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         step.message = 'Signal split';
         break;
 
-      case 'configNode':
-        if (piece.condition) {
-          // Tape-enabled levels gate off the current pulse tape value.
-          // Legacy levels use the machine's configuration value.
-          const gateInput = tapeValue !== undefined ? tapeValue : configuration;
-          const passes = piece.condition(gateInput);
-          if (!passes) {
-            step.success = false;
-            step.message = 'Configuration check failed — signal blocked';
-            steps.push(step);
-            continue;
-          }
-          step.message = 'Configuration check passed';
-        } else {
-          step.message = 'Config node passed (no condition)';
+      case 'configNode': {
+        const nodeValue = piece.configValue ?? 1;
+        const trailValue = tapeValue !== undefined ? tapeValue : configuration;
+        const passes = trailValue === nodeValue;
+        if (!passes) {
+          step.success = false;
+          step.message = `Configuration check failed — trail ${trailValue} !== gate ${nodeValue}`;
+          steps.push(step);
+          continue;
         }
+        step.message = `Configuration check passed — trail ${trailValue} === gate ${nodeValue}`;
         break;
+      }
 
       case 'scanner':
         if (tapeValue !== undefined) {

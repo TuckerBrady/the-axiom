@@ -37,6 +37,7 @@ interface Props {
   latchMode?: 'write' | 'read';
   storedValue?: number | null;
   count?: number;
+  configValue?: number;
   threshold?: number;
 }
 
@@ -68,6 +69,7 @@ export function PieceIcon({
   storedValue = null,
   count = 0,
   threshold = 2,
+  configValue,
 }: Props) {
   const type = normalizeType(rawType);
   const s = size;
@@ -345,24 +347,28 @@ export function PieceIcon({
     case 'configNode': {
       const gateFill = gating
         ? (gateResult === 'block' ? '#FF3B3B' : '#00C48C')
-        : Colors.amber;
+        : '#8B5CF6';
       const gateOp = gatePulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
       const dotFill = gating
         ? (gateResult === 'block' ? '#FF3B3B' : '#00C48C')
-        : '#F0B429';
+        : '#8B5CF6';
+      const valStr = (configValue ?? 1).toString();
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Rect x="8" y="8" width="24" height="24" rx="5" fill="#0e1f36" stroke={color ?? Colors.amber} strokeWidth="1.5" />
+          <Rect x="8" y="8" width="24" height="24" rx="5" fill="#0e1f36" stroke={color ?? '#8B5CF6'} strokeWidth="1.5" />
           {/* Gate indicator strip top-right */}
           <AnimatedRect x="28" y="8" width="4" height="24" fill={gateFill} opacity={gating ? (gateOp as unknown as number) : 0.6} />
           {/* Data rows */}
-          <Line x1="14" y1="16" x2="26" y2="16" stroke={Colors.amber} strokeWidth="1.5" strokeOpacity="0.35" />
-          <Line x1="14" y1="20" x2="22" y2="20" stroke={Colors.amber} strokeWidth="1.5" strokeOpacity="0.35" />
-          <Line x1="14" y1="24" x2="24" y2="24" stroke={Colors.amber} strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="16" x2="26" y2="16" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="20" x2="22" y2="20" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="24" x2="24" y2="24" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
           <Circle cx="26" cy="20" r="2" fill={dotFill} />
           {/* Corner accents */}
-          <Path d="M 8 8 L 11 8 M 8 8 L 8 11" stroke="#F0B429" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
-          <Path d="M 32 32 L 29 32 M 32 32 L 32 29" stroke="#F0B429" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+          <Path d="M 8 8 L 11 8 M 8 8 L 8 11" stroke="#8B5CF6" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+          <Path d="M 32 32 L 29 32 M 32 32 L 32 29" stroke="#8B5CF6" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+          {/* Value badge bottom-right */}
+          <Rect x="27" y="27" width="12" height="12" rx="4" fill="rgba(139,92,246,0.2)" stroke="#8B5CF6" strokeWidth="0.8" />
+          <SvgText x="33" y="36" fill="#8B5CF6" fontSize="8" fontFamily="monospace" textAnchor="middle">{valStr}</SvgText>
         </Svg>
       );
     }

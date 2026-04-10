@@ -177,6 +177,7 @@ export default function GameplayScreen({ navigation }: Props) {
     movePiece,
     deletePiece,
     rotatePiece,
+    updatePiece,
     selectFromTray,
     selectPlaced,
     engage,
@@ -528,9 +529,19 @@ export default function GameplayScreen({ navigation }: Props) {
       return;
     }
 
-    // Tap on placed piece rotates it 90°
-    rotatePiece(piece.id);
-  }, [isExecuting, showResults, showVoid, rotatePiece, heldPieceId, selectPlaced]);
+    // Type-specific tap actions
+    if (piece.type === 'conveyor') {
+      rotatePiece(piece.id);
+    } else if (piece.type === 'configNode') {
+      const current = piece.configValue ?? 1;
+      const next = current === 1 ? 0 : 1;
+      updatePiece(piece.id, { configValue: next });
+    } else if (piece.type === 'latch') {
+      const nextMode = piece.latchMode === 'write' ? 'read' : 'write';
+      updatePiece(piece.id, { latchMode: nextMode });
+    }
+    // All other piece types: no tap action
+  }, [isExecuting, showResults, showVoid, rotatePiece, heldPieceId, selectPlaced, updatePiece]);
 
   // ── Long press to pick up piece for repositioning ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
@@ -1143,26 +1154,6 @@ export default function GameplayScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* ── Configuration Display (read-only; level configNodes own state) ── */}
-        {pieces.some(p => p.type === 'configNode') && (
-          <View style={styles.configRow}>
-            <Text style={styles.configLabel}>CONFIGURATION</Text>
-            <View
-              style={[
-                styles.configToggle,
-                configuration === 1 && styles.configToggleActive,
-              ]}
-            >
-              <Text style={[
-                styles.configToggleText,
-                configuration === 1 && styles.configToggleTextActive,
-              ]}>
-                {configuration === 0 ? 'INACTIVE' : 'ACTIVE'}
-              </Text>
-            </View>
-          </View>
-        )}
-
         {/* ── Turing Tape Display ── */}
         {level.inputTape && level.inputTape.length > 0 && (
           <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeSection}>
@@ -1427,6 +1418,7 @@ export default function GameplayScreen({ navigation }: Props) {
                       locking={activeAnimations.get(piece.id) === 'locking'}
                       charging={activeAnimations.get(piece.id) === 'charging'}
                       failColor={failColors.get(piece.id) ?? null}
+                      configValue={piece.type === 'configNode' ? piece.configValue : undefined}
                     />
                   </View>
                 </Pressable>

@@ -36,6 +36,8 @@ export type PlacedPiece = {
   rotation: number;
   isPrePlaced?: boolean;
   condition?: (configuration: number) => boolean;
+  // Config Node per-piece gate value (0 or 1). Default 1.
+  configValue?: number;
   // Counter state — increments per pulse, resets when threshold reached
   threshold?: number;
   count?: number;
