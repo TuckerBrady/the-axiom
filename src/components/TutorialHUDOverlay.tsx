@@ -7,6 +7,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Platform,
   findNodeHandle,
   UIManager,
 } from 'react-native';
@@ -158,28 +159,48 @@ export default function TutorialHUDOverlay({
     }
 
     let attempt = 0;
-    const tryMeasure = () => {
-      attempt += 1;
-      const handle = findNodeHandle(node);
-      if (handle == null) {
-        if (attempt < 3) {
-          setTimeout(tryMeasure, 150);
-        } else {
-          cb(null);
-        }
+    const retry = () => {
+      if (attempt < 3) {
+        setTimeout(tryMeasure, 150);
+      } else {
+        cb(null);
+      }
+    };
+    const onResult = (x: number, y: number, width: number, height: number) => {
+      if (width < 4 || height < 4) {
+        retry();
         return;
       }
-      UIManager.measureInWindow(handle, (x: number, y: number, width: number, height: number) => {
-        if (width < 4 || height < 4) {
-          if (attempt < 3) {
-            setTimeout(tryMeasure, 150);
-          } else {
-            cb(null);
-          }
+      cb({ x, y, width, height });
+    };
+    const tryMeasure = () => {
+      attempt += 1;
+      if (Platform.OS === 'web') {
+        // On Expo web findNodeHandle / UIManager.measureInWindow are
+        // unreliable. View's measure() returns pageX/pageY in the
+        // (x, relX, relY, w, h, pageX, pageY) callback form, but
+        // the web implementation uses the simpler (x, y, w, h, pageX, pageY)
+        // — just grab the last four args to be safe either way.
+        (node as unknown as { measure: (cb: (...args: number[]) => void) => void }).measure?.(
+          (...args: number[]) => {
+            // Standard RN: (_x, _y, w, h, pageX, pageY)
+            const pageX = args.length >= 6 ? args[4] : args[0];
+            const pageY = args.length >= 6 ? args[5] : args[1];
+            const w = args.length >= 6 ? args[2] : args[2];
+            const h = args.length >= 6 ? args[3] : args[3];
+            onResult(pageX, pageY, w, h);
+          },
+        );
+      } else {
+        const handle = findNodeHandle(node);
+        if (handle == null) {
+          retry();
           return;
         }
-        cb({ x, y, width, height });
-      });
+        UIManager.measureInWindow(handle, (x: number, y: number, width: number, height: number) => {
+          onResult(x, y, width, height);
+        });
+      }
     };
     tryMeasure();
   }, [targetRefs]);
@@ -705,6 +726,7 @@ export default function TutorialHUDOverlay({
           ]}
         >
           <CodexDetailView entry={codexEntry} onUnderstood={handleCodexUnderstood} />
+          <PixelDissolve />
         </Animated.View>
       )}
 
@@ -742,6 +764,79 @@ export default function TutorialHUDOverlay({
         </View>
       )}
     </Animated.View>
+  );
+}
+
+// ─── PixelDissolve ──────────────────────────────────────────────────────────
+
+const DISSOLVE_COLS = 40;
+const DISSOLVE_ROWS = 20;
+const DISSOLVE_TOTAL = DISSOLVE_COLS * DISSOLVE_ROWS;
+
+function PixelDissolve() {
+  const CELL = Math.ceil(SCREEN_W / DISSOLVE_COLS);
+  const CELL_H = Math.ceil(SCREEN_H / DISSOLVE_ROWS);
+
+  const opacities = useRef(
+    Array.from({ length: DISSOLVE_TOTAL }, () => new Animated.Value(1)),
+  ).current;
+  const [, force] = useState(0);
+
+  useEffect(() => {
+    const indices = Array.from({ length: DISSOLVE_TOTAL }, (_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    let group = 0;
+    const isWeb = Platform.OS === 'web';
+    // ~75% of the original speed — clearly visible but snappier.
+    const groupSize = isWeb ? 40 : 200;
+    const tickMs = isWeb ? 23 : 15;
+    const fadeDur = isWeb ? 135 : 75;
+    const delayMax = isWeb ? 90 : 45;
+    const id = setInterval(() => {
+      const start = group * groupSize;
+      const end = Math.min(DISSOLVE_TOTAL, start + groupSize);
+      for (let i = start; i < end; i++) {
+        const idx = indices[i];
+        Animated.timing(opacities[idx], {
+          toValue: 0,
+          duration: fadeDur,
+          delay: Math.random() * delayMax,
+          useNativeDriver: false,
+        }).start();
+      }
+      group += 1;
+      if (start + groupSize >= DISSOLVE_TOTAL) {
+        clearInterval(id);
+        setTimeout(() => force(1), 900);
+      }
+    }, tickMs);
+    return () => clearInterval(id);
+  }, [opacities]);
+
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {opacities.map((op, i) => {
+        const col = i % DISSOLVE_COLS;
+        const row = Math.floor(i / DISSOLVE_COLS);
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: col * CELL,
+              top: row * CELL_H,
+              width: CELL,
+              height: CELL_H,
+              backgroundColor: '#02050c',
+              opacity: op,
+            }}
+          />
+        );
+      })}
+    </View>
   );
 }
 
@@ -793,6 +888,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     zIndex: 100,
+    overflow: 'hidden',
   },
   eyeDot: {
     width: 8,
@@ -833,6 +929,8 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.amber,
     borderRadius: 4,
+    maxWidth: 130,
+    flexShrink: 1,
   },
   primaryBtnText: {
     fontFamily: Fonts.spaceMono,
