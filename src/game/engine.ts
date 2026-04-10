@@ -45,8 +45,13 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
   switch (piece.type) {
     case 'conveyor':
       return [rotateSide('left', rot)];      // input from left at 0°
-    case 'splitter':
-      return [rotateSide('left', rot)];      // input from left at 0°
+    case 'splitter': {
+      // Magnet mechanic: input is any connected side NOT in connectedMagnetSides.
+      // If no magnets connected yet, accept from all sides so BFS can reach it.
+      const magnets = piece.connectedMagnetSides;
+      if (!magnets || magnets.length === 0) return ALL;
+      return ALL.filter(s => !magnets.includes(s));
+    }
     case 'inputPort':
       return [];                              // Source has no input
     case 'merger':
@@ -76,8 +81,13 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
   switch (piece.type) {
     case 'conveyor':
       return [rotateSide('right', rot)];     // output to right at 0°
-    case 'splitter':
-      return [rotateSide('right', rot), rotateSide('bottom', rot)]; // right + bottom at 0°
+    case 'splitter': {
+      // Magnet mechanic: output via the two connected magnet sides.
+      // Fewer than 2 magnets = Splitter blocks (no valid outputs).
+      const mags = piece.connectedMagnetSides;
+      if (mags && mags.length >= 2) return [mags[0], mags[1]];
+      return [];
+    }
     case 'outputPort':
       return [];                              // Output has no output
     case 'merger':

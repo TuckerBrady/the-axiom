@@ -44,6 +44,9 @@ export type PlacedPiece = {
   // Latch state — persists across pulses within one run
   latchMode?: 'write' | 'read';
   storedValue?: number | null;
+  // Splitter magnet mechanic — the two sides where magnets connected
+  // to adjacent pieces. Max 2. Populated by computeSplitterMagnets.
+  connectedMagnetSides?: PortSide[];
 };
 
 // ─── Connections ──────────────────────────────────────────────────────────────

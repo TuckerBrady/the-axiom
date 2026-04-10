@@ -4,6 +4,7 @@ import type {
   MachineState,
   PlacedPiece,
   PieceType,
+  PortSide,
   ExecutionStep,
 } from '../game/types';
 import {
@@ -60,6 +61,36 @@ const EMPTY_MACHINE: MachineState = {
 };
 
 let placedPieceCounter = 100;
+
+// ─── Splitter magnet computation ─────────────────────────────────────────────
+
+const ADJACENT_OFFSETS: { side: PortSide; dx: number; dy: number }[] = [
+  { side: 'top', dx: 0, dy: -1 },
+  { side: 'bottom', dx: 0, dy: 1 },
+  { side: 'left', dx: -1, dy: 0 },
+  { side: 'right', dx: 1, dy: 0 },
+];
+
+/**
+ * Scans all Splitter pieces and populates connectedMagnetSides based
+ * on adjacent pieces. Magnets connect to the first two adjacent sides
+ * in array order (which reflects placement order since new pieces are
+ * pushed to the end).
+ */
+export function computeSplitterMagnets(pieces: PlacedPiece[]): PlacedPiece[] {
+  return pieces.map(p => {
+    if (p.type !== 'splitter') return p;
+    const magnets: PortSide[] = [];
+    for (const { side, dx, dy } of ADJACENT_OFFSETS) {
+      if (magnets.length >= 2) break;
+      const hasNeighbor = pieces.some(
+        q => q.id !== p.id && q.gridX === p.gridX + dx && q.gridY === p.gridY + dy,
+      );
+      if (hasNeighbor) magnets.push(side);
+    }
+    return { ...p, connectedMagnetSides: magnets };
+  });
+}
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
@@ -119,11 +150,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       gridX,
       gridY,
       ports: getDefaultPorts(type),
-      rotation: rotation ?? 0,
+      // Splitter uses magnet mechanic — rotation is meaningless.
+      rotation: type === 'splitter' ? 0 : (rotation ?? 0),
       isPrePlaced: false,
     };
 
-    const pieces = [...machineState.pieces, newPiece];
+    const rawPieces = [...machineState.pieces, newPiece];
+    const pieces = computeSplitterMagnets(rawPieces);
     const wires = autoConnectPhysicsPieces(pieces);
 
     set({
@@ -143,9 +176,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
     if (occupied) return;
 
-    const pieces = machineState.pieces.map(p =>
+    const rawPieces = machineState.pieces.map(p =>
       p.id === pieceId ? { ...p, gridX, gridY } : p,
     );
+    const pieces = computeSplitterMagnets(rawPieces);
     const wires = autoConnectPhysicsPieces(pieces);
 
     set({
@@ -159,7 +193,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const piece = machineState.pieces.find(p => p.id === pieceId);
     if (!piece || piece.isPrePlaced) return;
 
-    const pieces = machineState.pieces.filter(p => p.id !== pieceId);
+    const rawPieces = machineState.pieces.filter(p => p.id !== pieceId);
+    const pieces = computeSplitterMagnets(rawPieces);
     const wires = autoConnectPhysicsPieces(pieces);
 
     set({
