@@ -7,6 +7,12 @@ module.exports = {
         '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+      moduleNameMapper: {
+        '@react-native-async-storage/async-storage': '<rootDir>/__tests__/__mocks__/async-storage.ts',
+      },
+      globals: {
+        __DEV__: false,
+      },
     },
     {
       displayName: 'integration',
@@ -21,13 +27,17 @@ module.exports = {
     'src/**/*.{ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
+    '!src/components/icons/**',
+    '!src/components/*.tsx',
+    '!src/screens/**',
+    '!src/navigation/**',
   ],
   coverageThreshold: {
     global: {
-      statements: 33,
-      branches: 24,
-      functions: 29,
-      lines: 33,
+      statements: 80,
+      branches: 70,
+      functions: 80,
+      lines: 80,
     },
   },
 };

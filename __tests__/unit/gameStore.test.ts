@@ -121,6 +121,73 @@ describe('rotatePiece', () => {
   });
 });
 
+describe('engage', () => {
+  it('returns execution steps', () => {
+    useGameStore.getState().placePiece('conveyor', 2, 3);
+    useGameStore.getState().placePiece('conveyor', 3, 3);
+    useGameStore.getState().placePiece('conveyor', 4, 3);
+    useGameStore.getState().placePiece('conveyor', 5, 3);
+    const steps = useGameStore.getState().engage();
+    expect(steps.length).toBeGreaterThan(0);
+  });
+
+  it('sets isExecuting to true', () => {
+    useGameStore.getState().engage();
+    expect(useGameStore.getState().isExecuting).toBe(true);
+  });
+});
+
+describe('reset', () => {
+  it('resets machine state to level definition', () => {
+    useGameStore.getState().placePiece('conveyor', 2, 3);
+    useGameStore.getState().reset();
+    const playerPieces = useGameStore.getState().machineState.pieces.filter(p => !p.isPrePlaced);
+    expect(playerPieces.length).toBe(0);
+  });
+});
+
+describe('toggleConfiguration', () => {
+  it('toggles between 0 and 1', () => {
+    expect(useGameStore.getState().configuration).toBe(0);
+    useGameStore.getState().toggleConfiguration();
+    expect(useGameStore.getState().configuration).toBe(1);
+    useGameStore.getState().toggleConfiguration();
+    expect(useGameStore.getState().configuration).toBe(0);
+  });
+});
+
+describe('updatePiece', () => {
+  it('updates piece fields by id', () => {
+    useGameStore.getState().placePiece('configNode', 2, 3);
+    const cn = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'configNode' && !p.isPrePlaced,
+    );
+    expect(cn).toBeDefined();
+    useGameStore.getState().updatePiece(cn!.id, { configValue: 0 });
+    const updated = useGameStore.getState().machineState.pieces.find(p => p.id === cn!.id);
+    expect(updated?.configValue).toBe(0);
+  });
+});
+
+describe('debugMode', () => {
+  it('setDebugMode toggles debug state', () => {
+    useGameStore.getState().setDebugMode(true);
+    expect(useGameStore.getState().debugMode).toBe(true);
+    useGameStore.getState().setDebugMode(false);
+    expect(useGameStore.getState().debugMode).toBe(false);
+  });
+
+  it('debugNext/debugPrev change step index', () => {
+    useGameStore.getState().placePiece('conveyor', 2, 3);
+    useGameStore.getState().engage();
+    useGameStore.getState().setDebugMode(true);
+    useGameStore.getState().debugNext();
+    expect(useGameStore.getState().debugStepIndex).toBe(1);
+    useGameStore.getState().debugPrev();
+    expect(useGameStore.getState().debugStepIndex).toBe(0);
+  });
+});
+
 describe('computeSplitterMagnets', () => {
   it('is called on placePiece — splitter gets connectedMagnetSides', () => {
     useGameStore.getState().placePiece('conveyor', 3, 3);

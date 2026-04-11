@@ -138,6 +138,196 @@ describe('starsFromTotal (via calculateScore)', () => {
   });
 });
 
+describe('scoring edge cases and COGS commentary', () => {
+  it('efficiency: 18 when 2 over optimal', () => {
+    const result = calculateScore({
+      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'), makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'), makePlayerPiece('c4', 'conveyor'),
+      ],
+      optimalPieces: 2,
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+    });
+    expect(result.breakdown.efficiency).toBe(18);
+  });
+
+  it('efficiency: 10 when 3+ over optimal', () => {
+    const result = calculateScore({
+      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'), makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'), makePlayerPiece('c4', 'conveyor'),
+        makePlayerPiece('c5', 'conveyor'),
+      ],
+      optimalPieces: 2,
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+    });
+    expect(result.breakdown.efficiency).toBe(10);
+  });
+
+  it('chainIntegrity: penalizes untouched player pieces', () => {
+    const result = calculateScore({
+      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'), makePlayerPiece('c2', 'conveyor'),
+      ],
+      optimalPieces: 2,
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+    });
+    // c1/c2 not in steps → penalty
+    expect(result.breakdown.chainIntegrity).toBeLessThan(20);
+  });
+
+  it('discipline bonus: field with mixed types', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('configNode', true, 'cn'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [makePlayerPiece('c1', 'conveyor'), makePlayerPiece('cn', 'configNode')],
+      optimalPieces: 2,
+      discipline: 'field',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+    });
+    expect(result.breakdown.disciplineBonus).toBe(15);
+  });
+
+  it('speed bonus: 7 for 10-20s', () => {
+    const result = calculateScore({
+      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      placedPieces: [],
+      optimalPieces: 0,
+      discipline: 'systems',
+      engageDurationMs: 15000,
+      elapsedSeconds: 15,
+    });
+    expect(result.breakdown.speedBonus).toBe(7);
+  });
+
+  it('speed bonus: 4 for 20-45s', () => {
+    const result = calculateScore({
+      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      placedPieces: [],
+      optimalPieces: 0,
+      discipline: 'systems',
+      engageDurationMs: 30000,
+      elapsedSeconds: 30,
+    });
+    expect(result.breakdown.speedBonus).toBe(4);
+  });
+});
+
+describe('getCOGSScoreComment', () => {
+  const { getCOGSScoreComment, getTutorialCOGSComment } = require('../../src/game/scoring');
+
+  it('returns perfect score line at 100', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 30, protocolPrecision: 25, chainIntegrity: 20, disciplineBonus: 15, speedBonus: 10 },
+      'systems', 3, 4, 4,
+    );
+    expect(comment).toContain('One hundred');
+  });
+
+  it('returns discipline-specific line at 3 stars', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 30, protocolPrecision: 20, chainIntegrity: 16, disciplineBonus: 10, speedBonus: 7 },
+      'systems', 3, 4, 4,
+    );
+    expect(comment).toBeTruthy();
+  });
+
+  it('returns efficiency critique when low', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 10, protocolPrecision: 25, chainIntegrity: 20, disciplineBonus: 15, speedBonus: 10 },
+      'systems', 2, 10, 4,
+    );
+    expect(comment).toContain('pieces');
+  });
+
+  it('returns protocol critique when 0', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 30, protocolPrecision: 0, chainIntegrity: 20, disciplineBonus: 0, speedBonus: 10 },
+      'drive', 2, 4, 4,
+    );
+    expect(comment).toBeTruthy();
+  });
+
+  it('returns chain critique when low', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 30, protocolPrecision: 25, chainIntegrity: 5, disciplineBonus: 15, speedBonus: 10 },
+      'systems', 2, 4, 4,
+    );
+    expect(comment).toBeTruthy();
+  });
+
+  it('returns speed critique when 0', () => {
+    const comment = getCOGSScoreComment(
+      { efficiency: 30, protocolPrecision: 25, chainIntegrity: 20, disciplineBonus: 15, speedBonus: 0 },
+      'systems', 2, 4, 4,
+    );
+    expect(comment).toBeTruthy();
+  });
+
+  it('returns discipline critique when 0 for each discipline', () => {
+    for (const d of ['systems', 'drive', 'field'] as const) {
+      const comment = getCOGSScoreComment(
+        { efficiency: 30, protocolPrecision: 25, chainIntegrity: 20, disciplineBonus: 0, speedBonus: 10 },
+        d, 2, 4, 4,
+      );
+      expect(comment).toBeTruthy();
+    }
+  });
+
+  it('returns generic fallback by star rating', () => {
+    for (const stars of [3, 2, 1, 0] as const) {
+      const comment = getCOGSScoreComment(
+        { efficiency: 20, protocolPrecision: 10, chainIntegrity: 10, disciplineBonus: 5, speedBonus: 4 },
+        'systems', stars, 4, 4,
+      );
+      expect(comment).toBeTruthy();
+    }
+  });
+
+  it('getTutorialCOGSComment returns for all disciplines and score ranges', () => {
+    for (const d of ['systems', 'drive', 'field'] as const) {
+      expect(getTutorialCOGSComment(90, d)).toBeTruthy();
+      expect(getTutorialCOGSComment(60, d)).toBeTruthy();
+      expect(getTutorialCOGSComment(20, d)).toBeTruthy();
+    }
+  });
+});
+
+describe('getConsequenceFailureLine', () => {
+  const { getConsequenceFailureLine } = require('../../src/game/scoring');
+
+  it('returns failureEffect on failure', () => {
+    const line = getConsequenceFailureLine({ cogsWarning: 'w', failureEffect: 'f' }, false, 0);
+    expect(line).toBe('f');
+  });
+
+  it('returns boss message on <3 stars', () => {
+    const line = getConsequenceFailureLine(
+      { cogsWarning: 'w', failureEffect: 'f', requireThreeStars: true }, true, 2,
+    );
+    expect(line).toContain('consequence');
+  });
+
+  it('returns empty on success without boss requirement', () => {
+    const line = getConsequenceFailureLine({ cogsWarning: 'w', failureEffect: 'f' }, true, 3);
+    expect(line).toBe('');
+  });
+});
+
 describe('doesConsequenceTrigger', () => {
   it('returns false when no consequence', () => {
     expect(doesConsequenceTrigger(undefined, true, 3)).toBe(false);
