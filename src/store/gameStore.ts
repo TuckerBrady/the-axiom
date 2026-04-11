@@ -13,6 +13,7 @@ import {
   calculateStars,
   getDefaultPorts,
   getPieceCategory,
+  getOutputPorts,
 } from '../game/engine';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -71,23 +72,54 @@ const ADJACENT_OFFSETS: { side: PortSide; dx: number; dy: number }[] = [
   { side: 'right', dx: 1, dy: 0 },
 ];
 
+const OPPOSITE_SIDE_MAP: Record<PortSide, PortSide> = {
+  top: 'bottom',
+  bottom: 'top',
+  left: 'right',
+  right: 'left',
+};
+
 /**
- * Scans all Splitter pieces and populates connectedMagnetSides based
- * on adjacent pieces. Magnets connect to the first two adjacent sides
- * in array order (which reflects placement order since new pieces are
- * pushed to the end).
+ * Scans all Splitter pieces and populates connectedMagnetSides.
+ *
+ * Step 1: Identify the input side — the side where an adjacent piece
+ *   has an output port facing the Splitter (i.e. can send signal here).
+ * Step 2: Assign magnets to the first 2 adjacent pieces on sides that
+ *   are NOT the input side.
+ *
+ * If no upstream piece is found, falls back to first 2 adjacent pieces.
  */
 export function computeSplitterMagnets(pieces: PlacedPiece[]): PlacedPiece[] {
   return pieces.map(p => {
     if (p.type !== 'splitter') return p;
+
+    // Step 1: find the input side (upstream piece that can send signal here)
+    let inputSide: PortSide | null = null;
+    for (const { side, dx, dy } of ADJACENT_OFFSETS) {
+      const neighbor = pieces.find(
+        q => q.id !== p.id && q.gridX === p.gridX + dx && q.gridY === p.gridY + dy,
+      );
+      if (!neighbor) continue;
+      // The neighbor faces the Splitter from the opposite side
+      const neighborFacingSide = OPPOSITE_SIDE_MAP[side];
+      const neighborOutputs = getOutputPorts(neighbor);
+      if (neighborOutputs.includes(neighborFacingSide)) {
+        inputSide = side;
+        break;
+      }
+    }
+
+    // Step 2: assign magnets to non-input adjacent pieces (max 2)
     const magnets: PortSide[] = [];
     for (const { side, dx, dy } of ADJACENT_OFFSETS) {
       if (magnets.length >= 2) break;
+      if (side === inputSide) continue;
       const hasNeighbor = pieces.some(
         q => q.id !== p.id && q.gridX === p.gridX + dx && q.gridY === p.gridY + dy,
       );
       if (hasNeighbor) magnets.push(side);
     }
+
     return { ...p, connectedMagnetSides: magnets };
   });
 }

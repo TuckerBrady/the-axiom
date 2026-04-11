@@ -225,12 +225,19 @@ describe('updatePiece recalculates splitter magnets', () => {
 
 describe('computeSplitterMagnets', () => {
   it('is called on placePiece — splitter gets connectedMagnetSides', () => {
+    // Place conveyor at (3,3) and splitter at (4,3). Conveyor outputs right
+    // → is the upstream input to splitter. Splitter should have 0 magnets
+    // since the only adjacent piece is the input source. Then place a
+    // downstream piece to verify magnets connect to output sides.
     useGameStore.getState().placePiece('conveyor', 3, 3);
     useGameStore.getState().placePiece('splitter', 4, 3);
+    useGameStore.getState().placePiece('conveyor', 5, 3); // downstream right
     const sp = useGameStore.getState().machineState.pieces.find(
       p => p.type === 'splitter' && !p.isPrePlaced,
     );
     expect(sp?.connectedMagnetSides).toBeDefined();
     expect(sp!.connectedMagnetSides!.length).toBeGreaterThanOrEqual(1);
+    expect(sp!.connectedMagnetSides).toContain('right');
+    expect(sp!.connectedMagnetSides).not.toContain('left'); // input side excluded
   });
 });

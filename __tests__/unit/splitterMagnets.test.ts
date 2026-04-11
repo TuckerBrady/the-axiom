@@ -99,6 +99,59 @@ describe('computeSplitterMagnets', () => {
   });
 });
 
+// ─── Input side exclusion ────────────────────────────────────────────────────
+
+describe('computeSplitterMagnets input side exclusion', () => {
+  it('excludes the input side when upstream piece has output port facing Splitter', () => {
+    // Conveyor at (2,3) outputs right → faces Splitter at (3,3) on its left side.
+    // Splitter should recognize left as input, not assign a magnet there.
+    const pieces = [
+      makePiece('c1', 'conveyor', 2, 3),    // upstream: outputs right
+      makePiece('s1', 'splitter', 3, 3),
+      makePiece('c2', 'conveyor', 4, 3),     // downstream right
+      makePiece('c3', 'conveyor', 3, 4, { rotation: 90 }), // downstream bottom
+    ];
+    const result = computeSplitterMagnets(pieces);
+    const sp = result.find(p => p.id === 's1')!;
+    // Magnets should be on right and bottom (output sides), NOT left (input side)
+    expect(sp.connectedMagnetSides).toHaveLength(2);
+    expect(sp.connectedMagnetSides).not.toContain('left');
+    expect(sp.connectedMagnetSides).toContain('right');
+    expect(sp.connectedMagnetSides).toContain('bottom');
+  });
+
+  it('with 3 adjacent (1 upstream, 2 downstream), magnets attach to 2 downstream only', () => {
+    // InputPort at (3,2) outputs bottom → faces Splitter at (3,3) on its top side.
+    const pieces = [
+      makePiece('src', 'inputPort', 3, 2),   // upstream: outputs all (including bottom)
+      makePiece('s1', 'splitter', 3, 3),
+      makePiece('c1', 'conveyor', 4, 3),     // downstream right
+      makePiece('c2', 'conveyor', 2, 3),     // downstream left
+    ];
+    const result = computeSplitterMagnets(pieces);
+    const sp = result.find(p => p.id === 's1')!;
+    expect(sp.connectedMagnetSides).toHaveLength(2);
+    // Top is input (from inputPort), should be excluded
+    expect(sp.connectedMagnetSides).not.toContain('top');
+  });
+
+  it('with no clear upstream piece, falls back to first 2 adjacent', () => {
+    // Two pieces adjacent but neither has an output port facing the Splitter.
+    // Conveyor at (4,3) with rotation 90 outputs bottom, not left.
+    // Conveyor at (3,4) with rotation 0 outputs right, not top.
+    // Neither can send signal to Splitter → no input side detected.
+    const pieces = [
+      makePiece('s1', 'splitter', 3, 3),
+      makePiece('c1', 'conveyor', 4, 3, { rotation: 90 }), // outputs bottom, not left
+      makePiece('c2', 'conveyor', 3, 4),                     // outputs right, not top
+    ];
+    const result = computeSplitterMagnets(pieces);
+    const sp = result.find(p => p.id === 's1')!;
+    // Fallback: first 2 adjacent sides get magnets
+    expect(sp.connectedMagnetSides).toHaveLength(2);
+  });
+});
+
 // ─── Engine port resolution ──────────────────────────────────────────────────
 
 describe('Splitter engine port resolution', () => {
