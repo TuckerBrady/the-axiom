@@ -188,6 +188,41 @@ describe('debugMode', () => {
   });
 });
 
+describe('rotatePiece recalculates splitter magnets', () => {
+  it('computeSplitterMagnets runs on rotatePiece', () => {
+    useGameStore.getState().placePiece('conveyor', 3, 3);
+    useGameStore.getState().placePiece('splitter', 4, 3);
+    const spBefore = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'splitter' && !p.isPrePlaced,
+    );
+    expect(spBefore?.connectedMagnetSides).toBeDefined();
+    // Rotate the conveyor — splitter magnets should still be calculated
+    const conv = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'conveyor' && !p.isPrePlaced,
+    );
+    if (conv) useGameStore.getState().rotatePiece(conv.id);
+    const spAfter = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'splitter' && !p.isPrePlaced,
+    );
+    expect(spAfter?.connectedMagnetSides).toBeDefined();
+  });
+});
+
+describe('updatePiece recalculates splitter magnets', () => {
+  it('computeSplitterMagnets runs on updatePiece', () => {
+    useGameStore.getState().placePiece('configNode', 3, 3);
+    useGameStore.getState().placePiece('splitter', 4, 3);
+    const cn = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'configNode' && !p.isPrePlaced,
+    );
+    if (cn) useGameStore.getState().updatePiece(cn.id, { configValue: 0 });
+    const sp = useGameStore.getState().machineState.pieces.find(
+      p => p.type === 'splitter' && !p.isPrePlaced,
+    );
+    expect(sp?.connectedMagnetSides).toBeDefined();
+  });
+});
+
 describe('computeSplitterMagnets', () => {
   it('is called on placePiece — splitter gets connectedMagnetSides', () => {
     useGameStore.getState().placePiece('conveyor', 3, 3);

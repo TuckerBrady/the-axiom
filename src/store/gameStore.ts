@@ -205,20 +205,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   rotatePiece: (pieceId) => {
     const { machineState } = get();
-    const pieces = machineState.pieces.map(p =>
+    const rawPieces = machineState.pieces.map(p =>
       p.id === pieceId && !p.isPrePlaced
         ? { ...p, rotation: (p.rotation + 90) % 360 }
         : p,
     );
+    const pieces = computeSplitterMagnets(rawPieces);
     const wires = autoConnectPhysicsPieces(pieces);
     set({ machineState: { ...machineState, pieces, wires } });
   },
 
   updatePiece: (pieceId, fields) => {
     const { machineState } = get();
-    const pieces = machineState.pieces.map(p =>
+    const rawPieces = machineState.pieces.map(p =>
       p.id === pieceId ? { ...p, ...fields } : p,
     );
+    const pieces = computeSplitterMagnets(rawPieces);
     const wires = autoConnectPhysicsPieces(pieces);
     set({ machineState: { ...machineState, pieces, wires } });
   },

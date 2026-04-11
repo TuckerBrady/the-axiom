@@ -132,6 +132,19 @@ describe('autoConnectPhysicsPieces', () => {
     expect(wires[0].toPieceId).toBeDefined();
   });
 
+  it('wire direction follows port flow (output→input)', () => {
+    // inputPort outputs to the right, conveyor inputs from the left.
+    // Wire should flow inputPort → conveyor.
+    const pieces = [
+      makePiece('conv', 'conveyor', 1, 0),
+      makePiece('src', 'inputPort', 0, 0),
+    ];
+    const wires = autoConnectPhysicsPieces(pieces);
+    expect(wires.length).toBe(1);
+    expect(wires[0].fromPieceId).toBe('src');
+    expect(wires[0].toPieceId).toBe('conv');
+  });
+
   it('does not connect non-adjacent pieces', () => {
     const pieces = [
       makePiece('a', 'inputPort', 0, 0),

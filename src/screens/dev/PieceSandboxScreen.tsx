@@ -7,19 +7,23 @@ import {
   ScrollView,
   Pressable,
   SafeAreaView,
+  Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Svg, { Circle, Line } from 'react-native-svg';
 import type { PlacedPiece, PieceType } from '../../game/types';
 import { getDefaultPorts, autoConnectPhysicsPieces, executeMachine, getPieceCategory } from '../../game/engine';
+import { computeSplitterMagnets } from '../../store/gameStore';
 import { PieceIcon } from '../../components/PieceIcon';
 import { Colors, Fonts } from '../../theme/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GRID_W = 7;
-const GRID_H = 7;
-const CELL = 52;
+const SCREEN_W = Dimensions.get('window').width;
+const GRID_W = 12;
+const GRID_H = 12;
+const BOARD_SIZE = SCREEN_W - 24;
+const CELL = Math.floor(BOARD_SIZE / GRID_W);
 const BOARD_W = GRID_W * CELL;
 const BOARD_H = GRID_H * CELL;
 const DOT_R = 1.5;
@@ -30,35 +34,37 @@ const INITIAL_PIECES: PlacedPiece[] = [
     type: 'inputPort',
     category: 'physics',
     gridX: 1,
-    gridY: 3,
+    gridY: 6,
     ports: getDefaultPorts('inputPort'),
     rotation: 0,
-    isPrePlaced: true,
+    isPrePlaced: false,
   },
   {
     id: 'sb-output',
     type: 'outputPort',
     category: 'physics',
-    gridX: 5,
-    gridY: 3,
+    gridX: 10,
+    gridY: 6,
     ports: getDefaultPorts('outputPort'),
     rotation: 0,
-    isPrePlaced: true,
+    isPrePlaced: false,
   },
 ];
 
 const TRAY: { type: PieceType; count: number }[] = [
+  { type: 'inputPort', count: 1 },
+  { type: 'outputPort', count: 1 },
   { type: 'conveyor', count: 8 },
   { type: 'gear', count: 4 },
-  { type: 'splitter', count: 2 },
-  { type: 'merger', count: 2 },
-  { type: 'bridge', count: 2 },
-  { type: 'configNode', count: 2 },
-  { type: 'scanner', count: 1 },
-  { type: 'transmitter', count: 1 },
-  { type: 'inverter', count: 2 },
-  { type: 'counter', count: 2 },
-  { type: 'latch', count: 2 },
+  { type: 'splitter', count: 4 },
+  { type: 'merger', count: 4 },
+  { type: 'bridge', count: 4 },
+  { type: 'configNode', count: 4 },
+  { type: 'scanner', count: 4 },
+  { type: 'transmitter', count: 4 },
+  { type: 'inverter', count: 4 },
+  { type: 'counter', count: 4 },
+  { type: 'latch', count: 4 },
 ];
 
 let sandboxCounter = 0;
@@ -67,21 +73,21 @@ let sandboxCounter = 0;
 
 export default function PieceSandboxScreen() {
   const navigation = useNavigation();
-  const [pieces, setPieces] = useState<PlacedPiece[]>([...INITIAL_PIECES]);
+  const [pieces, setPieces] = useState<PlacedPiece[]>(computeSplitterMagnets([...INITIAL_PIECES]));
   const [selectedTray, setSelectedTray] = useState<PieceType | null>(null);
   const [executionResult, setExecutionResult] = useState<string | null>(null);
 
   const wires = useMemo(() => autoConnectPhysicsPieces(pieces), [pieces]);
-  const playerPieces = pieces.filter(p => !p.isPrePlaced);
+  const allPlaced = pieces;
 
   const trayCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of TRAY) counts[t.type] = t.count;
-    for (const p of playerPieces) {
+    for (const p of allPlaced) {
       if (counts[p.type] !== undefined) counts[p.type]--;
     }
     return counts;
-  }, [playerPieces]);
+  }, [allPlaced]);
 
   const handleCellPress = useCallback((gridX: number, gridY: number) => {
     if (!selectedTray) return;
@@ -95,33 +101,31 @@ export default function PieceSandboxScreen() {
       gridX,
       gridY,
       ports: getDefaultPorts(selectedTray),
-      rotation: 0,
+      rotation: selectedTray === 'splitter' ? 0 : 0,
       isPrePlaced: false,
     };
-    setPieces(prev => [...prev, newPiece]);
+    setPieces(prev => computeSplitterMagnets([...prev, newPiece]));
     setSelectedTray(null);
   }, [selectedTray, pieces, trayCounts]);
 
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
-    if (piece.isPrePlaced) return;
     if (piece.type === 'conveyor') {
-      setPieces(prev => prev.map(p =>
+      setPieces(prev => computeSplitterMagnets(prev.map(p =>
         p.id === piece.id ? { ...p, rotation: (p.rotation + 90) % 360 } : p,
-      ));
+      )));
     } else if (piece.type === 'configNode') {
-      setPieces(prev => prev.map(p =>
+      setPieces(prev => computeSplitterMagnets(prev.map(p =>
         p.id === piece.id ? { ...p, configValue: (p.configValue ?? 1) === 1 ? 0 : 1 } : p,
-      ));
+      )));
     } else if (piece.type === 'latch') {
-      setPieces(prev => prev.map(p =>
+      setPieces(prev => computeSplitterMagnets(prev.map(p =>
         p.id === piece.id ? { ...p, latchMode: p.latchMode === 'write' ? 'read' : 'write' } : p,
-      ));
+      )));
     }
   }, []);
 
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
-    if (piece.isPrePlaced) return;
-    setPieces(prev => prev.filter(p => p.id !== piece.id));
+    setPieces(prev => computeSplitterMagnets(prev.filter(p => p.id !== piece.id)));
   }, []);
 
   const handleEngage = useCallback(() => {
@@ -142,7 +146,7 @@ export default function PieceSandboxScreen() {
   }, [pieces, wires]);
 
   const handleReset = useCallback(() => {
-    setPieces([...INITIAL_PIECES]);
+    setPieces(computeSplitterMagnets([...INITIAL_PIECES]));
     setExecutionResult(null);
     sandboxCounter = 0;
   }, []);
@@ -207,7 +211,7 @@ export default function PieceSandboxScreen() {
 
           {/* Pieces */}
           {pieces.map(piece => {
-            const sz = CELL - 6;
+            const sz = CELL - 4;
             const off = (CELL - sz) / 2;
             const iconSz = sz * 0.6;
             const isSource = piece.type === 'inputPort';
@@ -221,7 +225,7 @@ export default function PieceSandboxScreen() {
                 onLongPress={() => handlePieceLongPress(piece)}
                 delayLongPress={500}
               >
-                <View style={{ transform: [{ rotate: `${!piece.isPrePlaced ? piece.rotation : 0}deg` }] }}>
+                <View style={{ transform: [{ rotate: `${piece.rotation}deg` }] }}>
                   <PieceIcon
                     type={piece.type}
                     size={iconSz}
@@ -245,19 +249,21 @@ export default function PieceSandboxScreen() {
         {TRAY.map(t => {
           const remaining = trayCounts[t.type] ?? 0;
           const isActive = selectedTray === t.type;
+          const isPort = t.type === 'inputPort' || t.type === 'outputPort';
+          const trayColor = t.type === 'inputPort' ? '#F0B429' : t.type === 'outputPort' ? '#00C48C' : Colors.blue;
           return (
             <TouchableOpacity
               key={t.type}
-              style={[st.trayItem, isActive && { borderColor: Colors.blue, backgroundColor: 'rgba(0,212,255,0.08)' }]}
+              style={[st.trayItem, isActive && { borderColor: trayColor, backgroundColor: `${trayColor}15` }]}
               onPress={() => setSelectedTray(isActive ? null : t.type)}
               activeOpacity={0.7}
               disabled={remaining <= 0}
             >
               <View style={{ opacity: remaining > 0 ? 1 : 0.3 }}>
-                <PieceIcon type={t.type} size={20} color={Colors.blue} />
+                <PieceIcon type={t.type} size={18} color={trayColor} />
               </View>
-              <Text style={st.trayLabel}>{t.type.toUpperCase()}</Text>
-              <View style={[st.trayBadge, { backgroundColor: remaining > 0 ? Colors.blue : Colors.dim }]}>
+              <Text style={st.trayLabel}>{t.type === 'inputPort' ? 'IN' : t.type === 'outputPort' ? 'OUT' : t.type.toUpperCase()}</Text>
+              <View style={[st.trayBadge, { backgroundColor: remaining > 0 ? trayColor : Colors.dim }]}>
                 <Text style={st.trayBadgeText}>{remaining}</Text>
               </View>
             </TouchableOpacity>
@@ -282,7 +288,7 @@ export default function PieceSandboxScreen() {
 
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#06090f' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, gap: 12 },
   backBtn: { paddingVertical: 4, paddingRight: 8 },
   backText: { fontFamily: Fonts.spaceMono, fontSize: 12, color: Colors.muted, letterSpacing: 2 },
   title: { fontFamily: Fonts.spaceMono, fontSize: 14, color: '#D0E4FF', letterSpacing: 3, flex: 1 },
@@ -291,13 +297,13 @@ const st = StyleSheet.create({
   resultText: { fontFamily: Fonts.spaceMono, fontSize: 14, letterSpacing: 4 },
   boardWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   board: { width: BOARD_W, height: BOARD_H, backgroundColor: '#080e18', borderWidth: 1, borderColor: 'rgba(74,158,255,0.1)', borderRadius: 6, position: 'relative', overflow: 'hidden' },
-  tray: { maxHeight: 72, borderTopWidth: 1, borderTopColor: 'rgba(0,212,255,0.08)' },
-  trayContent: { paddingHorizontal: 8, gap: 6, alignItems: 'center' },
-  trayItem: { width: 56, height: 64, borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: 4 },
-  trayLabel: { fontFamily: Fonts.spaceMono, fontSize: 6, color: Colors.muted, letterSpacing: 0.5 },
-  trayBadge: { width: 14, height: 14, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  trayBadgeText: { fontFamily: Fonts.spaceMono, fontSize: 8, color: '#FFFFFF' },
-  actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 12, justifyContent: 'center' },
+  tray: { maxHeight: 68, borderTopWidth: 1, borderTopColor: 'rgba(0,212,255,0.08)' },
+  trayContent: { paddingHorizontal: 6, gap: 4, alignItems: 'center' },
+  trayItem: { width: 48, height: 60, borderWidth: 1, borderColor: 'rgba(0,212,255,0.12)', borderRadius: 6, alignItems: 'center', justifyContent: 'center', gap: 1, paddingVertical: 3 },
+  trayLabel: { fontFamily: Fonts.spaceMono, fontSize: 5, color: Colors.muted, letterSpacing: 0.3 },
+  trayBadge: { width: 12, height: 12, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
+  trayBadgeText: { fontFamily: Fonts.spaceMono, fontSize: 7, color: '#FFFFFF' },
+  actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center' },
   resetBtn: { paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: Colors.muted, borderRadius: 4 },
   resetText: { fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted, letterSpacing: 2 },
   engageBtn: { paddingHorizontal: 20, paddingVertical: 10, borderWidth: 1, borderColor: Colors.amber, borderRadius: 4, backgroundColor: 'rgba(240,180,41,0.06)' },

@@ -180,12 +180,33 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
       const bPort = b.ports.find(p => p.side === bSide);
 
       if (aPort && bPort) {
+        // Determine wire direction from actual port flow:
+        // A outputs on aSide AND B inputs on bSide → A→B
+        // B outputs on bSide AND A inputs on aSide → B→A
+        const aOutputs = getOutputPorts(a).includes(aSide);
+        const bInputs = getInputPorts(b).includes(bSide);
+        const bOutputs = getOutputPorts(b).includes(bSide);
+        const aInputs = getInputPorts(a).includes(aSide);
+
+        let fromId = a.id;
+        let fromPortId = aPort.id;
+        let toId = b.id;
+        let toPortId = bPort.id;
+
+        if (bOutputs && aInputs && !(aOutputs && bInputs)) {
+          // Reverse: B→A
+          fromId = b.id;
+          fromPortId = bPort.id;
+          toId = a.id;
+          toPortId = aPort.id;
+        }
+
         wires.push({
-          id: `wire-${a.id}-${b.id}`,
-          fromPieceId: a.id,
-          fromPortId: aPort.id,
-          toPieceId: b.id,
-          toPortId: bPort.id,
+          id: `wire-${fromId}-${toId}`,
+          fromPieceId: fromId,
+          fromPortId,
+          toPieceId: toId,
+          toPortId,
         });
       }
     }
