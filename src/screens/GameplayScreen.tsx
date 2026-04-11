@@ -158,6 +158,76 @@ function posAlongPath(path: SignalPath, d: number): Pt {
 
 const easeOut3 = (t: number) => 1 - Math.pow(1 - t, 3);
 
+// ─── Branch partitioning for Splitter fork ────────────────────────────────────
+
+/**
+ * Post-process a pulse's execution steps to annotate branchId on steps
+ * that occur after a Splitter fork. Steps before the Splitter (and the
+ * Splitter step itself) get no branchId. Each downstream branch gets "A"
+ * or "B" based on the Splitter's connectedMagnetSides.
+ */
+function partitionBranches(
+  pulseSteps: ExecutionStep[],
+  pieces: PlacedPiece[],
+): ExecutionStep[] {
+  const forkIdx = pulseSteps.findIndex(s => s.type === 'splitter');
+  if (forkIdx === -1) return pulseSteps;
+
+  const splitterStep = pulseSteps[forkIdx];
+  const splitter = pieces.find(p => p.id === splitterStep.pieceId);
+  if (!splitter) return pulseSteps;
+  const mags = splitter.connectedMagnetSides;
+  if (!mags || mags.length < 2) return pulseSteps;
+
+  // Map from magnet side to the grid cell it points to
+  const sideOffset: Record<string, { dx: number; dy: number }> = {
+    top: { dx: 0, dy: -1 }, bottom: { dx: 0, dy: 1 },
+    left: { dx: -1, dy: 0 }, right: { dx: 1, dy: 0 },
+  };
+
+  // Find the immediate neighbor piece on each magnet side
+  const branchRoots: [string | null, string | null] = [null, null];
+  for (let mi = 0; mi < 2; mi++) {
+    const off = sideOffset[mags[mi]];
+    if (!off) continue;
+    const nx = splitter.gridX + off.dx;
+    const ny = splitter.gridY + off.dy;
+    const neighbor = pieces.find(p => p.gridX === nx && p.gridY === ny);
+    if (neighbor) branchRoots[mi] = neighbor.id;
+  }
+
+  // BFS from each root to collect all piece IDs in that branch
+  const branchSets: [Set<string>, Set<string>] = [new Set(), new Set()];
+  for (let bi = 0; bi < 2; bi++) {
+    if (!branchRoots[bi]) continue;
+    const q = [branchRoots[bi]!];
+    const visited = new Set<string>([splitter.id]);
+    while (q.length > 0) {
+      const id = q.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      branchSets[bi].add(id);
+      // Find adjacent pieces to continue tracing the branch
+      const pc = pieces.find(p => p.id === id);
+      if (!pc) continue;
+      for (const dir of Object.values(sideOffset)) {
+        const ax = pc.gridX + dir.dx;
+        const ay = pc.gridY + dir.dy;
+        const adj = pieces.find(p => p.gridX === ax && p.gridY === ay);
+        if (adj && !visited.has(adj.id)) q.push(adj.id);
+      }
+    }
+  }
+
+  // Annotate steps
+  return pulseSteps.map((s, i) => {
+    if (i <= forkIdx) return s;
+    if (branchSets[0].has(s.pieceId)) return { ...s, branchId: 'A' };
+    if (branchSets[1].has(s.pieceId)) return { ...s, branchId: 'B' };
+    return s;
+  });
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function GameplayScreen({ navigation }: Props) {
@@ -242,9 +312,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
   // ── New signal beam animation state ──
-  const [beamHead, setBeamHead] = useState<Pt | null>(null);
+  const [beamHeads, setBeamHeads] = useState<Pt[]>([]);
   const [beamHeadColor, setBeamHeadColor] = useState('#8B5CF6');
   const [trailSegments, setTrailSegments] = useState<{ points: Pt[]; color: string }[]>([]);
+  const [branchTrails, setBranchTrails] = useState<{ points: Pt[]; color: string }[][]>([]);
   const [voidPulse, setVoidPulse] = useState<{ x: number; y: number; r: number; opacity: number } | null>(null);
   const [litWires, setLitWires] = useState<Set<string>>(new Set());
   const [flashingPieces, setFlashingPieces] = useState<Map<string, string>>(new Map());
@@ -571,7 +642,7 @@ export default function GameplayScreen({ navigation }: Props) {
     for (let pi = 0; pi < pulseStarts.length; pi++) {
       const start = pulseStarts[pi];
       const end = pi + 1 < pulseStarts.length ? pulseStarts[pi + 1] : steps.length;
-      pulses.push(steps.slice(start, end));
+      pulses.push(partitionBranches(steps.slice(start, end), pieces));
     }
 
     const flashPiece = (pieceId: string, c: string) => {
@@ -590,54 +661,68 @@ export default function GameplayScreen({ navigation }: Props) {
       flashTimersRef.current.push(t);
     };
 
-    const runPulse = (pulseSteps: typeof steps): Promise<void> => new Promise<void>(resolveAll => {
-      // Build waypoints from piece centers
+    // ── Per-piece animation trigger (shared by all beam paths) ──
+    const animMap: Record<string, { tag: string; duration: number }> = {
+      inputPort: { tag: 'charging', duration: 280 },
+      outputPort: { tag: 'locking', duration: 400 },
+      conveyor: { tag: 'rolling', duration: 180 },
+      gear: { tag: 'spinning', duration: 400 },
+      splitter: { tag: 'splitting', duration: 180 },
+      scanner: { tag: 'scanning', duration: 200 },
+      configNode: { tag: 'gating', duration: 300 },
+      transmitter: { tag: 'transmitting', duration: 180 },
+    };
+    const triggerPieceAnim = (stp: ExecutionStep) => {
+      flashPiece(stp.pieceId, getBeamColor(stp.type));
+      const anim = animMap[stp.type];
+      if (anim) {
+        const pieceId = stp.pieceId;
+        setActiveAnimations(prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
+        if (stp.type === 'configNode') {
+          const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
+          setGateResults(prev => { const n = new Map(prev); n.set(pieceId, result); return n; });
+        }
+        const t = setTimeout(() => {
+          setActiveAnimations(prev => { const n = new Map(prev); n.delete(pieceId); return n; });
+        }, anim.duration);
+        flashTimersRef.current.push(t);
+      }
+    };
+
+    // ── Animate a single linear path (no forks) ──
+    const runLinearPath = (
+      pathSteps: ExecutionStep[],
+      opts: {
+        setHead: (h: Pt | null) => void;
+        setTrail: (s: { points: Pt[]; color: string }[]) => void;
+      },
+    ): Promise<void> => new Promise<void>(resolve => {
       const waypoints: Pt[] = [];
-      for (const st of pulseSteps) {
+      for (const st of pathSteps) {
         const c = getPieceCenter(st.pieceId);
         if (c) waypoints.push(c);
       }
       if (waypoints.length < 2) {
-        // Single-piece pulse: just flash it.
-        if (pulseSteps[0]) {
-          const p = pieces.find(pp => pp.id === pulseSteps[0].pieceId);
-          flashPiece(pulseSteps[0].pieceId, p?.type === 'outputPort' ? '#00C48C' : '#00D4FF');
-        }
-        setTimeout(resolveAll, 180);
+        if (pathSteps[0]) triggerPieceAnim(pathSteps[0]);
+        setTimeout(resolve, 180);
         return;
       }
       const path = buildSignalPath(waypoints);
       const refLen = CELL_SIZE * 4;
       const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen)));
-
-      // Segment colors derived from piece type per waypoint.
-      // Segment i (from waypoints[i] to waypoints[i+1]) is colored by
-      // the piece the beam is leaving — waypoints[i]'s piece type.
-      const segColors: string[] = pulseSteps.map(s => getBeamColor(s.type));
-
-      // Void detection: if this pulse ends in a void step, the beam dies red
-      // at the piece BEFORE the void waypoint. We detect by checking the last
-      // step — if it's 'void', the preceding piece is the blocker.
-      const pulseHasVoid = pulseSteps.some(s => s.type === 'void');
-
-      // Initialize a fresh purple segment at the source.
-      setTrailSegments([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
-
-      const start = performance.now();
+      const segColors = pathSteps.map(s => getBeamColor(s.type));
+      const hasVoid = pathSteps.some(s => s.type === 'void');
+      opts.setTrail([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
+      const t0 = performance.now();
       const lit = new Set<number>();
       const flashed = new Set<number>();
 
       const tick = () => {
-        const now = performance.now();
-        const rawT = Math.min(1, (now - start) / totalMs);
+        const rawT = Math.min(1, (performance.now() - t0) / totalMs);
         const t = easeOut3(rawT);
         const headDist = t * path.total;
-
         const head = posAlongPath(path, headDist);
 
-        // Rebuild segments from path up to headDist. Each path seg i
-        // corresponds to waypoints[i] → waypoints[i+1] and is colored by
-        // segColors[i] (the piece being left).
         const newSegs: { points: Pt[]; color: string }[] = [];
         for (let i = 0; i < path.segs.length; i++) {
           const sg = path.segs[i];
@@ -650,114 +735,130 @@ export default function GameplayScreen({ navigation }: Props) {
             break;
           }
         }
-        setTrailSegments(newSegs);
-
-        // Beam head color = current segment color (or red on void)
-        const currentColor = pulseHasVoid && rawT > 0.85
+        opts.setTrail(newSegs);
+        const currentColor = hasVoid && rawT > 0.85
           ? '#FF3B3B'
           : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
-        setBeamHead(head);
+        opts.setHead(head);
         setBeamHeadColor(currentColor);
 
-        // Light wires whose midpoint we've passed
         for (let i = 0; i < path.segs.length; i++) {
           if (lit.has(i)) continue;
           const mid = path.segs[i].s + path.segs[i].l / 2;
           if (headDist >= mid) {
             lit.add(i);
-            const fromId = pulseSteps[i].pieceId;
-            const toId = pulseSteps[i + 1]?.pieceId;
+            const fromId = pathSteps[i].pieceId;
+            const toId = pathSteps[i + 1]?.pieceId;
             if (fromId && toId) {
-              setLitWires(prev => {
-                const next = new Set(prev);
-                next.add(`${fromId}_${toId}`);
-                next.add(`${toId}_${fromId}`);
-                return next;
-              });
+              setLitWires(prev => { const n = new Set(prev); n.add(`${fromId}_${toId}`); n.add(`${toId}_${fromId}`); return n; });
             }
           }
         }
-
-        // Flash nodes within 4px of waypoint
         for (let i = 0; i < waypoints.length; i++) {
           if (flashed.has(i)) continue;
           const wp = waypoints[i];
-          const dx = head.x - wp.x;
-          const dy = head.y - wp.y;
-          if (Math.sqrt(dx * dx + dy * dy) < 4 || (i === waypoints.length - 1 && rawT >= 1)) {
+          const ddx = head.x - wp.x;
+          const ddy = head.y - wp.y;
+          if (Math.sqrt(ddx * ddx + ddy * ddy) < 4 || (i === waypoints.length - 1 && rawT >= 1)) {
             flashed.add(i);
-            const stp = pulseSteps[i];
-            const isVoidBlocker = pulseHasVoid && i === waypoints.length - 1;
-            const flashCol = isVoidBlocker ? '#FF3B3B' : getBeamColor(stp.type);
-            flashPiece(stp.pieceId, flashCol);
-            // Drive per-piece animation prop via activeAnimations map.
-            const animMap: Record<string, { tag: string; duration: number }> = {
-              inputPort: { tag: 'charging', duration: 280 },
-              outputPort: { tag: 'locking', duration: 400 },
-              conveyor: { tag: 'rolling', duration: 180 },
-              gear: { tag: 'spinning', duration: 400 },
-              splitter: { tag: 'splitting', duration: 180 },
-              scanner: { tag: 'scanning', duration: 200 },
-              configNode: { tag: 'gating', duration: 300 },
-              transmitter: { tag: 'transmitting', duration: 180 },
-            };
-            const anim = animMap[stp.type];
-            if (anim) {
-              const pieceId = stp.pieceId;
-              setActiveAnimations(prev => {
-                const next = new Map(prev);
-                next.set(pieceId, anim.tag);
-                return next;
-              });
-              if (stp.type === 'configNode') {
-                const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
-                setGateResults(prev => {
-                  const next = new Map(prev);
-                  next.set(pieceId, result);
-                  return next;
-                });
-              }
-              const t = setTimeout(() => {
-                setActiveAnimations(prev => {
-                  const next = new Map(prev);
-                  next.delete(pieceId);
-                  return next;
-                });
-              }, anim.duration);
-              flashTimersRef.current.push(t);
-            }
+            const stp = pathSteps[i];
+            const isVoidBlocker = hasVoid && i === waypoints.length - 1;
+            if (isVoidBlocker) flashPiece(stp.pieceId, '#FF3B3B');
+            else triggerPieceAnim(stp);
           }
         }
-
         if (rawT < 1) {
           animFrameRef.current = requestAnimationFrame(tick);
         } else {
-          if (pulseHasVoid) {
-            // Red pulse expanding from the final (blocker) waypoint
+          if (hasVoid) {
             const blocker = waypoints[waypoints.length - 1];
-            const pulseStart = performance.now();
-            const pulseTick = () => {
-              const e = performance.now() - pulseStart;
+            const ps = performance.now();
+            const voidTick = () => {
+              const e = performance.now() - ps;
               const p = Math.min(1, e / 320);
               setVoidPulse({ x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
-              if (p < 1) {
-                animFrameRef.current = requestAnimationFrame(pulseTick);
-              } else {
-                setVoidPulse(null);
-                setBeamHead(null);
-                setTrailSegments([]);
-                resolveAll();
-              }
+              if (p < 1) animFrameRef.current = requestAnimationFrame(voidTick);
+              else { setVoidPulse(null); opts.setHead(null); opts.setTrail([]); resolve(); }
             };
-            animFrameRef.current = requestAnimationFrame(pulseTick);
+            animFrameRef.current = requestAnimationFrame(voidTick);
           } else {
-            setBeamHead(null);
-            setTrailSegments([]);
-            resolveAll();
+            opts.setHead(null);
+            opts.setTrail([]);
+            resolve();
           }
         }
       };
       animFrameRef.current = requestAnimationFrame(tick);
+    });
+
+    // ── runPulse: detects Splitter forks and runs dual beams ──
+    const runPulse = (pulseSteps: typeof steps): Promise<void> => new Promise<void>(resolveAll => {
+      const forkIdx = pulseSteps.findIndex(s => s.type === 'splitter');
+      const hasABranch = pulseSteps.some(s => s.branchId === 'A');
+      const hasBBranch = pulseSteps.some(s => s.branchId === 'B');
+
+      // No fork: run single-path as before
+      if (forkIdx === -1 || !hasABranch || !hasBBranch) {
+        runLinearPath(pulseSteps, {
+          setHead: (h) => setBeamHeads(h ? [h] : []),
+          setTrail: setTrailSegments,
+        }).then(resolveAll);
+        return;
+      }
+
+      // Fork detected — split into pre-fork + two branches
+      const preForkSteps = pulseSteps.slice(0, forkIdx + 1); // up to and including splitter
+      const branchASteps = pulseSteps.filter(s => s.branchId === 'A');
+      const branchBSteps = pulseSteps.filter(s => s.branchId === 'B');
+
+      // Get Splitter center as the starting point for both branches
+      const forkPt = getPieceCenter(pulseSteps[forkIdx].pieceId);
+
+      // Phase 1: animate pre-fork path
+      runLinearPath(preForkSteps, {
+        setHead: (h) => setBeamHeads(h ? [h] : []),
+        setTrail: setTrailSegments,
+      }).then(() => {
+        if (!forkPt) { resolveAll(); return; }
+
+        // Prepend a synthetic step for the Splitter center so each branch
+        // starts its beam from the fork point.
+        const splitterStep = pulseSteps[forkIdx];
+        const aSteps = [splitterStep, ...branchASteps];
+        const bSteps = [splitterStep, ...branchBSteps];
+
+        // Phase 2: animate both branches simultaneously.
+        // Use branchTrails for the two branch polylines and beamHeads
+        // for the two head positions.
+        let headA: Pt | null = null;
+        let headB: Pt | null = null;
+        let trailA: { points: Pt[]; color: string }[] = [];
+        let trailB: { points: Pt[]; color: string }[] = [];
+
+        const syncHeads = () => {
+          const heads: Pt[] = [];
+          if (headA) heads.push(headA);
+          if (headB) heads.push(headB);
+          setBeamHeads(heads);
+          setBranchTrails([trailA, trailB]);
+        };
+
+        Promise.all([
+          runLinearPath(aSteps, {
+            setHead: (h) => { headA = h; syncHeads(); },
+            setTrail: (s) => { trailA = s; syncHeads(); },
+          }),
+          runLinearPath(bSteps, {
+            setHead: (h) => { headB = h; syncHeads(); },
+            setTrail: (s) => { trailB = s; syncHeads(); },
+          }),
+        ]).then(() => {
+          setBeamHeads([]);
+          setTrailSegments([]);
+          setBranchTrails([]);
+          resolveAll();
+        });
+      });
     });
 
     // PHASE 1 — CHARGE (300ms)
@@ -1034,8 +1135,9 @@ export default function GameplayScreen({ navigation }: Props) {
     }
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
-    setBeamHead(null);
+    setBeamHeads([]);
     setTrailSegments([]);
+    setBranchTrails([]);
     setVoidPulse(null);
     setLitWires(new Set());
     setFlashingPieces(new Map());
@@ -1299,6 +1401,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   />
                 </>
               )}
+              {/* Pre-fork trail segments */}
               {trailSegments.map((seg, i) => (
                 seg.points.length > 1 ? (
                   <Polyline
@@ -1312,12 +1415,28 @@ export default function GameplayScreen({ navigation }: Props) {
                   />
                 ) : null
               ))}
-              {beamHead && (
-                <>
-                  <Circle cx={beamHead.x} cy={beamHead.y} r={11} fill={beamHeadColor} opacity={0.25} />
-                  <Circle cx={beamHead.x} cy={beamHead.y} r={3.5} fill="white" opacity={0.95} />
-                </>
+              {/* Fork branch trail segments */}
+              {branchTrails.map((branch, bi) =>
+                branch.map((seg, si) => (
+                  seg.points.length > 1 ? (
+                    <Polyline
+                      key={`br-${bi}-${si}`}
+                      points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke={seg.color}
+                      strokeWidth={si === branch.length - 1 ? 2.5 : 2}
+                      strokeLinecap="round"
+                      opacity={si === branch.length - 1 ? 0.72 : 0.45}
+                    />
+                  ) : null
+                )),
               )}
+              {beamHeads.map((bh, bi) => (
+                <G key={`bh-${bi}`}>
+                  <Circle cx={bh.x} cy={bh.y} r={11} fill={beamHeadColor} opacity={0.25} />
+                  <Circle cx={bh.x} cy={bh.y} r={3.5} fill="white" opacity={0.95} />
+                </G>
+              ))}
               {voidPulse && (
                 <Circle
                   cx={voidPulse.x} cy={voidPulse.y} r={voidPulse.r}

@@ -296,4 +296,5 @@ export type ExecutionStep = {
   timestamp: number;
   success: boolean;
   message?: string;
+  branchId?: string;
 };
