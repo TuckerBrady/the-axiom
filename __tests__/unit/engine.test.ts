@@ -284,6 +284,73 @@ describe('executeMachine advanced', () => {
   });
 });
 
+// ─── Latch, Merger, Bridge (Kepler pieces) ──────────────────────────────────
+
+describe('Kepler piece engine behavior', () => {
+  it('Latch write mode stores tape value across pulses', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('lt', 'latch', 1, 0, { latchMode: 'write' }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const state = makeState(pieces, { inputTape: [1, 0], outputTape: [-1, -1] });
+    executeMachine(state, 0);
+    const latch = state.pieces.find(p => p.type === 'latch');
+    expect(latch?.storedValue).toBe(1);
+    // Pulse 1
+    executeMachine(state, 1);
+    expect(latch?.storedValue).toBe(0);
+  });
+
+  it('Latch read mode outputs stored value', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('lt', 'latch', 1, 0, { latchMode: 'read', storedValue: 1 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces));
+    const ltStep = steps.find(s => s.type === 'latch');
+    expect(ltStep?.success).toBe(true);
+    expect(ltStep?.message).toContain('READ');
+  });
+
+  it('Latch read mode with null stored value blocks', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('lt', 'latch', 1, 0, { latchMode: 'read', storedValue: null }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces));
+    const ltStep = steps.find(s => s.type === 'latch');
+    expect(ltStep?.success).toBe(false);
+  });
+
+  it('Merger passes signal from left input', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 1, { isPrePlaced: true }),
+      makePiece('c', 'conveyor', 1, 1),
+      makePiece('m', 'merger', 2, 1),
+      makePiece('o', 'outputPort', 3, 1, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces));
+    expect(steps.some(s => s.type === 'merger')).toBe(true);
+    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+  });
+
+  it('Bridge passes signal through horizontal path', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('c1', 'conveyor', 1, 0),
+      makePiece('br', 'bridge', 2, 0),
+      makePiece('c2', 'conveyor', 3, 0),
+      makePiece('o', 'outputPort', 4, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces));
+    expect(steps.some(s => s.type === 'bridge')).toBe(true);
+    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+  });
+});
+
 // ─── calculateStars ──────────────────────────────────────────────────────────
 
 describe('calculateStars', () => {

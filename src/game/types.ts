@@ -129,6 +129,14 @@ export type LevelDefinition = {
   // levels leave both undefined.
   inputTape?: number[];
   expectedOutput?: number[];
+  // Documentation fields — not rendered in game. Used by level designers
+  // to verify each level teaches what it claims to teach.
+  computationalGoal?: string;
+  conceptTaught?: string;
+  prerequisiteConcept?: string;
+  tapeDesignRationale?: string;
+  difficultyBand?: 'intuitive' | 'derivable' | 'abstract' | 'hidden';
+  narrativeFrame?: string;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────
