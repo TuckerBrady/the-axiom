@@ -1,13 +1,17 @@
 name: CD
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [master]
 
 jobs:
   eas-update:
     name: EAS OTA Update
     runs-on: ubuntu-latest
+    # Only deploy if CI passed — never deploy a broken build.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,7 +38,7 @@ jobs:
   eas-build:
     name: EAS Build (on native changes)
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, '[build]')
+    if: ${{ github.event.workflow_run.conclusion == 'success' && contains(github.event.workflow_run.head_commit.message, '[build]') }}
     needs: eas-update
     steps:
       - name: Checkout

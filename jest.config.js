@@ -22,5 +22,12 @@ module.exports = {
     '!**/*.d.ts',
     '!**/node_modules/**',
   ],
-  coverageThreshold: undefined,
+  coverageThreshold: {
+    global: {
+      statements: 33,
+      branches: 24,
+      functions: 29,
+      lines: 33,
+    },
+  },
 };
