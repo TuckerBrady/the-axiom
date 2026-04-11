@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,8 @@ import {
   Dimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Svg, { Circle, Line } from 'react-native-svg';
-import type { PlacedPiece, PieceType } from '../../game/types';
+import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import type { PlacedPiece, PieceType, ExecutionStep } from '../../game/types';
 import { getDefaultPorts, autoConnectPhysicsPieces, executeMachine, getPieceCategory } from '../../game/engine';
 import { computeSplitterMagnets } from '../../store/gameStore';
 import { PieceIcon } from '../../components/PieceIcon';
@@ -53,7 +53,7 @@ const INITIAL_PIECES: PlacedPiece[] = [
 
 const TRAY: { type: PieceType; count: number }[] = [
   { type: 'inputPort', count: 1 },
-  { type: 'outputPort', count: 1 },
+  { type: 'outputPort', count: 4 },
   { type: 'conveyor', count: 8 },
   { type: 'gear', count: 4 },
   { type: 'splitter', count: 4 },
@@ -76,6 +76,13 @@ export default function PieceSandboxScreen() {
   const [pieces, setPieces] = useState<PlacedPiece[]>(computeSplitterMagnets([...INITIAL_PIECES]));
   const [selectedTray, setSelectedTray] = useState<PieceType | null>(null);
   const [executionResult, setExecutionResult] = useState<string | null>(null);
+
+  // Beam animation state
+  type Pt = { x: number; y: number };
+  const [beamTrail, setBeamTrail] = useState<Pt[]>([]);
+  const [beamHead, setBeamHead] = useState<Pt | null>(null);
+  const [beamColor, setBeamColor] = useState('#00D4FF');
+  const animFrameRef = useRef<number>(0);
 
   const wires = useMemo(() => autoConnectPhysicsPieces(pieces), [pieces]);
   const allPlaced = pieces;
@@ -129,6 +136,11 @@ export default function PieceSandboxScreen() {
   }, []);
 
   const handleEngage = useCallback(() => {
+    // Cancel any running animation
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    setBeamTrail([]);
+    setBeamHead(null);
+
     const state = {
       pieces,
       wires,
@@ -141,12 +153,95 @@ export default function PieceSandboxScreen() {
     };
     const steps = executeMachine(state);
     const success = steps.some(s => s.type === 'outputPort' && s.success);
-    setExecutionResult(success ? 'LOCKED' : 'VOID');
-    setTimeout(() => setExecutionResult(null), 2000);
+
+    // Build waypoints from ALL steps (pass or fail) so the beam always
+    // traces as far as the signal traveled.
+    const waypoints: Pt[] = [];
+    for (const stp of steps) {
+      if (stp.type === 'void' || stp.type === 'error') continue;
+      const pc = pieces.find(pp => pp.id === stp.pieceId);
+      if (pc) waypoints.push({ x: pc.gridX * CELL + CELL / 2, y: pc.gridY * CELL + CELL / 2 });
+    }
+
+    if (waypoints.length < 2) {
+      setExecutionResult(success ? 'LOCKED' : 'VOID');
+      setTimeout(() => setExecutionResult(null), 2000);
+      return;
+    }
+
+    // Compute cumulative path length
+    const dists: number[] = [0];
+    for (let i = 1; i < waypoints.length; i++) {
+      const dx = waypoints[i].x - waypoints[i - 1].x;
+      const dy = waypoints[i].y - waypoints[i - 1].y;
+      dists.push(dists[i - 1] + Math.sqrt(dx * dx + dy * dy));
+    }
+    const totalLen = dists[dists.length - 1];
+    const totalMs = Math.max(400, Math.min(2000, 600 * (totalLen / (CELL * 4))));
+    const endColor = success ? '#00C48C' : '#FF3B3B';
+
+    setBeamColor('#00D4FF');
+    const start = performance.now();
+
+    const tick = () => {
+      const elapsed = performance.now() - start;
+      const t = Math.min(1, elapsed / totalMs);
+      const d = t * totalLen;
+
+      // Find position along path at distance d
+      let head: Pt = waypoints[0];
+      for (let i = 1; i < waypoints.length; i++) {
+        if (d <= dists[i]) {
+          const segLen = dists[i] - dists[i - 1];
+          const segT = segLen > 0 ? (d - dists[i - 1]) / segLen : 0;
+          head = {
+            x: waypoints[i - 1].x + (waypoints[i].x - waypoints[i - 1].x) * segT,
+            y: waypoints[i - 1].y + (waypoints[i].y - waypoints[i - 1].y) * segT,
+          };
+          break;
+        }
+        head = waypoints[i];
+      }
+
+      // Build trail up to current position
+      const trail: Pt[] = [waypoints[0]];
+      for (let i = 1; i < waypoints.length; i++) {
+        if (d >= dists[i]) {
+          trail.push(waypoints[i]);
+        } else if (d > dists[i - 1]) {
+          trail.push(head);
+          break;
+        }
+      }
+
+      setBeamTrail(trail);
+      setBeamHead(head);
+
+      // Switch to end color in last 15% of animation
+      if (t > 0.85) setBeamColor(endColor);
+
+      if (t < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        // Hold the final state briefly then show result
+        setTimeout(() => {
+          setExecutionResult(success ? 'LOCKED' : 'VOID');
+          setTimeout(() => {
+            setBeamTrail([]);
+            setBeamHead(null);
+            setExecutionResult(null);
+          }, 1500);
+        }, 300);
+      }
+    };
+    animFrameRef.current = requestAnimationFrame(tick);
   }, [pieces, wires]);
 
   const handleReset = useCallback(() => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
     setPieces(computeSplitterMagnets([...INITIAL_PIECES]));
+    setBeamTrail([]);
+    setBeamHead(null);
     setExecutionResult(null);
     sandboxCounter = 0;
   }, []);
@@ -193,6 +288,24 @@ export default function PieceSandboxScreen() {
                 />
               );
             })}
+            {/* Beam trail */}
+            {beamTrail.length > 1 && (
+              <Polyline
+                points={beamTrail.map(p => `${p.x},${p.y}`).join(' ')}
+                fill="none"
+                stroke={beamColor}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                opacity={0.6}
+              />
+            )}
+            {/* Beam head */}
+            {beamHead && (
+              <>
+                <Circle cx={beamHead.x} cy={beamHead.y} r={8} fill={beamColor} opacity={0.25} />
+                <Circle cx={beamHead.x} cy={beamHead.y} r={3} fill="white" opacity={0.95} />
+              </>
+            )}
           </Svg>
 
           {/* Empty cell touch targets */}
