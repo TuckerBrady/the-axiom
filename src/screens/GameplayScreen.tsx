@@ -1399,6 +1399,7 @@ export default function GameplayScreen({ navigation }: Props) {
                       charging={activeAnimations.get(piece.id) === 'charging'}
                       failColor={failColors.get(piece.id) ?? null}
                       configValue={piece.type === 'configNode' ? piece.configValue : undefined}
+                      connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
                     />
                   </View>
                 </Pressable>

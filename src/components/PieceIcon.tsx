@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
-import Svg, { Circle, Line, Rect, Path, G, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Rect, Path, G, Text as SvgText, Ellipse } from 'react-native-svg';
 import { Colors } from '../theme/tokens';
 
 const AnimatedG = Animated.createAnimatedComponent(G);
@@ -8,6 +8,7 @@ const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 const AnimatedRect = Animated.createAnimatedComponent(Rect);
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
 
 // Normalize underscore IDs (Codex data) to camelCase (engine)
 function normalizeType(type: string): string {
@@ -39,6 +40,7 @@ interface Props {
   count?: number;
   configValue?: number;
   threshold?: number;
+  connectedMagnetSides?: string[];
 }
 
 /**
@@ -70,6 +72,7 @@ export function PieceIcon({
   count = 0,
   threshold = 2,
   configValue,
+  connectedMagnetSides,
 }: Props) {
   const type = normalizeType(rawType);
   const s = size;
@@ -89,6 +92,10 @@ export function PieceIcon({
   const invertFlash = useRef(new Animated.Value(0)).current;
   const counterPulse = useRef(new Animated.Value(0)).current;
   const latchPulse = useRef(new Animated.Value(0)).current;
+  // Splitter magnet positions (0 = retracted, 1 = extended)
+  const magnet0Ext = useRef(new Animated.Value(0)).current;
+  const magnet1Ext = useRef(new Animated.Value(0)).current;
+  const prevMagnetsRef = useRef<string[] | undefined>(undefined);
 
   useEffect(() => {
     if (spinning) {
@@ -232,6 +239,35 @@ export function PieceIcon({
     Animated.timing(latchPulse, { toValue: 1, duration: 180, useNativeDriver: false }).start();
   }, [latching, latchPulse]);
 
+  // Splitter magnet snap: animate magnets when connectedMagnetSides changes
+  useEffect(() => {
+    const prev = prevMagnetsRef.current;
+    const curr = connectedMagnetSides ?? [];
+    prevMagnetsRef.current = curr.length > 0 ? [...curr] : undefined;
+
+    // Magnet 0
+    const has0 = curr.length >= 1;
+    const had0 = prev ? prev.length >= 1 : false;
+    if (has0 && !had0) {
+      Animated.timing(magnet0Ext, { toValue: 1, duration: 150, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    } else if (!has0 && had0) {
+      Animated.timing(magnet0Ext, { toValue: 0, duration: 100, useNativeDriver: false }).start();
+    } else if (has0) {
+      magnet0Ext.setValue(1);
+    }
+
+    // Magnet 1
+    const has1 = curr.length >= 2;
+    const had1 = prev ? prev.length >= 2 : false;
+    if (has1 && !had1) {
+      Animated.timing(magnet1Ext, { toValue: 1, duration: 150, easing: Easing.out(Easing.cubic), useNativeDriver: false }).start();
+    } else if (!has1 && had1) {
+      Animated.timing(magnet1Ext, { toValue: 0, duration: 100, useNativeDriver: false }).start();
+    } else if (has1) {
+      magnet1Ext.setValue(1);
+    }
+  }, [connectedMagnetSides, magnet0Ext, magnet1Ext]);
+
   switch (type) {
     case 'conveyor':
       return (
@@ -328,18 +364,69 @@ export function PieceIcon({
 
     case 'splitter': {
       const juncR = splitPulse.interpolate({ inputRange: [0, 1], outputRange: [3, 4.2] });
+      const mags = connectedMagnetSides ?? [];
+      // Magnet layout lookup: extended pos, retracted pos
+      const magnetLayout: Record<string, { ex: number; ey: number; rx: number; ry: number; wx: number; wy: number }> = {
+        top:    { ex: 20, ey: 4,  rx: 20, ry: 14, wx: 20, wy: 16 },
+        bottom: { ex: 20, ey: 36, rx: 20, ry: 26, wx: 20, wy: 24 },
+        left:   { ex: 4,  ey: 20, rx: 14, ry: 20, wx: 16, wy: 20 },
+        right:  { ex: 36, ey: 20, rx: 26, ry: 20, wx: 24, wy: 20 },
+      };
+      // Default retracted positions for unconnected magnets: first uses top, second uses bottom
+      const defaultSides = ['top', 'bottom'];
+      const m0Side = mags[0] ?? defaultSides[0];
+      const m1Side = mags[1] ?? defaultSides[1];
+      const m0 = magnetLayout[m0Side];
+      const m1 = magnetLayout[m1Side];
+      const m0x = magnet0Ext.interpolate({ inputRange: [0, 1], outputRange: [m0.rx, m0.ex] });
+      const m0y = magnet0Ext.interpolate({ inputRange: [0, 1], outputRange: [m0.ry, m0.ey] });
+      const m1x = magnet1Ext.interpolate({ inputRange: [0, 1], outputRange: [m1.rx, m1.ex] });
+      const m1y = magnet1Ext.interpolate({ inputRange: [0, 1], outputRange: [m1.ry, m1.ey] });
+      const wireOp0 = magnet0Ext.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0.8] });
+      const wireOp1 = magnet1Ext.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0.8] });
+      const accentColor = color ?? Colors.copper;
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          {/* Main input path */}
-          <Rect x="6" y="17" width="16" height="6" rx="3" fill="#0e1f36" stroke={color ?? Colors.blue} strokeWidth="1.5" />
-          {/* Junction node */}
-          <AnimatedCircle cx="22" cy="20" r={juncR as unknown as number} fill="rgba(0,212,255,0.12)" stroke={Colors.blue} strokeWidth="1" />
-          {/* Upper output (bright blue) */}
-          <Rect x="24" y="8" width="12" height="6" rx="3" fill="#0e1f36" stroke="#00D4FF" strokeWidth="1.5" />
-          <Path d="M 22 20 L 28 11" stroke="#00D4FF" strokeWidth="1.5" strokeOpacity="0.7" />
-          {/* Lower output (green) */}
-          <Rect x="24" y="26" width="12" height="6" rx="3" fill="#0e1f36" stroke="#00C48C" strokeWidth="1.5" />
-          <Path d="M 22 20 L 28 29" stroke="#00C48C" strokeWidth="1.5" strokeOpacity="0.7" />
+          {/* Wire 0: center to magnet 0 */}
+          <AnimatedLine
+            x1={m0.wx} y1={m0.wy}
+            x2={m0x as unknown as number} y2={m0y as unknown as number}
+            stroke={splitting ? '#F0B429' : accentColor}
+            strokeWidth={1}
+            strokeOpacity={splitting ? 1 : (wireOp0 as unknown as number)}
+          />
+          {/* Wire 1: center to magnet 1 */}
+          <AnimatedLine
+            x1={m1.wx} y1={m1.wy}
+            x2={m1x as unknown as number} y2={m1y as unknown as number}
+            stroke={splitting ? '#F0B429' : accentColor}
+            strokeWidth={1}
+            strokeOpacity={splitting ? 1 : (wireOp1 as unknown as number)}
+          />
+          {/* Center node */}
+          <AnimatedCircle
+            cx="20" cy="20"
+            r={juncR as unknown as number}
+            fill="#0e1f36"
+            stroke={accentColor}
+            strokeWidth="1.5"
+          />
+          {/* Magnet 0 (oval) */}
+          <AnimatedEllipse
+            cx={m0x as unknown as number} cy={m0y as unknown as number}
+            rx="3" ry="2"
+            fill="#0e1f36"
+            stroke={accentColor}
+            strokeWidth="1.2"
+          />
+          {/* Magnet 1 (oval) */}
+          <AnimatedEllipse
+            cx={m1x as unknown as number} cy={m1y as unknown as number}
+            rx="3" ry="2"
+            fill="#0e1f36"
+            stroke={accentColor}
+            strokeWidth="1.2"
+          />
         </Svg>
       );
     }

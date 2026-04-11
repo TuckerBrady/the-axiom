@@ -227,6 +227,7 @@ export default function PieceSandboxScreen() {
                     size={iconSz}
                     color={clr}
                     configValue={piece.type === 'configNode' ? piece.configValue : undefined}
+                    connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
                     latchMode={piece.type === 'latch' ? piece.latchMode : undefined}
                     storedValue={piece.type === 'latch' ? piece.storedValue : undefined}
                     count={piece.type === 'counter' ? piece.count : undefined}
