@@ -36,8 +36,6 @@ export const useLivesStore = create<LivesState>((set, get) => ({
   credits: 500,
 
   loseLife: () => {
-    // Dev builds: lives system is disabled entirely. No-op.
-    if (__DEV__) return;
     const { lives } = get();
     if (lives <= 0) return;
     set({

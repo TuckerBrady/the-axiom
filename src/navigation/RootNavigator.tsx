@@ -25,6 +25,7 @@ import LoginScreen from '../screens/onboarding/LoginScreen';
 
 import PieceSandboxScreen from '../screens/dev/PieceSandboxScreen';
 import { Colors } from '../theme/tokens';
+import { useLivesStore } from '../store/livesStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useChallengeStore } from '../store/challengeStore';
 
@@ -77,6 +78,10 @@ export default function RootNavigator() {
   // ── Session tracking: write timestamp when app goes to background ──
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        // Regenerate lives when app returns to foreground
+        useLivesStore.getState().regenerate();
+      }
       if (state === 'background' || state === 'inactive') {
         AsyncStorage.setItem(SESSION_KEY, Date.now().toString());
       }

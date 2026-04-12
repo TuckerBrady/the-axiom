@@ -1913,11 +1913,6 @@ export default function GameplayScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.voidBtn}
                     onPress={() => {
-                      // Dev builds: skip the out-of-lives modal entirely.
-                      if (__DEV__) {
-                        handleReset();
-                        return;
-                      }
                       if (lives <= 0) {
                         setShowVoid(false);
                         setShowOutOfLives(true);
@@ -2163,13 +2158,6 @@ export default function GameplayScreen({ navigation }: Props) {
                   <TouchableOpacity
                     style={styles.pauseConfirmBtn}
                     onPress={() => {
-                      // Dev builds: abandon does not cost a life.
-                      if (__DEV__) {
-                        setShowAbandonConfirm(false);
-                        setShowPauseModal(false);
-                        navigation.pop(2);
-                        return;
-                      }
                       // Lives store: lives <= 1 means about to hit 0
                       if (lives <= 1) {
                         loseLife();

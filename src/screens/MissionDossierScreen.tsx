@@ -8,6 +8,7 @@ import {
   Animated,
   Easing,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +21,7 @@ import CogsAvatar, { CogsState } from '../components/CogsAvatar';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
+import { useLivesStore } from '../store/livesStore';
 import { getLevelById } from '../game/levels';
 
 type Props = {
@@ -104,6 +106,16 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
   const isLocked = nodeState === 'locked';
 
   const handleLaunch = () => {
+    // Check lives before launching
+    const { lives } = useLivesStore.getState();
+    if (lives <= 0) {
+      Alert.alert(
+        'No Lives Remaining',
+        'You are out of lives. Wait for regeneration or refill from the Hub.',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
     if (levelDef) {
       setLevel(levelDef);
     }
