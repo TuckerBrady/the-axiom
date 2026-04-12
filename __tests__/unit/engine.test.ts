@@ -61,27 +61,84 @@ describe('executeMachine', () => {
     expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
   });
 
-  it('Config Node gates on configValue match', () => {
+  it('Config Node passes when trail value matches configValue', () => {
     const pieces = [
       makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
       makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
     ];
-    // configuration=1 matches configValue=1 → passes
-    const steps = executeMachine(makeState(pieces, { configuration: 1 }));
+    // Trail has 1 at head position, configValue=1 → passes
+    const steps = executeMachine(makeState(pieces, {
+      dataTrail: { cells: [1, 0, 0, 0], headPosition: 0 },
+    }));
     expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
   });
 
-  it('Config Node blocks on configValue mismatch', () => {
+  it('Config Node blocks when trail value mismatches configValue', () => {
     const pieces = [
       makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
       makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
     ];
-    // configuration=0 does not match configValue=1 → blocks
-    const steps = executeMachine(makeState(pieces, { configuration: 0 }));
+    // Trail has 0 at head position, configValue=1 → blocks
+    const steps = executeMachine(makeState(pieces, {
+      dataTrail: { cells: [0, 0, 0, 0], headPosition: 0 },
+    }));
     const cnStep = steps.find(s => s.type === 'configNode');
     expect(cnStep?.success).toBe(false);
+  });
+
+  it('Config Node: configValue=1, tapeValue=1 → passes', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1] }), 0);
+    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+  });
+
+  it('Config Node: configValue=0, tapeValue=0 → passes', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 0 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1] }), 0);
+    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+  });
+
+  it('Config Node: configValue=1, tapeValue=0 → blocks', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1] }), 0);
+    const cnStep = steps.find(s => s.type === 'configNode');
+    expect(cnStep?.success).toBe(false);
+  });
+
+  it('Config Node: configValue=0, tapeValue=1 → blocks', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 0 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1] }), 0);
+    const cnStep = steps.find(s => s.type === 'configNode');
+    expect(cnStep?.success).toBe(false);
+  });
+
+  it('Config Node passes by default with empty trail and no tape', () => {
+    const pieces = [
+      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
+      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+    ];
+    // No tape, empty trail → fallback matches nodeValue → passes
+    const steps = executeMachine(makeState(pieces));
+    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
   });
 
   it('Splitter with 2 magnets forks to both outputs', () => {

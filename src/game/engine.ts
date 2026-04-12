@@ -310,7 +310,21 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'configNode': {
         const nodeValue = piece.configValue ?? 1;
-        const trailValue = tapeValue !== undefined ? tapeValue : configuration;
+        // Resolve the value to gate against:
+        // 1. Tape-enabled levels: use the current pulse tape value.
+        // 2. Non-tape levels: read the Data Trail at the current head
+        //    position. This replaces the old global configuration toggle.
+        let trailValue: number;
+        if (tapeValue !== undefined) {
+          trailValue = tapeValue;
+        } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
+          trailValue = trail.cells[trail.headPosition];
+        } else {
+          // No tape, no trail data — fall back to matching nodeValue
+          // so the gate passes by default (backward compat for levels
+          // with empty trails and no tape).
+          trailValue = nodeValue;
+        }
         const passes = trailValue === nodeValue;
         if (!passes) {
           step.success = false;
