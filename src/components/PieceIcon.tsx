@@ -432,30 +432,33 @@ export function PieceIcon({
     }
 
     case 'configNode': {
+      // Amber state-driven: dim when configValue=0, amber when configValue=1
+      const isActive = (configValue ?? 1) === 1;
+      const baseColor = isActive ? Colors.amber : Colors.dim;
       const gateFill = gating
         ? (gateResult === 'block' ? '#FF3B3B' : '#00C48C')
-        : '#8B5CF6';
+        : baseColor;
       const gateOp = gatePulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
       const dotFill = gating
         ? (gateResult === 'block' ? '#FF3B3B' : '#00C48C')
-        : '#8B5CF6';
+        : baseColor;
       const valStr = (configValue ?? 1).toString();
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Rect x="8" y="8" width="24" height="24" rx="5" fill="#0e1f36" stroke={color ?? '#8B5CF6'} strokeWidth="1.5" />
+          <Rect x="8" y="8" width="24" height="24" rx="5" fill="#0e1f36" stroke={color ?? baseColor} strokeWidth="1.5" />
           {/* Gate indicator strip top-right */}
-          <AnimatedRect x="28" y="8" width="4" height="24" fill={gateFill} opacity={gating ? (gateOp as unknown as number) : 0.6} />
+          <AnimatedRect x="28" y="8" width="4" height="24" fill={gateFill} opacity={gating ? (gateOp as unknown as number) : (isActive ? 0.6 : 0.25)} />
           {/* Data rows */}
-          <Line x1="14" y1="16" x2="26" y2="16" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
-          <Line x1="14" y1="20" x2="22" y2="20" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
-          <Line x1="14" y1="24" x2="24" y2="24" stroke="#8B5CF6" strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="16" x2="26" y2="16" stroke={baseColor} strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="20" x2="22" y2="20" stroke={baseColor} strokeWidth="1.5" strokeOpacity="0.35" />
+          <Line x1="14" y1="24" x2="24" y2="24" stroke={baseColor} strokeWidth="1.5" strokeOpacity="0.35" />
           <Circle cx="26" cy="20" r="2" fill={dotFill} />
           {/* Corner accents */}
-          <Path d="M 8 8 L 11 8 M 8 8 L 8 11" stroke="#8B5CF6" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
-          <Path d="M 32 32 L 29 32 M 32 32 L 32 29" stroke="#8B5CF6" strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+          <Path d="M 8 8 L 11 8 M 8 8 L 8 11" stroke={baseColor} strokeWidth="1" opacity="0.3" strokeLinecap="round" />
+          <Path d="M 32 32 L 29 32 M 32 32 L 32 29" stroke={baseColor} strokeWidth="1" opacity="0.3" strokeLinecap="round" />
           {/* Value badge bottom-right */}
-          <Rect x="27" y="27" width="12" height="12" rx="4" fill="rgba(139,92,246,0.2)" stroke="#8B5CF6" strokeWidth="0.8" />
-          <SvgText x="33" y="36" fill="#8B5CF6" fontSize="8" fontFamily="monospace" textAnchor="middle">{valStr}</SvgText>
+          <Rect x="27" y="27" width="12" height="12" rx="4" fill={isActive ? 'rgba(240,180,41,0.2)' : 'rgba(58,80,112,0.15)'} stroke={baseColor} strokeWidth="0.8" />
+          <SvgText x="33" y="36" fill={baseColor} fontSize="8" fontFamily="monospace" textAnchor="middle">{valStr}</SvgText>
         </Svg>
       );
     }

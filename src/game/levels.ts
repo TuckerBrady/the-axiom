@@ -293,9 +293,8 @@ export const levelA1_5: LevelDefinition = {
   prePlacedPieces: [
     prePlaced('inputPort', 1, 2),
     prePlaced('outputPort', 7, 2),
-    prePlaced('scanner', 4, 2),
   ],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'configNode'],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'configNode', 'scanner'],
   dataTrail: { cells: [1, 1, 1, 1, 1, 1, 1, 1], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0],
   expectedOutput: [1, 0, 1, 1, 0],
@@ -346,7 +345,7 @@ export const levelA1_5: LevelDefinition = {
     {
       id: 'scanner-collect',
       label: 'SCANNER',
-      targetRef: 'boardScanner',
+      targetRef: 'trayScanner',
       eyeState: 'amber',
       message: 'A piece that reads. I have opinions about pieces that read. Logging it first.',
       codexEntryId: 'scanner',

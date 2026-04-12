@@ -1273,6 +1273,9 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
+            {/* OUT tape only renders when the level has a Transmitter (introduced A1-7) */}
+            {(level.availablePieces.includes('transmitter') ||
+              level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel}>OUT</Text>
               <View style={styles.tapeCells}>
@@ -1307,6 +1310,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
+            )}
             {/* Data Trail strip (inside tape section for tape levels) */}
             {level.dataTrail.cells.length > 0 && (
               <View style={styles.tapeRow}>
