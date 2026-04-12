@@ -272,6 +272,47 @@ describe('consequenceStore', () => {
     expect(useConsequenceStore.getState().acknowledgedEffects).toContain('test effect');
   });
 
+  it('addWearPoint increments wear', () => {
+    useConsequenceStore.setState({ wearPoints: 0 });
+    useConsequenceStore.getState().addWearPoint();
+    expect(useConsequenceStore.getState().wearPoints).toBe(1);
+  });
+
+  it('addWearPoint caps at 20', () => {
+    useConsequenceStore.setState({ wearPoints: 20 });
+    useConsequenceStore.getState().addWearPoint();
+    expect(useConsequenceStore.getState().wearPoints).toBe(20);
+  });
+
+  it('removeWearPoints decrements', () => {
+    useConsequenceStore.setState({ wearPoints: 10 });
+    useConsequenceStore.getState().removeWearPoints(5);
+    expect(useConsequenceStore.getState().wearPoints).toBe(5);
+  });
+
+  it('removeWearPoints floors at 0', () => {
+    useConsequenceStore.setState({ wearPoints: 3 });
+    useConsequenceStore.getState().removeWearPoints(10);
+    expect(useConsequenceStore.getState().wearPoints).toBe(0);
+  });
+
+  it('getWearLevel returns correct thresholds', () => {
+    useConsequenceStore.setState({ wearPoints: 0 });
+    expect(useConsequenceStore.getState().getWearLevel()).toBe('pristine');
+
+    useConsequenceStore.setState({ wearPoints: 3 });
+    expect(useConsequenceStore.getState().getWearLevel()).toBe('scuffed');
+
+    useConsequenceStore.setState({ wearPoints: 8 });
+    expect(useConsequenceStore.getState().getWearLevel()).toBe('battered');
+
+    useConsequenceStore.setState({ wearPoints: 15 });
+    expect(useConsequenceStore.getState().getWearLevel()).toBe('rough');
+
+    useConsequenceStore.setState({ wearPoints: 20 });
+    expect(useConsequenceStore.getState().getWearLevel()).toBe('critical');
+  });
+
   it('getActiveSectorModifiers filters by sectorId', () => {
     useConsequenceStore.getState().applyConsequence(KEPLER_BOSS_CONSEQUENCE);
     useConsequenceStore.getState().applyConsequence(DEEP_VOID_BOSS_CONSEQUENCE);

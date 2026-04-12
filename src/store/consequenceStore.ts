@@ -4,12 +4,17 @@ import { useEconomyStore } from './economyStore';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export type WearLevel = 'pristine' | 'scuffed' | 'battered' | 'rough' | 'critical';
+
+const MAX_WEAR = 20;
+
 interface ConsequenceState {
   activeConsequences: NarrativeConsequence[];
   damagedSystems: string[];  // ShipSystem ids currently damaged by consequences
   cogsIntegrity: number;     // 0-100, starts at 100
   creditHistory: CreditTransaction[];
   acknowledgedEffects: string[]; // narrative effect descriptions player has dismissed
+  wearPoints: number;        // 0-20, hull wear from bounty failures
 
   // Actions
   applyConsequence: (consequence: NarrativeConsequence) => void;
@@ -20,6 +25,9 @@ interface ConsequenceState {
   acknowledgeEffect: (description: string) => void;
   getActiveSectorModifiers: (sectorId: string) => NarrativeConsequence[];
   isDamaged: (system: string) => boolean;
+  addWearPoint: () => void;
+  removeWearPoints: (count: number) => void;
+  getWearLevel: () => WearLevel;
 }
 
 // ─── Store ───────────────────────────────────────────────────────────────────
@@ -30,6 +38,7 @@ export const useConsequenceStore = create<ConsequenceState>((set, get) => ({
   cogsIntegrity: 100,
   creditHistory: [],
   acknowledgedEffects: [],
+  wearPoints: 0,
 
   applyConsequence: (consequence) => {
     const state = get();
@@ -117,5 +126,22 @@ export const useConsequenceStore = create<ConsequenceState>((set, get) => ({
 
   isDamaged: (system) => {
     return get().damagedSystems.includes(system);
+  },
+
+  addWearPoint: () => {
+    set(s => ({ wearPoints: Math.min(MAX_WEAR, s.wearPoints + 1) }));
+  },
+
+  removeWearPoints: (count) => {
+    set(s => ({ wearPoints: Math.max(0, s.wearPoints - count) }));
+  },
+
+  getWearLevel: () => {
+    const { wearPoints } = get();
+    if (wearPoints === 0) return 'pristine';
+    if (wearPoints <= 5) return 'scuffed';
+    if (wearPoints <= 12) return 'battered';
+    if (wearPoints < 20) return 'rough';
+    return 'critical';
   },
 }));
