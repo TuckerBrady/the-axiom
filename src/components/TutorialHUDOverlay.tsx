@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Animated,
   Easing,
   Dimensions,
@@ -230,7 +231,7 @@ export default function TutorialHUDOverlay({
 
   // ── Callout position ──
   const CALLOUT_W = Math.min(CALLOUT_MAX_W, SCREEN_W - CALLOUT_SIDE_PAD * 2);
-  const CALLOUT_H_EST = 140;
+  const CALLOUT_H_EST = 188;
 
   const calloutPos = useMemo((): { top: number; left: number } | null => {
     if (!targetLayout) return null;
@@ -280,18 +281,22 @@ export default function TutorialHUDOverlay({
     Animated.parallel([
       Animated.spring(orbX, {
         toValue: cx - ORB_SIZE / 2,
-        tension: 80,
+        tension: 100,
         friction: 12,
         useNativeDriver: false,
       }),
       Animated.spring(orbY, {
         toValue: cy - ORB_SIZE / 2,
-        tension: 80,
+        tension: 100,
         friction: 12,
         useNativeDriver: false,
       }),
     ]).start(() => done?.());
   }, [orbX, orbY]);
+
+  // ── Animated portal position (for board reveal) ──
+  const portalLeft = useRef(new Animated.Value(0)).current;
+  const portalTop = useRef(new Animated.Value(0)).current;
 
   // ── Morph portal in ──
   const morphPortalIn = useCallback((box: { width: number; height: number }, done?: () => void) => {
@@ -301,35 +306,57 @@ export default function TutorialHUDOverlay({
     Animated.parallel([
       Animated.timing(portalW, {
         toValue: box.width,
-        duration: 300,
+        duration: 180,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }),
       Animated.timing(portalH, {
         toValue: box.height,
-        duration: 300,
+        duration: 180,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }),
       Animated.timing(portalOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 180,
         useNativeDriver: false,
       }),
     ]).start(() => {
       Animated.timing(glowOpacity, {
         toValue: 0.25,
-        duration: 200,
+        duration: 120,
         useNativeDriver: false,
       }).start();
       Animated.timing(calloutOpacity, {
         toValue: 1,
-        duration: 200,
+        duration: 120,
         useNativeDriver: false,
       }).start();
       done?.();
     });
   }, [portalW, portalH, portalOpacity, glowOpacity, calloutOpacity]);
+
+  // ── Board reveal: expand from orb center to full board ──
+  const morphBoardReveal = useCallback((box: { left: number; top: number; width: number; height: number }, done?: () => void) => {
+    // Start portal at current orb position (small, centered on orb)
+    portalLeft.setValue(SCREEN_W / 2 - 12);
+    portalTop.setValue(SCREEN_H / 3);
+    portalW.setValue(0);
+    portalH.setValue(0);
+    portalOpacity.setValue(0);
+
+    const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
+    Animated.parallel([
+      Animated.timing(portalLeft, { toValue: box.left, duration: 400, easing: ease, useNativeDriver: false }),
+      Animated.timing(portalTop, { toValue: box.top, duration: 400, easing: ease, useNativeDriver: false }),
+      Animated.timing(portalW, { toValue: box.width, duration: 400, easing: ease, useNativeDriver: false }),
+      Animated.timing(portalH, { toValue: box.height, duration: 400, easing: ease, useNativeDriver: false }),
+      Animated.timing(portalOpacity, { toValue: 1, duration: 400, useNativeDriver: false }),
+    ]).start(() => {
+      Animated.timing(calloutOpacity, { toValue: 1, duration: 120, useNativeDriver: false }).start();
+      done?.();
+    });
+  }, [portalLeft, portalTop, portalW, portalH, portalOpacity, calloutOpacity]);
 
   // ── Advance to the current step's target ──
   const runStep = useCallback((idx: number) => {
@@ -362,7 +389,11 @@ export default function TutorialHUDOverlay({
       flyOrbTo(centerX, centerY, () => {
         setPhase('arrived');
         if (box) {
-          morphPortalIn({ width: box.width, height: box.height });
+          if (s.targetRef === 'boardGrid') {
+            morphBoardReveal(box);
+          } else {
+            morphPortalIn({ width: box.width, height: box.height });
+          }
         } else {
           // Center step: no portal. Just fade callout in.
           Animated.timing(calloutOpacity, {
@@ -373,7 +404,7 @@ export default function TutorialHUDOverlay({
         }
       });
     });
-  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, calloutOpacity]);
+  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
@@ -494,6 +525,15 @@ export default function TutorialHUDOverlay({
     });
   }, [codexTranslate, advanceStep]);
 
+  // Tap anywhere to advance (except during codex or on last step)
+  const handleTapAnywhere = useCallback(() => {
+    if (phase !== 'arrived') return;
+    if (codexVisible) return;
+    if (isLastStep) return;
+    if (step?.codexEntryId) return; // codex steps require SHOW ME
+    advanceStep();
+  }, [phase, codexVisible, isLastStep, step, advanceStep]);
+
   if (!hydrated || !step) return null;
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
@@ -554,11 +594,13 @@ export default function TutorialHUDOverlay({
       pointerEvents="box-none"
       style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
     >
-      {/* Dim backdrop */}
-      <Animated.View
-        pointerEvents="auto"
-        style={[st.dim, { opacity: dimOpacity }]}
-      />
+      {/* Dim backdrop — tap anywhere to advance */}
+      <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill}>
+        <Animated.View
+          pointerEvents="none"
+          style={[st.dim, { opacity: dimOpacity }]}
+        />
+      </Pressable>
 
       {/* Portal (rendered when arrived/codex and not center) */}
       {phase !== 'flying' && phase !== 'idle' && portalBox && (
@@ -566,8 +608,8 @@ export default function TutorialHUDOverlay({
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: portalBox.left,
-            top: portalBox.top,
+            left: isBoardStep ? portalLeft : portalBox.left,
+            top: isBoardStep ? portalTop : portalBox.top,
             width: portalW,
             height: portalH,
             opacity: portalOpacity,
@@ -578,11 +620,11 @@ export default function TutorialHUDOverlay({
             zIndex: 150,
           }}
         >
-          {/* Corner brackets */}
-          <View style={[st.corner, { top: -1, left: -1, borderTopWidth: 2, borderLeftWidth: 2, borderTopLeftRadius: 3 }]} />
-          <View style={[st.corner, { top: -1, right: -1, borderTopWidth: 2, borderRightWidth: 2, borderTopRightRadius: 3 }]} />
-          <View style={[st.corner, { bottom: -1, left: -1, borderBottomWidth: 2, borderLeftWidth: 2, borderBottomLeftRadius: 3 }]} />
-          <View style={[st.corner, { bottom: -1, right: -1, borderBottomWidth: 2, borderRightWidth: 2, borderBottomRightRadius: 3 }]} />
+          {/* Corner brackets — precision targeting brackets */}
+          <Animated.View style={[st.corner, { top: -3, left: -3, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { top: -3, right: -3, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { bottom: -3, left: -3, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { bottom: -3, right: -3, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
         </Animated.View>
       )}
 
@@ -849,8 +891,8 @@ const st = StyleSheet.create({
   },
   corner: {
     position: 'absolute',
-    width: 12,
-    height: 12,
+    width: 16,
+    height: 16,
     borderColor: '#F0B429',
   },
   label: {

@@ -2568,7 +2568,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   partsTrayInner: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     gap: 8,
     alignItems: 'center',
   },
