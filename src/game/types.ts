@@ -13,7 +13,8 @@ export type PieceType =
   | 'bridge'
   | 'inverter'
   | 'counter'
-  | 'latch';
+  | 'latch'
+  | 'obstacle';
 
 export type PieceCategory = 'physics' | 'protocol';
 

@@ -127,16 +127,19 @@ Fix: Scanner must write dynamically to Data Trail each pulse.
   Config Nodes read live values. Tape tests both gate states.
 
 A1-7 — Weapons Lock
-Current failure: Tape may not adequately test Transmitter-
-  before-Config-Node sequencing requirement.
-Computational goal: "Transmitter writes the authorization
-  value before the Config Node checks it — placement order
-  determines execution order."
-Concept taught: Write-before-read. Transmitter must precede
-  the Config Node it is conditioning.
-Fix: Tape must include pulses where Transmitter write timing
-  is critical. Machine with Transmitter after Config Node
-  should fail on specific pulse values.
+Current failure: Tape may not adequately test the full
+  three-layer pipeline sequencing.
+Computational goal: "The Transmitter captures the gated result
+  on the output tape. It must be downstream of the Config Node.
+  If signal is blocked, the Transmitter has nothing to write.
+  The first complete three-layer pipeline: Scanner reads, Config
+  Node gates, Transmitter records."
+Concept taught: The Transmitter writes to the output tape, not
+  the Data Trail. Placement order is execution order. Scanner
+  before Config Node before Transmitter.
+Fix: Tape must include pulses that exercise both gate-open and
+  gate-block states. The output tape must reflect the gated
+  result for each pulse.
 
 A1-8 — Bridge Systems
 Current failure: Minimal. Tape should more fully exercise

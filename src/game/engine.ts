@@ -52,6 +52,8 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
       if (!magnets || magnets.length === 0) return ALL;
       return ALL.filter(s => !magnets.includes(s));
     }
+    case 'obstacle':
+      return [];                              // Impassable terrain — no input
     case 'inputPort':
       return [];                              // Source has no input
     case 'merger':
@@ -88,6 +90,8 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
       if (mags && mags.length >= 2) return [mags[0], mags[1]];
       return [];
     }
+    case 'obstacle':
+      return [];                              // Impassable terrain — no output
     case 'outputPort':
       return [];                              // Output has no output
     case 'merger':
@@ -476,6 +480,7 @@ export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['catego
     case 'splitter':
     case 'merger':
     case 'bridge':
+    case 'obstacle':
       return 'physics';
     case 'configNode':
     case 'scanner':

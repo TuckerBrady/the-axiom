@@ -83,6 +83,7 @@ const PIECE_LABELS: Record<PieceType, string> = {
   inverter: 'INV',
   counter: 'CNT',
   latch: 'LATCH',
+  obstacle: '',
 };
 
 function getPieceColor(type: PieceType): string {
@@ -1306,6 +1307,27 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
+            {/* Data Trail strip (inside tape section for tape levels) */}
+            {level.dataTrail.cells.length > 0 && (
+              <View style={styles.tapeRow}>
+                <Text style={styles.tapeLabel}>TRAIL</Text>
+                <View style={styles.tapeCells}>
+                  {machineState.dataTrail.cells.map((cell, i) => {
+                    const isHead = i === machineState.dataTrail.headPosition;
+                    return (
+                      <View key={`trail-${i}`} style={styles.tapeCellWrap}>
+                        <View style={[styles.tapeHead, { opacity: 0 }]} />
+                        <View style={[styles.tapeCell, isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' }]}>
+                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }]}>
+                            {cell}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
         )}
 
@@ -1575,8 +1597,8 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── Data Trail Strip ── */}
-        {level.dataTrail.cells.length > 0 && (
+        {/* ── Data Trail Strip (non-tape levels only, below board) ── */}
+        {!level.inputTape && level.dataTrail.cells.length > 0 && (
           <View style={styles.dataTrailStrip}>
             <Text style={styles.dataTrailLabel}>DATA TRAIL</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dataTrailScroll}>
@@ -2558,7 +2580,7 @@ const styles = StyleSheet.create({
   dataTrailCellText: {
     fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted,
   },
-  dataTrailCellTextHead: { color: Colors.amber, fontWeight: 'bold' },
+  dataTrailCellTextHead: { color: Colors.neonGreen, fontWeight: 'bold' },
 
   // Parts tray
   partsTray: {
@@ -2898,9 +2920,9 @@ const styles = StyleSheet.create({
   tapeLabel: {
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
-    color: '#1A3050',
+    color: Colors.muted,
     letterSpacing: 1,
-    width: 24,
+    width: 32,
   },
   tapeCells: {
     flexDirection: 'row',
@@ -2926,8 +2948,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tapeCellActive: {
-    borderColor: '#8B5CF6',
-    backgroundColor: 'rgba(139,92,246,0.1)',
+    borderColor: Colors.neonCyan,
+    backgroundColor: 'rgba(0,229,255,0.1)',
   },
   tapeCellPast: {
     borderColor: 'rgba(139,92,246,0.3)',
@@ -2943,16 +2965,17 @@ const styles = StyleSheet.create({
   tapeCellText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
-    color: '#1A3050',
+    color: Colors.neonCyan,
   },
   tapeCellTextActive: {
-    color: '#8B5CF6',
+    color: Colors.neonCyan,
+    fontWeight: 'bold' as const,
   },
   tapeCellTextPast: {
-    color: 'rgba(139,92,246,0.3)',
+    color: 'rgba(0,229,255,0.4)',
   },
   tapeCellTextCorrect: {
-    color: '#00C48C',
+    color: Colors.neonYellow,
   },
   tapeCellTextWrong: {
     color: '#FF3B3B',

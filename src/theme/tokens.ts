@@ -22,6 +22,9 @@ export const Colors = {
   blue: '#4a9eff',
   red: '#e05555',
   circuit: '#a78bfa',
+  neonCyan: '#00E5FF',
+  neonGreen: '#00FF87',
+  neonYellow: '#FFE000',
 }
 
 export const Fonts = {

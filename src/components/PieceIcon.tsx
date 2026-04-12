@@ -594,6 +594,13 @@ export function PieceIcon({
       );
     }
 
+    case 'obstacle':
+      return (
+        <Svg width={s} height={s} viewBox="0 0 40 40">
+          <Rect x="4" y="4" width="32" height="32" rx="4" fill={Colors.steel} fillOpacity="0.3" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.3" />
+        </Svg>
+      );
+
     default:
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
