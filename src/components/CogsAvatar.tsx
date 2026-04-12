@@ -24,6 +24,7 @@ import { Colors } from '../theme/tokens';
 // ─── Animated SVG primitives ───────────────────────────────────────────────────
 
 const AnimatedCircle = createAnimatedComponent(Circle);
+const AnimatedRect = createAnimatedComponent(Rect);
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -237,6 +238,45 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
     opacity: reactorRing.value,
   }));
 
+  // Limb (arm + leg) glow — same cycle as reactor but dimmer (0.6x)
+  const limbPulse = useSharedValue(0.36);
+  useEffect(() => {
+    if (isOnline || isEngaged) {
+      limbPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.6, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.3, { duration: 1200, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else if (isGreen) {
+      limbPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.48, { duration: 1250, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.21, { duration: 1250, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else if (isDark) {
+      limbPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.11, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+          withTiming(0.05, { duration: 1500, easing: Easing.inOut(Easing.sin) }),
+        ),
+        -1,
+        false,
+      );
+    } else {
+      limbPulse.value = isDamaged ? 0.18 : 0.3;
+    }
+  }, [state]);
+
+  const limbGlowProps = useAnimatedProps(() => ({
+    opacity: limbPulse.value,
+  }));
+
   // Engaged — container slight tilt
   const tiltStyle = useAnimatedStyle(() => ({
     transform: isEngaged ? [{ rotate: '-4deg' }] : [],
@@ -392,18 +432,36 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
           x="0" y={leftArmY} width="14" height="32"
           rx="5" ry="5"
           fill="#0e1f36"
-          stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.5"
+          stroke={chassisStroke} strokeWidth={chassisStrokeWidth} strokeOpacity={bodyStrokeOpacity}
         />
-        <Circle cx="7" cy={leftArmY + 32} r="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
+        {/* Left arm glow overlay */}
+        <AnimatedRect
+          x="0" y={leftArmY} width="14" height="32"
+          rx="5" ry="5"
+          fill={reactorColor}
+          animatedProps={limbGlowProps}
+        />
+        <Circle cx="7" cy={leftArmY + 32} r="4" fill="#0a1628" stroke={chassisStroke} strokeWidth="1" strokeOpacity={bodyStrokeOpacity} />
 
         {/* ── Right arm ── */}
         <Rect x="86" y="74" width="14" height="32" rx="5" ry="5"
-          fill="#0e1f36" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.5" />
-        <Circle cx="93" cy="110" r="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
+          fill="#0e1f36" stroke={chassisStroke} strokeWidth={chassisStrokeWidth} strokeOpacity={bodyStrokeOpacity} />
+        {/* Right arm glow overlay */}
+        <AnimatedRect
+          x="86" y="74" width="14" height="32"
+          rx="5" ry="5"
+          fill={reactorColor}
+          animatedProps={limbGlowProps}
+        />
+        <Circle cx="93" cy="110" r="4" fill="#0a1628" stroke={chassisStroke} strokeWidth="1" strokeOpacity={bodyStrokeOpacity} />
 
         {/* ── Legs ── */}
-        <Rect x="22" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
-        <Rect x="56" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
+        <Rect x="22" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={chassisStroke} strokeWidth={chassisStrokeWidth} strokeOpacity={bodyStrokeOpacity} />
+        {/* Left leg glow */}
+        <AnimatedRect x="22" y="118" width="22" height="12" rx="4" fill={reactorColor} animatedProps={limbGlowProps} />
+        <Rect x="56" y="118" width="22" height="12" rx="4" fill="#0a1628" stroke={chassisStroke} strokeWidth={chassisStrokeWidth} strokeOpacity={bodyStrokeOpacity} />
+        {/* Right leg glow */}
+        <AnimatedRect x="56" y="118" width="22" height="12" rx="4" fill={reactorColor} animatedProps={limbGlowProps} />
 
       </Svg>
     </Animated.View>
