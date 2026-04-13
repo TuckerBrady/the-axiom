@@ -44,14 +44,24 @@ executes.
 
 ## CURRENT BUILD STATE
 
-**Last completed sprint:** Sprint 17 (17A + 17B + 17C all complete). Most recent commit: 961d8c3.
+**Last completed sprint:** Sprint 19 (Non-linear redesign, Daily Challenge tapes, bible compliance). Most recent commit: c580529.
 
 **What is live and working:**
 
 - Config Node redesign: configValue (0/1) per piece, tap
-  cycles value, always Protocol purple (#8B5CF6), 0/1 badge
-  bottom-right, engine uses configValue not condition
+  cycles value, amber state-driven color (dim at 0, amber at 1),
+  0/1 badge bottom-right, engine uses configValue not condition
   function, CONFIGURATION header removed from gameplay.
+- Non-linear board layouts for all 8 Axiom levels: ports inset
+  from edges, zigzag paths, vertical/L/Z-shape routing.
+- Template fields (computationalGoal, conceptTaught, etc.) on
+  all 8 Axiom levels and all 10 Kepler levels.
+- Dashed connection lines on all levels (not just tutorial).
+  Placement highlights on tutorial levels only.
+- Daily Challenge tape generation for tape-interacting pieces.
+  Deterministic (seeded RNG). Difficulty-scaled tape lengths.
+- 10 Kepler Belt levels fully implemented with Latch, Merger,
+  Bridge. Consequence levels at K1-4, K1-8, K1-10.
 - Tap-to-rotate limited to Conveyor only (plumber model).
   Config Node tap cycles configValue. Latch tap toggles
   latchMode. All other pieces: no tap action.
@@ -211,19 +221,12 @@ executes.
 
 - HUD tutorial system complete across all 8 Axiom levels (A1-1
   through A1-8). Full PieceSimulation parity in CodexDetailView.
-- Grid sizing: pieces still feel small on phone. CELL_SIZE min
-  raised to 58. Level grid dimensions being tightened.
-- Kepler Belt levels not yet built (10 levels planned).
-- Five new pieces (Merger, Bridge, Inverter, Counter, Latch) not
-  yet assigned to any level tray — awaiting Kepler Belt build.
 - Wrong output results modal not yet implemented. Sprint 17B
   triggers existing void/fail state as a placeholder.
-- Gameplay canvas rendering bug (carried from before Sprint 17).
-- A1-5 through A1-8 require tape retrofit per Level Design
-  Framework Part 3 before Kepler Belt launches. Current tapes
-  are uniform pass-through and do not test the computational
-  rule of each level. See docs/LEVEL_DESIGN_FRAMEWORK.md for
-  specific retrofit guidance per level.
+- Daily Challenge tape generation added — verify all template
+  categories produce correct tapes.
+- Ship damage mechanic: wear tracking implemented, structural
+  damage blocked on Tucker design decisions (see blocker report).
 
 **Queued for next sprint (On the horizon):**
 
@@ -247,7 +250,7 @@ executes.
 | Conveyor | Physics | 5 CR | Single input/output. Directional. Straight only. |
 | Gear | Physics | 10 CR | Omnidirectional. The bend and corner piece. |
 | Splitter | Physics | 15 CR | One input, two outputs. |
-| Config Node | Protocol | 25 CR | Reads Data Trail at its position. Gates signal when Data Trail value matches configured value (0 or 1). Tap to cycle configValue. Always Protocol purple (#8B5CF6). |
+| Config Node | Protocol | 25 CR | Reads Data Trail at its position. Gates signal when Data Trail value matches configured value (0 or 1). Tap to cycle configValue. Amber state-driven: dim when 0, amber when 1. |
 | Scanner | Protocol | 30 CR | Reads Data Trail, sets Configuration value. |
 | Transmitter | Protocol | 35 CR | Writes to Data Trail. |
 | Navigator | Protocol | Legendary (Deep Void) | COGS-operated head controller. 3 modes: Single, Dual, Sync. |
