@@ -313,8 +313,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const playerPiecesUsed = machineState.pieces.filter(p => !p.isPrePlaced).length;
+    const totalTrayPieces = currentLevel?.availablePieces?.length ?? 0;
     const stars = succeeded && currentLevel
-      ? calculateStars(allSteps, playerPiecesUsed, currentLevel.optimalPieces)
+      ? calculateStars(allSteps, playerPiecesUsed, currentLevel.optimalPieces, totalTrayPieces)
       : 0;
 
     set({

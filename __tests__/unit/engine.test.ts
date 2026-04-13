@@ -414,19 +414,26 @@ describe('calculateStars', () => {
   const success = [{ pieceId: 'o', type: 'outputPort', timestamp: 0, success: true }];
   const fail = [{ pieceId: 'x', type: 'void', timestamp: 0, success: false }];
 
-  it('returns 0 stars on failure', () => {
-    expect(calculateStars(fail, 4, 4)).toBe(1);
+  it('returns 1 on failure (void display)', () => {
+    expect(calculateStars(fail, 4, 4, 8)).toBe(1);
   });
 
-  it('returns 3 stars when piecesUsed <= optimal', () => {
-    expect(calculateStars(success, 4, 4)).toBe(3);
+  it('returns 3 stars when using 75%+ of tray', () => {
+    // 6 of 8 tray pieces = 75%
+    expect(calculateStars(success, 6, 4, 8)).toBe(3);
   });
 
-  it('returns 2 stars when piecesUsed <= 2x optimal', () => {
-    expect(calculateStars(success, 7, 4)).toBe(2);
+  it('returns 2 stars when using 50-74% of tray', () => {
+    // 4 of 8 tray pieces = 50%
+    expect(calculateStars(success, 4, 4, 8)).toBe(2);
   });
 
-  it('returns 1 star when piecesUsed > 2x optimal', () => {
-    expect(calculateStars(success, 9, 4)).toBe(1);
+  it('returns 1 star when using < 50% of tray', () => {
+    // 2 of 8 tray pieces = 25%
+    expect(calculateStars(success, 2, 4, 8)).toBe(1);
+  });
+
+  it('returns 3 stars when all tray pieces used', () => {
+    expect(calculateStars(success, 8, 4, 8)).toBe(3);
   });
 });

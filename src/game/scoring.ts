@@ -19,80 +19,56 @@ function isProtocol(type: PieceType): boolean {
   return PROTOCOL_TYPES.includes(type);
 }
 
-// ─── Category 1: Efficiency (max 30) ─────────────────────────────────────────
+// ─── Category 1: Completion Bonus (max 25) ───────────────────────────────────
 
-function calcEfficiency(piecesUsed: number, optimal: number): number {
-  const over = piecesUsed - optimal;
-  if (over <= 0) return 30;
-  if (over === 1) return 24;
-  if (over === 2) return 18;
-  return 10;
+function calcCompletionBonus(succeeded: boolean): number {
+  return succeeded ? 25 : 0;
 }
 
-// ─── Category 2: Protocol Precision (max 25) ─────────────────────────────────
+// ─── Category 2: Machine Complexity (max 30) ─────────────────────────────────
+// Rewards using ALL tray pieces in a working machine.
+// "Active" means the piece was placed AND signal passed through it.
+
+function calcMachineComplexity(
+  steps: ExecutionStep[],
+  playerPieces: PlacedPiece[],
+  totalTrayPieces: number,
+): number {
+  if (totalTrayPieces <= 0) return 30; // No tray → full marks
+  const touchedIds = new Set(steps.filter(s => s.success).map(s => s.pieceId));
+  const activePieces = playerPieces.filter(p => touchedIds.has(p.id)).length;
+  return Math.round((activePieces / totalTrayPieces) * 30);
+}
+
+// ─── Category 3: Protocol Precision (max 20) ─────────────────────────────────
+// Percentage of Protocol pieces that were touched by signal.
 
 function calcProtocolPrecision(steps: ExecutionStep[]): number {
   const protocolTouched = steps.filter(
     s => s.success && PROTOCOL_TYPES.includes(s.type as PieceType),
   ).length;
-  if (protocolTouched >= 5) return 25;
-  if (protocolTouched >= 4) return 20;
-  if (protocolTouched >= 3) return 15;
-  if (protocolTouched >= 2) return 10;
-  if (protocolTouched >= 1) return 5;
+  if (protocolTouched >= 5) return 20;
+  if (protocolTouched >= 4) return 16;
+  if (protocolTouched >= 3) return 12;
+  if (protocolTouched >= 2) return 8;
+  if (protocolTouched >= 1) return 4;
   return 0;
 }
 
-// ─── Category 3: Chain Integrity (max 20) ────────────────────────────────────
+// ─── Category 4: Path Integrity (max 15) ─────────────────────────────────────
+// Percentage of ALL placed pieces that were touched by signal.
+// Rewards clean machines where every piece contributes.
 
-function calcChainIntegrity(steps: ExecutionStep[], playerPieces: PlacedPiece[]): number {
+function calcPathIntegrity(steps: ExecutionStep[], playerPieces: PlacedPiece[]): number {
+  if (playerPieces.length === 0) return 15;
   const touchedIds = new Set(steps.map(s => s.pieceId));
-  let score = 0;
-  for (const p of playerPieces) {
-    if (touchedIds.has(p.id)) {
-      score += 4;
-    } else {
-      score -= 2;
-    }
-  }
-  return Math.min(20, Math.max(0, score));
-}
-
-// ─── Category 4: Discipline Bonus (max 15) ───────────────────────────────────
-
-function calcDisciplineBonus(
-  steps: ExecutionStep[],
-  playerPieces: PlacedPiece[],
-  discipline: NonNullable<Discipline>,
-): number {
-  const touchedIds = new Set(steps.filter(s => s.success).map(s => s.pieceId));
-  const protocolTouched = steps.filter(s => s.success && isProtocol(s.type as PieceType)).length;
-  const physicsTouched = steps.filter(s => s.success && PHYSICS_TYPES.includes(s.type as PieceType)).length;
-  const playerPhysics = playerPieces.filter(p => PHYSICS_TYPES.includes(p.type));
-  const allPhysicsTouched = playerPhysics.every(p => touchedIds.has(p.id));
-  const typesUsed = new Set(playerPieces.map(p => p.type));
-
-  switch (discipline) {
-    case 'systems':
-      if (protocolTouched >= 2) return 15;
-      if (protocolTouched === 1) return 8;
-      return 0;
-    case 'drive':
-      if (playerPhysics.length >= 4 && allPhysicsTouched) return 15;
-      if (playerPhysics.length >= 2 && allPhysicsTouched) return 8;
-      return 0;
-    case 'field':
-      if (physicsTouched >= 1 && protocolTouched >= 1) return 15;
-      if (typesUsed.size >= 3) return 8;
-      return 0;
-  }
+  const touched = playerPieces.filter(p => touchedIds.has(p.id)).length;
+  return Math.round((touched / playerPieces.length) * 15);
 }
 
 // ─── Category 5: Speed Bonus (max 10) ────────────────────────────────────────
 
 function calcSpeedBonus(engageDurationMs: number, elapsedSeconds?: number): number {
-  // Prefer elapsed level time when provided (mount → engage). Falls back to
-  // engage execution duration for backward compatibility with existing tests.
   const seconds = elapsedSeconds && elapsedSeconds > 0 ? elapsedSeconds : engageDurationMs / 1000;
   if (seconds < 10) return 10;
   if (seconds <= 20) return 7;
@@ -103,11 +79,15 @@ function calcSpeedBonus(engageDurationMs: number, elapsedSeconds?: number): numb
 // ─── Main scoring function ───────────────────────────────────────────────────
 
 export interface ScoreBreakdown {
-  efficiency: number;
+  completionBonus: number;
+  machineComplexity: number;
   protocolPrecision: number;
+  pathIntegrity: number;
+  speedBonus: number;
+  // Legacy aliases for backward compatibility in UI
+  efficiency: number;
   chainIntegrity: number;
   disciplineBonus: number;
-  speedBonus: number;
 }
 
 export interface ScoreResult {
@@ -119,27 +99,42 @@ export interface ScoreResult {
 export function calculateScore(params: {
   executionSteps: ExecutionStep[];
   placedPieces: PlacedPiece[];
-  optimalPieces: number;
+  optimalPieces: number; // Reference only — not used in scoring. Scoring rewards using all tray pieces.
+  totalTrayPieces?: number;
   discipline: NonNullable<Discipline>;
   engageDurationMs: number;
   elapsedSeconds?: number;
+  succeeded?: boolean;
 }): ScoreResult {
-  const { executionSteps, placedPieces, optimalPieces, discipline, engageDurationMs, elapsedSeconds } = params;
+  const { executionSteps, placedPieces, totalTrayPieces, engageDurationMs, elapsedSeconds } = params;
+  const succeeded = params.succeeded ?? executionSteps.some(s => s.type === 'outputPort' && s.success);
 
   const playerPieces = placedPieces.filter(p => !p.isPrePlaced);
-  const efficiency = calcEfficiency(playerPieces.length, optimalPieces);
+  const trayTotal = totalTrayPieces ?? playerPieces.length; // fallback to placed count
+
+  const completionBonus = calcCompletionBonus(succeeded);
+  const machineComplexity = calcMachineComplexity(executionSteps, playerPieces, trayTotal);
   const protocolPrecision = calcProtocolPrecision(executionSteps);
-  const chainIntegrity = calcChainIntegrity(executionSteps, playerPieces);
-  const disciplineBonus = calcDisciplineBonus(executionSteps, playerPieces, discipline);
+  const pathIntegrity = calcPathIntegrity(executionSteps, playerPieces);
   const speedBonus = calcSpeedBonus(engageDurationMs, elapsedSeconds);
 
-  const total = efficiency + protocolPrecision + chainIntegrity + disciplineBonus + speedBonus;
+  const total = completionBonus + machineComplexity + protocolPrecision + pathIntegrity + speedBonus;
   const stars = starsFromTotal(total);
 
   return {
     total,
     stars,
-    breakdown: { efficiency, protocolPrecision, chainIntegrity, disciplineBonus, speedBonus },
+    breakdown: {
+      completionBonus,
+      machineComplexity,
+      protocolPrecision,
+      pathIntegrity,
+      speedBonus,
+      // Legacy aliases — map to closest new category
+      efficiency: completionBonus,
+      chainIntegrity: pathIntegrity,
+      disciplineBonus: machineComplexity,
+    },
   };
 }
 
@@ -191,57 +186,35 @@ export function getCOGSScoreComment(
   discipline: NonNullable<Discipline>,
   stars: 0 | 1 | 2 | 3,
   piecesUsed: number,
-  optimal: number,
+  totalTrayPieces: number,
 ): string {
-  const { efficiency, protocolPrecision, chainIntegrity, disciplineBonus, speedBonus } = breakdown;
-  const total = efficiency + protocolPrecision + chainIntegrity + disciplineBonus + speedBonus;
+  const total = breakdown.completionBonus + breakdown.machineComplexity +
+    breakdown.protocolPrecision + breakdown.pathIntegrity + breakdown.speedBonus;
 
   if (total === 100) {
     return 'One hundred points. I am revising my estimates of you upward. That is not something I do often.';
   }
 
-  // Find weakest category and comment on it
-  const categories = [
-    { name: 'efficiency', score: efficiency, max: 30 },
-    { name: 'protocol', score: protocolPrecision, max: 25 },
-    { name: 'chain', score: chainIntegrity, max: 20 },
-    { name: 'discipline', score: disciplineBonus, max: 15 },
-    { name: 'speed', score: speedBonus, max: 10 },
-  ];
-  const weakest = categories.reduce((a, b) => (a.score / a.max < b.score / b.max ? a : b));
-
-  if (stars === 3 && disciplineBonus >= 8) {
-    switch (discipline) {
-      case 'systems': return 'Protocol logic. Precise. My assessment stands.';
-      case 'drive': return 'The chain held. Every piece earned its place.';
-      case 'field': return 'Physics and Protocol in the same machine. It works. I am still surprised when it works.';
-    }
+  if (stars === 3 && breakdown.machineComplexity >= 25) {
+    return 'Full machine. Every piece working. That is the correct approach.';
   }
 
-  if (weakest.name === 'efficiency' && efficiency < 18) {
-    return `You used ${piecesUsed} pieces. The optimal is ${optimal}. I am noting the gap.`;
+  if (breakdown.machineComplexity < 15) {
+    return `You used ${piecesUsed} of ${totalTrayPieces} available pieces. The machine could be more elaborate. I encourage ambition.`;
   }
-  if (weakest.name === 'protocol' && protocolPrecision === 0) {
-    if (discipline === 'systems') return 'A Systems Architect who used no Protocol pieces. I have questions.';
+  if (breakdown.protocolPrecision === 0) {
     return 'You avoided the Protocol catalogue entirely. Technically valid.';
   }
-  if (weakest.name === 'chain' && chainIntegrity < 10) {
+  if (breakdown.pathIntegrity < 8) {
     return 'Several pieces you placed never saw the signal. I noticed.';
   }
-  if (weakest.name === 'discipline' && disciplineBonus === 0) {
-    switch (discipline) {
-      case 'systems': return 'You are a Systems Architect who solved this without touching a single Config Node. I am choosing not to comment further.';
-      case 'drive': return 'A Drive Engineer with a chain that short. We will work on this.';
-      case 'field': return 'You are a Field Operative who used only one piece type. That is not adaptation. That is limitation.';
-    }
-  }
-  if (weakest.name === 'speed' && speedBonus === 0) {
+  if (breakdown.speedBonus === 0) {
     return 'The solution was correct. The execution was considered. At considerable length.';
   }
 
   // Generic fallbacks by star rating
   if (stars === 3) return 'Optimal. I have updated my assessment accordingly.';
-  if (stars === 2) return 'Functional. There was a more elegant solution.';
+  if (stars === 2) return 'Functional. There was a more elaborate solution.';
   if (stars === 1) return 'It worked. I will note that it barely worked.';
   return 'The machine did not lock. Review your approach.';
 }

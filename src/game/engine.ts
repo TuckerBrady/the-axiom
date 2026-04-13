@@ -472,16 +472,31 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
 // ─── Star rating ──────────────────────────────────────────────────────────────
 
+/**
+ * Star rating based on machine completeness.
+ * Rewards using MORE pieces (Rube Goldberg philosophy).
+ * 3 stars: succeeded AND used most/all of the tray pieces
+ * 2 stars: succeeded but used few pieces
+ * 1 star: succeeded minimally
+ * 0 stars: failed (returned as 1 for backward compat with void display)
+ *
+ * @param totalTrayPieces - total pieces available in tray. If not provided,
+ *   falls back to old behavior comparing against optimalPieces.
+ */
 export function calculateStars(
   steps: ExecutionStep[],
   piecesUsed: number,
-  optimalPieces: number,
+  optimalPieces: number, // Reference only — kept for API compat
+  totalTrayPieces?: number,
 ): 0 | 1 | 2 | 3 {
   const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
   if (!succeeded) return 1;
 
-  if (piecesUsed <= optimalPieces) return 3;
-  if (piecesUsed <= optimalPieces * 2) return 2;
+  const total = totalTrayPieces ?? optimalPieces;
+  if (total <= 0) return 3;
+  const ratio = piecesUsed / total;
+  if (ratio >= 0.75) return 3;
+  if (ratio >= 0.5) return 2;
   return 1;
 }
 
