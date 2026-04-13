@@ -9,10 +9,10 @@ This document is the Axiom-specific implementation.
 ## The Core Loop for The Axiom
 
 ```
-COWORK (planning, Figma, specs, narrative)
+COWORK (planning, specs, narrative, Code prompts)
    |
    v
-/project-docs/SPECS/  and  /project-docs/BRIEFS/
+Tucker pastes prompt into Code
    |
    v
 CODE (implementation, tests, git, CI)
@@ -24,7 +24,29 @@ CODE (implementation, tests, git, CI)
 COWORK (resolves blocker, updates spec)
 ```
 
-Tucker is the handoff between Cowork and Code. The /project-docs folder is the bridge.
+Tucker is the handoff between Cowork and Code.
+
+What gets saved to files:
+- /project-docs/SPECS/ — decision records and feature specs (persist)
+- /project-docs/REPORTS/ — blocker reports from Code (persist until resolved)
+
+What does NOT get saved to files:
+- Code prompts. Cowork writes them in chat. Tucker copies and pastes
+  into Code. Saving prompts as briefs wastes repo space and context
+  window. Once a prompt is executed, it is done.
+
+Code prompt delivery format:
+- Always write as a single plain-text code block (no markdown
+  formatting, no bold, no headers, no bullet styling)
+- Tucker copies the block and pastes it directly into Code
+- If it is not in a code block, it is harder to copy
+
+Cowork codebase investigation:
+- When the project folder is mounted, Cowork can read the repo
+  directly and investigate code itself
+- When Cowork does not have direct access, it writes a grep/search
+  script as a code block prompt. Tucker pastes it into Code, Code
+  runs it, Tucker reports the output back to Cowork
 
 ---
 
@@ -35,7 +57,7 @@ Cowork is the planning layer. It handles:
 - Reading Figma frames and writing feature specs
 - Level design planning (computational goals, tape design, teaching progression)
 - Narrative work (COGS dialogue, breadcrumbs, story beats)
-- Writing agent briefs for Code
+- Writing Code prompts (delivered via chat, not saved as files)
 - Resolving blockers Code writes to /project-docs/REPORTS/
 - Visual QA via Chrome (comparing staging against Figma)
 - Architecture decisions logged to /project-docs/DECISIONS.md

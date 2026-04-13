@@ -56,6 +56,17 @@ QUALITY GATES — all must pass before pushing:
 4. npm audit --audit-level=high — clean
 Only push if all four pass. Report pass/fail on each.
 
+TEST COVERAGE RULE: every commit that adds or changes production
+code MUST include corresponding test additions or updates. No
+exceptions. New functions get unit tests. Changed behavior gets
+updated assertions. If a commit touches src/, it touches __tests__/.
+This is not optional. Code without tests is unfinished code.
+
+COVERAGE TARGETS: 80% statements, 80% functions, 70% branches,
+80% lines. These are enforced in jest.config.js. Do not lower
+them. If a commit drops coverage below thresholds, add tests
+until it passes.
+
 ---
 
 ## Current State
@@ -171,9 +182,27 @@ No emojis in commit messages. Ever.
 This project uses a file-based handoff between Cowork and Code:
 
 - Cowork writes specs to /project-docs/SPECS/
-- You read briefs from /project-docs/BRIEFS/ before implementing
+- Code prompts are delivered via chat (pasted by Tucker), NOT saved as files
 - If you hit a decision point, write a blocker to /project-docs/REPORTS/
 - Always check /project-docs/ for context before starting a new task
+
+What goes in project-docs:
+- SPECS/ — decision records, feature specs. These persist. They document
+  what was decided and why.
+- REPORTS/ — blocker reports from Code when it hits a decision point.
+- BRIEFS/ — do NOT write Code prompts here. Cowork writes prompts in
+  chat, Tucker pastes them into Code. Briefs are disposable overhead
+  that clutters the repo and wastes context scanning time.
+
+Code prompt format: always deliver as a single plain-text code block.
+No markdown formatting (no bold, no headers, no bullet styling).
+Tucker copies the block and pastes it directly into Code. If it is
+not in a code block, it is harder to copy.
+
+Cowork can read the repo directly when the project folder is
+mounted. When Cowork does not have direct access, it writes a
+grep/search script as a code block prompt. Tucker pastes it into
+Code, Code runs it, Tucker reports the output back to Cowork.
 
 See docs/WORKFLOW_GENERAL.md for the full workflow reference.
 

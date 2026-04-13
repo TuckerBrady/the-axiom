@@ -29,15 +29,17 @@ export default function TabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: '#0a1628',
-          borderTopColor: 'rgba(74,158,255,0.15)',
+          backgroundColor: 'rgba(6,10,15,0.96)',
+          borderTopColor: 'rgba(255,255,255,0.07)',
           borderTopWidth: 1,
         },
-        tabBarActiveTintColor: '#c87941',
-        tabBarInactiveTintColor: '#3a5070',
+        tabBarActiveTintColor: '#F59E0B',
+        tabBarInactiveTintColor: 'rgba(255,255,255,0.28)',
         tabBarLabelStyle: {
           fontFamily: 'Space Mono',
-          fontSize: 9,
+          fontSize: 8,
+          letterSpacing: 1,
+          textTransform: 'uppercase',
         },
       }}
     >

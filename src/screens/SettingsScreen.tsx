@@ -647,6 +647,21 @@ export default function SettingsScreen({ navigation }: Props) {
                 />
                 <View style={styles.divider} />
                 <TapRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14 }}>◉</Text>}
+                  label="COGS Hub Card Preview (Dev)"
+                  labelColor={Colors.amber}
+                  sub="Preview all 5 color variants"
+                  delay={800}
+                  onPress={() => {
+                    const CogsHubCard = require('../components/cogs/CogsHubCard').default;
+                    const { View: RNView } = require('react-native');
+                    const colors = ['AMBER', 'BLUE', 'GREEN', 'RED', 'DARK'];
+                    Alert.alert('COGS Hub Card', 'Check the console for rendered variants. (Full preview requires a dedicated screen — deferred to Hub redesign sprint.)');
+                    console.log('[COGS Card] All 5 variants available:', colors.join(', '));
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
                   icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
                   label="Preview Next 7 Days (Dev)"
                   labelColor={Colors.green}
