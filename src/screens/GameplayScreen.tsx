@@ -331,6 +331,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
+
+  // Ghost beam opacity — fades in during execution, out on reset
+  const ghostBeamOp = useSharedValue(0);
+  const ghostBeamStyle = useAnimatedStyle(() => ({ opacity: ghostBeamOp.value }));
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -869,6 +873,8 @@ export default function GameplayScreen({ navigation }: Props) {
       if (sp) {
         setChargePos(sp);
         setSignalPhase('charge');
+        // Ghost beams: fade in at execution start
+        ghostBeamOp.value = withTiming(0.2, { duration: 300 });
         const chargeStart = performance.now();
         await new Promise<void>(res => {
           const tick = () => {
@@ -1141,6 +1147,8 @@ export default function GameplayScreen({ navigation }: Props) {
     setBranchTrails([]);
     setVoidPulse(null);
     setLitWires(new Set());
+    // Ghost beams: fade out on reset
+    ghostBeamOp.value = withTiming(0, { duration: 300 });
     setFlashingPieces(new Map());
     setLockedPieces(new Set());
     setChargePos(null);
@@ -1399,6 +1407,45 @@ export default function GameplayScreen({ navigation }: Props) {
                 );
               })}
             </Svg>
+
+            {/* Ghost beams — semi-transparent colored columns connecting
+                tape-interacting pieces to their tape strip rows. Render
+                behind the signal beam. Only visible during execution. */}
+            {(() => {
+              const GHOST_PIECE_MAP: Record<string, string> = {
+                scanner: Colors.neonCyan,
+                configNode: Colors.neonGreen,
+                transmitter: Colors.neonYellow,
+              };
+              const ghostPieces = pieces.filter(p =>
+                GHOST_PIECE_MAP[p.type] !== undefined,
+              );
+              if (ghostPieces.length === 0) return null;
+              return (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[StyleSheet.absoluteFill, { zIndex: 5 }, ghostBeamStyle]}
+                >
+                  <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
+                    {ghostPieces.map(p => {
+                      const color = GHOST_PIECE_MAP[p.type];
+                      const x = p.gridX * CELL_SIZE;
+                      return (
+                        <Rect
+                          key={`ghost-${p.id}`}
+                          x={x}
+                          y={0}
+                          width={CELL_SIZE}
+                          height={p.gridY * CELL_SIZE + CELL_SIZE}
+                          fill={color}
+                          opacity={0.15}
+                        />
+                      );
+                    })}
+                  </Svg>
+                </Animated.View>
+              );
+            })()}
 
             {/* Signal beam overlay — wrapped in View so pointerEvents
                 component prop reliably passes touches through on iOS. */}
