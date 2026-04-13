@@ -50,7 +50,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const DOT_R = 1.5;
 const PIECE_RADIUS = 10;
-const CANVAS_PAD = 16;  // padding inside canvas area
+const CANVAS_PAD = 20;  // padding inside canvas area — ensures edge pieces are fully visible
 const MIN_CELL = 58;
 const MAX_CELL = 88;
 
@@ -1243,7 +1243,7 @@ export default function GameplayScreen({ navigation }: Props) {
         {level.inputTape && level.inputTape.length > 0 && (
           <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
-              <Text style={styles.tapeLabel}>IN</Text>
+              <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
               <View style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
                   const isActive = signalPhase === 'beam' && i === currentPulseIndex;
@@ -1277,7 +1277,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {(level.availablePieces.includes('transmitter') ||
               level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
-              <Text style={styles.tapeLabel}>OUT</Text>
+              <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
               <View style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
                   const written = machineState.outputTape?.[i];
@@ -1314,7 +1314,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {/* Data Trail strip (inside tape section for tape levels) */}
             {level.dataTrail.cells.length > 0 && (
               <View style={styles.tapeRow}>
-                <Text style={styles.tapeLabel}>TRAIL</Text>
+                <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
                 <View style={styles.tapeCells}>
                   {machineState.dataTrail.cells.map((cell, i) => {
                     const isHead = i === machineState.dataTrail.headPosition;
@@ -2916,6 +2916,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     gap: 6,
+    flexShrink: 0,
   },
   tapeRow: {
     flexDirection: 'row',
@@ -2927,7 +2928,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: Colors.muted,
     letterSpacing: 1,
-    width: 32,
+    width: 42,
   },
   tapeCells: {
     flexDirection: 'row',
