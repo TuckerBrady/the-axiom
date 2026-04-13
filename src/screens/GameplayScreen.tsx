@@ -299,6 +299,8 @@ export default function GameplayScreen({ navigation }: Props) {
   // Player taps Continue to dismiss the card, which triggers Results.
   const [showCompletionCard, setShowCompletionCard] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
+  const [showWrongOutput, setShowWrongOutput] = useState(false);
+  const [wrongOutputData, setWrongOutputData] = useState<{ expected: number[]; produced: number[] } | null>(null);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
@@ -554,7 +556,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
-    if (isExecuting || showResults || showVoid) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput) return;
 
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
@@ -586,7 +588,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
-    if (isExecuting || showResults || showVoid) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput) return;
     if (piece.isPrePlaced) return;
 
     // Type-specific tap actions
@@ -606,7 +608,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Long press returns piece to tray (no ghost/held state) ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
-    if (isExecuting || showResults || showVoid) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput) return;
     deletePiece(piece.id);
   }, [isExecuting, showResults, showVoid, deletePiece]);
 
@@ -1001,6 +1003,19 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
     setSignalPhase('idle');
+    // Ghost beams fade out
+    ghostBeamOp.value = withTiming(0, { duration: 300 });
+
+    // Wrong output: show diagnostic modal instead of void
+    if (wrongOutput && storeOutputTape && level.expectedOutput) {
+      setWrongOutputData({
+        expected: [...level.expectedOutput],
+        produced: [...storeOutputTape],
+      });
+      setShowWrongOutput(true);
+      loseLife();
+      return;
+    }
 
     // Flash effect before showing overlay
     const succeeded = !wrongOutput && steps.some(s => s.type === 'outputPort' && s.success);
@@ -1960,6 +1975,76 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
 
+        {/* ── Wrong Output Diagnostic Modal ── */}
+        {showWrongOutput && wrongOutputData && (
+          <Animated.View style={styles.completionCardWrap} entering={FadeIn.duration(300)}>
+            <View style={styles.wrongOutputCard}>
+              <Text style={styles.wrongOutputTitle}>OUTPUT MISMATCH</Text>
+              <View style={styles.wrongOutputSection}>
+                <Text style={styles.wrongOutputLabel}>EXPECTED</Text>
+                <View style={styles.wrongOutputRow}>
+                  {wrongOutputData.expected.map((v, i) => {
+                    const match = wrongOutputData.produced[i] === v;
+                    return (
+                      <View key={`exp-${i}`} style={[styles.wrongOutputCell, !match && styles.wrongOutputCellMismatch]}>
+                        <Text style={[styles.wrongOutputCellText, !match && { color: '#EF4444' }]}>{v}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+              <View style={styles.wrongOutputSection}>
+                <Text style={styles.wrongOutputLabel}>PRODUCED</Text>
+                <View style={styles.wrongOutputRow}>
+                  {wrongOutputData.produced.map((v, i) => {
+                    const match = wrongOutputData.expected[i] === v;
+                    const isEmpty = v === -1;
+                    return (
+                      <View key={`prod-${i}`} style={[styles.wrongOutputCell, !match && styles.wrongOutputCellMismatch]}>
+                        <Text style={[styles.wrongOutputCellText, !match && { color: '#EF4444' }]}>
+                          {isEmpty ? '_' : v}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                <CogsAvatar size="small" state="online" />
+                {/* COGS line pending Tucker approval */}
+                <Text style={styles.wrongOutputCogsText}>
+                  {"\""}The machine produced an answer. It was not the correct one. The data shows where.{"\""}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.wrongOutputRetryBtn}
+                onPress={() => {
+                  setShowWrongOutput(false);
+                  setWrongOutputData(null);
+                  // Check lives after diagnostic
+                  if (lives <= 0) {
+                    setShowOutOfLives(true);
+                  }
+                  // Board state preserved — pieces stay where they are
+                  // Reset execution state only
+                  setBeamHeads([]);
+                  setTrailSegments([]);
+                  setBranchTrails([]);
+                  setFlashingPieces(new Map());
+                  setActiveAnimations(new Map());
+                  setGateResults(new Map());
+                  setFailColors(new Map());
+                  setLockedPieces(new Set());
+                  setLitWires(new Set());
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.wrongOutputRetryText}>RETRY</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
         {/* ── Void State Overlay (Failure) ── */}
         {showVoid && (
           <Animated.View style={styles.voidOverlay} entering={FadeIn.duration(400)}>
@@ -2847,6 +2932,81 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#4a9eff',
     letterSpacing: 2,
+  },
+
+  // Wrong Output Modal
+  wrongOutputCard: {
+    width: '100%',
+    maxWidth: 520,
+    backgroundColor: 'rgba(6,9,15,0.98)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    borderRadius: 12,
+    padding: 20,
+  },
+  wrongOutputTitle: {
+    fontFamily: Fonts.orbitron,
+    fontSize: FontSizes.lg,
+    color: '#EF4444',
+    letterSpacing: 3,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  wrongOutputSection: {
+    marginBottom: 12,
+  },
+  wrongOutputLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    letterSpacing: 2,
+    marginBottom: 6,
+  },
+  wrongOutputRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  wrongOutputCell: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#1A3050',
+    backgroundColor: '#08101C',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wrongOutputCellMismatch: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239,68,68,0.08)',
+  },
+  wrongOutputCellText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
+    color: Colors.neonCyan,
+  },
+  wrongOutputCogsText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13,
+    color: '#B0CCE8',
+    lineHeight: 18,
+    flex: 1,
+    fontStyle: 'italic',
+  },
+  wrongOutputRetryBtn: {
+    alignSelf: 'center',
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: Colors.amber,
+    borderRadius: 4,
+  },
+  wrongOutputRetryText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 12,
+    color: Colors.amber,
+    letterSpacing: 3,
   },
 
   // Results
