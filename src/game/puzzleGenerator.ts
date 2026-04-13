@@ -154,6 +154,40 @@ function generateDataTrail(rng: SeededRandom, length: number, needsCorrectValues
   return trail;
 }
 
+// ─── Tape generation (for challenges with tape-interacting pieces) ───────────
+
+const TAPE_LENGTHS: Record<string, [number, number]> = {
+  easy: [4, 5],
+  medium: [6, 7],
+  hard: [8, 10],
+  expert: [10, 12],
+};
+
+function generateInputTape(length: number, rng: SeededRandom): number[] {
+  const tape: number[] = [];
+  let consecutive = 0;
+  let lastVal = -1;
+  for (let i = 0; i < length; i++) {
+    let val = rng.nextInt(0, 1);
+    // Prevent more than 3 consecutive same values
+    if (val === lastVal) {
+      consecutive++;
+      if (consecutive >= 3) {
+        val = 1 - val;
+        consecutive = 1;
+      }
+    } else {
+      consecutive = 1;
+    }
+    tape.push(val);
+    lastVal = val;
+  }
+  // Ensure at least one 0 and one 1 (both outcomes tested)
+  if (!tape.includes(0)) tape[rng.nextInt(1, length - 1)] = 0;
+  if (!tape.includes(1)) tape[rng.nextInt(0, length - 2)] = 1;
+  return tape;
+}
+
 // ─── Main generator ──────────────────────────────────────────────────────────
 
 export function generatePuzzleFromTemplate(
@@ -208,10 +242,31 @@ export function generatePuzzleFromTemplate(
     ? { cells: generateDataTrail(rng, gw, true), headPosition: 0 }
     : { cells: [] as (0 | 1)[], headPosition: 0 };
 
-  // 8. Build LevelDefinition
+  // 8. Generate tape for challenges with tape-interacting pieces
+  const TAPE_PIECE_TYPES = ['scanner', 'transmitter', 'configNode'];
+  const hasTapePieces = solPath.some(sp => TAPE_PIECE_TYPES.includes(sp.type)) ||
+    available.some(pt => TAPE_PIECE_TYPES.includes(pt));
+
+  let inputTape: number[] | undefined;
+  let expectedOutput: number[] | undefined;
+
+  if (hasTapePieces) {
+    const [minLen, maxLen] = TAPE_LENGTHS[template.difficulty] ?? [4, 5];
+    const tapeLength = rng.nextInt(minLen, maxLen);
+    inputTape = generateInputTape(tapeLength, rng);
+    // For most challenges: pass-through. The correct machine routes
+    // each input value to the output tape unchanged.
+    expectedOutput = [...inputTape];
+    // Ensure Data Trail is initialized to all 0s with enough cells
+    if (dataTrail.cells.length === 0) {
+      dataTrail.cells = new Array(gw).fill(0) as (0 | 1)[];
+    }
+  }
+
+  // 9. Build LevelDefinition
   const level: LevelDefinition = {
     id: `daily_${dateString}`,
-    name: `${template.name} — Daily Challenge`,
+    name: `${template.name} — Daily Bounty`,
     sector: 'daily',
     description: 'Daily challenge puzzle.',
     cogsLine: '',
@@ -224,6 +279,8 @@ export function generatePuzzleFromTemplate(
     optimalPieces: pattern.optimalPieceCount,
     budget,
     scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
+    inputTape,
+    expectedOutput,
   };
 
   return { level, solutionPieces };
