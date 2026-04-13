@@ -219,12 +219,28 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
   return wires;
 }
 
+// Protocol piece types that enforce straight-through routing
+const STRAIGHT_THROUGH_TYPES = new Set(['configNode', 'scanner', 'transmitter']);
+
 /**
  * Returns IDs of pieces that the given piece can send signal TO (directional).
+ * For protocol pieces (configNode, scanner, transmitter), enforces straight-through:
+ * signal exits only from the side opposite to where it entered.
  */
-function getDirectionalNeighbors(piece: PlacedPiece, allPieces: PlacedPiece[]): PlacedPiece[] {
+function getDirectionalNeighbors(
+  piece: PlacedPiece,
+  allPieces: PlacedPiece[],
+  entrySide?: PortSide,
+): PlacedPiece[] {
   const neighbors: PlacedPiece[] = [];
-  const outputSides = getOutputPorts(piece);
+  let outputSides = getOutputPorts(piece);
+
+  // Straight-through enforcement: if this is a protocol piece and we know
+  // which side signal entered from, limit output to the opposite side only.
+  if (entrySide && STRAIGHT_THROUGH_TYPES.has(piece.type)) {
+    const exitSide = OPPOSITE_SIDE[entrySide];
+    outputSides = outputSides.includes(exitSide) ? [exitSide] : [];
+  }
 
   for (const side of outputSides) {
     const { dx, dy } = sideOffset(side);
@@ -273,7 +289,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   }
 
   const visited = new Set<string>();
-  const queue: string[] = [source.id];
+  const queue: { id: string; entrySide?: PortSide }[] = [{ id: source.id }];
 
   const trail = {
     cells: [...dataTrail.cells],
@@ -281,7 +297,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   };
 
   while (queue.length > 0 && steps.length < MAX_STEPS) {
-    const currentId = queue.shift()!;
+    const { id: currentId, entrySide } = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
@@ -424,11 +440,20 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
     steps.push(step);
 
-    // Follow directional output ports to find next pieces
-    const neighbors = getDirectionalNeighbors(piece, pieces);
+    // Follow directional output ports to find next pieces.
+    // Pass entrySide so protocol pieces enforce straight-through routing.
+    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide);
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor.id)) {
-        queue.push(neighbor.id);
+        // Determine which side of the neighbor the signal enters from
+        const dx = neighbor.gridX - piece.gridX;
+        const dy = neighbor.gridY - piece.gridY;
+        let neighborEntrySide: PortSide;
+        if (dx === 1) neighborEntrySide = 'left';
+        else if (dx === -1) neighborEntrySide = 'right';
+        else if (dy === 1) neighborEntrySide = 'top';
+        else neighborEntrySide = 'bottom';
+        queue.push({ id: neighbor.id, entrySide: neighborEntrySide });
       }
     }
   }
