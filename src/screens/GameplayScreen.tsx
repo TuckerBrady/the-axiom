@@ -1363,7 +1363,7 @@ export default function GameplayScreen({ navigation }: Props) {
               )}
 
               {/* Wires — only on Axiom tutorial levels */}
-              {level.sector === 'axiom' && wires.map(wire => {
+              {wires.map(wire => {
                 const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
                 const toPiece = pieces.find(p => p.id === wire.toPieceId);
                 if (!fromPiece || !toPiece) return null;
