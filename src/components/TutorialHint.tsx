@@ -41,11 +41,11 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
       <View style={st.inner}>
         <View style={st.header}>
           <CogsAvatar size="small" state="engaged" />
-          <Text style={st.label}>COGS</Text>
+          <Text style={st.label}>C.O.G.S</Text>
         </View>
         <Text style={st.text}>{text}</Text>
         <TouchableOpacity onPress={handleDismiss} style={st.dismissBtn} activeOpacity={0.7}>
-          <Text style={st.dismissText}>Got it</Text>
+          <Text style={st.dismissText}>GOT IT</Text>
         </TouchableOpacity>
       </View>
     </Animated.View>

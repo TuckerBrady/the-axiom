@@ -1241,7 +1241,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
         {/* ── Turing Tape Display ── */}
         {level.inputTape && level.inputTape.length > 0 && (
-          <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeSection}>
+          <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
               <View style={styles.tapeCells}>
@@ -1313,7 +1313,7 @@ export default function GameplayScreen({ navigation }: Props) {
             )}
             {/* Data Trail strip (inside tape section for tape levels) */}
             {level.dataTrail.cells.length > 0 && (
-              <View style={styles.tapeRow}>
+              <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
                 <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
                 <View style={styles.tapeCells}>
                   {machineState.dataTrail.cells.map((cell, i) => {
