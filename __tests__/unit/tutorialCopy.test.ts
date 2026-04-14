@@ -23,6 +23,21 @@ describe('Tutorial copy arrays', () => {
   });
 });
 
+describe('Axiom sector gate', () => {
+  it('A1-1 through A1-8 all match the gate condition', () => {
+    for (let i = 1; i <= 8; i++) {
+      expect(`A1-${i}`.startsWith('A1-')).toBe(true);
+    }
+  });
+
+  it('non-Axiom levels do not match the gate', () => {
+    expect('K1-1'.startsWith('A1-')).toBe(false);
+    expect('2-1'.startsWith('A1-')).toBe(false);
+    expect('daily_2026-04-13'.startsWith('A1-')).toBe(false);
+    expect('REPAIR-PROP-SURGE'.startsWith('A1-')).toBe(false);
+  });
+});
+
 describe('Rotation logic (simulated)', () => {
   it('pick-up rotation wraps at 5', () => {
     let idx = 0;

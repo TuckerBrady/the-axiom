@@ -81,7 +81,6 @@ export default function LoginScreen({ navigation }: Props) {
       {/* Title */}
       <View style={s.titleSection}>
         <Text style={s.title}>THE AXIOM</Text>
-        <Text style={s.subtitle}>A puzzle game about fixing a ship</Text>
       </View>
 
       {/* Single CTA */}
@@ -123,12 +122,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#E8F4FF',
     letterSpacing: 4,
-  },
-  subtitle: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.35)',
-    letterSpacing: 1.5,
   },
   ctaSection: {
     paddingHorizontal: Spacing.lg,

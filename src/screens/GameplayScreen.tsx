@@ -269,7 +269,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [cogsScoreComment, setCogsScoreComment] = useState('');
   const [currentHint, setCurrentHint] = useState<{ key: string; text: string } | null>(null);
 
-  // A1-1 rotating COGS observation lines
+  // Axiom sector rotating COGS observation lines (A1-1 through A1-8)
   const [cogsObservation, setCogsObservation] = useState<string | null>(null);
   const pickUpIdx = useRef(0);
   const placeIdx = useRef(0);
@@ -399,7 +399,7 @@ export default function GameplayScreen({ navigation }: Props) {
     !isReplay &&
     level?.sector === 'axiom' &&
     (level?.tutorialSteps?.length ?? 0) > 0;
-  // Reset A1-1 rotation counters on level mount
+  // Reset Axiom rotation counters on level mount
   useEffect(() => {
     pickUpIdx.current = 0;
     placeIdx.current = 0;
@@ -596,8 +596,8 @@ export default function GameplayScreen({ navigation }: Props) {
         }
         const rotation = getAutoRotation(gridX, gridY);
         placePiece(selectedPieceFromTray, gridX, gridY, rotation);
-        // A1-1 rotating observation on place
-        if (level?.id === 'A1-1') {
+        // Axiom rotating observation on place
+        if (level?.id?.startsWith('A1-')) {
           showObservation(PLACE_LINES[placeIdx.current % PLACE_LINES.length]);
           placeIdx.current++;
         }
@@ -655,8 +655,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     triggerHints('onEngage');
-    // A1-1 rotating observation on engage
-    if (level?.id === 'A1-1') {
+    // Axiom rotating observation on engage
+    if (level?.id?.startsWith('A1-')) {
       showObservation(ENGAGE_LINES[engageIdx.current % ENGAGE_LINES.length]);
       engageIdx.current++;
     }
@@ -1757,7 +1757,7 @@ export default function GameplayScreen({ navigation }: Props) {
                     ]}
                     onPress={() => {
                       selectFromTray(isActive ? null : pt);
-                      if (!isActive && pt && level?.id === 'A1-1') {
+                      if (!isActive && pt && level?.id?.startsWith('A1-')) {
                         showObservation(PICK_UP_LINES[pickUpIdx.current % PICK_UP_LINES.length]);
                         pickUpIdx.current++;
                       }
