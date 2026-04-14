@@ -51,7 +51,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const DOT_R = 1.5;
 const PIECE_RADIUS = 10;
 const CANVAS_PAD = 20;  // padding inside canvas area — ensures edge pieces are fully visible
-const MIN_CELL = 58;
+const MIN_CELL = 48;
 const MAX_CELL = 88;
 
 const VOID_QUOTES = [
@@ -2644,6 +2644,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: CANVAS_PAD,
     paddingVertical: CANVAS_PAD / 2,
+    overflow: 'hidden',
   },
   canvas: {
     backgroundColor: '#06090f',
