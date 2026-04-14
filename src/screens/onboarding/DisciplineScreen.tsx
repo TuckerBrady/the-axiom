@@ -17,6 +17,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
 import { usePlayerStore, DISCIPLINE_MAP } from '../../store/playerStore';
+import { DISCIPLINE_REACTIONS, DISCIPLINE_NEUTRAL_PROMPT } from '../../constants/disciplineReactions';
 
 type OnboardingDiscipline = 'architect' | 'engineer' | 'operative' | null;
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
@@ -39,7 +40,7 @@ const DISCIPLINES: Array<{
     tag: 'PROTOCOL',
     tagColor: '#00D4FF',
     description: 'You design the logic. You plan before you act. Protocol pieces are your native language.',
-    cogsResponse: 'Protocol logic. Precise. Good.',
+    cogsResponse: DISCIPLINE_REACTIONS.architect,
   },
   {
     id: 'engineer',
@@ -47,7 +48,7 @@ const DISCIPLINES: Array<{
     tag: 'PHYSICS',
     tagColor: '#F0B429',
     description: 'You work with mechanisms. Movement, force, consequence. Physics pieces respond to your instincts.',
-    cogsResponse: 'Mechanical focus. Your skills will be needed.',
+    cogsResponse: DISCIPLINE_REACTIONS.engineer,
   },
   {
     id: 'operative',
@@ -55,7 +56,7 @@ const DISCIPLINES: Array<{
     tag: 'BALANCED',
     tagColor: '#00C48C',
     description: 'You adapt. You improvise. No specialisation means no limitation. We will see how that holds up.',
-    cogsResponse: 'Generalist. Adaptable. We will see.',
+    cogsResponse: DISCIPLINE_REACTIONS.operative,
   },
 ];
 
@@ -104,32 +105,40 @@ function DisciplineCard({
 
 function CogsResponseCard({
   response,
-  visible,
+  selected,
 }: {
   response: string;
-  visible: boolean;
+  selected: boolean;
 }) {
-  const reveal = useSharedValue(0);
+  // Fade-swap animation: fade out old text, swap, fade in new text (380ms total)
+  const textOpacity = useSharedValue(1);
+  const [displayText, setDisplayText] = useState(response);
+
   useEffect(() => {
-    if (visible) {
-      reveal.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
-    } else {
-      reveal.value = 0;
-    }
-  }, [visible]);
-  const style = useAnimatedStyle(() => ({
-    opacity: reveal.value,
-    transform: [{ translateY: (1 - reveal.value) * 14 }],
-  }));
-  if (!visible) return null;
+    // Fade out, swap text, fade in
+    textOpacity.value = withTiming(0, { duration: 190 });
+    const timer = setTimeout(() => {
+      setDisplayText(response);
+      textOpacity.value = withTiming(1, { duration: 190 });
+    }, 190);
+    return () => clearTimeout(timer);
+  }, [response]);
+
+  const textStyle = useAnimatedStyle(() => ({ opacity: textOpacity.value }));
+
   return (
-    <Animated.View style={[s.cogsResponse, style]}>
+    <View
+      style={s.cogsResponse}
+      accessibilityLiveRegion="polite"
+    >
       <View style={s.cogsResponseHeader}>
-        <CogsAvatar size="small" state="engaged" />
-        <Text style={s.cogsResponseLabel}>C.O.G.S RESPONSE</Text>
+        <CogsAvatar size="small" state={selected ? 'engaged' : 'online'} />
+        <Text style={s.cogsResponseLabel}>C.O.G.S</Text>
       </View>
-      <Text style={s.cogsResponseText}>{'"'}{response}{'"'}</Text>
-    </Animated.View>
+      <Animated.View style={textStyle}>
+        <Text style={s.cogsResponseText}>{'"'}{displayText}{'"'}</Text>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -210,11 +219,11 @@ export default function DisciplineScreen({ navigation }: Props) {
           ))}
         </View>
 
-        {/* COGS response */}
+        {/* COGS response — always visible, swaps text reactively */}
         <View style={s.responseSection}>
           <CogsResponseCard
-            response={selectedDisc?.cogsResponse ?? ''}
-            visible={!!selected}
+            response={selectedDisc?.cogsResponse ?? DISCIPLINE_NEUTRAL_PROMPT}
+            selected={!!selected}
           />
         </View>
 
