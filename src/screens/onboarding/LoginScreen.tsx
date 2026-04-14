@@ -10,13 +10,8 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Svg, {
-  Path,
-  Polygon,
-  Rect,
-  Ellipse,
-  Text as SvgText,
-} from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
+import AxiomShipSVG from '../../components/icons/AxiomShipSVG';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
@@ -51,94 +46,6 @@ function GoogleLogo({ size = 18 }: { size?: number }) {
   );
 }
 
-// ─── Simplified Axiom ship SVG ───────────────────────────────────────────────
-
-function AxiomShip({ width = 180, height = 90 }: { width?: number; height?: number }) {
-  return (
-    <Svg width={width} height={height} viewBox="0 0 200 100" fill="none">
-      {/* Main hull (lower) */}
-      <Polygon
-        points="20,75 140,75 158,62 158,42 20,42"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1.2"
-        opacity="0.35"
-      />
-      {/* Main hull (upper) */}
-      <Polygon
-        points="20,42 36,18 140,18 158,42"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1.2"
-        opacity="0.35"
-      />
-      {/* Command section (right) */}
-      <Polygon
-        points="140,18 158,42 158,62 140,75 168,56 168,30"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1"
-        opacity="0.28"
-      />
-      {/* Sensor wing (upper-left extending) */}
-      <Polygon
-        points="68,26 88,18 118,10 112,18 86,22"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1"
-        opacity="0.25"
-      />
-      {/* Engine block (left) */}
-      <Rect
-        x="8"
-        y="48"
-        width="22"
-        height="20"
-        rx="4"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1.2"
-        opacity="0.3"
-      />
-      {/* Engine glow */}
-      <Ellipse
-        cx="8"
-        cy="58"
-        rx="5"
-        ry="8"
-        fill="none"
-        stroke="#00D4FF"
-        strokeWidth="1"
-        opacity="0.25"
-      />
-      {/* Hull designation */}
-      <SvgText
-        x="60"
-        y="52"
-        fontSize="8"
-        fontFamily="monospace"
-        fill="#00D4FF"
-        opacity="0.2"
-        letterSpacing="4"
-      >
-        THE AXIOM
-      </SvgText>
-      {/* Copper accent (AX-MOD port) */}
-      <Rect
-        x="88"
-        y="38"
-        width="6"
-        height="8"
-        rx="2"
-        fill="none"
-        stroke="#C87941"
-        strokeWidth="1.2"
-        opacity="0.45"
-      />
-    </Svg>
-  );
-}
-
 // ─── Floating wrapper ────────────────────────────────────────────────────────
 
 function FloatingShip() {
@@ -156,7 +63,7 @@ function FloatingShip() {
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
   return (
     <Animated.View style={style}>
-      <AxiomShip width={180} height={90} />
+      <AxiomShipSVG width={180} height={120} />
     </Animated.View>
   );
 }
@@ -357,11 +264,15 @@ const s = StyleSheet.create({
   skipBtn: {
     alignItems: 'center',
     paddingVertical: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 8,
   },
   skipText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 11,
-    color: '#2A4060',
-    opacity: 0.7,
+    color: 'rgba(255,255,255,0.45)',
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
 });
