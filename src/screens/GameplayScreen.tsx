@@ -37,6 +37,7 @@ import { useEconomyStore } from '../store/economyStore';
 import { calculateScore, getCOGSScoreComment, getTutorialCOGSComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
+import { PICK_UP_LINES, PLACE_LINES, ENGAGE_LINES } from '../constants/tutorialCopy';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
@@ -267,6 +268,21 @@ export default function GameplayScreen({ navigation }: Props) {
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [cogsScoreComment, setCogsScoreComment] = useState('');
   const [currentHint, setCurrentHint] = useState<{ key: string; text: string } | null>(null);
+
+  // A1-1 rotating COGS observation lines
+  const [cogsObservation, setCogsObservation] = useState<string | null>(null);
+  const pickUpIdx = useRef(0);
+  const placeIdx = useRef(0);
+  const engageIdx = useRef(0);
+  const obsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Rotation counter reset moved after `level` declaration (see below)
+
+  const showObservation = useCallback((text: string) => {
+    if (obsTimerRef.current) clearTimeout(obsTimerRef.current);
+    setCogsObservation(text);
+    obsTimerRef.current = setTimeout(() => setCogsObservation(null), 3000);
+  }, []);
   const [hintQueue, setHintQueue] = useState<{ key: string; text: string }[]>([]);
   const hintTriggered = useRef<Set<string>>(new Set());
   const sourceNodeRef = useRef<View>(null);
@@ -383,6 +399,14 @@ export default function GameplayScreen({ navigation }: Props) {
     !isReplay &&
     level?.sector === 'axiom' &&
     (level?.tutorialSteps?.length ?? 0) > 0;
+  // Reset A1-1 rotation counters on level mount
+  useEffect(() => {
+    pickUpIdx.current = 0;
+    placeIdx.current = 0;
+    engageIdx.current = 0;
+    setCogsObservation(null);
+  }, [level?.id]);
+
   const tutorialIsActiveRef = useRef(tutorialIsActive);
   useEffect(() => {
     tutorialIsActiveRef.current = tutorialIsActive;
@@ -572,6 +596,11 @@ export default function GameplayScreen({ navigation }: Props) {
         }
         const rotation = getAutoRotation(gridX, gridY);
         placePiece(selectedPieceFromTray, gridX, gridY, rotation);
+        // A1-1 rotating observation on place
+        if (level?.id === 'A1-1') {
+          showObservation(PLACE_LINES[placeIdx.current % PLACE_LINES.length]);
+          placeIdx.current++;
+        }
         // Bug 7 fix: only fire the "tap ENGAGE MACHINE" hint once the
         // player has placed enough pieces to plausibly have a complete
         // path. Gate on optimalPieces as the minimum threshold.
@@ -626,6 +655,11 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     triggerHints('onEngage');
+    // A1-1 rotating observation on engage
+    if (level?.id === 'A1-1') {
+      showObservation(ENGAGE_LINES[engageIdx.current % ENGAGE_LINES.length]);
+      engageIdx.current++;
+    }
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
     timerRunning.current = false;
     lockedRef.current = true;
@@ -1721,7 +1755,13 @@ export default function GameplayScreen({ navigation }: Props) {
                       styles.trayItem,
                       isActive && { borderColor: color, backgroundColor: `${color}15` },
                     ]}
-                    onPress={() => selectFromTray(isActive ? null : pt)}
+                    onPress={() => {
+                      selectFromTray(isActive ? null : pt);
+                      if (!isActive && pt && level?.id === 'A1-1') {
+                        showObservation(PICK_UP_LINES[pickUpIdx.current % PICK_UP_LINES.length]);
+                        pickUpIdx.current++;
+                      }
+                    }}
                     activeOpacity={0.7}
                     disabled={count <= 0}
                   >
@@ -1746,6 +1786,15 @@ export default function GameplayScreen({ navigation }: Props) {
         {/* ── Tutorial Hint ── */}
         {currentHint && (
           <TutorialHint hintKey={currentHint.key} text={currentHint.text} onDismiss={dismissHint} />
+        )}
+
+        {/* ── A1-1 COGS Observation (rotating) ── */}
+        {cogsObservation && !currentHint && (
+          <TutorialHint
+            hintKey={`obs-${Date.now()}`}
+            text={cogsObservation}
+            onDismiss={() => setCogsObservation(null)}
+          />
         )}
 
         {/* ── Credit Error ── */}
