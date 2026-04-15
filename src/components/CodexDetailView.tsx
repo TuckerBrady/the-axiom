@@ -445,8 +445,8 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }
   const atmosphereColor = isPhysics ? 'rgba(74,158,255,0.06)' : 'rgba(200,121,65,0.06)';
 
   useEffect(() => {
-    reveal.value = withTiming(1, { duration: 400 });
-    loggedSlide.value = withTiming(0, { duration: 600 });
+    reveal.value = withTiming(1, { duration: 200 });
+    loggedSlide.value = withTiming(0, { duration: 300 });
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));

@@ -105,7 +105,6 @@ export default function TutorialHUDOverlay({
 
   const step = steps[currentStepIndex];
   const totalSteps = steps.length;
-  const isLastStep = currentStepIndex >= totalSteps - 1;
   const eyeColor = eyeStateColor(step?.eyeState);
 
   // ── Hydration ──
@@ -460,7 +459,7 @@ export default function TutorialHUDOverlay({
     if (codexVisible) {
       Animated.timing(codexTranslate, {
         toValue: 0,
-        duration: 400,
+        duration: 200,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
         useNativeDriver: false,
       }).start();
@@ -501,13 +500,6 @@ export default function TutorialHUDOverlay({
     advanceStep();
   }, [phase, step, advanceStep]);
 
-  const handleBack = useCallback(() => {
-    if (currentStepIndex === 0) return;
-    const prev = currentStepIndex - 1;
-    setCurrentStepIndex(prev);
-    runStep(prev);
-  }, [currentStepIndex, runStep]);
-
   const handleSkip = useCallback(() => {
     AsyncStorage.setItem(`axiom_tutorial_skipped_${levelId}`, '1').catch(() => {});
     exitOverlay(onSkip);
@@ -516,7 +508,7 @@ export default function TutorialHUDOverlay({
   const handleCodexUnderstood = useCallback(() => {
     Animated.timing(codexTranslate, {
       toValue: SCREEN_H,
-      duration: 400,
+      duration: 200,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: false,
     }).start(() => {
@@ -525,14 +517,12 @@ export default function TutorialHUDOverlay({
     });
   }, [codexTranslate, advanceStep]);
 
-  // Tap anywhere to advance (except during codex or on last step)
+  // Tap anywhere to advance (or open codex for codex steps)
   const handleTapAnywhere = useCallback(() => {
     if (phase !== 'arrived') return;
     if (codexVisible) return;
-    if (isLastStep) return;
-    if (step?.codexEntryId) return; // codex steps require SHOW ME
-    advanceStep();
-  }, [phase, codexVisible, isLastStep, step, advanceStep]);
+    handlePrimary();
+  }, [phase, codexVisible, handlePrimary]);
 
   if (!hydrated || !step) return null;
 
@@ -549,12 +539,6 @@ export default function TutorialHUDOverlay({
     spotlightCells.length > 0 &&
     !!spotlightCellSize &&
     spotlightCellSize > 0;
-
-  const primaryLabel = step.codexEntryId && phase === 'arrived'
-    ? 'SHOW ME'
-    : isLastStep
-    ? 'READY'
-    : 'UNDERSTOOD';
 
   // Glow circle geometry (for piece targets)
   let glowCircle: { cx: number; cy: number; r: number } | null = null;
@@ -721,6 +705,9 @@ export default function TutorialHUDOverlay({
             },
           ]}
         >
+          <TouchableOpacity onPress={handleSkip} style={st.skipBtn} activeOpacity={0.7}>
+            <Text style={st.skipBtnText}>SKIP</Text>
+          </TouchableOpacity>
           {renderMessage()}
         </Animated.View>
       )}
@@ -772,39 +759,6 @@ export default function TutorialHUDOverlay({
         </Animated.View>
       )}
 
-      {/* Nav strip */}
-      {phase !== 'idle' && phase !== 'complete' && !codexVisible && (
-        <View pointerEvents="box-none" style={st.navStrip}>
-          <View style={st.eyeDot} />
-          <Text style={st.stepCounter}>STEP {currentStepIndex + 1} / {totalSteps}</Text>
-          <View style={st.progressRow}>
-            {steps.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  st.progressDot,
-                  i <= currentStepIndex && { backgroundColor: eyeColor, borderColor: eyeColor },
-                ]}
-              />
-            ))}
-          </View>
-          <View style={{ flex: 1 }} />
-          <TouchableOpacity onPress={handleSkip} style={st.navBtn} activeOpacity={0.7}>
-            <Text style={st.navBtnTextDim}>SKIP</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleBack}
-            style={st.navBtn}
-            activeOpacity={0.7}
-            disabled={currentStepIndex === 0}
-          >
-            <Text style={[st.navBtnTextDim, currentStepIndex === 0 && { opacity: 0.35 }]}>BACK</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handlePrimary} style={st.primaryBtn} activeOpacity={0.8}>
-            <Text style={st.primaryBtnText}>{primaryLabel}</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </Animated.View>
   );
 }
@@ -832,11 +786,11 @@ function PixelDissolve() {
     }
     let group = 0;
     const isWeb = Platform.OS === 'web';
-    // ~75% of the original speed — clearly visible but snappier.
-    const groupSize = isWeb ? 40 : 200;
-    const tickMs = isWeb ? 23 : 15;
-    const fadeDur = isWeb ? 135 : 75;
-    const delayMax = isWeb ? 90 : 45;
+    // 2x speed — halved from prior 75% values.
+    const groupSize = isWeb ? 80 : 400;
+    const tickMs = isWeb ? 12 : 8;
+    const fadeDur = isWeb ? 68 : 38;
+    const delayMax = isWeb ? 45 : 23;
     const id = setInterval(() => {
       const start = group * groupSize;
       const end = Math.min(DISSOLVE_TOTAL, start + groupSize);
@@ -852,7 +806,7 @@ function PixelDissolve() {
       group += 1;
       if (start + groupSize >= DISSOLVE_TOTAL) {
         clearInterval(id);
-        setTimeout(() => force(1), 900);
+        setTimeout(() => force(1), 450);
       }
     }, tickMs);
     return () => clearInterval(id);
@@ -910,74 +864,24 @@ const st = StyleSheet.create({
     padding: 16,
     zIndex: 160,
   },
+  skipBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    zIndex: 161,
+  },
+  skipBtnText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#4a6080',
+    letterSpacing: 1.5,
+  },
   message: {
     fontFamily: Fonts.spaceMono,
     fontSize: 15,
     lineHeight: 22,
     color: '#FFFFFF',
-  },
-  navStrip: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: NAV_HEIGHT,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(2,5,12,0.97)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(0,212,255,0.1)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    zIndex: 100,
-    overflow: 'hidden',
-  },
-  eyeDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#00D4FF',
-  },
-  stepCounter: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    color: '#4a6080',
-    letterSpacing: 1,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  progressDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: '#2a3c56',
-  },
-  navBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  navBtnTextDim: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    color: '#6a7f9a',
-    letterSpacing: 1.5,
-  },
-  primaryBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: Colors.amber,
-    borderRadius: 4,
-    maxWidth: 130,
-    flexShrink: 1,
-  },
-  primaryBtnText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: Colors.amber,
-    letterSpacing: 2,
   },
 });
