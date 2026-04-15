@@ -84,7 +84,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CIRCUIT BOARD',
       targetRef: 'boardGrid',
       eyeState: 'blue',
-      message: 'This is the circuit board. Your job is to connect the Input Port to the Output Port using the pieces in your tray. You have done this before. You just did not know what it was called.',
+      message: 'Input port, output port. Bridge them. Signal follows whatever path you build — you don\'t aim pieces, the path aims them.',
     },
     {
       id: 'codex-intro',
@@ -98,7 +98,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CONVEYOR',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
-      message: 'That piece is not in the Codex yet. It will be.',
+      message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
       codexEntryId: 'conveyor',
     },
     {
