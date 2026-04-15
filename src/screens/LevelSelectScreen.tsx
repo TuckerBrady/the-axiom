@@ -706,7 +706,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
           <Animated.View style={[s.cogsBrief, contentStyle]}>
             <View style={s.cogsBriefHeader}>
               <CogsAvatar size="small" state="online" />
-              <Text style={s.cogsBriefName}>COGS · AI UNIT</Text>
+              <Text style={s.cogsBriefName}>C.O.G.S UNIT 7</Text>
             </View>
             <Text style={s.cogsBriefText}>
               {cogsBrief}

@@ -189,7 +189,7 @@ export default function LaunchScreen({ navigation }: Props) {
               <View style={styles.cogsAvatar}>
                 <CogsAvatar size="small" state="online" />
               </View>
-              <Text style={styles.cogsName}>COGS · AI UNIT</Text>
+              <Text style={styles.cogsName}>C.O.G.S UNIT 7</Text>
             </View>
             <Text style={styles.cogsSpeech}>
               {'"'}The cosmos does not fix itself. Good thing you have a sharp
