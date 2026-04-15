@@ -32,3 +32,7 @@ google-services-key.json
 
 expo-env.d.ts
 # @end expo-cli
+
+# Cowork-to-Code handoff prompts — drafted by Cowork, referenced via @-syntax
+# in Claude Code. Not part of the game codebase history.
+cowork-prompts/
