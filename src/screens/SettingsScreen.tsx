@@ -34,6 +34,7 @@ import {
 import { ShieldIcon } from '../components/icons/PartIcons';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import { BUILD_INFO } from '../buildInfo';
 
 type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
@@ -688,7 +689,12 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* About */}
           <SectionHeader title="ABOUT" delay={750} />
           <View style={styles.settingGroup}>
-            <TapRow icon={<ClipboardIcon size={18} color={Colors.blue} />} label="Version" value="v0.1.0 (dev)" delay={800} />
+            <TapRow
+              icon={<ClipboardIcon size={18} color={Colors.blue} />}
+              label="Version"
+              value={`v${BUILD_INFO.version} \u00B7 ${BUILD_INFO.sha}${BUILD_INFO.dirty ? '*' : ''}`}
+              delay={800}
+            />
             <View style={styles.divider} />
             <TapRow icon={<ScrollDocIcon size={18} color={Colors.blue} />} label="Terms of Service" chevron delay={850} />
             <View style={styles.divider} />
@@ -700,7 +706,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <CogsAvatar size="small" state="online" />
             <Text style={styles.cogsCredText}>
               Cogs AI v2.1 · All systems nominal.{'\n'}
-              <Text style={styles.cogsCredSub}>The Axiom · Build 0.1.0</Text>
+              <Text style={styles.cogsCredSub}>The Axiom · Build {BUILD_INFO.version} · {BUILD_INFO.sha}{BUILD_INFO.dirty ? '*' : ''}</Text>
             </Text>
           </Animated.View>
         </ScrollView>

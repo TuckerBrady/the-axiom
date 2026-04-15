@@ -33,6 +33,9 @@ google-services-key.json
 expo-env.d.ts
 # @end expo-cli
 
+# Auto-generated build info — regenerated on postinstall/prestart
+src/buildInfo.ts
+
 # Cowork-to-Code handoff prompts — drafted by Cowork, referenced via @-syntax
 # in Claude Code. Not part of the game codebase history.
 cowork-prompts/
