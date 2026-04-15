@@ -291,7 +291,6 @@ export default function GameplayScreen({ navigation }: Props) {
 
   const [failCount, setFailCount] = useState(0);
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
-  const [teachCardLine, setTeachCardLine] = useState(0);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showResults, setShowResults] = useState(false);
   // Bug 10: completion card gates Results screen. After a successful
@@ -1114,7 +1113,6 @@ export default function GameplayScreen({ navigation }: Props) {
           'The condition here requires Configuration = 1. Check that Configuration is set to ACTIVE before engaging.',
           'The Data Trail at the bottom is the memory. The Scanner reads it. What it reads can affect the Configuration.',
         ]);
-        setTeachCardLine(0);
         return;
       }
       if (level.id === 'A1-3' && newFailCount === 2) {
@@ -1125,7 +1123,6 @@ export default function GameplayScreen({ navigation }: Props) {
           'Check which value the Scanner will read. If it reads 1, the Config Node opens. If it reads 0, it stays closed.',
           'Toggle the Configuration to ACTIVE before engaging. That is the key.',
         ]);
-        setTeachCardLine(0);
         return;
       }
 
@@ -2084,7 +2081,7 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
 
-        {/* ── COGS Teach Card (progressive failure teaching) ── */}
+        {/* ── COGS Teach Card (failure teaching, single-tap dismiss) ── */}
         {showTeachCard && (
           <Animated.View style={styles.overlay} entering={FadeIn.duration(400)}>
             <LinearGradient
@@ -2094,38 +2091,25 @@ export default function GameplayScreen({ navigation }: Props) {
             <View style={styles.overlayContent}>
               <CogsAvatar size="medium" state="engaged" />
               <View style={{ gap: 16, marginTop: Spacing.xl, maxWidth: 320 }}>
-                {showTeachCard.slice(0, teachCardLine + 1).map((line, i) => (
+                {showTeachCard.map((line, i) => (
                   <Text key={i} style={{
                     fontFamily: Fonts.exo2, fontSize: 13, fontStyle: 'italic',
                     color: Colors.starWhite, lineHeight: 20,
                   }}>{line}</Text>
                 ))}
               </View>
-              {teachCardLine < showTeachCard.length - 1 ? (
-                <TouchableOpacity
-                  style={{ marginTop: Spacing.xl }}
-                  onPress={() => setTeachCardLine(prev => prev + 1)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.copper, letterSpacing: 2 }}>
-                    NEXT
-                  </Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={{ marginTop: Spacing.xl }}
-                  onPress={() => {
-                    setShowTeachCard(null);
-                    setTeachCardLine(0);
-                    setShowVoid(true);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
-                    TAP TO CONTINUE
-                  </Text>
-                </TouchableOpacity>
-              )}
+              <TouchableOpacity
+                style={{ marginTop: Spacing.xl }}
+                onPress={() => {
+                  setShowTeachCard(null);
+                  setShowVoid(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
+                  TAP TO CONTINUE
+                </Text>
+              </TouchableOpacity>
             </View>
           </Animated.View>
         )}
