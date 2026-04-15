@@ -98,7 +98,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CONVEYOR',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
-      message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
+      message: 'That piece is not in the Codex yet. It will be.',
       codexEntryId: 'conveyor',
     },
     {
@@ -106,7 +106,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CIRCUIT BOARD',
       targetRef: 'boardGrid',
       eyeState: 'blue',
-      message: 'As I was saying. Straight line, input to output. Place it between the ports. The path will complete.',
+      message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
     },
   ],
 };
