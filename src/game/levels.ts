@@ -69,7 +69,6 @@ export const levelA1_1: LevelDefinition = {
     { key: 'a11_select', trigger: 'onMount', text: 'Tap a piece in the tray to select it. Then tap the grid to place it between Input Port and Output Port.' },
     { key: 'a11_engage', trigger: 'onFirstPiecePlaced', text: 'Piece placed. Tap ENGAGE MACHINE to fire the signal.' },
     { key: 'a11_void', trigger: 'onVoid', text: 'The signal could not reach the Output Port. Check your connections.' },
-    { key: 'a11_success', trigger: 'onSuccess', text: 'Emergency power restored. Input Port to Output Port. That is how every machine works.' },
   ],
   tutorialSteps: [
     {
