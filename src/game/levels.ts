@@ -185,7 +185,7 @@ export const levelA1_3: LevelDefinition = {
     prePlaced('outputPort', 5, 5),
   ],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'configNode'],
-  dataTrail: { cells: [1, 1, 1, 1, 1, 1, 1, 1, 1], headPosition: 0 },
+  dataTrail: { cells: [0, 0, 0, 0, 0, 0, 0, 0, 0], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6,
   systemRepaired: 'Navigation Array',
@@ -194,7 +194,7 @@ export const levelA1_3: LevelDefinition = {
   computationalGoal: 'Route the signal through a gate that opens only when the Engineer sets its condition to match the Data Trail value.',
   conceptTaught: 'Conditional gating — a piece that reads the Data Trail and passes or blocks signal based on whether its configValue matches the trail value. The player learns that placement alone is insufficient; configuration matters.',
   prerequisiteConcept: 'Signal routing with direction changes (Conveyor from A1-1, Gear from A1-2). The player can build a path. Now the path has a gate on it.',
-  tapeDesignRationale: 'No tape. A1-3 is stateless. The Data Trail has a static pre-set value of 1 at the Config Node\'s board position. The Config Node defaults to configValue=0 when placed. The player must tap to cycle to 1 for the gate to open.',
+  tapeDesignRationale: 'No tape. A1-3 is stateless. The Data Trail initializes to all 0s per COMPUTATIONAL_MODEL.md. The Config Node defaults to configValue=1 in the engine. The player must tap to cycle configValue to 0 to match the trail for the gate to open.',
   difficultyBand: 'derivable',
   narrativeFrame: 'Navigation requires knowing where you are and making a decision about where to go. The gate is the decision point. The Engineer sets the condition. The trail is the truth. When they match, the ship knows where it is.',
   tutorialHints: [

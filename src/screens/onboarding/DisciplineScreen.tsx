@@ -144,16 +144,13 @@ function CogsResponseCard({
 
 export default function DisciplineScreen({ navigation }: Props) {
   const [selected, setSelected] = useState<OnboardingDiscipline>(null);
-  const playerName = usePlayerStore(s => s.name);
   const setDiscipline = usePlayerStore(s => s.setDiscipline);
 
   const screenOpacity = useSharedValue(0);
-  const greetReveal = useSharedValue(0);
   const confirmReveal = useSharedValue(0);
 
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 400 });
-    greetReveal.value = withDelay(100, withTiming(1, { duration: 500 }));
   }, []);
 
   useEffect(() => {
@@ -163,10 +160,6 @@ export default function DisciplineScreen({ navigation }: Props) {
   }, [selected]);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
-  const greetStyle = useAnimatedStyle(() => ({
-    opacity: greetReveal.value,
-    transform: [{ translateY: (1 - greetReveal.value) * 10 }],
-  }));
   const confirmStyle = useAnimatedStyle(() => ({
     opacity: confirmReveal.value,
     transform: [{ translateY: (1 - confirmReveal.value) * 10 }],
@@ -192,19 +185,6 @@ export default function DisciplineScreen({ navigation }: Props) {
         <View style={s.header}>
           <Text style={s.headerTitle}>YOUR DISCIPLINE</Text>
         </View>
-
-        {/* COGS greeting */}
-        <Animated.View style={[s.greeting, greetStyle]}>
-          <View style={s.greetAvatar}>
-            <CogsAvatar size="small" state="online" />
-          </View>
-          <View style={s.greetBubble}>
-            <Text style={s.greetText}>
-              Acknowledged, {playerName || 'Engineer'}. For operational purposes I will refer to you as The Engineer. It is accurate. It is efficient. It will do for now.{'\n\n'}
-              Now. Your discipline.
-            </Text>
-          </View>
-        </Animated.View>
 
         {/* Discipline cards */}
         <View style={s.cards}>
@@ -235,11 +215,7 @@ export default function DisciplineScreen({ navigation }: Props) {
               onPress={handleConfirm}
               activeOpacity={0.85}
             >
-              <View style={s.confirmCornerTL} />
-              <View style={s.confirmCornerTR} />
-              <View style={s.confirmCornerBL} />
-              <View style={s.confirmCornerBR} />
-              <Text style={s.confirmBtnText}>CONFIRM DISCIPLINE  →</Text>
+              <Text style={s.confirmBtnText}>CONFIRM DISCIPLINE</Text>
             </TouchableOpacity>
           </Animated.View>
         )}
@@ -273,32 +249,7 @@ const s = StyleSheet.create({
     color: '#E8F4FF',
     letterSpacing: 2,
   },
-  greeting: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.lg,
-    gap: Spacing.md,
-    alignItems: 'flex-start',
-  },
-  greetAvatar: { paddingTop: 4 },
-  greetBubble: {
-    flex: 1,
-    backgroundColor: 'rgba(6,9,18,0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.12)',
-    borderRadius: 10,
-    padding: Spacing.md,
-  },
-  greetText: {
-    fontFamily: Fonts.exo2,
-    fontSize: 14,
-    fontWeight: '300',
-    color: '#B0CCE8',
-    fontStyle: 'italic',
-    lineHeight: 23,
-  },
-  cards: { paddingHorizontal: Spacing.lg, gap: Spacing.md },
+  cards: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.lg, gap: Spacing.md },
   disciplineCard: {
     backgroundColor: 'rgba(6,9,18,0.8)',
     borderWidth: 1,
@@ -394,7 +345,6 @@ const s = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: Spacing.md,
     alignItems: 'center',
-    position: 'relative',
   },
   confirmBtnText: {
     fontFamily: Fonts.spaceMono,
@@ -402,21 +352,5 @@ const s = StyleSheet.create({
     fontWeight: 'bold',
     color: '#F0B429',
     letterSpacing: 1.5,
-  },
-  confirmCornerTL: {
-    position: 'absolute', top: 4, left: 4, width: 8, height: 8,
-    borderTopWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
-  },
-  confirmCornerTR: {
-    position: 'absolute', top: 4, right: 4, width: 8, height: 8,
-    borderTopWidth: 1, borderRightWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
-  },
-  confirmCornerBL: {
-    position: 'absolute', bottom: 4, left: 4, width: 8, height: 8,
-    borderBottomWidth: 1, borderLeftWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
-  },
-  confirmCornerBR: {
-    position: 'absolute', bottom: 4, right: 4, width: 8, height: 8,
-    borderBottomWidth: 1, borderRightWidth: 1, borderColor: 'rgba(240,180,41,0.4)',
   },
 });

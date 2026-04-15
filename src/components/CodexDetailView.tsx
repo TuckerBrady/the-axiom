@@ -457,6 +457,12 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }
 
   return (
     <Animated.View style={[{ flex: 1, backgroundColor: Colors.void }, screenStyle]}>
+      {/* HUD corner brackets */}
+      <View pointerEvents="none" style={[st.hudBracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderTopLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[st.hudBracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderTopRightRadius: 3 }]} />
+      <View pointerEvents="none" style={[st.hudBracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderBottomLeftRadius: 3 }]} />
+      <View pointerEvents="none" style={[st.hudBracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderBottomRightRadius: 3 }]} />
+
       {/* Atmosphere gradient */}
       <LinearGradient
         colors={[atmosphereColor, 'transparent']}
@@ -557,6 +563,13 @@ const simStyles = StyleSheet.create({
 });
 
 const st = StyleSheet.create({
+  hudBracket: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    borderColor: 'rgba(0,212,255,0.28)',
+    zIndex: 20,
+  },
   atmosphereGradient: {
     position: 'absolute',
     top: 0,
@@ -695,7 +708,7 @@ const st = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#00C48C',
+    borderColor: '#00D4FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -703,7 +716,7 @@ const st = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#00C48C',
+    backgroundColor: '#00D4FF',
   },
   cogsLabel: {
     fontFamily: Fonts.spaceMono,
@@ -714,7 +727,7 @@ const st = StyleSheet.create({
   },
   teachBadge: {
     borderWidth: 1,
-    borderColor: '#00C48C',
+    borderColor: '#00D4FF',
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -722,7 +735,7 @@ const st = StyleSheet.create({
   teachBadgeText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 8,
-    color: '#00C48C',
+    color: '#00D4FF',
     letterSpacing: 1,
   },
   cogsDescription: {

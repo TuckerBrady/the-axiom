@@ -751,7 +751,7 @@ export default function TutorialHUDOverlay({
           pointerEvents="auto"
           style={[
             StyleSheet.absoluteFill,
-            { transform: [{ translateY: codexTranslate }], zIndex: 250, backgroundColor: '#02050c' },
+            { transform: [{ translateY: codexTranslate }], zIndex: 250, backgroundColor: Colors.void, elevation: 250 },
           ]}
         >
           <CodexDetailView entry={codexEntry} onUnderstood={handleCodexUnderstood} />

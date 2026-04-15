@@ -10,7 +10,7 @@ import Animated, {
   Easing,
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import AxiomShipSVG from '../../components/icons/AxiomShipSVG';
+import AxiomShip from '../../components/hub/AxiomShip';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
@@ -36,7 +36,7 @@ function FloatingShip() {
   const style = useAnimatedStyle(() => ({ transform: [{ translateY: float.value }] }));
   return (
     <Animated.View style={style}>
-      <AxiomShipSVG width={180} height={120} />
+      <AxiomShip systemStates={['on', 'on', 'on', 'on', 'on', 'on', 'on', 'on']} width={180} />
     </Animated.View>
   );
 }
