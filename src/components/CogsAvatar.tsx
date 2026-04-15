@@ -48,11 +48,13 @@ const GREEN_HEX = '#00C48C';
 const DARK_BLUE_HEX = '#00D4FF';
 
 // ─── Component ─────────────────────────────────────────────────────────────────
-// All geometry defined for a 100×130 viewBox. SVG scales via width/height props.
+// Geometry defined for a 100x134 viewBox (y from -4 to 130) so the antenna
+// circle at cy=2, r=4 fits fully inside the viewable region. SVG scales via
+// width/height props.
 
 export default function CogsAvatar({ size = 'medium', state = 'online' }: Props) {
   const px = SIZE_MAP[size];
-  const py = px * (130 / 100);
+  const py = px * (134 / 100);
 
   const isGreen = state === 'green';
   const isDark = state === 'dark';
@@ -331,7 +333,7 @@ export default function CogsAvatar({ size = 'medium', state = 'online' }: Props)
 
   return (
     <Animated.View style={tiltStyle}>
-      <Svg width={px} height={py} viewBox="0 0 100 130">
+      <Svg width={px} height={py} viewBox="0 -4 100 134">
         <Defs>
           <RadialGradient id="reactorGrad" cx="50%" cy="50%" r="50%">
             <Stop offset="0%" stopColor={reactorColor} stopOpacity="1" />
