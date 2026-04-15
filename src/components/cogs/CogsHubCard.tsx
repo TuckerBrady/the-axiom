@@ -21,7 +21,7 @@ interface Props {
 export default function CogsHubCard({
   color,
   name = 'C.O.G.S Unit 7',
-  role = 'C.O.G.S UNIT 7',
+  role = 'TRANSMISSION',
   cta,
   body,
   onPress,

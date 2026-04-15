@@ -173,6 +173,7 @@ export default function HubScreen({ navigation }: Props) {
             {/* Amber COGS card — mission guidance */}
             <CogsHubCard
               color="AMBER"
+              role="MISSION BRIEFING"
               cta={nextLevelId ? `${nextLevelId} →` : 'Complete'}
               body={nextLevel
                 ? nextLevel.cogsLine || `${nextLevel.name} is the next objective.`
@@ -189,6 +190,7 @@ export default function HubScreen({ navigation }: Props) {
             {hasBounty && currentChallenge && (
               <CogsHubCard
                 color="BLUE"
+                role="BOUNTY TRANSMISSION"
                 cta="Bounty →"
                 body={currentChallenge.cogsPresentation || 'Incoming transmission. Bounty available.'}
                 onPress={() => navigation.navigate('DailyChallengeDossier')}
