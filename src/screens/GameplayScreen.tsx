@@ -1846,26 +1846,19 @@ export default function GameplayScreen({ navigation }: Props) {
           </Animated.View>
         )}
 
-        {/* ── COGS Completion Card (gates Results screen) ── */}
-        {showCompletionCard && !showResults && level?.cogsLine && (
-          <View style={styles.completionCardWrap} pointerEvents="box-none">
-            <View style={styles.completionCard}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                <CogsAvatar size="small" state="engaged" />
-                <Text style={styles.completionCardLabel}>C.O.G.S</Text>
-              </View>
-              <Text style={styles.completionCardText}>{level.cogsLine}</Text>
-              <TouchableOpacity
-                style={styles.completionCardBtn}
-                onPress={() => {
-                  setShowCompletionCard(false);
-                  setShowResults(true);
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.completionCardBtnText}>CONTINUE</Text>
-              </TouchableOpacity>
-            </View>
+        {/* ── Post-completion CONTINUE (gates Results screen) ── */}
+        {showCompletionCard && !showResults && (
+          <View style={styles.completionContinueWrap} pointerEvents="box-none">
+            <TouchableOpacity
+              style={[styles.completionCardBtn, { alignSelf: 'center' }]}
+              onPress={() => {
+                setShowCompletionCard(false);
+                setShowResults(true);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.completionCardBtnText}>CONTINUE</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -2848,7 +2841,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Completion card (COGS post-level line, Bug 10)
+  // Post-completion CONTINUE button wrapper — no backdrop, bottom-anchored.
+  // completionCardWrap is retained below for the Wrong Output modal reuse.
+  completionContinueWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 48,
+    paddingHorizontal: 20,
+    zIndex: 250,
+  },
   completionCardWrap: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
@@ -2856,30 +2858,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     backgroundColor: 'rgba(2,5,12,0.88)',
     zIndex: 250,
-  },
-  completionCard: {
-    width: '100%',
-    maxWidth: 520,
-    backgroundColor: 'rgba(6,9,15,0.98)',
-    borderLeftWidth: 3,
-    borderLeftColor: '#4a9eff',
-    borderTopRightRadius: 12,
-    borderBottomRightRadius: 12,
-    paddingVertical: 20,
-    paddingHorizontal: 14,
-  },
-  completionCardLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: '#4a9eff',
-    letterSpacing: 2,
-  },
-  completionCardText: {
-    fontFamily: Fonts.exo2,
-    fontSize: 14,
-    color: '#D0E4FF',
-    lineHeight: 20,
-    marginBottom: 12,
   },
   completionCardBtn: {
     alignSelf: 'flex-end',
