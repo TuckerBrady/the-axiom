@@ -30,6 +30,7 @@ import { useEconomyStore } from '../store/economyStore';
 import { useChallengeStore } from '../store/challengeStore';
 import { useConsequenceStore } from '../store/consequenceStore';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS, SHIP_SYSTEMS } from '../store/progressionStore';
+import { useGameStore } from '../store/gameStore';
 import { AXIOM_LEVELS } from '../game/levels';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -72,6 +73,7 @@ export default function HubScreen({ navigation }: Props) {
   const { currentChallenge, challengeStatus, loadOrGenerateChallenge } = useChallengeStore();
   const damagedSystems = useConsequenceStore(s => s.damagedSystems);
   const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
+  const setLevel = useGameStore(s => s.setLevel);
 
   // Regenerate lives on mount
   useEffect(() => { regenerate(); }, []);
@@ -176,8 +178,9 @@ export default function HubScreen({ navigation }: Props) {
                 ? nextLevel.cogsLine || `${nextLevel.name} is the next objective.`
                 : 'All Axiom systems are operational.'}
               onPress={() => {
-                if (nextLevelId) {
-                  navigation.navigate('LevelSelect');
+                if (nextLevelId && nextLevel) {
+                  setLevel(nextLevel);
+                  navigation.navigate('Gameplay');
                 }
               }}
             />

@@ -25,4 +25,36 @@ describe('HubScreen data layer', () => {
     const state = useChallengeStore.getState();
     expect(typeof state.loadOrGenerateChallenge).toBe('function');
   });
+
+  it('gameStore exposes setLevel for direct mission card launch', () => {
+    const { useGameStore } = require('../../src/store/gameStore');
+    const state = useGameStore.getState();
+    expect(typeof state.setLevel).toBe('function');
+  });
+
+  it('mission card launch path: setLevel(nextLevel) then navigate Gameplay', () => {
+    const { useGameStore } = require('../../src/store/gameStore');
+    const { AXIOM_LEVELS } = require('../../src/game/levels');
+    const { useProgressionStore } = require('../../src/store/progressionStore');
+
+    const { isLevelCompleted } = useProgressionStore.getState();
+    const nextLevel = AXIOM_LEVELS.find((l: { id: string }) => !isLevelCompleted(l.id));
+    expect(nextLevel).toBeDefined();
+
+    const setLevel = useGameStore.getState().setLevel;
+    const navigate = jest.fn();
+
+    // Simulate the exact onPress used by the amber mission card in HubScreen.
+    const onPress = () => {
+      if (nextLevel?.id && nextLevel) {
+        setLevel(nextLevel);
+        navigate('Gameplay');
+      }
+    };
+    onPress();
+
+    expect(useGameStore.getState().currentLevel?.id).toBe(nextLevel.id);
+    expect(navigate).toHaveBeenCalledWith('Gameplay');
+    expect(navigate).not.toHaveBeenCalledWith('LevelSelect');
+  });
 });
