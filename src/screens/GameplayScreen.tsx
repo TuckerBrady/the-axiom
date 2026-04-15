@@ -292,7 +292,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const [failCount, setFailCount] = useState(0);
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
   const [teachCardLine, setTeachCardLine] = useState(0);
-  const [showBriefing, setShowBriefing] = useState(true);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showResults, setShowResults] = useState(false);
   // Bug 10: completion card gates Results screen. After a successful
@@ -390,19 +389,6 @@ export default function GameplayScreen({ navigation }: Props) {
     tutorialIsActiveRef.current = tutorialIsActive;
   }, [tutorialIsActive]);
 
-  // ── Auto-dismiss COGS briefing strip ──
-  // During an active tutorial, hide it immediately — the tutorial overlay
-  // is already narrating; COGS should not compete with it. Otherwise fade
-  // after 4 seconds.
-  useEffect(() => {
-    if (!showBriefing) return;
-    if (tutorialIsActive) {
-      setShowBriefing(false);
-      return;
-    }
-    const t = setTimeout(() => setShowBriefing(false), 4000);
-    return () => clearTimeout(t);
-  }, [showBriefing, tutorialIsActive]);
 
   // ── Elapsed timer ──
   useEffect(() => {
@@ -1255,13 +1241,8 @@ export default function GameplayScreen({ navigation }: Props) {
               </Text>
             )}
           </View>
-          <TouchableOpacity style={styles.hintBtn} activeOpacity={0.7} onPress={() => setShowBriefing(true)}>
-            <Svg width={18} height={18} viewBox="0 0 24 24">
-              <Circle cx="12" cy="12" r="10" fill="none" stroke={Colors.muted} strokeWidth="2" />
-              <Path d="M12 16 L12 12" stroke={Colors.muted} strokeWidth="2" strokeLinecap="round" />
-              <Circle cx="12" cy="8" r="1" fill={Colors.muted} />
-            </Svg>
-          </TouchableOpacity>
+          {/* Spacer to balance pause button width for centering */}
+          <View style={{ width: 36 }} />
         </View>
 
         {/* ── Turing Tape Display ── */}
@@ -2589,28 +2570,6 @@ const styles = StyleSheet.create({
   levelName: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
     color: Colors.starWhite,
-  },
-  hintBtn: {
-    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(74,158,255,0.15)', borderRadius: 8,
-  },
-
-  // Briefing
-  briefingStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: Spacing.lg,
-    marginTop: Spacing.sm,
-    backgroundColor: 'rgba(10,18,30,0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.15)',
-    borderRadius: 10,
-    padding: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  briefingText: {
-    flex: 1,
-    fontFamily: Fonts.exo2, fontSize: 11, color: Colors.muted, fontStyle: 'italic',
   },
 
   // Configuration
