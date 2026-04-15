@@ -1,7 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
 import type { CogsEyeColor } from '../../constants/cogsEyeColors';
-import { COGS_EYE_COLORS } from '../../constants/cogsEyeColors';
 import CogsAvatar from '../CogsAvatar';
 import type { CogsState } from '../CogsAvatar';
 
@@ -20,27 +18,17 @@ const COLOR_TO_STATE: Record<CogsEyeColor, CogsState> = {
 };
 
 /**
- * COGS avatar for Hub cards. Wraps the canonical CogsAvatar
+ * COGS avatar for Hub cards. Renders the canonical CogsAvatar
  * (src/components/CogsAvatar.tsx — the copper-bust portrait with
- * animated eyes and reactor used across the entire app) inside a
- * colored circle container driven by the eye-state color token.
+ * animated eyes and reactor used across the entire app) directly,
+ * matching LaunchScreen and LevelSelectScreen treatment.
+ *
+ * Props `color` and `size` are retained in the interface for
+ * call-site compatibility; `color` drives eye state, `size` is
+ * no longer applied (CogsAvatar uses its own SIZE_MAP).
  */
-export default function CogsRobotAvatar({ color, size = 30 }: Props) {
-  const c = COGS_EYE_COLORS[color];
+export default function CogsRobotAvatar({ color }: Props) {
   const cogsState = COLOR_TO_STATE[color];
 
-  return (
-    <View style={[st.circle, { width: size, height: size, borderRadius: size / 2, borderColor: c.solid, backgroundColor: c.avatarBg }]}>
-      <CogsAvatar size="small" state={cogsState} />
-    </View>
-  );
+  return <CogsAvatar size="small" state={cogsState} />;
 }
-
-const st = StyleSheet.create({
-  circle: {
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-});
