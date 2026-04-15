@@ -193,7 +193,7 @@ export default function LaunchScreen({ navigation }: Props) {
             </View>
             <Text style={styles.cogsSpeech}>
               {'"'}The cosmos does not fix itself. Good thing you have a sharp
-              mind, a trusty ship, and an AI companion with opinions.{'"'}
+              mind, a trusty ship, and a droid companion with opinions.{'"'}
             </Text>
           </Animated.View>
 
