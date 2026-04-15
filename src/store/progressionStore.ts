@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,13 @@ interface ProgressionState {
   getLevelStars: (levelId: string) => number;
   getSectorCompletedCount: (sectorPrefix: string) => number;
   setActiveSector: (sector: string) => void;
+  hydrate: () => Promise<void>;
 }
+
+// ─── Storage keys ────────────────────────────────────────────────────────────
+
+const PROGRESSION_KEY = 'axiom_progression_completed';
+const ACTIVE_SECTOR_KEY = 'axiom_progression_active_sector';
 
 // ─── Store ───────────────────────────────────────────────────────────────────
 
@@ -42,6 +49,8 @@ export const useProgressionStore = create<ProgressionState>((set, get) => ({
       },
     });
 
+    AsyncStorage.setItem(PROGRESSION_KEY, JSON.stringify(get().completedLevels));
+
     return isFirstTime;
   },
 
@@ -60,6 +69,27 @@ export const useProgressionStore = create<ProgressionState>((set, get) => ({
 
   setActiveSector: (sector) => {
     set({ activeSector: sector });
+    AsyncStorage.setItem(ACTIVE_SECTOR_KEY, sector);
+  },
+
+  hydrate: async () => {
+    const [storedCompleted, storedSector] = await Promise.all([
+      AsyncStorage.getItem(PROGRESSION_KEY),
+      AsyncStorage.getItem(ACTIVE_SECTOR_KEY),
+    ]);
+    if (storedCompleted) {
+      try {
+        const parsed = JSON.parse(storedCompleted);
+        if (parsed && typeof parsed === 'object') {
+          set({ completedLevels: parsed });
+        }
+      } catch {
+        // Corrupted or malformed storage — leave default empty map
+      }
+    }
+    if (storedSector && typeof storedSector === 'string') {
+      set({ activeSector: storedSector });
+    }
   },
 }));
 

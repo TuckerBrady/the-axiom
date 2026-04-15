@@ -109,6 +109,63 @@ describe('progressionStore', () => {
   });
 });
 
+// ─── ProgressionStore persistence ────────────────────────────────────────────
+
+describe('progressionStore persistence', () => {
+  const PROGRESSION_KEY = 'axiom_progression_completed';
+  const ACTIVE_SECTOR_KEY = 'axiom_progression_active_sector';
+  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+    useProgressionStore.setState({ completedLevels: {}, activeSector: 'A1' });
+  });
+
+  it('completeLevel persists completedLevels to AsyncStorage', async () => {
+    useProgressionStore.getState().completeLevel('A1-1', 3);
+    // setItem is awaited internally via fire-and-forget; the mock resolves synchronously
+    const raw = await AsyncStorage.getItem(PROGRESSION_KEY);
+    expect(raw).toBeTruthy();
+    const parsed = JSON.parse(raw as string);
+    expect(parsed['A1-1']).toBeDefined();
+    expect(parsed['A1-1'].stars).toBe(3);
+  });
+
+  it('setActiveSector persists activeSector to AsyncStorage', async () => {
+    useProgressionStore.getState().setActiveSector('kepler');
+    const stored = await AsyncStorage.getItem(ACTIVE_SECTOR_KEY);
+    expect(stored).toBe('kepler');
+  });
+
+  it('hydrate restores completedLevels from AsyncStorage', async () => {
+    await AsyncStorage.setItem(
+      PROGRESSION_KEY,
+      JSON.stringify({ 'A1-1': { stars: 2, completedAt: 1234 } }),
+    );
+    await useProgressionStore.getState().hydrate();
+    expect(useProgressionStore.getState().isLevelCompleted('A1-1')).toBe(true);
+    expect(useProgressionStore.getState().getLevelStars('A1-1')).toBe(2);
+  });
+
+  it('hydrate restores activeSector from AsyncStorage', async () => {
+    await AsyncStorage.setItem(ACTIVE_SECTOR_KEY, 'kepler');
+    await useProgressionStore.getState().hydrate();
+    expect(useProgressionStore.getState().activeSector).toBe('kepler');
+  });
+
+  it('hydrate is safe on missing keys (defaults preserved)', async () => {
+    await useProgressionStore.getState().hydrate();
+    expect(useProgressionStore.getState().completedLevels).toEqual({});
+    expect(useProgressionStore.getState().activeSector).toBe('A1');
+  });
+
+  it('hydrate is safe on corrupt JSON (defaults preserved)', async () => {
+    await AsyncStorage.setItem(PROGRESSION_KEY, '{not valid json');
+    await useProgressionStore.getState().hydrate();
+    expect(useProgressionStore.getState().completedLevels).toEqual({});
+  });
+});
+
 // ─── LivesStore ──────────────────────────────────────────────────────────────
 
 describe('livesStore', () => {

@@ -28,6 +28,7 @@ import { Colors } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useChallengeStore } from '../store/challengeStore';
+import { useProgressionStore } from '../store/progressionStore';
 
 export type RootStackParamList = {
   // Onboarding
@@ -92,6 +93,7 @@ export default function RootNavigator() {
   // ── Hydrate stores from AsyncStorage ──
   useEffect(() => {
     usePlayerStore.getState().hydrate();
+    useProgressionStore.getState().hydrate();
     useChallengeStore.getState().loadOrGenerateChallenge();
   }, []);
 
