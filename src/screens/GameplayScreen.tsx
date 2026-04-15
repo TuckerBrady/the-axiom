@@ -1709,11 +1709,11 @@ export default function GameplayScreen({ navigation }: Props) {
                     }}
                     activeOpacity={0.7}
                     disabled={count <= 0}
+                    accessibilityLabel={`${PIECE_LABELS[pt]}, ${count} available`}
                   >
                     <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
                       <PieceIcon type={pt} size={22} color={color} />
                     </View>
-                    <Text style={[styles.trayLabel, { color }]}>{PIECE_LABELS[pt]}</Text>
                     <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
                       <Text style={styles.trayBadgeText}>{count}</Text>
                     </View>
@@ -2685,7 +2685,7 @@ const styles = StyleSheet.create({
 
   // Parts tray
   partsTray: {
-    height: 80,
+    height: 72,
     borderTopWidth: 1,
     borderTopColor: 'rgba(74,158,255,0.12)',
     justifyContent: 'center',
@@ -2696,8 +2696,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   trayItem: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderWidth: 1,
     borderColor: 'rgba(74,158,255,0.2)',
     borderRadius: 12,
@@ -2706,9 +2706,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(8,14,28,0.8)',
     gap: 2,
     position: 'relative',
-  },
-  trayLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5,
   },
   trayBadge: {
     paddingHorizontal: 6,
