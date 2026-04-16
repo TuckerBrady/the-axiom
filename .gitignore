@@ -11,7 +11,9 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 *.orig
-.claude/
+.claude/*
+!.claude/commands/
+!.claude/commands/**
 CLAUDE.local.md
 
 # Test coverage
@@ -36,6 +38,6 @@ expo-env.d.ts
 # Auto-generated build info — regenerated on postinstall/prestart
 src/buildInfo.ts
 
-# Cowork-to-Code handoff prompts — drafted by Cowork, referenced via @-syntax
-# in Claude Code. Not part of the game codebase history.
+# Cowork-to-Code handoff prompts — drafted by Cowork, referenced
+# via /prompt slash command. Not part of game codebase history.
 cowork-prompts/

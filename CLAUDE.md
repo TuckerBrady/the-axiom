@@ -187,11 +187,15 @@ This project uses a file-based handoff between Cowork and Code:
 - Always check /project-docs/ for context before starting a new task
 
 Prompt delivery flow:
-1. Cowork drafts the prompt as a file in /cowork-prompts/.
-2. Cowork gives Tucker the @file reference path.
-3. Tucker passes the @file reference to Code. Code reads the file directly.
+1. Cowork drafts the numbered prompt as a file in /cowork-prompts/PROMPT_NN.md.
+2. Cowork gives Tucker an elevator pitch of what the prompt does.
+3. Tucker reviews. If approved, Cowork overwrites /cowork-prompts/RECENT.md
+   with the same content as PROMPT_NN.md (numbered file stays for history).
+4. Tucker types `/prompt` in Code. The slash command at
+   /.claude/commands/prompt.md reads RECENT.md and executes.
 
-No copy-paste. No inline chat blocks. The file IS the prompt.
+No copy-paste. No inline chat blocks. No @file path typing. Approval gate
+is the pitch — Cowork does not write RECENT.md until Tucker says go.
 
 What goes in project-docs:
 - SPECS/ — decision records, feature specs. These persist. They document
