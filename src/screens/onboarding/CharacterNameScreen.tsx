@@ -47,7 +47,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
   const [nameInput, setNameInput] = useState('');
   const [phase, setPhase] = useState<Phase>('input');
   const [bubbleText, setBubbleText] = useState(REVEAL_BEAT1_PROMPT);
-  const [eyeColor, setEyeColor] = useState(AMBER);
+  const [cogsState, setCogsState] = useState<'engaged' | 'online'>('engaged');
   const [canTap, setCanTap] = useState(false);
 
   const setStoreName = usePlayerStore(s => s.setName);
@@ -55,7 +55,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
   // ── Animated values ──
   const screenOp = useSharedValue(0);
-  const bracketOp = useSharedValue(0);
   const cogsRowY = useSharedValue(-30);
   const cogsRowOp = useSharedValue(0);
   const bubbleY = useSharedValue(-20);
@@ -78,7 +77,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
   // ── Mount entrance ──
   useEffect(() => {
     screenOp.value = withTiming(1, { duration: 400 });
-    bracketOp.value = withDelay(100, withTiming(1, { duration: 400 }));
     cogsRowOp.value = withDelay(200, withTiming(1, { duration: 500 }));
     cogsRowY.value = withDelay(200, withTiming(0, { duration: 500, easing: Easing.bezier(0.16, 1, 0.3, 1) }));
     bubbleOp.value = withDelay(400, withTiming(1, { duration: 500 }));
@@ -137,7 +135,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
     }, 3200);
 
     // BEAT 3 (3.8s+): Eye shifts amber → blue, HUD explainer
-    setTimeout(() => setEyeColor(BLUE_OPS), 3800);
+    setTimeout(() => setCogsState('online'), 3800);
     setTimeout(() => swapBubble(REVEAL_BEAT3_HUD), 4000);
   }, [nameOp, nameY, desigOp, desigY, scanLineOp, scanLineY, statusOp, statusDotOp, ctaOp, ctaBlink, swapBubble, bubbleTextOp]);
 
@@ -177,7 +175,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
   const handleReplay = () => {
     setPhase('input');
     setBubbleText(REVEAL_BEAT1_PROMPT);
-    setEyeColor(AMBER);
+    setCogsState('engaged');
     setCanTap(false);
     setNameInput('');
     // Reset all animated values
@@ -189,7 +187,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
   // ── Animated styles ──
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOp.value }));
-  const bracketStyle = useAnimatedStyle(() => ({ opacity: bracketOp.value }));
   const cogsRowStyle = useAnimatedStyle(() => ({ opacity: cogsRowOp.value, transform: [{ translateY: cogsRowY.value }] }));
   const bubbleStyle = useAnimatedStyle(() => ({ opacity: bubbleOp.value, transform: [{ translateY: bubbleY.value }] }));
   const bubbleTextStyle = useAnimatedStyle(() => ({ opacity: bubbleTextOp.value }));
@@ -207,12 +204,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Animated.View style={[st.root, screenStyle]}>
-        {/* HUD brackets */}
-        <Animated.View pointerEvents="none" style={[st.bracket, bracketStyle, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopLeftRadius: 3 }]} />
-        <Animated.View pointerEvents="none" style={[st.bracket, bracketStyle, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderTopRightRadius: 3 }]} />
-        <Animated.View pointerEvents="none" style={[st.bracket, bracketStyle, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomLeftRadius: 3 }]} />
-        <Animated.View pointerEvents="none" style={[st.bracket, bracketStyle, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: 'rgba(0,212,255,0.28)', borderBottomRightRadius: 3 }]} />
-
         {/* Dev replay */}
         {__DEV__ && phase === 'reveal' && (
           <TouchableOpacity style={st.replayBtn} onPress={handleReplay} activeOpacity={0.7}>
@@ -222,9 +213,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
         {/* TOP: COGS row */}
         <Animated.View style={[st.cogsRow, cogsRowStyle]}>
-          <View style={[st.eyeRing, { borderColor: eyeColor }]}>
-            <View style={[st.eyePupil, { backgroundColor: eyeColor }]} />
-          </View>
+          <CogsAvatar size="small" state={cogsState} />
           <Text style={st.cogsLabel}>C.O.G.S UNIT 7</Text>
         </Animated.View>
 
@@ -311,13 +300,10 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
 const st = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#060A0F' },
-  bracket: { position: 'absolute', width: 18, height: 18, zIndex: 20 },
   replayBtn: { position: 'absolute', top: 60, right: 16, zIndex: 30, padding: 6 },
   replayText: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.copper, opacity: 0.5, letterSpacing: 1 },
 
   cogsRow: { flexDirection: 'row', alignItems: 'center', paddingTop: 52, paddingHorizontal: 24, gap: 12 },
-  eyeRing: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  eyePupil: { width: 16, height: 16, borderRadius: 8 },
   cogsLabel: { fontFamily: Fonts.spaceMono, fontSize: 10, color: '#38BDF8', opacity: 0.65, letterSpacing: 1.5 },
 
   bubbleWrap: { paddingHorizontal: 24, paddingTop: 12 },
