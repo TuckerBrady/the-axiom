@@ -326,7 +326,7 @@ const st = StyleSheet.create({
 
   designationCard: { borderWidth: 1.5, borderColor: AMBER, borderRadius: 14, overflow: 'hidden', width: '100%' },
   designationBar: { height: 3, backgroundColor: AMBER },
-  designationInner: { padding: 20, alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.04)' },
+  designationInner: { padding: 20, paddingBottom: 28, alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.04)' },
   designationTitle: { fontFamily: Fonts.orbitron, fontSize: FontSizes.xxl, fontWeight: 'bold', color: AMBER, letterSpacing: 4, textTransform: 'uppercase' },
   designationSub: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.xs, color: Colors.muted, letterSpacing: 1 },
   scanLine: { position: 'absolute', left: 0, right: 0, top: 0, height: 2, backgroundColor: AMBER, opacity: 0.5 },
