@@ -28,24 +28,6 @@ type Props = {
 
 type RepairState = 'idle' | 'selected' | 'placed' | 'engaging' | 'done';
 
-// ─── HUD brackets ──────────────────────────────────────────────────────────────
-
-function HudBrackets() {
-  const C = 'rgba(0,212,255,0.28)';
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <View style={[s.corner, { top: 14, left: 14 }]}>
-        <View style={[s.cornerH, { top: 0, left: 0, backgroundColor: C }]} />
-        <View style={[s.cornerV, { top: 0, left: 0, backgroundColor: C }]} />
-      </View>
-      <View style={[s.corner, { top: 14, right: 14 }]}>
-        <View style={[s.cornerH, { top: 0, right: 0, backgroundColor: C }]} />
-        <View style={[s.cornerV, { top: 0, right: 0, backgroundColor: C }]} />
-      </View>
-    </View>
-  );
-}
-
 // ─── Integrity bar with pulse ─────────────────────────────────────────────────
 
 function IntegrityBar({ percent }: { percent: number }) {
@@ -103,9 +85,9 @@ function BoardCell({
   onPress?: () => void;
 }) {
   const content =
-    kind === 'inputPort' ? <PieceIcon type="inputPort" size={40} /> :
-    kind === 'outputPort' ? <PieceIcon type="outputPort" size={40} /> :
-    kind === 'conveyor' ? <PieceIcon type="conveyor" size={44} /> :
+    kind === 'inputPort' ? <PieceIcon type="inputPort" size={56} /> :
+    kind === 'outputPort' ? <PieceIcon type="outputPort" size={56} /> :
+    kind === 'conveyor' ? <PieceIcon type="conveyor" size={64} /> :
     isTarget ? <Text style={s.emptyPlus}>+</Text> : null;
 
   const cellStyle =
@@ -253,8 +235,6 @@ export default function RepairScreen({ navigation }: Props) {
 
   return (
     <Animated.View style={[s.root, screenStyle]}>
-      <HudBrackets />
-
       {/* Header */}
       <View style={s.header}>
         <Text style={s.headerTitle}>C.O.G.S UNIT 7 — CRITICAL SYSTEMS</Text>
@@ -274,6 +254,9 @@ export default function RepairScreen({ navigation }: Props) {
 
         {/* COGS directive */}
         <Text style={s.directive}>Connect the relay. Source to Output.</Text>
+
+        {/* Spacer */}
+        <View style={{ flex: 1 }} />
 
         {/* Board */}
         <View ref={boardRef} style={s.board}>
@@ -362,9 +345,6 @@ export default function RepairScreen({ navigation }: Props) {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
-  corner: { position: 'absolute', width: 18, height: 18 },
-  cornerH: { position: 'absolute', width: 18, height: 2 },
-  cornerV: { position: 'absolute', width: 2, height: 18 },
 
   header: {
     paddingHorizontal: Spacing.lg,
@@ -427,8 +407,8 @@ const s = StyleSheet.create({
     gap: 0,
   },
   cell: {
-    width: 68,
-    height: 68,
+    width: 96,
+    height: 96,
     borderRadius: 3,
     alignItems: 'center',
     justifyContent: 'center',
@@ -454,7 +434,7 @@ const s = StyleSheet.create({
   },
   emptyPlus: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 20,
+    fontSize: 28,
     color: 'rgba(0,212,255,0.35)',
   },
   tray: {
