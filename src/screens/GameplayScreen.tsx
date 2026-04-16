@@ -1338,6 +1338,30 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         )}
 
+        {/* ── Trail-only display (non-tape levels with Data Trail, e.g. A1-3) ── */}
+        {!level.inputTape && level.dataTrail.cells.length > 0 && (
+          <View collapsable={false} style={styles.tapeSection}>
+            <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
+              <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
+              <View style={styles.tapeCells}>
+                {machineState.dataTrail.cells.map((cell, i) => {
+                  const isHead = i === machineState.dataTrail.headPosition;
+                  return (
+                    <View key={`trail-${i}`} style={styles.tapeCellWrap}>
+                      <View style={[styles.tapeHead, { opacity: 0 }]} />
+                      <View style={[styles.tapeCell, isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' }]}>
+                        <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }]}>
+                          {cell}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* ── Game Canvas (flex fills remaining space) ── */}
         <View
           style={styles.canvasOuter}
@@ -1643,33 +1667,6 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         </View>
 
-        {/* ── Data Trail Strip (non-tape levels only, below board) ── */}
-        {!level.inputTape && level.dataTrail.cells.length > 0 && (
-          <View style={styles.dataTrailStrip}>
-            <Text style={styles.dataTrailLabel}>DATA TRAIL</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dataTrailScroll}>
-              {machineState.dataTrail.cells.map((cell, i) => {
-                const isHead = i === machineState.dataTrail.headPosition;
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dataTrailCell,
-                      isHead && styles.dataTrailCellHead,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.dataTrailCellText,
-                      isHead && styles.dataTrailCellTextHead,
-                    ]}>
-                      {cell}
-                    </Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
 
         {/* ── Parts Tray ── */}
         {!isExecuting && !showResults && !showVoid && !debugMode && (
@@ -2627,38 +2624,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     backgroundColor: 'rgba(200,121,65,0.08)',
   },
-
-  // Data trail
-  dataTrailStrip: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(240,180,41,0.15)',
-  },
-  dataTrailLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.amber,
-    letterSpacing: 1.5, marginBottom: 4,
-  },
-  dataTrailScroll: { flexDirection: 'row' },
-  dataTrailCell: {
-    width: 28,
-    height: 28,
-    borderWidth: 1,
-    borderColor: 'rgba(240,180,41,0.3)',
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
-    backgroundColor: 'rgba(10,18,30,0.6)',
-  },
-  dataTrailCellHead: {
-    borderColor: Colors.amber,
-    backgroundColor: 'rgba(240,180,41,0.15)',
-  },
-  dataTrailCellText: {
-    fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted,
-  },
-  dataTrailCellTextHead: { color: Colors.neonGreen, fontWeight: 'bold' },
 
   // Parts tray
   partsTray: {

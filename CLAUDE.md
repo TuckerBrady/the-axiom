@@ -181,23 +181,22 @@ No emojis in commit messages. Ever.
 
 This project uses a file-based handoff between Cowork and Code:
 
+- Cowork writes prompts to /cowork-prompts/PROMPT_NN.md (gitignored)
 - Cowork writes specs to /project-docs/SPECS/
-- Code prompts are delivered via chat (pasted by Tucker), NOT saved as files
 - If you hit a decision point, write a blocker to /project-docs/REPORTS/
 - Always check /project-docs/ for context before starting a new task
+
+Prompt delivery flow:
+1. Cowork drafts the prompt as a file in /cowork-prompts/.
+2. Cowork gives Tucker the @file reference path.
+3. Tucker passes the @file reference to Code. Code reads the file directly.
+
+No copy-paste. No inline chat blocks. The file IS the prompt.
 
 What goes in project-docs:
 - SPECS/ — decision records, feature specs. These persist. They document
   what was decided and why.
 - REPORTS/ — blocker reports from Code when it hits a decision point.
-- BRIEFS/ — do NOT write Code prompts here. Cowork writes prompts in
-  chat, Tucker pastes them into Code. Briefs are disposable overhead
-  that clutters the repo and wastes context scanning time.
-
-Code prompt format: always deliver as a single plain-text code block.
-No markdown formatting (no bold, no headers, no bullet styling).
-Tucker copies the block and pastes it directly into Code. If it is
-not in a code block, it is harder to copy.
 
 Cowork can read the repo directly when the project folder is
 mounted. When Cowork does not have direct access, it writes a

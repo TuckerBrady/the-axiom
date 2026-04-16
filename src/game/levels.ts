@@ -184,7 +184,7 @@ export const levelA1_3: LevelDefinition = {
     prePlaced('outputPort', 5, 5),
   ],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'configNode'],
-  dataTrail: { cells: [0, 0, 0, 0, 0, 0, 0, 0, 0], headPosition: 0 },
+  dataTrail: { cells: [0], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6,
   systemRepaired: 'Navigation Array',
