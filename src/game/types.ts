@@ -202,13 +202,16 @@ export const PIECE_COSTS: Partial<Record<PieceType, number>> = {
   conveyor: 5,
   gear: 10,
   splitter: 15,
+  merger: 15,
+  bridge: 20,
   configNode: 25,
   scanner: 30,
+  latch: 30,
   transmitter: 35,
 };
 
-const PROTOCOL_PIECES: PieceType[] = ['configNode', 'scanner', 'transmitter'];
-const PHYSICS_PIECES: PieceType[] = ['conveyor', 'gear', 'splitter'];
+const PROTOCOL_PIECES: PieceType[] = ['configNode', 'scanner', 'transmitter', 'latch'];
+const PHYSICS_PIECES: PieceType[] = ['conveyor', 'gear', 'splitter', 'merger', 'bridge'];
 
 export function getPieceCost(
   pieceType: PieceType,
