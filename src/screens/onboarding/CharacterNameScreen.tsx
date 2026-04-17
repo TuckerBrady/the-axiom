@@ -230,7 +230,8 @@ export default function CharacterNameScreen({ navigation }: Props) {
               <TextInput
                 style={st.nameInput}
                 value={nameInput}
-                onChangeText={setNameInput}
+                onChangeText={(text) => setNameInput(text.toUpperCase())}
+                autoCapitalize="characters"
                 placeholder="Enter your name"
                 placeholderTextColor="rgba(0,212,255,0.3)"
                 maxLength={24}
