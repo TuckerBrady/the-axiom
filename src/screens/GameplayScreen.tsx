@@ -332,6 +332,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargePos, setChargePos] = useState<Pt | null>(null);
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
+  const [tapeBeamState, setTapeBeamState] = useState<{ x: number; currentY: number; color: string; tailDir: number } | null>(null);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
   // Ghost beam opacity — fades in during execution, out on reset
@@ -339,6 +340,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const ghostBeamStyle = useAnimatedStyle(() => ({ opacity: ghostBeamOp.value }));
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
+  const tapeBeamFrameRef = useRef<number | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -417,6 +419,10 @@ export default function GameplayScreen({ navigation }: Props) {
       if (animFrameRef.current != null) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
+      }
+      if (tapeBeamFrameRef.current != null) {
+        cancelAnimationFrame(tapeBeamFrameRef.current);
+        tapeBeamFrameRef.current = null;
       }
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
@@ -668,6 +674,37 @@ export default function GameplayScreen({ navigation }: Props) {
       configNode: { tag: 'gating', duration: 300 },
       transmitter: { tag: 'transmitting', duration: 180 },
     };
+    const TAPE_PIECE_COLORS: Record<string, string> = {
+      scanner: '#00E5FF',
+      configNode: '#00FF87',
+      transmitter: '#FFE000',
+    };
+
+    const fireTapeBeam = (pieceX: number, pieceY: number, color: string) => {
+      const targetY = 0;
+      const upDur = 180;
+      const holdDur = 80;
+      const downDur = 150;
+      const startTime = performance.now();
+      const tick = () => {
+        const elapsed = performance.now() - startTime;
+        if (elapsed < upDur) {
+          const t = easeOut3(elapsed / upDur);
+          setTapeBeamState({ x: pieceX, currentY: pieceY + (targetY - pieceY) * t, color, tailDir: 1 });
+        } else if (elapsed < upDur + holdDur) {
+          setTapeBeamState({ x: pieceX, currentY: targetY, color, tailDir: 1 });
+        } else if (elapsed < upDur + holdDur + downDur) {
+          const t2 = (elapsed - upDur - holdDur) / downDur;
+          setTapeBeamState({ x: pieceX, currentY: targetY + (pieceY - targetY) * t2 * t2, color, tailDir: -1 });
+        } else {
+          setTapeBeamState(null);
+          return;
+        }
+        tapeBeamFrameRef.current = requestAnimationFrame(tick);
+      };
+      tapeBeamFrameRef.current = requestAnimationFrame(tick);
+    };
+
     const triggerPieceAnim = (stp: ExecutionStep) => {
       flashPiece(stp.pieceId, getBeamColor(stp.type));
       const anim = animMap[stp.type];
@@ -682,6 +719,11 @@ export default function GameplayScreen({ navigation }: Props) {
           setActiveAnimations(prev => { const n = new Map(prev); n.delete(pieceId); return n; });
         }, anim.duration);
         flashTimersRef.current.push(t);
+      }
+      const tapeColor = TAPE_PIECE_COLORS[stp.type];
+      if (tapeColor) {
+        const center = getPieceCenter(stp.pieceId);
+        if (center) fireTapeBeam(center.x, center.y, tapeColor);
       }
     };
 
@@ -712,9 +754,20 @@ export default function GameplayScreen({ navigation }: Props) {
       const t0 = performance.now();
       const lit = new Set<number>();
       const flashed = new Set<number>();
+      let pauseTotal = 0;
+      let pauseEnd = 0;
 
       const tick = () => {
-        const rawT = Math.min(1, (performance.now() - t0) / totalMs);
+        const now = performance.now();
+        if (pauseEnd > 0 && now < pauseEnd) {
+          animFrameRef.current = requestAnimationFrame(tick);
+          return;
+        }
+        if (pauseEnd > 0) {
+          pauseTotal += 400;
+          pauseEnd = 0;
+        }
+        const rawT = Math.min(1, (now - t0 - pauseTotal) / totalMs);
         const t = easeOut3(rawT);
         const headDist = t * path.total;
         const head = posAlongPath(path, headDist);
@@ -760,7 +813,12 @@ export default function GameplayScreen({ navigation }: Props) {
             const stp = pathSteps[i];
             const isVoidBlocker = hasVoid && i === waypoints.length - 1;
             if (isVoidBlocker) flashPiece(stp.pieceId, '#FF3B3B');
-            else triggerPieceAnim(stp);
+            else {
+              triggerPieceAnim(stp);
+              if (TAPE_PIECE_COLORS[stp.type] && pauseEnd === 0) {
+                pauseEnd = performance.now() + 400;
+              }
+            }
           }
         }
         if (rawT < 1) {
@@ -1232,6 +1290,11 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
     }
+    if (tapeBeamFrameRef.current != null) {
+      cancelAnimationFrame(tapeBeamFrameRef.current);
+      tapeBeamFrameRef.current = null;
+    }
+    setTapeBeamState(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
     setBeamHeads([]);
@@ -1557,6 +1620,30 @@ export default function GameplayScreen({ navigation }: Props) {
                 </Animated.View>
               );
             })()}
+
+            {/* Tape interaction shooting star */}
+            {tapeBeamState && (
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 6 }]}>
+                <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
+                  <Line
+                    x1={tapeBeamState.x}
+                    y1={tapeBeamState.currentY}
+                    x2={tapeBeamState.x}
+                    y2={tapeBeamState.currentY + tapeBeamState.tailDir * 20}
+                    stroke={tapeBeamState.color}
+                    strokeWidth={2}
+                    opacity={0.5}
+                  />
+                  <Circle
+                    cx={tapeBeamState.x}
+                    cy={tapeBeamState.currentY}
+                    r={3}
+                    fill={tapeBeamState.color}
+                    opacity={0.9}
+                  />
+                </Svg>
+              </View>
+            )}
 
             {/* Signal beam overlay — wrapped in View so pointerEvents
                 component prop reliably passes touches through on iOS. */}
@@ -1943,6 +2030,11 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(animFrameRef.current);
                   animFrameRef.current = null;
                 }
+                if (tapeBeamFrameRef.current != null) {
+                  cancelAnimationFrame(tapeBeamFrameRef.current);
+                  tapeBeamFrameRef.current = null;
+                }
+                setTapeBeamState(null);
                 setBeamHeads([]);
                 setTrailSegments([]);
                 setBranchTrails([]);
