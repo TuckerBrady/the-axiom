@@ -36,6 +36,27 @@ accommodate it. The board must also allow at least two valid
 approaches — the correct machine (optimal) and at least one
 alternative (more pieces, lower score, but valid).
 
+### STEP 3.5 — PROVE THE FLOOR SOLVE
+
+Document the minimum-piece solution path before finalizing. The
+floor solve is:
+
+1. The proof of solvability — if you cannot trace the path, the
+   level is broken.
+2. The baseline for optimalPieces — scoring rewards using all
+   tray pieces, but the floor solve defines what "minimum" means.
+3. The QA reference — testers verify the floor solve works on
+   every build.
+
+Format: list each piece placement as Type at (col, row) with
+role annotation. Then trace the full path from Input to Output.
+Include any configuration requirements (e.g. "Config Node
+configValue must be set to 0").
+
+The floor solve MUST be achievable using only the level's
+availablePieces (plus any prePlacedPieces). No purchased pieces.
+Three-star score must be reachable on the floor solve path.
+
 ### STEP 4 — DESIGN THE TAPE
 
 The tape is test data. It must:
@@ -70,6 +91,9 @@ Tucker Brady sign-off required. No exceptions.
 Computational integrity:
 [ ] Computational goal stated in one sentence
 [ ] Correct machine is buildable on this board
+[ ] Floor solve documented with grid coordinates
+[ ] Floor solve achievable with tray pieces only
+[ ] optimalPieces matches floor solve piece count
 [ ] Tape tests both outcomes of the rule
 [ ] Tape contains at least one edge case
 [ ] Level teaches exactly one computational concept
