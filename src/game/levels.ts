@@ -533,7 +533,7 @@ export const levelA1_8: LevelDefinition = {
 // SECTOR 1: KEPLER BELT
 // ═══════════════════════════════════════════════════════════════════════════════
 //
-// 10 levels. No wires, no placement highlights.
+// 10 levels. No placement highlights. Wires render on all sectors.
 // Consequence levels: K1-4, K1-8, K1-10.
 // K1-10 (boss): requireThreeStars.
 // Free piece set guarantee on all consequence levels.
@@ -542,7 +542,7 @@ pieceCounter = 800;
 
 export const levelK1_1: LevelDefinition = {
   id: 'K1-1', name: 'Corridor Entry', sector: 'kepler',
-  description: 'Route signal with two direction changes on a board without wire guides.',
+  description: 'Route signal with two direction changes on a board without placement highlights.',
   cogsLine: 'Kepler Belt. Former mining corridor, mostly decommissioned. Some salvage activity remains. We have been here before. The charts confirm it.',
   eyeState: 'blue',
   gridWidth: 8, gridHeight: 6,
@@ -552,14 +552,14 @@ export const levelK1_1: LevelDefinition = {
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6, budget: 30,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
-  computationalGoal: 'Route signal from input to output with two direction changes on a board without wire guides.',
-  conceptTaught: 'Independent routing (no wires, no highlights).',
+  computationalGoal: 'Route signal from input to output with two direction changes. No placement highlights — the player decides where pieces go.',
+  conceptTaught: 'Independent routing (no placement highlights — player chooses freely).',
   prerequisiteConcept: 'All Axiom sector concepts.',
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
   tutorialSteps: [
     { id: 'board-intro', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'No wires on this board. No placement highlights. The methodology from the Axiom still applies. Plan the path before you place anything.' },
+      message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely up to you now. Plan the path before you place anything.' },
     { id: 'board-resume', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Output Port. The Gears handle the corners. The Conveyors fill the gaps.' },
   ],

@@ -107,6 +107,16 @@ Player experience:
 [ ] Player who understands the concept can solve the level
 [ ] Player who hardcodes from tape fails or scores poorly
 
+Blown cells (post-Axiom sectors only):
+[ ] Board remains solvable with at least 2 blown cells
+[ ] Floor solve does not use every single grid cell (room to
+    route around scars)
+[ ] Fresh board cost documented in level budget consideration
+[ ] If consequence level: blown cell + consequence interaction
+    noted (both fire on void result)
+[ ] Pre-placed pieces never blow — verified no pre-placed piece
+    is the last-touched piece on any common failure path
+
 Narrative integration:
 [ ] Computational goal maps to a coherent narrative problem
 [ ] cogsLine is approved by Tucker Brady
@@ -382,14 +392,43 @@ THE AXIOM
 Keep boards small. Player is learning piece behavior not
 routing complexity. Tutorial steps: board first, then tray,
 then Codex, then board resume. Wires and placement highlights
-are active. They come off in Kepler Belt.
+are both active. Placement highlights come off in Kepler Belt.
+Wires stay on in all sectors.
 
 KEPLER BELT
-First sector without wires or placement highlights. Early
-levels compensate with simple routing. Introduce non-uniform
+First sector without placement highlights. Wires (dashed
+connection lines) remain — the player needs to know when
+pieces are connected. Early levels compensate with simple
+routing. Introduce non-uniform
 tapes gradually. Latch introduction must make write-then-read
 unavoidable by board design. Human stakes are active — do not
 soften the consequence narratives.
+
+First sector with blown cells and lives. Failure costs: 1
+life per attempt + the piece where the signal died blows up
+and scars the board cell permanently (within the session).
+Design implications:
+
+- Boards must have slack. If the floor solve fills every
+  viable path, one blown cell creates a softlock. Design
+  boards where 2-3 cells can blow before the board becomes
+  geometrically impossible.
+- Pre-placed pieces never blow. If the signal fails AT a
+  pre-placed piece, the nearest player-placed piece blows
+  instead. Design boards so this fallback is always clear.
+- Consequence levels (K1-4, K1-8, K1-10) trigger BOTH a
+  blown cell and ship damage on void result. The player
+  loses a life, gets a scar on the board, AND takes a
+  narrative consequence. These levels should be slightly
+  more generous with board space to compensate.
+- Fresh board power-up (50 CR Kepler, 75 CR later sectors)
+  is the escape hatch. Level budgets should be set assuming
+  the player might need one reset. Budget = optimal cost +
+  one fresh board buffer.
+- The blown cell is always deterministic: the piece where
+  the signal stopped is the piece that blows. Cause and
+  effect. Precise placement is the lesson Kepler teaches
+  through consequence, not luck.
 
 NOVA FRINGE
 Tape visibility begins to reduce. Start by hiding last few
@@ -445,39 +484,4 @@ conceptTaught: string
   The one concept this level introduces or reinforces.
 
 prerequisiteConcept: string
-  What the player must already understand.
-
-tapeDesignRationale: string
-  Why this tape tests the rule.
-
-difficultyBand: 'intuitive' | 'derivable' | 'abstract' |
-  'hidden'
-  Intuitive: player can guess from narrative context.
-  Derivable: requires thinking but derivable from pieces
-    and tape.
-  Abstract: requires understanding the CS concept.
-  Hidden: rule not revealed by tape — discovered through play.
-
-narrativeFrame: string
-  How the computational rule maps to the story context.
-
----
-
-## PART 7 — THE EXPANSE (POST-MVP)
-
-Sandbox area. No computational goal, no quality checklist,
-no tape. Free build.
-
-COGS observes. He does not evaluate. His lines in The Expanse
-are the quietest in the game.
-
-The decoding puzzle that unlocks The Expanse is the first
-sandbox interaction — a Cradle-style unknown-signal level
-where the decoded coordinates are the solution.
-
-Full design deferred to post-MVP. Name locked. Everything
-else open.
-
----
-
-END OF LEVEL_DESIGN_FRAMEWORK.md
+  What the player mus

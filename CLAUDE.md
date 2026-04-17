@@ -158,7 +158,8 @@ No emojis in commit messages. Ever.
 - PieceIcon is single source of truth for all piece rendering — locked
 - Dynamic board sizing: BOARD_SIZE = SCREEN_WIDTH - 24, CELL_SIZE = BOARD_SIZE / numColumns — locked
 - Source node = Input Port, Output node = Output Port — locked
-- Wire rendering and copper highlights: Axiom sector only — locked
+- Wire rendering (dashed connection lines): all sectors — locked
+- Placement highlights (orange valid-cell indicators): Axiom sector only — locked
 
 ---
 
@@ -258,5 +259,5 @@ See docs/WORKFLOW_GENERAL.md for the full workflow reference.
 - Do not use fixed CELL_SIZE
 - Do not add HUD chrome to personal screens
 - Long press always returns piece to tray directly. No ghost/held state.
-- Do not show wire connections on non-Axiom levels
 - Do not show placement highlights on non-Axiom levels
+- Wire connections (dashed lines) render on ALL sectors — do not suppress them

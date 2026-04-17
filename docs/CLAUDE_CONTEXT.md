@@ -164,7 +164,7 @@ executes.
 - Signal engine: directional port matching via getInputPorts,
   getOutputPorts, canSendTo, getDirectionalNeighbors.
   Bends require Gear pieces. Conveyors are straight only.
-- Wire rendering: Axiom levels only. Hidden on Kepler+ sectors.
+- Wire rendering (dashed connection lines): all sectors.
 - Copper valid placement highlights: Axiom levels only.
   Shows cells that would form valid connections when selecting
   a piece from tray.
@@ -493,7 +493,7 @@ docs/WORKFLOW_GENERAL.md for general principles.
 - Do not add HUD chrome (corner brackets) to personal screens
 - Long press always returns piece to tray directly. There
   is no ghost/held state for placed pieces.
-- Do not show wire connections on non-Axiom (Kepler+) levels
+- Wire connections (dashed lines) render on ALL sectors — do not suppress them
 - Do not show placement highlights on non-Axiom levels
 
 
