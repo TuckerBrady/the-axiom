@@ -242,7 +242,7 @@ export default function DistressScreen({ navigation }: Props) {
           <DialogueCard
             key={i}
             card={card}
-            visible={step >= i}
+            visible={step >= i && i >= step - 1}
             isLast={i === CARDS.length - 1}
             onPress={handlePress}
           />

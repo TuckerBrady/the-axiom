@@ -130,7 +130,7 @@ export default function IntroductionScreen({ navigation }: Props) {
       {/* Cards */}
       <View style={s.cardsSection} pointerEvents="box-none">
         {CARDS.map((card, i) => (
-          <DialogueCard key={i} card={card} visible={step >= i} onPress={handlePress} />
+          <DialogueCard key={i} card={card} visible={step >= i && i >= step - 1} onPress={handlePress} />
         ))}
       </View>
     </Animated.View>

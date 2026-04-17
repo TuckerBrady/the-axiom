@@ -66,8 +66,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
   const nameY = useSharedValue(20);
   const desigOp = useSharedValue(0);
   const desigY = useSharedValue(20);
-  const scanLineY = useSharedValue(-4);
-  const scanLineOp = useSharedValue(0);
   const statusOp = useSharedValue(0);
   const statusDotOp = useSharedValue(0);
   const ctaOp = useSharedValue(0);
@@ -107,12 +105,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
     // BEAT 2 (1.8–3.7s): COGS acknowledges
     // t=1.8s: bubble swaps to acknowledgment
     setTimeout(() => swapBubble(REVEAL_BEAT2_ACK), 1800);
-    // t=2.2s: scan line sweeps designation, fades out after sweep
-    scanLineOp.value = withDelay(2200, withSequence(
-      withTiming(1, { duration: 100 }),
-      withDelay(800, withTiming(0, { duration: 400 })),
-    ));
-    scanLineY.value = withDelay(2200, withTiming(60, { duration: 900, easing: Easing.inOut(Easing.quad) }));
     // t=2.2s: status row fades in
     statusOp.value = withDelay(2200, withTiming(1, { duration: 400 }));
     // t=2.4s: status dot pulses
@@ -139,7 +131,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
     // BEAT 3 (3.8s+): Eye shifts amber → blue
     setTimeout(() => setCogsState('online'), 3800);
-  }, [nameOp, nameY, desigOp, desigY, scanLineOp, scanLineY, statusOp, statusDotOp, ctaOp, ctaBlink, swapBubble, bubbleTextOp]);
+  }, [nameOp, nameY, desigOp, desigY, statusOp, statusDotOp, ctaOp, ctaBlink, swapBubble, bubbleTextOp]);
 
   // ── Handle name confirm ──
   const handleConfirm = () => {
@@ -181,9 +173,8 @@ export default function CharacterNameScreen({ navigation }: Props) {
     setCanTap(false);
     setNameInput('');
     // Reset all animated values
-    [nameOp, nameY, desigOp, desigY, scanLineOp, scanLineY, statusOp, statusDotOp, ctaOp, ctaBlink, loggingOp, loggingPulse, bubbleTextOp].forEach(v => { v.value = 0; });
+    [nameOp, nameY, desigOp, desigY, statusOp, statusDotOp, ctaOp, ctaBlink, loggingOp, loggingPulse, bubbleTextOp].forEach(v => { v.value = 0; });
     inputOp.value = withDelay(300, withTiming(1, { duration: 400 }));
-    scanLineY.value = -4;
     bubbleTextOp.value = 1;
   };
 
@@ -196,7 +187,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
   const loggingStyle = useAnimatedStyle(() => ({ opacity: loggingOp.value * loggingPulse.value }));
   const nameStyle = useAnimatedStyle(() => ({ opacity: nameOp.value, transform: [{ translateY: nameY.value }] }));
   const desigStyle = useAnimatedStyle(() => ({ opacity: desigOp.value, transform: [{ translateY: desigY.value }] }));
-  const scanStyle = useAnimatedStyle(() => ({ opacity: scanLineOp.value, transform: [{ translateY: scanLineY.value }] }));
   const statusStyle = useAnimatedStyle(() => ({ opacity: statusOp.value }));
   const statusDotStyle = useAnimatedStyle(() => ({ opacity: statusDotOp.value }));
   const ctaStyle = useAnimatedStyle(() => ({ opacity: ctaOp.value * ctaBlink.value }));
@@ -276,8 +266,6 @@ export default function CharacterNameScreen({ navigation }: Props) {
                 <View style={st.designationInner}>
                   <Text style={st.designationTitle}>THE ENGINEER</Text>
                   <Text style={st.designationSub}>Assigned by C.O.G.S Unit 7</Text>
-                  {/* Scan line */}
-                  <Animated.View style={[st.scanLine, scanStyle]} pointerEvents="none" />
                 </View>
               </Animated.View>
 
@@ -335,7 +323,6 @@ const st = StyleSheet.create({
   designationInner: { padding: 20, paddingBottom: 28, alignItems: 'center', gap: 4, backgroundColor: 'rgba(245,158,11,0.04)' },
   designationTitle: { fontFamily: Fonts.orbitron, fontSize: FontSizes.xxl, fontWeight: 'bold', color: AMBER, letterSpacing: 4, textTransform: 'uppercase' },
   designationSub: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.xs, color: Colors.muted, letterSpacing: 1 },
-  scanLine: { position: 'absolute', left: 0, right: 0, top: 0, height: 2, backgroundColor: AMBER, opacity: 0.5 },
 
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: GREEN_WARM },
