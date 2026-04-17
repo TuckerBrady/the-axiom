@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,9 @@ import {
   ClipboardIcon,
 } from '../components/icons/SettingsIcons';
 import { useSettingsStore } from '../store/settingsStore';
+import { useEconomyStore } from '../store/economyStore';
+import { useLivesStore } from '../store/livesStore';
+import { ALL_LEVELS } from '../game/levels';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { BUILD_INFO } from '../buildInfo';
 
@@ -271,6 +274,19 @@ export default function SettingsScreen({ navigation }: Props) {
     notificationsEnabled, setNotificationsEnabled,
   } = useSettingsStore();
   const [forceShowTutorial, setForceShowTutorial] = useState(false);
+
+  const sectorGroups = useMemo(() => {
+    const sectorMap = new Map<string, { id: string; sector: string }[]>();
+    for (const level of ALL_LEVELS) {
+      const sectorName = level.sector === 'axiom' ? 'THE AXIOM'
+        : level.sector === 'kepler' ? 'KEPLER BELT'
+        : level.sector === 'nova' ? 'NOVA RING'
+        : level.sector.toUpperCase();
+      if (!sectorMap.has(sectorName)) sectorMap.set(sectorName, []);
+      sectorMap.get(sectorName)!.push({ id: level.id, sector: level.sector });
+    }
+    return Array.from(sectorMap, ([sector, ids]) => ({ sector, ids }));
+  }, []);
 
   // Hydrate force-show toggle
   useEffect(() => {
@@ -519,6 +535,83 @@ export default function SettingsScreen({ navigation }: Props) {
                   }}
                 />
                 <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>$</Text>}
+                  label="Reset Economy (Dev)"
+                  labelColor={Colors.amber}
+                  sub="Sets credits to 100, clears level budget"
+                  delay={796}
+                  onPress={() => {
+                    Alert.alert(
+                      'Reset Economy',
+                      'This will reset credits to 100 and clear the level budget.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Reset',
+                          style: 'destructive',
+                          onPress: () => {
+                            useEconomyStore.setState({ credits: 100, levelBudget: 0, levelSpent: 0 });
+                            Alert.alert('Done', 'Economy reset to 100 CR.');
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.blue, fontSize: 14, fontWeight: 'bold' }}>&#x2665;</Text>}
+                  label="Set Lives (Dev)"
+                  labelColor={Colors.blue}
+                  sub="Set lives to 0 or refill to max"
+                  delay={797}
+                  onPress={() => {
+                    Alert.alert(
+                      'Set Lives',
+                      `Current: ${useLivesStore.getState().lives} lives`,
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Set to 0',
+                          style: 'destructive',
+                          onPress: () => {
+                            useLivesStore.setState({ lives: 0, lastLifeLostAt: Date.now() });
+                            Alert.alert('Done', 'Lives set to 0.');
+                          },
+                        },
+                        {
+                          text: 'Refill to Max',
+                          onPress: () => {
+                            useLivesStore.setState({ lives: 5, lastLifeLostAt: null });
+                            Alert.alert('Done', 'Lives refilled to 5.');
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.green, fontSize: 14, fontWeight: 'bold' }}>?</Text>}
+                  label="Store Inspector (Dev)"
+                  labelColor={Colors.green}
+                  sub="Dumps all AsyncStorage keys to console"
+                  delay={798}
+                  onPress={async () => {
+                    const allKeys = [...await AsyncStorage.getAllKeys()].sort();
+                    const entries: Record<string, string | null> = {};
+                    for (const key of allKeys) {
+                      entries[key] = await AsyncStorage.getItem(key);
+                    }
+                    console.log('[Store Inspector]', JSON.stringify(entries, null, 2));
+                    Alert.alert(
+                      'Store Inspector',
+                      `${allKeys.length} keys logged to console.\n\nKeys:\n${allKeys.join('\n')}`,
+                    );
+                  }}
+                />
+                <View style={styles.divider} />
                 <ToggleRow
                   icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>!</Text>}
                   label="Force Show Tutorial"
@@ -545,14 +638,11 @@ export default function SettingsScreen({ navigation }: Props) {
                 <View style={styles.divider} />
                 <View style={styles.devLevelJumpWrap}>
                   <Text style={styles.devLevelJumpLabel}>JUMP TO LEVEL</Text>
-                  {[
-                    { sector: 'THE AXIOM', ids: ['A1-1','A1-2','A1-3','A1-4','A1-5','A1-6','A1-7','A1-8'] },
-                    { sector: 'KEPLER BELT', ids: ['2-1','2-2','2-3'] },
-                  ].map(group => (
+                  {sectorGroups.map(group => (
                     <View key={group.sector} style={styles.devLevelJumpGroup}>
                       <Text style={styles.devLevelJumpSector}>{group.sector}</Text>
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.devLevelJumpChips}>
-                        {group.ids.map(id => (
+                        {group.ids.map(({ id, sector }) => (
                           <TouchableOpacity
                             key={id}
                             style={styles.devLevelJumpChip}
@@ -566,7 +656,7 @@ export default function SettingsScreen({ navigation }: Props) {
                               (parent as unknown as { navigate: (name: string, params: unknown) => void }).navigate('MissionDossier', {
                                 missionId: num,
                                 missionName: id,
-                                iconType: 'axiom',
+                                iconType: sector,
                                 stars: 0,
                                 bestTime: '--',
                                 piecesUsed: 0,
@@ -598,21 +688,6 @@ export default function SettingsScreen({ navigation }: Props) {
                 />
                 <View style={styles.divider} />
                 <TapRow
-                  icon={<Text style={{ color: Colors.amber, fontSize: 14 }}>◉</Text>}
-                  label="COGS Hub Card Preview (Dev)"
-                  labelColor={Colors.amber}
-                  sub="Preview all 5 color variants"
-                  delay={800}
-                  onPress={() => {
-                    const CogsHubCard = require('../components/cogs/CogsHubCard').default;
-                    const { View: RNView } = require('react-native');
-                    const colors = ['AMBER', 'BLUE', 'GREEN', 'RED', 'DARK'];
-                    Alert.alert('COGS Hub Card', 'Check the console for rendered variants. (Full preview requires a dedicated screen — deferred to Hub redesign sprint.)');
-                    console.log('[COGS Card] All 5 variants available:', colors.join(', '));
-                  }}
-                />
-                <View style={styles.divider} />
-                <TapRow
                   icon={<Text style={{ color: Colors.green, fontSize: 14 }}>⟳</Text>}
                   label="Preview Next 7 Days (Dev)"
                   labelColor={Colors.green}
@@ -630,6 +705,31 @@ export default function SettingsScreen({ navigation }: Props) {
                     }
                     console.log('[Next 7 Days]', days);
                     Alert.alert('Next 7 Days', days.join('\n'));
+                  }}
+                />
+                <View style={styles.divider} />
+                <TapRow
+                  icon={<Text style={{ color: Colors.red, fontSize: 14, fontWeight: 'bold' }}>X</Text>}
+                  label="Factory Reset (Dev)"
+                  labelColor={Colors.red}
+                  sub="Clears ALL data — full fresh install"
+                  delay={810}
+                  onPress={() => {
+                    Alert.alert(
+                      'Factory Reset',
+                      'This will clear ALL data: progression, economy, settings, tutorial state, onboarding, challenge history, and consequences. The app will behave like a fresh install.\n\nThis cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Reset Everything',
+                          style: 'destructive',
+                          onPress: async () => {
+                            await AsyncStorage.clear();
+                            Alert.alert('Done', 'All data cleared. Restart the app for a fresh experience.');
+                          },
+                        },
+                      ],
+                    );
                   }}
                 />
               </>
