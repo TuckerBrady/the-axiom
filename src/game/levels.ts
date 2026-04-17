@@ -140,7 +140,6 @@ export const levelA1_2: LevelDefinition = {
   narrativeFrame: 'The air cyclers need to reach the habitable deck, which is not aligned with the ship\'s primary conduit. The Engineer bends the path once. Breathing is restored.',
   tutorialHints: [
     { key: 'a12_gear', trigger: 'onMount', text: 'Input Port and Output Port are not aligned. A Gear redirects the signal. Plan your path before placing.' },
-    { key: 'a12_integrity', trigger: 'onSuccess', text: 'Chain Integrity: every piece you place should carry the signal. Pieces the signal skips cost points.' },
   ],
   tutorialSteps: [
     {
@@ -199,7 +198,6 @@ export const levelA1_3: LevelDefinition = {
   tutorialHints: [
     { key: 'a13_protocol', trigger: 'onMount', text: 'The amber piece is a Config Node — a Protocol piece. Protocol pieces think. Physics pieces move.' },
     { key: 'a13_config', trigger: 'onMount', text: 'The Config Node only passes the signal when conditions are met. Connect the pieces. It handles the logic.' },
-    { key: 'a13_precision', trigger: 'onSuccess', text: 'Protocol Precision: Protocol pieces touched by the signal score higher. Use them well.' },
   ],
   tutorialSteps: [
     {

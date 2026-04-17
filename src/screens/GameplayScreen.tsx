@@ -338,6 +338,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const ghostBeamStyle = useAnimatedStyle(() => ({ opacity: ghostBeamOp.value }));
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
+  const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Screen is immediately visible — slide_from_bottom handles entry transition
@@ -1092,6 +1093,92 @@ export default function GameplayScreen({ navigation }: Props) {
       // completion card over the held lock state — player must
       // tap Continue before Results animates in.
       setShowCompletionCard(true);
+
+      // Post-completion beam replay loop — visual only, no re-scoring
+      setSignalPhase('lock');
+      loopingRef.current = true;
+      (async () => {
+        while (loopingRef.current) {
+          await new Promise(r => setTimeout(r, 800));
+          if (!loopingRef.current) break;
+
+          setBeamHeads([]);
+          setTrailSegments([]);
+          setBranchTrails([]);
+          setFlashingPieces(new Map());
+          setActiveAnimations(new Map());
+          setGateResults(new Map());
+          setChargePos(null);
+          setChargeProgress(0);
+          setLockRings([]);
+
+          // CHARGE
+          if (sourcePiece) {
+            const sp2 = getPieceCenter(sourcePiece.id);
+            if (sp2) {
+              setChargePos(sp2);
+              setSignalPhase('charge');
+              ghostBeamOp.value = withTiming(0.2, { duration: 300 });
+              const cs = performance.now();
+              await new Promise<void>(res => {
+                const tick = () => {
+                  if (!loopingRef.current) { res(); return; }
+                  const ct = Math.min(1, (performance.now() - cs) / 280);
+                  setChargeProgress(ct);
+                  if (ct < 1) { animFrameRef.current = requestAnimationFrame(tick); }
+                  else { res(); }
+                };
+                animFrameRef.current = requestAnimationFrame(tick);
+              });
+              setChargePos(null);
+            }
+          }
+          if (!loopingRef.current) break;
+
+          // BEAM
+          setSignalPhase('beam');
+          for (let lp = 0; lp < pulses.length; lp++) {
+            if (!loopingRef.current) break;
+            setCurrentPulseIndex(lp);
+            await runPulse(pulses[lp]);
+            if (!loopingRef.current) break;
+            if (lp < pulses.length - 1) {
+              if (sourcePiece) flashPiece(sourcePiece.id, '#F0B429');
+              await new Promise(r => setTimeout(r, 80));
+            }
+          }
+          if (!loopingRef.current) break;
+
+          // LOCK (visual only)
+          const outP = machineState.pieces.find(pc => pc.type === 'outputPort');
+          if (outP) {
+            const opc = getPieceCenter(outP.id);
+            if (opc) {
+              setSignalPhase('lock');
+              const rs = performance.now();
+              await new Promise<void>(res => {
+                const tick = () => {
+                  if (!loopingRef.current) { setLockRings([]); res(); return; }
+                  const el = performance.now() - rs;
+                  const rings: { x: number; y: number; r: number; opacity: number }[] = [];
+                  for (let ri = 0; ri < 2; ri++) {
+                    const re = el - ri * 100;
+                    if (re >= 0 && re <= 200) {
+                      const rt = re / 200;
+                      rings.push({ x: opc.x, y: opc.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
+                    }
+                  }
+                  setLockRings(rings);
+                  if (el < 320) { animFrameRef.current = requestAnimationFrame(tick); }
+                  else { setLockRings([]); res(); }
+                };
+                animFrameRef.current = requestAnimationFrame(tick);
+              });
+            }
+          }
+          ghostBeamOp.value = withTiming(0, { duration: 300 });
+        }
+      })();
     } else {
       // Red flash 3 times
       for (let f = 0; f < 3; f++) {
@@ -1133,6 +1220,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Reset ──
   const handleReset = useCallback(() => {
+    loopingRef.current = false;
     setShowResults(false);
     setShowVoid(false);
     // Cancel beam animation and clear all visual signal state
@@ -1846,6 +1934,18 @@ export default function GameplayScreen({ navigation }: Props) {
             <TouchableOpacity
               style={[styles.completionCardBtn, { alignSelf: 'center' }]}
               onPress={() => {
+                loopingRef.current = false;
+                if (animFrameRef.current != null) {
+                  cancelAnimationFrame(animFrameRef.current);
+                  animFrameRef.current = null;
+                }
+                setBeamHeads([]);
+                setTrailSegments([]);
+                setBranchTrails([]);
+                setLockRings([]);
+                setChargePos(null);
+                setSignalPhase('idle');
+                ghostBeamOp.value = withTiming(0, { duration: 300 });
                 setShowCompletionCard(false);
                 setShowResults(true);
               }}
