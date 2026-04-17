@@ -29,6 +29,7 @@ import { useLivesStore } from '../store/livesStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useChallengeStore } from '../store/challengeStore';
 import { useProgressionStore } from '../store/progressionStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 export type RootStackParamList = {
   // Onboarding
@@ -94,6 +95,7 @@ export default function RootNavigator() {
   useEffect(() => {
     usePlayerStore.getState().hydrate();
     useProgressionStore.getState().hydrate();
+    useSettingsStore.getState().hydrate();
     useChallengeStore.getState().loadOrGenerateChallenge();
   }, []);
 

@@ -18,7 +18,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { TabParamList } from '../navigation/TabNavigator';
-import Svg, { Circle, Rect, Line, Path, Ellipse } from 'react-native-svg';
+import Svg, { Circle, Rect, Line, Path } from 'react-native-svg';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import EngineerIcon from '../components/icons/EngineerIcon';
@@ -27,12 +27,9 @@ import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
 import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
 import {
   NotificationIcon,
-  CloudIcon,
   ClipboardIcon,
-  ScrollDocIcon,
 } from '../components/icons/SettingsIcons';
-import { ShieldIcon } from '../components/icons/PartIcons';
-import PadlockIcon from '../components/icons/PadlockIcon';
+import { useSettingsStore } from '../store/settingsStore';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { BUILD_INFO } from '../buildInfo';
 
@@ -107,44 +104,6 @@ function CogsHintsIcon() {
         <Circle cx="9" cy="13" r="2" fill="#c87941" opacity={0.8} />
         <Circle cx="19" cy="13" r="2.8" stroke="#c87941" strokeWidth="0.5" fill="#061830" />
         <Circle cx="19" cy="13" r="1.6" fill="#c87941" opacity={0.7} />
-      </Svg>
-    </IconBg>
-  );
-}
-
-function ReduceMotionIcon() {
-  return (
-    <IconBg>
-      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-        <Circle cx="10" cy="10" r="7" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
-        <Line x1="6" y1="6" x2="14" y2="14" stroke="#e05555" strokeWidth="2" strokeLinecap="round" />
-      </Svg>
-    </IconBg>
-  );
-}
-
-function LanguageIcon() {
-  return (
-    <IconBg>
-      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-        <Circle cx="10" cy="10" r="7" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
-        <Ellipse cx="10" cy="10" rx="4" ry="7" stroke="#4a9eff" strokeWidth="1" fill="none" />
-        <Line x1="3" y1="10" x2="17" y2="10" stroke="#4a9eff" strokeWidth="0.8" opacity={0.5} strokeLinecap="round" />
-      </Svg>
-    </IconBg>
-  );
-}
-
-function ControlSchemeIcon() {
-  return (
-    <IconBg>
-      <Svg width={16} height={16} viewBox="0 0 20 20" fill="none">
-        <Rect x="4" y="4" width="12" height="12" rx="3" stroke="#4a9eff" strokeWidth="1.5" fill="none" />
-        <Circle cx="10" cy="10" r="2.5" stroke="#4a9eff" strokeWidth="1" fill="none" />
-        <Circle cx="10" cy="5.5" r="1.5" fill="#4a9eff" opacity={0.6} />
-        <Circle cx="10" cy="14.5" r="1.5" fill="#4a9eff" opacity={0.6} />
-        <Circle cx="5.5" cy="10" r="1.5" fill="#4a9eff" opacity={0.6} />
-        <Circle cx="14.5" cy="10" r="1.5" fill="#4a9eff" opacity={0.6} />
       </Svg>
     </IconBg>
   );
@@ -304,12 +263,13 @@ function DisciplineLabel() {
 }
 
 export default function SettingsScreen({ navigation }: Props) {
-  const [sfx, setSfx] = useState(true);
-  const [music, setMusic] = useState(true);
-  const [haptics, setHaptics] = useState(true);
-  const [notifications, setNotifications] = useState(false);
-  const [cogsHints, setCogsHints] = useState(true);
-  const [reducedMotion, setReducedMotion] = useState(false);
+  const {
+    sfxEnabled, setSfxEnabled,
+    musicEnabled, setMusicEnabled,
+    hapticsEnabled, setHapticsEnabled,
+    cogsHintsEnabled, setCogsHintsEnabled,
+    notificationsEnabled, setNotificationsEnabled,
+  } = useSettingsStore();
   const [forceShowTutorial, setForceShowTutorial] = useState(false);
 
   // Hydrate force-show toggle
@@ -407,33 +367,23 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* Audio */}
           <SectionHeader title="AUDIO" delay={100} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<SfxIcon />} label="Sound Effects" value={sfx} onChange={setSfx} delay={150} />
+            <ToggleRow icon={<SfxIcon />} label="Sound Effects" value={sfxEnabled} onChange={setSfxEnabled} delay={150} />
             <View style={styles.divider} />
-            <ToggleRow icon={<MusicRowIcon />} label="Background Music" value={music} onChange={setMusic} delay={200} />
+            <ToggleRow icon={<MusicRowIcon />} label="Background Music" value={musicEnabled} onChange={setMusicEnabled} delay={200} />
             <View style={styles.divider} />
-            <ToggleRow icon={<HapticRowIcon />} label="Haptic Feedback" sub="Vibration on interactions" value={haptics} onChange={setHaptics} delay={250} />
+            <ToggleRow icon={<HapticRowIcon />} label="Haptic Feedback" sub="Vibration on interactions" value={hapticsEnabled} onChange={setHapticsEnabled} delay={250} />
           </View>
 
           {/* Gameplay */}
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHints} onChange={setCogsHints} delay={350} />
-            <View style={styles.divider} />
-            <ToggleRow icon={<ReduceMotionIcon />} label="Reduce Motion" sub="Disable parallax and animations" value={reducedMotion} onChange={setReducedMotion} delay={400} />
-            <View style={styles.divider} />
-            <TapRow icon={<LanguageIcon />} label="Language" value="English" chevron delay={450} />
-            <View style={styles.divider} />
-            <TapRow icon={<ControlSchemeIcon />} label="Control Scheme" value="Standard" chevron delay={500} />
+            <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHintsEnabled} onChange={setCogsHintsEnabled} delay={350} />
           </View>
 
           {/* Account */}
           <SectionHeader title="ACCOUNT" delay={550} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<NotificationIcon size={18} color={Colors.amber} />} label="Push Notifications" value={notifications} onChange={setNotifications} delay={600} />
-            <View style={styles.divider} />
-            <TapRow icon={<CloudIcon size={18} color={Colors.blue} />} label="Cloud Save" sub="Last synced: just now" chevron delay={650} />
-            <View style={styles.divider} />
-            <TapRow icon={<PadlockIcon size={18} color={Colors.blue} />} label="Privacy Settings" chevron delay={700} />
+            <ToggleRow icon={<NotificationIcon size={18} color={Colors.amber} />} label="Push Notifications" value={notificationsEnabled} onChange={setNotificationsEnabled} delay={600} />
             {__DEV__ && (
               <>
                 <View style={styles.divider} />
@@ -695,10 +645,6 @@ export default function SettingsScreen({ navigation }: Props) {
               value={`v0.9.${BUILD_INFO.buildNumber}${BUILD_INFO.dirty ? '*' : ''}`}
               delay={800}
             />
-            <View style={styles.divider} />
-            <TapRow icon={<ScrollDocIcon size={18} color={Colors.blue} />} label="Terms of Service" chevron delay={850} />
-            <View style={styles.divider} />
-            <TapRow icon={<ShieldIcon size={18} color={Colors.blue} />} label="Privacy Policy" chevron delay={900} />
           </View>
 
           {/* Cogs credit */}
