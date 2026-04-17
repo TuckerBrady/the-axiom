@@ -219,25 +219,25 @@ export default function DistressScreen({ navigation }: Props) {
       <HudBrackets />
 
       {/* Top status bar */}
-      <View style={s.statusBar}>
+      <View style={s.statusBar} pointerEvents="box-none">
         <Text style={s.statusLabel}>C.O.G.S UNIT 7 — DISTRESS SIGNAL</Text>
         <FlickerText text="SYSTEM CRITICAL" style={s.statusCritical} />
       </View>
-      <View style={s.statusSeparator} />
+      <View style={s.statusSeparator} pointerEvents="box-none" />
 
       {/* COGS avatar */}
-      <Animated.View style={[s.avatarSection, avatarStyle]}>
+      <Animated.View style={[s.avatarSection, avatarStyle]} pointerEvents="box-none">
         <CogsAvatar size="large" state="damaged" />
         <Text style={s.cogsDesignation}>C.O.G.S UNIT 7</Text>
       </Animated.View>
 
       {/* Integrity bar */}
-      <View style={s.integritySection}>
+      <View style={s.integritySection} pointerEvents="box-none">
         <IntegrityBar />
       </View>
 
       {/* Dialogue cards */}
-      <View style={s.cardsSection}>
+      <View style={s.cardsSection} pointerEvents="box-none">
         {CARDS.map((card, i) => (
           <DialogueCard
             key={i}

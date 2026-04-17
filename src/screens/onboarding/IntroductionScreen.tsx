@@ -115,20 +115,20 @@ export default function IntroductionScreen({ navigation }: Props) {
       <HudBrackets />
 
       {/* Header */}
-      <View style={s.header}>
+      <View style={s.header} pointerEvents="box-none">
         <Text style={s.headerLabel}>C.O.G.S UNIT 7 — SYSTEMS NOMINAL</Text>
         <OnlinePill small />
       </View>
 
       {/* Avatar */}
-      <Animated.View style={[s.avatarSection, avatarStyle]}>
+      <Animated.View style={[s.avatarSection, avatarStyle]} pointerEvents="box-none">
         <CogsAvatar size="large" state="online" />
         <Text style={s.cogsDesignation}>C.O.G.S UNIT 7</Text>
         <OnlinePill />
       </Animated.View>
 
       {/* Cards */}
-      <View style={s.cardsSection}>
+      <View style={s.cardsSection} pointerEvents="box-none">
         {CARDS.map((card, i) => (
           <DialogueCard key={i} card={card} visible={step >= i} onPress={handlePress} />
         ))}
