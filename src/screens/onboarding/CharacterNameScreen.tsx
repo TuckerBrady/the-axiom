@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
+  Pressable,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -204,6 +205,10 @@ export default function CharacterNameScreen({ navigation }: Props) {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <Animated.View style={[st.root, screenStyle]}>
+        {phase === 'reveal' && (
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleAdvance} />
+        )}
+
         {/* Dev replay */}
         {__DEV__ && phase === 'reveal' && (
           <TouchableOpacity style={st.replayBtn} onPress={handleReplay} activeOpacity={0.7}>
@@ -212,13 +217,13 @@ export default function CharacterNameScreen({ navigation }: Props) {
         )}
 
         {/* TOP: COGS row */}
-        <Animated.View style={[st.cogsRow, cogsRowStyle]}>
+        <Animated.View style={[st.cogsRow, cogsRowStyle]} pointerEvents="box-none">
           <CogsAvatar size="small" state={cogsState} />
           <Text style={st.cogsLabel}>C.O.G.S UNIT 7</Text>
         </Animated.View>
 
         {/* COGS bubble */}
-        <Animated.View style={[st.bubbleWrap, bubbleStyle]}>
+        <Animated.View style={[st.bubbleWrap, bubbleStyle]} pointerEvents="box-none">
           <View style={st.bubble}>
             <Animated.View style={bubbleTextStyle}>
               <Text style={st.bubbleText}>{bubbleText}</Text>
@@ -227,7 +232,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
         </Animated.View>
 
         {/* MIDDLE: flex center */}
-        <View style={st.middle}>
+        <View style={st.middle} pointerEvents="box-none">
           {/* Input phase */}
           {(phase === 'input' || phase === 'logging') && (
             <Animated.View style={[st.inputSection, inputStyle]}>
@@ -260,7 +265,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
           {/* Reveal phase */}
           {phase === 'reveal' && (
-            <View style={st.revealCenter}>
+            <View style={st.revealCenter} pointerEvents="box-none">
               <Animated.Text style={[st.playerName, nameStyle]}>
                 {displayName}
               </Animated.Text>
@@ -285,7 +290,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
 
         {/* BOTTOM: CTA */}
         {phase === 'reveal' && (
-          <Animated.View style={[st.ctaWrap, ctaStyle]}>
+          <Animated.View style={[st.ctaWrap, ctaStyle]} pointerEvents="box-none">
             <TouchableOpacity onPress={handleAdvance} activeOpacity={0.7}>
               <Text style={st.ctaText}>TAP TO CONTINUE  &#x2192;</Text>
             </TouchableOpacity>
