@@ -692,7 +692,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <TapRow
               icon={<ClipboardIcon size={18} color={Colors.blue} />}
               label="Version"
-              value={`v${BUILD_INFO.version} \u00B7 ${BUILD_INFO.sha}${BUILD_INFO.dirty ? '*' : ''}`}
+              value={`v0.9.${BUILD_INFO.buildNumber}${BUILD_INFO.dirty ? '*' : ''}`}
               delay={800}
             />
             <View style={styles.divider} />
@@ -706,7 +706,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <CogsAvatar size="small" state="online" />
             <Text style={styles.cogsCredText}>
               Cogs AI v2.1 · All systems nominal.{'\n'}
-              <Text style={styles.cogsCredSub}>The Axiom · Build {BUILD_INFO.version} · {BUILD_INFO.sha}{BUILD_INFO.dirty ? '*' : ''}</Text>
+              <Text style={styles.cogsCredSub}>The Axiom · Build 0.9.{BUILD_INFO.buildNumber}</Text>
             </Text>
           </Animated.View>
         </ScrollView>
