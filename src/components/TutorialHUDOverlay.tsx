@@ -338,8 +338,10 @@ export default function TutorialHUDOverlay({
   // ── Board reveal: expand from orb center to full board ──
   const morphBoardReveal = useCallback((box: { left: number; top: number; width: number; height: number }, done?: () => void) => {
     // Start portal at current orb position (small, centered on orb)
-    portalLeft.setValue(SCREEN_W / 2 - 12);
-    portalTop.setValue(SCREEN_H / 3);
+    const currentOrbX = (orbX as any)._value ?? SCREEN_W / 2;
+    const currentOrbY = (orbY as any)._value ?? SCREEN_H / 3;
+    portalLeft.setValue(currentOrbX);
+    portalTop.setValue(currentOrbY);
     portalW.setValue(0);
     portalH.setValue(0);
     portalOpacity.setValue(0);

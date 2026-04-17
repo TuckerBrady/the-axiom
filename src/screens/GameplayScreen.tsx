@@ -332,7 +332,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargePos, setChargePos] = useState<Pt | null>(null);
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
-  const [tapeBeamState, setTapeBeamState] = useState<{ x: number; currentY: number; color: string; tailDir: number } | null>(null);
+  const [tapeBeamState, setTapeBeamState] = useState<{ x: number; originY: number; currentY: number; color: string } | null>(null);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
   // Ghost beam opacity — fades in during execution, out on reset
@@ -495,6 +495,9 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Dynamic board sizing (from available canvas space) ──
   const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
+  const [tapeOffsetY, setTapeOffsetY] = useState(0);
+  const canvasTopRef = useRef(0);
+  const tapeTargetY = tapeOffsetY > 0 ? tapeOffsetY - canvasTopRef.current - (CANVAS_PAD / 2) : 0;
 
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
@@ -681,21 +684,25 @@ export default function GameplayScreen({ navigation }: Props) {
     };
 
     const fireTapeBeam = (pieceX: number, pieceY: number, color: string) => {
-      const targetY = 0;
-      const upDur = 180;
-      const holdDur = 80;
-      const downDur = 150;
+      if (tapeBeamFrameRef.current != null) {
+        cancelAnimationFrame(tapeBeamFrameRef.current);
+        tapeBeamFrameRef.current = null;
+      }
+      const targetY = tapeTargetY;
+      const upDur = 220;
+      const holdDur = 120;
+      const downDur = 180;
       const startTime = performance.now();
       const tick = () => {
         const elapsed = performance.now() - startTime;
         if (elapsed < upDur) {
           const t = easeOut3(elapsed / upDur);
-          setTapeBeamState({ x: pieceX, currentY: pieceY + (targetY - pieceY) * t, color, tailDir: 1 });
+          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: pieceY + (targetY - pieceY) * t, color });
         } else if (elapsed < upDur + holdDur) {
-          setTapeBeamState({ x: pieceX, currentY: targetY, color, tailDir: 1 });
+          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: targetY, color });
         } else if (elapsed < upDur + holdDur + downDur) {
           const t2 = (elapsed - upDur - holdDur) / downDur;
-          setTapeBeamState({ x: pieceX, currentY: targetY + (pieceY - targetY) * t2 * t2, color, tailDir: -1 });
+          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: targetY + (pieceY - targetY) * t2 * t2, color });
         } else {
           setTapeBeamState(null);
           return;
@@ -764,7 +771,7 @@ export default function GameplayScreen({ navigation }: Props) {
           return;
         }
         if (pauseEnd > 0) {
-          pauseTotal += 400;
+          pauseTotal += 520;
           pauseEnd = 0;
         }
         const rawT = Math.min(1, (now - t0 - pauseTotal) / totalMs);
@@ -816,7 +823,7 @@ export default function GameplayScreen({ navigation }: Props) {
             else {
               triggerPieceAnim(stp);
               if (TAPE_PIECE_COLORS[stp.type] && pauseEnd === 0) {
-                pauseEnd = performance.now() + 400;
+                pauseEnd = performance.now() + 520;
               }
             }
           }
@@ -1399,7 +1406,14 @@ export default function GameplayScreen({ navigation }: Props) {
 
         {/* ── Turing Tape Display ── */}
         {level.inputTape && level.inputTape.length > 0 && (
-          <View collapsable={false} style={styles.tapeSection}>
+          <View
+            collapsable={false}
+            style={styles.tapeSection}
+            onLayout={e => {
+              const { y, height } = e.nativeEvent.layout;
+              setTapeOffsetY(y + height);
+            }}
+          >
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
               <View style={styles.tapeCells}>
@@ -1521,12 +1535,13 @@ export default function GameplayScreen({ navigation }: Props) {
         <View
           style={styles.canvasOuter}
           onLayout={e => {
-            const { width: w, height: h } = e.nativeEvent.layout;
+            const { width: w, height: h, y: canvasY } = e.nativeEvent.layout;
             setCanvasLayout(prev =>
               prev.w === Math.round(w) && prev.h === Math.round(h)
                 ? prev
                 : { w: Math.round(w), h: Math.round(h) }
             );
+            canvasTopRef.current = canvasY;
           }}
         >
           <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
@@ -1600,7 +1615,12 @@ export default function GameplayScreen({ navigation }: Props) {
                   pointerEvents="none"
                   style={[StyleSheet.absoluteFill, { zIndex: 5 }, ghostBeamStyle]}
                 >
-                  <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
+                  <Svg
+                    width={gridW}
+                    height={gridH + Math.abs(tapeTargetY)}
+                    viewBox={`0 ${tapeTargetY} ${gridW} ${gridH + Math.abs(tapeTargetY)}`}
+                    style={[StyleSheet.absoluteFill, { top: tapeTargetY }]}
+                  >
                     {ghostPieces.map(p => {
                       const color = GHOST_PIECE_MAP[p.type];
                       const x = p.gridX * CELL_SIZE;
@@ -1608,9 +1628,9 @@ export default function GameplayScreen({ navigation }: Props) {
                         <Rect
                           key={`ghost-${p.id}`}
                           x={x}
-                          y={0}
+                          y={tapeTargetY}
                           width={CELL_SIZE}
-                          height={p.gridY * CELL_SIZE + CELL_SIZE}
+                          height={p.gridY * CELL_SIZE + CELL_SIZE - tapeTargetY}
                           fill={color}
                           opacity={0.15}
                         />
@@ -1621,23 +1641,39 @@ export default function GameplayScreen({ navigation }: Props) {
               );
             })()}
 
-            {/* Tape interaction shooting star */}
+            {/* Tape interaction tractor beam — sustained ray from piece to tape */}
             {tapeBeamState && (
               <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 6 }]}>
-                <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
+                <Svg
+                  width={gridW}
+                  height={gridH + Math.abs(tapeTargetY)}
+                  viewBox={`0 ${tapeTargetY} ${gridW} ${gridH + Math.abs(tapeTargetY)}`}
+                  style={[StyleSheet.absoluteFill, { top: tapeTargetY }]}
+                >
                   <Line
                     x1={tapeBeamState.x}
-                    y1={tapeBeamState.currentY}
+                    y1={tapeBeamState.originY}
                     x2={tapeBeamState.x}
-                    y2={tapeBeamState.currentY + tapeBeamState.tailDir * 20}
+                    y2={tapeBeamState.currentY}
                     stroke={tapeBeamState.color}
-                    strokeWidth={2}
-                    opacity={0.5}
+                    strokeWidth={8}
+                    strokeLinecap="round"
+                    opacity={0.15}
+                  />
+                  <Line
+                    x1={tapeBeamState.x}
+                    y1={tapeBeamState.originY}
+                    x2={tapeBeamState.x}
+                    y2={tapeBeamState.currentY}
+                    stroke={tapeBeamState.color}
+                    strokeWidth={3}
+                    strokeLinecap="round"
+                    opacity={0.7}
                   />
                   <Circle
                     cx={tapeBeamState.x}
                     cy={tapeBeamState.currentY}
-                    r={3}
+                    r={4}
                     fill={tapeBeamState.color}
                     opacity={0.9}
                   />
