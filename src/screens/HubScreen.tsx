@@ -202,7 +202,7 @@ export default function HubScreen({ navigation }: Props) {
               {/* Credits */}
               <View style={st.gridCard}>
                 <Text style={st.gridLabel}>CREDITS</Text>
-                <Text style={st.gridValue}>{credits}</Text>
+                <Text style={[st.gridValue, { color: GREEN }]}>{credits}</Text>
                 <Text style={st.gridSub}>CR</Text>
               </View>
 
