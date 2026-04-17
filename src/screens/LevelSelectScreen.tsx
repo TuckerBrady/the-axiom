@@ -642,7 +642,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
       <SafeAreaView style={s.safeArea} edges={['top']}>
         {/* ── Header ── */}
         <Animated.View style={[s.header, contentStyle]}>
-          <BackButton onPress={() => navigation.goBack()} />
+          <BackButton onPress={() => navigation.navigate('Tabs')} />
           <View style={s.headerCenter}>
             <Text style={s.headerTitle}>{sectorTitle}</Text>
           </View>
