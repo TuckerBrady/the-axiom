@@ -46,6 +46,8 @@ const SURFACE = 'rgba(255,255,255,0.03)';
 const BORDER = 'rgba(255,255,255,0.07)';
 const TEXT_DIM = 'rgba(255,255,255,0.3)';
 const TEXT_MID = 'rgba(255,255,255,0.55)';
+const TEXT_LABEL = 'rgba(255,255,255,0.55)';
+const TEXT_SUB = 'rgba(255,255,255,0.4)';
 
 // Rank table R01-R10
 const RANKS = [
@@ -53,9 +55,22 @@ const RANKS = [
   'Lead Engineer', 'Systems Architect', 'Chief Engineer', 'Captain', 'Commander',
 ];
 
-function getRank(completedCount: number): { name: string; index: number } {
+const RANK_COLORS = [
+  '#6B7F99',   // R01 Salvager
+  '#00E5FF',   // R02 Apprentice
+  '#00FFC8',   // R03 Technician
+  '#FF6B35',   // R04 Mechanic
+  '#FF2D92',   // R05 Engineer
+  '#A855F7',   // R06 Lead Engineer
+  '#6366F1',   // R07 Systems Architect
+  '#FACC15',   // R08 Chief Engineer
+  '#FF8C00',   // R09 Captain
+  '#F0E8FF',   // R10 Commander
+];
+
+function getRank(completedCount: number): { name: string; index: number; color: string } {
   const idx = Math.min(Math.floor(completedCount / 2), RANKS.length - 1);
-  return { name: RANKS[idx], index: idx };
+  return { name: RANKS[idx], index: idx, color: RANK_COLORS[idx] };
 }
 
 type HubNav = CompositeNavigationProp<
@@ -91,7 +106,7 @@ export default function HubScreen({ navigation }: Props) {
 
   // Rank
   const totalCompleted = axiomCompleted;
-  const { name: rankName, index: rankIndex } = getRank(totalCompleted);
+  const { name: rankName, index: rankIndex, color: rankColor } = getRank(totalCompleted);
   const nextRank = rankIndex < RANKS.length - 1 ? RANKS[rankIndex + 1] : null;
   const rankProgress = totalCompleted > 0 ? Math.min(1, (totalCompleted % 2) / 2 + 0.5) : 0;
 
@@ -222,7 +237,7 @@ export default function HubScreen({ navigation }: Props) {
               {/* Rank */}
               <View style={st.gridCard}>
                 <Text style={st.gridLabel}>RANK</Text>
-                <Text style={st.gridValue}>{rankName}</Text>
+                <Text style={[st.gridValue, { color: rankColor }]}>{rankName}</Text>
                 {nextRank && (
                   <>
                     <View style={st.rankTrack}>
@@ -294,9 +309,9 @@ const st = StyleSheet.create({
   // 2x2 Grid
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   gridCard: { width: (SCREEN_W - 28 - 7) / 2, backgroundColor: SURFACE, borderWidth: 1, borderColor: BORDER, borderRadius: 9, padding: 10, gap: 4 },
-  gridLabel: { fontFamily: Fonts.spaceMono, fontSize: 8, color: TEXT_DIM, letterSpacing: 1.5 },
+  gridLabel: { fontFamily: Fonts.spaceMono, fontSize: 8, color: TEXT_LABEL, letterSpacing: 1.5 },
   gridValue: { fontFamily: Fonts.spaceMono, fontSize: 16, color: '#E8F0FF', letterSpacing: 1 },
-  gridSub: { fontFamily: Fonts.spaceMono, fontSize: 8, color: TEXT_DIM, letterSpacing: 1 },
+  gridSub: { fontFamily: Fonts.spaceMono, fontSize: 8, color: TEXT_SUB, letterSpacing: 1 },
 
   // Lives pips
   livesPips: { flexDirection: 'row', gap: 5, marginTop: 4 },
