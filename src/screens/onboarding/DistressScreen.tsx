@@ -143,34 +143,40 @@ function BottomScanLine() {
 
 function DialogueCard({
   card,
-  visible,
+  active,
   isLast,
   onPress,
 }: {
   card: typeof CARDS[0];
-  visible: boolean;
+  active: boolean;
   isLast: boolean;
   onPress: () => void;
 }) {
+  const [shouldRender, setShouldRender] = useState(false);
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const translateY = useSharedValue(40);
 
   useEffect(() => {
-    if (visible) {
+    if (active) {
+      setShouldRender(true);
       opacity.value = withTiming(1, { duration: 400 });
       translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
+    } else if (shouldRender) {
+      opacity.value = withTiming(0, { duration: 300 });
+      translateY.value = withTiming(-40, { duration: 300, easing: Easing.in(Easing.cubic) });
+      setTimeout(() => setShouldRender(false), 350);
     }
-  }, [visible]);
+  }, [active]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
 
-  if (!visible) return null;
+  if (!shouldRender) return null;
 
   return (
-    <Animated.View style={cardStyle}>
+    <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, cardStyle]}>
       <TouchableOpacity
         style={isLast ? s.proceedCard : s.card}
         onPress={onPress}
@@ -242,7 +248,7 @@ export default function DistressScreen({ navigation }: Props) {
           <DialogueCard
             key={i}
             card={card}
-            visible={step >= i && i >= step - 1}
+            active={step === i}
             isLast={i === CARDS.length - 1}
             onPress={handlePress}
           />
@@ -342,7 +348,7 @@ const s = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    gap: Spacing.md,
+    position: 'relative',
   },
   card: {
     backgroundColor: 'rgba(6,9,18,0.95)',

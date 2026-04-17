@@ -53,28 +53,38 @@ function OnlinePill({ small }: { small?: boolean }) {
 
 function DialogueCard({
   card,
-  visible,
+  active,
   onPress,
 }: {
   card: typeof CARDS[0];
-  visible: boolean;
+  active: boolean;
   onPress: () => void;
 }) {
+  const [shouldRender, setShouldRender] = useState(false);
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(16);
+  const translateY = useSharedValue(40);
+
   useEffect(() => {
-    if (visible) {
+    if (active) {
+      setShouldRender(true);
       opacity.value = withTiming(1, { duration: 400 });
       translateY.value = withTiming(0, { duration: 400, easing: Easing.out(Easing.cubic) });
+    } else if (shouldRender) {
+      opacity.value = withTiming(0, { duration: 300 });
+      translateY.value = withTiming(-40, { duration: 300, easing: Easing.in(Easing.cubic) });
+      setTimeout(() => setShouldRender(false), 350);
     }
-  }, [visible]);
+  }, [active]);
+
   const cardStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: translateY.value }],
   }));
-  if (!visible) return null;
+
+  if (!shouldRender) return null;
+
   return (
-    <Animated.View style={cardStyle}>
+    <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, cardStyle]}>
       <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
         <Text style={s.cardLabel}>{card.label}</Text>
         <Text style={s.cardText}>{card.text}</Text>
@@ -130,7 +140,7 @@ export default function IntroductionScreen({ navigation }: Props) {
       {/* Cards */}
       <View style={s.cardsSection} pointerEvents="box-none">
         {CARDS.map((card, i) => (
-          <DialogueCard key={i} card={card} visible={step >= i && i >= step - 1} onPress={handlePress} />
+          <DialogueCard key={i} card={card} active={step === i} onPress={handlePress} />
         ))}
       </View>
     </Animated.View>
@@ -201,7 +211,7 @@ const s = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
-    gap: Spacing.md,
+    position: 'relative',
   },
   card: {
     backgroundColor: 'rgba(6,9,18,0.95)',
