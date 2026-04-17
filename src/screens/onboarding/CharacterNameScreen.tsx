@@ -28,7 +28,6 @@ import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 import {
   REVEAL_BEAT1_PROMPT,
   REVEAL_BEAT2_ACK,
-  REVEAL_BEAT3_HUD,
 } from '../../constants/onboardingCopy';
 
 type Props = {
@@ -108,8 +107,11 @@ export default function CharacterNameScreen({ navigation }: Props) {
     // BEAT 2 (1.8–3.7s): COGS acknowledges
     // t=1.8s: bubble swaps to acknowledgment
     setTimeout(() => swapBubble(REVEAL_BEAT2_ACK), 1800);
-    // t=2.2s: scan line sweeps designation
-    scanLineOp.value = withDelay(2200, withTiming(1, { duration: 100 }));
+    // t=2.2s: scan line sweeps designation, fades out after sweep
+    scanLineOp.value = withDelay(2200, withSequence(
+      withTiming(1, { duration: 100 }),
+      withDelay(800, withTiming(0, { duration: 400 })),
+    ));
     scanLineY.value = withDelay(2200, withTiming(60, { duration: 900, easing: Easing.inOut(Easing.quad) }));
     // t=2.2s: status row fades in
     statusOp.value = withDelay(2200, withTiming(1, { duration: 400 }));
@@ -135,9 +137,8 @@ export default function CharacterNameScreen({ navigation }: Props) {
       );
     }, 3200);
 
-    // BEAT 3 (3.8s+): Eye shifts amber → blue, HUD explainer
+    // BEAT 3 (3.8s+): Eye shifts amber → blue
     setTimeout(() => setCogsState('online'), 3800);
-    setTimeout(() => swapBubble(REVEAL_BEAT3_HUD), 4000);
   }, [nameOp, nameY, desigOp, desigY, scanLineOp, scanLineY, statusOp, statusDotOp, ctaOp, ctaBlink, swapBubble, bubbleTextOp]);
 
   // ── Handle name confirm ──
