@@ -497,7 +497,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
   const [tapeOffsetY, setTapeOffsetY] = useState(0);
   const canvasTopRef = useRef(0);
-  const tapeTargetY = tapeOffsetY > 0 ? tapeOffsetY - canvasTopRef.current - (CANVAS_PAD / 2) : 0;
+  const boardTopRef = useRef(0);
+  const tapeTargetY = (tapeOffsetY > 0 && boardTopRef.current > 0)
+    ? tapeOffsetY - boardTopRef.current
+    : 0;
 
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
@@ -1544,7 +1547,13 @@ export default function GameplayScreen({ navigation }: Props) {
             canvasTopRef.current = canvasY;
           }}
         >
-          <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
+          <View
+            ref={boardGridRef}
+            style={[styles.canvas, { width: gridW, height: gridH }]}
+            onLayout={e => {
+              boardTopRef.current = canvasTopRef.current + e.nativeEvent.layout.y;
+            }}
+          >
             {/* Dot grid */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
