@@ -211,16 +211,24 @@ describe('getCOGSScoreComment', () => {
 
   it('returns perfect score line at 100', () => {
     const comment = getCOGSScoreComment(
-      { completionBonus: 25, machineComplexity: 30, protocolPrecision: 20, pathIntegrity: 15, speedBonus: 10, efficiency: 25, chainIntegrity: 15, disciplineBonus: 30 },
+      { completionBonus: 25, machineComplexity: 30, protocolPrecision: 20, pathIntegrity: 15, speedBonus: 10, elaboration: 0, purchasedTouchedCount: 0, efficiency: 25, chainIntegrity: 15, disciplineBonus: 30 },
       'systems', 3, 4, 4,
     );
     expect(comment).toContain('One hundred');
   });
 
+  it('returns elaboration line when elaboration >= 12', () => {
+    const comment = getCOGSScoreComment(
+      { completionBonus: 25, machineComplexity: 20, protocolPrecision: 10, pathIntegrity: 10, speedBonus: 5, elaboration: 12, purchasedTouchedCount: 4, efficiency: 25, chainIntegrity: 10, disciplineBonus: 20 },
+      'systems', 3, 6, 4,
+    );
+    expect(comment).toContain('Unnecessary complexity');
+  });
+
   it('returns line for each star level', () => {
     for (const stars of [3, 2, 1, 0] as const) {
       const comment = getCOGSScoreComment(
-        { completionBonus: 10, machineComplexity: 10, protocolPrecision: 5, pathIntegrity: 5, speedBonus: 4, efficiency: 10, chainIntegrity: 5, disciplineBonus: 10 },
+        { completionBonus: 10, machineComplexity: 10, protocolPrecision: 5, pathIntegrity: 5, speedBonus: 4, elaboration: 0, purchasedTouchedCount: 0, efficiency: 10, chainIntegrity: 5, disciplineBonus: 10 },
         'systems', stars, 2, 4,
       );
       expect(comment).toBeTruthy();
@@ -233,5 +241,196 @@ describe('getCOGSScoreComment', () => {
       expect(getTutorialCOGSComment(60, d)).toBeTruthy();
       expect(getTutorialCOGSComment(20, d)).toBeTruthy();
     }
+  });
+});
+
+describe('elaboration bonus', () => {
+  it('returns 0 when no purchased pieces', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [makePlayerPiece('c1', 'conveyor')],
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(0);
+    expect(result.breakdown.purchasedTouchedCount).toBe(0);
+  });
+
+  it('awards 9 points for 3 purchased-and-touched pieces', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('conveyor', true, 'c2'),
+        makeStep('conveyor', true, 'c3'),
+        makeStep('conveyor', true, 'c4'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'),
+        makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'),
+        makePlayerPiece('c4', 'conveyor'),
+      ],
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(9);
+    expect(result.breakdown.purchasedTouchedCount).toBe(3);
+  });
+
+  it('caps at 15 points for 5 purchased-and-touched pieces', () => {
+    const pieces = [];
+    const steps = [makeStep('inputPort', true, 'src')];
+    for (let i = 0; i < 6; i++) {
+      pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
+      steps.push(makeStep('conveyor', true, `c${i}`));
+    }
+    steps.push(makeStep('outputPort', true, 'out'));
+    const result = calculateScore({
+      executionSteps: steps,
+      placedPieces: pieces,
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(15);
+  });
+
+  it('caps at 15 for 7 purchased-and-touched pieces', () => {
+    const pieces = [];
+    const steps = [makeStep('inputPort', true, 'src')];
+    for (let i = 0; i < 8; i++) {
+      pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
+      steps.push(makeStep('conveyor', true, `c${i}`));
+    }
+    steps.push(makeStep('outputPort', true, 'out'));
+    const result = calculateScore({
+      executionSteps: steps,
+      placedPieces: pieces,
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(15);
+  });
+
+  it('awards 3 points when 3 purchased but only 1 touched', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('conveyor', true, 'c2'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'),
+        makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'),
+        makePlayerPiece('c4', 'conveyor'),
+      ],
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(3);
+    expect(result.breakdown.purchasedTouchedCount).toBe(1);
+  });
+
+  it('returns 0 when purchased pieces exist but none touched', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'),
+        makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'),
+      ],
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.elaboration).toBe(0);
+  });
+
+  it('total can exceed 100 with elaboration', () => {
+    const pieces = [];
+    const steps = [makeStep('inputPort', true, 'src')];
+    for (let i = 0; i < 6; i++) {
+      pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
+      steps.push(makeStep('conveyor', true, `c${i}`));
+    }
+    steps.push(makeStep('outputPort', true, 'out'));
+    const result = calculateScore({
+      executionSteps: steps,
+      placedPieces: pieces,
+      optimalPieces: 6,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.total).toBeGreaterThan(100);
+  });
+
+  it('purchasedTouchedCount in breakdown matches expected', () => {
+    const result = calculateScore({
+      executionSteps: [
+        makeStep('inputPort', true, 'src'),
+        makeStep('conveyor', true, 'c1'),
+        makeStep('conveyor', true, 'c2'),
+        makeStep('conveyor', true, 'c3'),
+        makeStep('outputPort', true, 'out'),
+      ],
+      placedPieces: [
+        makePlayerPiece('c1', 'conveyor'),
+        makePlayerPiece('c2', 'conveyor'),
+        makePlayerPiece('c3', 'conveyor'),
+      ],
+      optimalPieces: 1,
+      totalTrayPieces: 1,
+      trayPieceTypes: ['conveyor'],
+      discipline: 'drive',
+      engageDurationMs: 5000,
+      elapsedSeconds: 5,
+      succeeded: true,
+    });
+    expect(result.breakdown.purchasedTouchedCount).toBe(2);
+    expect(result.breakdown.elaboration).toBe(6);
   });
 });

@@ -76,6 +76,39 @@ function calcSpeedBonus(engageDurationMs: number, elapsedSeconds?: number): numb
   return 0;
 }
 
+// ─── Category 6: Elaboration Bonus (max 15) ────────────────────────────────
+const ELABORATION_POINTS_PER_PIECE = 3;
+const ELABORATION_MAX = 15;
+
+function calcElaboration(
+  steps: ExecutionStep[],
+  playerPieces: PlacedPiece[],
+  trayPieceTypes: PieceType[],
+): number {
+  const trayCounts: Partial<Record<PieceType, number>> = {};
+  for (const pt of trayPieceTypes) {
+    trayCounts[pt] = (trayCounts[pt] || 0) + 1;
+  }
+
+  const remainingTray: Partial<Record<PieceType, number>> = { ...trayCounts };
+  const purchasedPieces: PlacedPiece[] = [];
+
+  for (const p of playerPieces) {
+    if (remainingTray[p.type] && remainingTray[p.type]! > 0) {
+      remainingTray[p.type] = remainingTray[p.type]! - 1;
+    } else {
+      purchasedPieces.push(p);
+    }
+  }
+
+  if (purchasedPieces.length === 0) return 0;
+
+  const touchedIds = new Set(steps.filter(s => s.success).map(s => s.pieceId));
+  const purchasedTouched = purchasedPieces.filter(p => touchedIds.has(p.id)).length;
+
+  return Math.min(purchasedTouched * ELABORATION_POINTS_PER_PIECE, ELABORATION_MAX);
+}
+
 // ─── Main scoring function ───────────────────────────────────────────────────
 
 export interface ScoreBreakdown {
@@ -84,6 +117,8 @@ export interface ScoreBreakdown {
   protocolPrecision: number;
   pathIntegrity: number;
   speedBonus: number;
+  elaboration: number;
+  purchasedTouchedCount: number;
   // Legacy aliases for backward compatibility in UI
   efficiency: number;
   chainIntegrity: number;
@@ -101,6 +136,7 @@ export function calculateScore(params: {
   placedPieces: PlacedPiece[];
   optimalPieces: number; // Reference only — not used in scoring. Scoring rewards using all tray pieces.
   totalTrayPieces?: number;
+  trayPieceTypes?: PieceType[];
   discipline: NonNullable<Discipline>;
   engageDurationMs: number;
   elapsedSeconds?: number;
@@ -118,7 +154,13 @@ export function calculateScore(params: {
   const pathIntegrity = calcPathIntegrity(executionSteps, playerPieces);
   const speedBonus = calcSpeedBonus(engageDurationMs, elapsedSeconds);
 
-  const total = completionBonus + machineComplexity + protocolPrecision + pathIntegrity + speedBonus;
+  const trayTypes = params.trayPieceTypes ?? [];
+  const elaboration = calcElaboration(executionSteps, playerPieces, trayTypes);
+  const purchasedTouchedCount = trayTypes.length > 0
+    ? Math.min(Math.floor(elaboration / ELABORATION_POINTS_PER_PIECE), 5)
+    : 0;
+
+  const total = completionBonus + machineComplexity + protocolPrecision + pathIntegrity + speedBonus + elaboration;
   const stars = starsFromTotal(total);
 
   return {
@@ -130,6 +172,8 @@ export function calculateScore(params: {
       protocolPrecision,
       pathIntegrity,
       speedBonus,
+      elaboration,
+      purchasedTouchedCount,
       // Legacy aliases — map to closest new category
       efficiency: completionBonus,
       chainIntegrity: pathIntegrity,
@@ -189,10 +233,13 @@ export function getCOGSScoreComment(
   totalTrayPieces: number,
 ): string {
   const total = breakdown.completionBonus + breakdown.machineComplexity +
-    breakdown.protocolPrecision + breakdown.pathIntegrity + breakdown.speedBonus;
+    breakdown.protocolPrecision + breakdown.pathIntegrity + breakdown.speedBonus + breakdown.elaboration;
 
-  if (total === 100) {
+  if (total >= 100) {
     return 'One hundred points. I am revising my estimates of you upward. That is not something I do often.';
+  }
+  if (breakdown.elaboration >= 12) {
+    return 'Unnecessary complexity. Approved. The machine is better for it.';
   }
 
   if (stars === 3 && breakdown.machineComplexity >= 25) {

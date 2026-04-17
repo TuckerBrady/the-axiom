@@ -255,7 +255,7 @@ export type TutorialStep = {
 
 // ─── Scoring Category Visibility ─────────────────────────────────────────────
 
-export type ScoringCategory = 'efficiency' | 'chainIntegrity' | 'protocolPrecision' | 'disciplineBonus' | 'speedBonus';
+export type ScoringCategory = 'efficiency' | 'chainIntegrity' | 'protocolPrecision' | 'disciplineBonus' | 'speedBonus' | 'elaboration';
 
 // ─── Daily Challenge ─────────────────────────────────────────────────────────
 

@@ -311,6 +311,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showCompletionScene, setShowCompletionScene] = useState(false);
   const [completionText, setCompletionText] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
+  const [elaborationMult, setElaborationMult] = useState(1);
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
   // ── New signal beam animation state ──
@@ -1015,6 +1016,7 @@ export default function GameplayScreen({ navigation }: Props) {
         executionSteps: steps,
         placedPieces: machineState.pieces,
         optimalPieces: level.optimalPieces,
+        trayPieceTypes: level.availablePieces ?? [],
         discipline: currentDiscipline,
         engageDurationMs,
         elapsedSeconds: lockedElapsed,
@@ -1042,8 +1044,10 @@ export default function GameplayScreen({ navigation }: Props) {
       setFirstTimeBonus(isFirst);
 
       // Credit rewards
-      if (result.stars === 3) earnCredits(levelSpent + 25);
-      else if (result.stars === 2) earnCredits(Math.ceil(levelSpent * 0.5));
+      const cappedMult = Math.min(1.0 + (result.breakdown.purchasedTouchedCount * 0.1), 1.5);
+      setElaborationMult(cappedMult);
+      if (result.stars === 3) earnCredits(Math.floor((levelSpent + 25) * cappedMult));
+      else if (result.stars === 2) earnCredits(Math.floor(Math.ceil(levelSpent * 0.5) * cappedMult));
       if (isFirst) {
         earnCredits(25);
         addCredits(25);
@@ -1977,8 +1981,12 @@ export default function GameplayScreen({ navigation }: Props) {
                   ['chainIntegrity', 'INTEGRITY', scoreResult.breakdown.chainIntegrity, 20],
                   ['disciplineBonus', 'DISCIPLINE', scoreResult.breakdown.disciplineBonus, 15],
                   ['speedBonus', 'SPEED', scoreResult.breakdown.speedBonus, 10],
+                  ['elaboration', 'ELABORATION', scoreResult.breakdown.elaboration, 15],
                 ];
-                const shown = allCats.filter(([cat]) => visible.includes(cat));
+                const shown = allCats.filter(([cat, , val]) => {
+                  if (cat === 'elaboration') return val > 0 && level.sector !== 'axiom';
+                  return visible.includes(cat);
+                });
                 return (
                   <View style={styles.scoreStrip}>
                     {shown.map(([, label, val, max]) => (
@@ -2005,6 +2013,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 <Text style={styles.resultsQuote}>
                   {'"'}{cogsScoreComment || 'Circuit complete.'}{'"'}
                   {firstTimeBonus ? '\n\n"Mission logged. 25 CR credited to your account."' : ''}
+                  {elaborationMult > 1 ? `\n\nElaboration: ${elaborationMult.toFixed(1)}x credits` : ''}
                 </Text>
               </View>
               <View style={styles.resultsActions}>
