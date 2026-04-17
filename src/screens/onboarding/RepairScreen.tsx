@@ -177,6 +177,7 @@ export default function RepairScreen({ navigation }: Props) {
         chargeOpacity.setValue(0);
 
         // Phase 2 — BEAM (400ms across 3 waypoints)
+        beamHead.setValue({ x: pts[0].x, y: pts[0].y });
         beamOpacity.setValue(0.8);
         const totalMs = 400;
         const start = Date.now();
