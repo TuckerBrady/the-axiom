@@ -30,7 +30,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
 import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
-import { AXIOM_LEVELS } from '../game/levels';
+import { AXIOM_LEVELS, KEPLER_LEVELS } from '../game/levels';
 import { useProgressionStore } from '../store/progressionStore';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -189,41 +189,7 @@ function MissionIcon({ type, size = 24, color = Colors.blue }: { type: MissionIc
   }
 }
 
-const MISSIONS: Mission[] = [
-  { id:1, name:'First Contact', iconType:'bolt', stars:3, bestTime:'2:14', piecesUsed:8,
-    cogsQuote:'Your first run through Kepler. You were sloppy but effective. Three stars. I have logged this as a miracle.' },
-  { id:2, name:'Signal Drift', iconType:'signal', stars:2, bestTime:'3:41', piecesUsed:11,
-    cogsQuote:'The relay was drifting and you caught it. Two stars. The third one watched you leave without it.' },
-  { id:3, name:'Relay Breach', iconType:'plug', stars:3, bestTime:'1:58', piecesUsed:7,
-    cogsQuote:'Breach sealed. Three stars. I am recalibrating my expectations upward. Briefly.' },
-  { id:4, name:'Ion Cascade', iconType:'atom', stars:3, bestTime:'2:33', piecesUsed:9,
-    cogsQuote:'Ion flow stabilised. The belt respects you now. That is more than I can say for most.' },
-  { id:5, name:'Flux Resonance', iconType:'vortex', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'Resonance patterns are unstable here. You will need to be quick and exact. I believe in you. Statistically.' },
-  { id:6, name:'Core Overload', iconType:'fire', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'The core is running hot. You have not been here yet. I recommend caution and a secondary plan.' },
-  { id:7, name:'Null Space', iconType:'moon', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'Nothing broadcasts from here. That is not reassuring. Complete earlier missions to access.' },
-  { id:8, name:'Void Walker', iconType:'void', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'Deepest void corridor in the belt. I do not have clearance to brief you on this one yet.' },
-  { id:9, name:'Static Bloom', iconType:'radio', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'A static bloom event. Rare. Dangerous. Locked behind earlier protocols. Keep working.' },
-  { id:10, name:'Dark Matter', iconType:'magnet', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'Dark matter confluence. My sensors do not reach here. Classified until you earn it.' },
-  { id:11, name:'Singularity', iconType:'sparkle', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'Second-to-last. The gravity here is literal. Do not rush the approach.' },
-  { id:12, name:'The Final Gate', iconType:'rocket', stars:0, bestTime:'--:--', piecesUsed:0,
-    cogsQuote:'The last protocol piece. The end of the belt. If you reach this, I will admit I was wrong to doubt you. Almost.' },
-];
-
 type NodeState = 'completed' | 'active' | 'unplayed' | 'locked';
-
-function getState(id: number): NodeState {
-  if (id <= 4) return 'completed';
-  if (id === 5) return 'active';
-  if (id === 6) return 'unplayed';
-  return 'locked';
-}
 
 // ─── HUD corner brackets ───────────────────────────────────────────────────────
 
@@ -385,11 +351,11 @@ function SignalDot({ completedCount, positions }: { completedCount: number; posi
 
 const ENERGIZED_COLOR = '#00D4FF';
 
-function PathSegment({ from, to, getNodeState, positions }: { from: number; to: number; getNodeState?: (id: number) => NodeState; positions: { x: number; y: number }[] }) {
+function PathSegment({ from, to, getNodeState, positions }: { from: number; to: number; getNodeState: (id: number) => NodeState; positions: { x: number; y: number }[] }) {
   const fc = nxyFrom(positions, from);
   const tc = nxyFrom(positions, to);
   const isH = fc.y === tc.y;
-  const fromState = getNodeState ? getNodeState(from) : getState(from);
+  const fromState = getNodeState(from);
 
   // Energized if the "from" node is completed (signal has passed through it)
   const isEnergized = fromState === 'completed';
@@ -431,7 +397,7 @@ type NodeProps = {
 };
 
 function MissionNode({ mission, onPress, getStateOverride, positions }: NodeProps) {
-  const state = getStateOverride ? getStateOverride(mission.id) : getState(mission.id);
+  const state = getStateOverride ? getStateOverride(mission.id) : 'locked';
   const { x, y } = nxyFrom(positions, mission.id);
   const isLockedNode = state === 'locked';
   const opacity = isLockedNode ? 0.4 : 1;
@@ -529,13 +495,6 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'LevelSelect'>;
 };
 
-// Map mission IDs to game level IDs (Kepler)
-const MISSION_LEVEL_MAP: Record<number, string> = {
-  5: '2-1',   // Flux Resonance → Power Grid Alpha
-  6: '2-2',   // Core Overload → Relay Junction
-  7: '2-3',   // Null Space → Config Breach
-};
-
 // ─── Axiom mission data (generated from levels) ──────────────────────────────
 
 const AXIOM_MISSIONS: Mission[] = AXIOM_LEVELS.map((level, i) => ({
@@ -553,6 +512,27 @@ const AXIOM_LEVEL_MAP: Record<number, string> = {
   5: 'A1-5', 6: 'A1-6', 7: 'A1-7', 8: 'A1-8',
 };
 
+// ─── Kepler mission data (generated from levels) ──────────────────────────────
+
+const KEPLER_ICON_TYPES: MissionIconType[] = [
+  'bolt', 'signal', 'plug', 'atom', 'vortex',
+  'fire', 'moon', 'void', 'radio', 'rocket',
+];
+
+const KEPLER_MISSIONS: Mission[] = KEPLER_LEVELS.map((level, i) => ({
+  id: i + 1,
+  name: level.name,
+  iconType: KEPLER_ICON_TYPES[i] ?? 'bolt',
+  stars: 0,
+  bestTime: '--:--',
+  piecesUsed: 0,
+  cogsQuote: level.cogsLine,
+}));
+
+const KEPLER_LEVEL_MAP: Record<number, string> = Object.fromEntries(
+  KEPLER_LEVELS.map((level, i) => [i + 1, level.id])
+);
+
 export default function LevelSelectScreen({ navigation }: Props) {
   const { activeSector, isLevelCompleted, getLevelStars } = useProgressionStore();
   const isAxiom = activeSector === 'A1';
@@ -562,34 +542,33 @@ export default function LevelSelectScreen({ navigation }: Props) {
   // Sector-specific data
   const sectorTitle = isAxiom ? 'THE AXIOM' : 'KEPLER BELT';
   const sectorDisplayName = isAxiom ? 'The Axiom' : 'Kepler Belt';
-  const missions = isAxiom ? AXIOM_MISSIONS : MISSIONS;
-  const levelMap = isAxiom ? AXIOM_LEVEL_MAP : MISSION_LEVEL_MAP;
+  const missions = isAxiom ? AXIOM_MISSIONS : KEPLER_MISSIONS;
+  const levelMap = isAxiom ? AXIOM_LEVEL_MAP : KEPLER_LEVEL_MAP;
 
-  // Dynamic state for Axiom missions based on progression
-  const dynamicMissions = isAxiom
-    ? missions.map((m, i) => {
-        const lid = `A1-${i + 1}`;
-        const stars = getLevelStars(lid);
-        return { ...m, stars };
-      })
-    : missions;
+  const dynamicMissions = missions.map((m, i) => {
+    const lid = isAxiom ? `A1-${i + 1}` : `K1-${i + 1}`;
+    const stars = getLevelStars(lid);
+    return { ...m, stars };
+  });
 
   const cogsBrief = isAxiom
     ? 'The Axiom. Ship systems are offline. Eight repairs required. Tap a system node to see the mission brief.'
-    : 'Kepler Belt. Twelve missions. Protocol pieces are active here. Tap a mission node to pull the dossier.';
+    : 'Kepler Belt. Ten missions. The corridor depends on what the Engineer builds here. Tap a mission node to pull the dossier.';
 
-  // Determine node states for Axiom
-  const getAxiomState = (id: number): NodeState => {
-    const lid = `A1-${id}`;
+  const getSectorNodeState = (id: number): NodeState => {
+    const prefix = isAxiom ? 'A1' : 'K1';
+    const lid = `${prefix}-${id}`;
     if (isLevelCompleted(lid)) return 'completed';
-    const firstIncomplete = dynamicMissions.findIndex((m, i) => !isLevelCompleted(`A1-${i + 1}`)) + 1;
+    const firstIncomplete = dynamicMissions.findIndex((m, i) =>
+      !isLevelCompleted(`${prefix}-${i + 1}`)
+    ) + 1;
     if (id === firstIncomplete) return 'active';
     if (id === firstIncomplete + 1) return 'unplayed';
     return 'locked';
   };
 
   // ── Real-time stats ──
-  const getNodeState = isAxiom ? getAxiomState : getState;
+  const getNodeState = getSectorNodeState;
   const totalLevels = dynamicMissions.length;
   const completedLevels = dynamicMissions.filter((_, i) => {
     const state = getNodeState(i + 1);
@@ -613,7 +592,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
   }, []);
 
   const handleNodePress = useCallback((mission: Mission) => {
-    const state = isAxiom ? getAxiomState(mission.id) : getState(mission.id);
+    const state = getNodeState(mission.id);
     if (state === 'locked') return;
     navigation.navigate('MissionDossier', {
       missionId: mission.id,
@@ -723,7 +702,7 @@ export default function LevelSelectScreen({ navigation }: Props) {
 
               {/* Nodes */}
               {dynamicMissions.map(m => (
-                <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={isAxiom ? getAxiomState : undefined} positions={positions} />
+                <MissionNode key={m.id} mission={m} onPress={handleNodePress} getStateOverride={getNodeState} positions={positions} />
               ))}
             </View>
           </Animated.View>

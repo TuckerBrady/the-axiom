@@ -61,7 +61,7 @@ const SECTORS_AFTER_AXIOM: Sector[] = [
     subtitle: 'Asteroid fields & relay stations',
     iconType: 'kepler',
     levelsCompleted: 0,
-    levelsTotal: 8,
+    levelsTotal: 10,
     status: 'locked',
     borderColor: 'rgba(58,80,112,0.3)',
     accentColor: Colors.dim,
@@ -378,7 +378,7 @@ export default function SectorMapScreen({ navigation }: Props) {
           borderColor: 'rgba(200,121,65,0.5)',
           accentColor: Colors.copper,
           glowColor: 'rgba(200,121,65,0.18)',
-          levelsCompleted: getSectorCompletedCount('2-'),
+          levelsCompleted: getSectorCompletedCount('K1-'),
         };
       }
       return sector;
