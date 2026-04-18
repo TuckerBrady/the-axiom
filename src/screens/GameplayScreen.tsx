@@ -278,6 +278,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const inputTapeRowRef = useRef<View>(null);
   const outputTapeRowRef = useRef<View>(null);
   const dataTrailRowRef = useRef<View>(null);
+  const dataTrailCellsRef = useRef<View>(null);
+  const outputTapeCellsRef = useRef<View>(null);
+  const currentPulseRef = useRef(0);
   const trayConveyorRef = useRef<View>(null);
   const trayGearRef = useRef<View>(null);
   const trayConfigNodeRef = useRef<View>(null);
@@ -688,29 +691,44 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       });
 
-    const getTapeRowScreenPos = (pieceType: string): Promise<{ x: number; y: number; height: number }> =>
+    const getTapeCellScreenPos = (
+      pieceType: string,
+      cellIndex: number,
+    ): Promise<{ x: number; y: number }> =>
       new Promise(resolve => {
-        const ref = pieceType === 'transmitter' ? outputTapeRowRef : dataTrailRowRef;
+        const ref = pieceType === 'transmitter' ? outputTapeCellsRef : dataTrailCellsRef;
         if (ref.current) {
-          ref.current.measureInWindow((x: number, y: number, _w: number, h: number) => resolve({ x, y, height: h }));
+          ref.current.measureInWindow((rx: number, ry: number, _rw: number, rh: number) => {
+            const cellW = 24;
+            const cellGap = 3;
+            const cellCenterX = rx + cellIndex * (cellW + cellGap) + cellW / 2;
+            const cellCenterY = ry + rh / 2;
+            resolve({ x: cellCenterX, y: cellCenterY });
+          });
         } else {
-          resolve({ x: 0, y: 0, height: 0 });
+          resolve({ x: 0, y: 0 });
         }
       });
 
-    const fireTapeOrb = async (pieceX: number, pieceY: number, color: string, pieceType: string) => {
+    const fireTapeOrb = async (
+      pieceX: number,
+      pieceY: number,
+      color: string,
+      pieceType: string,
+      cellIndex: number,
+    ) => {
       if (tapeBeamFrameRef.current != null) {
         cancelAnimationFrame(tapeBeamFrameRef.current);
         tapeBeamFrameRef.current = null;
       }
 
       const boardPos = await getBoardScreenPos();
-      const tapeRow = await getTapeRowScreenPos(pieceType);
+      const cellPos = await getTapeCellScreenPos(pieceType, cellIndex);
 
       const startX = boardPos.x + pieceX;
       const startY = boardPos.y + pieceY;
-      const endX = startX;
-      const endY = tapeRow.y + tapeRow.height / 2;
+      const endX = cellPos.x;
+      const endY = cellPos.y;
 
       const upDur = 220;
       const holdDur = 120;
@@ -721,12 +739,20 @@ export default function GameplayScreen({ navigation }: Props) {
         const elapsed = performance.now() - startTime;
         if (elapsed < upDur) {
           const t = easeOut3(elapsed / upDur);
-          setTapeOrbState({ screenX: endX, screenY: startY + (endY - startY) * t, color });
+          setTapeOrbState({
+            screenX: startX + (endX - startX) * t,
+            screenY: startY + (endY - startY) * t,
+            color,
+          });
         } else if (elapsed < upDur + holdDur) {
           setTapeOrbState({ screenX: endX, screenY: endY, color });
         } else if (elapsed < upDur + holdDur + downDur) {
           const t2 = (elapsed - upDur - holdDur) / downDur;
-          setTapeOrbState({ screenX: endX, screenY: endY + (startY - endY) * t2 * t2, color });
+          setTapeOrbState({
+            screenX: endX + (startX - endX) * t2 * t2,
+            screenY: endY + (startY - endY) * t2 * t2,
+            color,
+          });
         } else {
           setTapeOrbState(null);
           return;
@@ -754,7 +780,12 @@ export default function GameplayScreen({ navigation }: Props) {
       const tapeColor = TAPE_PIECE_COLORS[stp.type];
       if (tapeColor) {
         const center = getPieceCenter(stp.pieceId);
-        if (center) fireTapeOrb(center.x, center.y, tapeColor, stp.type);
+        if (center) {
+          const cellIdx = stp.type === 'transmitter'
+            ? currentPulseRef.current
+            : useGameStore.getState().machineState.dataTrail.headPosition;
+          fireTapeOrb(center.x, center.y, tapeColor, stp.type, cellIdx);
+        }
       }
     };
 
@@ -975,6 +1006,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // PHASE 2 — BEAM (one or more pulses)
     setSignalPhase('beam');
     for (let p = 0; p < pulses.length; p++) {
+      currentPulseRef.current = p;
       setCurrentPulseIndex(p);
       await runPulse(pulses[p]);
       if (p < pulses.length - 1) {
@@ -1232,6 +1264,7 @@ export default function GameplayScreen({ navigation }: Props) {
           setSignalPhase('beam');
           for (let lp = 0; lp < pulses.length; lp++) {
             if (!loopingRef.current) break;
+            currentPulseRef.current = lp;
             setCurrentPulseIndex(lp);
             await runPulse(pulses[lp]);
             if (!loopingRef.current) break;
@@ -1467,7 +1500,7 @@ export default function GameplayScreen({ navigation }: Props) {
               level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
-              <View style={styles.tapeCells}>
+              <View ref={outputTapeCellsRef} style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
                   const written = machineState.outputTape?.[i];
                   const expected = level.expectedOutput?.[i];
@@ -1504,7 +1537,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {level.dataTrail.cells.length > 0 && (
               <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
                 <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-                <View style={styles.tapeCells}>
+                <View ref={dataTrailCellsRef} style={styles.tapeCells}>
                   {machineState.dataTrail.cells.map((cell, i) => {
                     const isHead = i === machineState.dataTrail.headPosition;
                     return (
@@ -1529,7 +1562,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-              <View style={styles.tapeCells}>
+              <View ref={dataTrailCellsRef} style={styles.tapeCells}>
                 {machineState.dataTrail.cells.map((cell, i) => {
                   const isHead = i === machineState.dataTrail.headPosition;
                   return (
