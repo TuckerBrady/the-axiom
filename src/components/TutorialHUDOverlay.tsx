@@ -757,84 +757,10 @@ export default function TutorialHUDOverlay({
           ]}
         >
           <CodexDetailView entry={codexEntry} onUnderstood={handleCodexUnderstood} />
-          <PixelDissolve />
         </Animated.View>
       )}
 
     </Animated.View>
-  );
-}
-
-// ─── PixelDissolve ──────────────────────────────────────────────────────────
-
-const DISSOLVE_COLS = 40;
-const DISSOLVE_ROWS = 20;
-const DISSOLVE_TOTAL = DISSOLVE_COLS * DISSOLVE_ROWS;
-
-function PixelDissolve() {
-  const CELL = Math.ceil(SCREEN_W / DISSOLVE_COLS);
-  const CELL_H = Math.ceil(SCREEN_H / DISSOLVE_ROWS);
-
-  const opacities = useRef(
-    Array.from({ length: DISSOLVE_TOTAL }, () => new Animated.Value(1)),
-  ).current;
-  const [, force] = useState(0);
-
-  useEffect(() => {
-    const indices = Array.from({ length: DISSOLVE_TOTAL }, (_, i) => i);
-    for (let i = indices.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [indices[i], indices[j]] = [indices[j], indices[i]];
-    }
-    let group = 0;
-    const isWeb = Platform.OS === 'web';
-    // 2x speed — halved from prior 75% values.
-    const groupSize = isWeb ? 80 : 400;
-    const tickMs = isWeb ? 12 : 8;
-    const fadeDur = isWeb ? 68 : 38;
-    const delayMax = isWeb ? 45 : 23;
-    const id = setInterval(() => {
-      const start = group * groupSize;
-      const end = Math.min(DISSOLVE_TOTAL, start + groupSize);
-      for (let i = start; i < end; i++) {
-        const idx = indices[i];
-        Animated.timing(opacities[idx], {
-          toValue: 0,
-          duration: fadeDur,
-          delay: Math.random() * delayMax,
-          useNativeDriver: false,
-        }).start();
-      }
-      group += 1;
-      if (start + groupSize >= DISSOLVE_TOTAL) {
-        clearInterval(id);
-        setTimeout(() => force(1), 450);
-      }
-    }, tickMs);
-    return () => clearInterval(id);
-  }, [opacities]);
-
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      {opacities.map((op, i) => {
-        const col = i % DISSOLVE_COLS;
-        const row = Math.floor(i / DISSOLVE_COLS);
-        return (
-          <Animated.View
-            key={i}
-            style={{
-              position: 'absolute',
-              left: col * CELL,
-              top: row * CELL_H,
-              width: CELL,
-              height: CELL_H,
-              backgroundColor: '#02050c',
-              opacity: op,
-            }}
-          />
-        );
-      })}
-    </View>
   );
 }
 

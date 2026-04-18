@@ -108,24 +108,26 @@ describe('executeMachine', () => {
     expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
   });
 
-  it('Config Node: configValue=1, tapeValue=0 → blocks', () => {
+  it('Config Node: configValue=1, Scanner writes 0 to trail → blocks', () => {
     const pieces = [
       makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
-      makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('sc', 'scanner', 1, 0),
+      makePiece('cn', 'configNode', 2, 0, { configValue: 1 }),
+      makePiece('o', 'outputPort', 3, 0, { isPrePlaced: true }),
     ];
-    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1] }), 0);
+    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
     expect(cnStep?.success).toBe(false);
   });
 
-  it('Config Node: configValue=0, tapeValue=1 → blocks', () => {
+  it('Config Node: configValue=0, Scanner writes 1 to trail → blocks', () => {
     const pieces = [
       makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
-      makePiece('cn', 'configNode', 1, 0, { configValue: 0 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('sc', 'scanner', 1, 0),
+      makePiece('cn', 'configNode', 2, 0, { configValue: 0 }),
+      makePiece('o', 'outputPort', 3, 0, { isPrePlaced: true }),
     ];
-    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1] }), 0);
+    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
     expect(cnStep?.success).toBe(false);
   });

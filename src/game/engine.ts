@@ -268,9 +268,10 @@ const MAX_STEPS = 50;
  * Directional signal tracer. Follows output→input port matching.
  *
  * For tape-enabled levels, pass pulseIndex (0-based) to drive protocol
- * piece behavior off state.inputTape[pulseIndex]. Transmitter writes back
- * into state.outputTape[pulseIndex]. Callers should pass the same state
- * object across pulses so outputTape accumulates.
+ * piece behavior. Scanner reads inputTape[pulseIndex] and writes it to
+ * dataTrail.cells[pulseIndex]. Config Node reads dataTrail.cells[pulseIndex]
+ * to gate. Transmitter writes to outputTape[pulseIndex]. Trail and
+ * outputTape state persist across pulses via mutation of the state object.
  */
 export function executeMachine(state: MachineState, pulseIndex: number = 0): ExecutionStep[] {
   const { pieces, dataTrail, configuration } = state;
@@ -330,19 +331,12 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'configNode': {
         const nodeValue = piece.configValue ?? 1;
-        // Resolve the value to gate against:
-        // 1. Tape-enabled levels: use the current pulse tape value.
-        // 2. Non-tape levels: read the Data Trail at the current head
-        //    position. This replaces the old global configuration toggle.
         let trailValue: number;
-        if (tapeValue !== undefined) {
-          trailValue = tapeValue;
+        if (trail.cells.length > 0 && pulseIndex < trail.cells.length) {
+          trailValue = trail.cells[pulseIndex];
         } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
           trailValue = trail.cells[trail.headPosition];
         } else {
-          // No tape, no trail data — fall back to matching nodeValue
-          // so the gate passes by default (backward compat for levels
-          // with empty trails and no tape).
           trailValue = nodeValue;
         }
         const passes = trailValue === nodeValue;
@@ -358,7 +352,10 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'scanner':
         if (tapeValue !== undefined) {
-          step.message = `Scanned tape[${pulseIndex}] = ${tapeValue}`;
+          if (pulseIndex < trail.cells.length) {
+            trail.cells[pulseIndex] = tapeValue as 0 | 1;
+          }
+          step.message = `Scanned tape[${pulseIndex}] = ${tapeValue}, wrote to trail[${pulseIndex}]`;
         } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
           const value = trail.cells[trail.headPosition];
           trail.headPosition++;
@@ -435,6 +432,8 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
       case 'outputPort':
         step.message = 'Signal reached output — success!';
         steps.push(step);
+        state.dataTrail.cells = trail.cells;
+        state.dataTrail.headPosition = trail.headPosition;
         return steps;
     }
 
@@ -467,6 +466,8 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     message: 'Signal lost — could not reach output. VOID STATE.',
   });
 
+  state.dataTrail.cells = trail.cells;
+  state.dataTrail.headPosition = trail.headPosition;
   return steps;
 }
 
