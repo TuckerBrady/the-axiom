@@ -344,6 +344,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
   const tapeBeamFrameRef = useRef<number | null>(null);
+  const tapeOrbQueueRef = useRef<Array<{ pieceX: number; pieceY: number; color: string; pieceType: string; cellIndex: number }>>([]);
+  const tapeOrbPlayingRef = useRef(false);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -427,6 +429,8 @@ export default function GameplayScreen({ navigation }: Props) {
         cancelAnimationFrame(tapeBeamFrameRef.current);
         tapeBeamFrameRef.current = null;
       }
+      tapeOrbQueueRef.current = [];
+      tapeOrbPlayingRef.current = false;
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
     };
@@ -710,56 +714,71 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       });
 
-    const fireTapeOrb = async (
+    const queueTapeOrb = (
       pieceX: number,
       pieceY: number,
       color: string,
       pieceType: string,
       cellIndex: number,
     ) => {
-      if (tapeBeamFrameRef.current != null) {
-        cancelAnimationFrame(tapeBeamFrameRef.current);
-        tapeBeamFrameRef.current = null;
+      tapeOrbQueueRef.current.push({ pieceX, pieceY, color, pieceType, cellIndex });
+      if (!tapeOrbPlayingRef.current) {
+        playNextOrb();
       }
+    };
+
+    const playNextOrb = async () => {
+      const next = tapeOrbQueueRef.current.shift();
+      if (!next) {
+        tapeOrbPlayingRef.current = false;
+        return;
+      }
+      tapeOrbPlayingRef.current = true;
 
       const boardPos = await getBoardScreenPos();
-      const cellPos = await getTapeCellScreenPos(pieceType, cellIndex);
+      const cellPos = await getTapeCellScreenPos(next.pieceType, next.cellIndex);
 
-      const startX = boardPos.x + pieceX;
-      const startY = boardPos.y + pieceY;
+      const startX = boardPos.x + next.pieceX;
+      const startY = boardPos.y + next.pieceY;
       const endX = cellPos.x;
       const endY = cellPos.y;
 
       const upDur = 220;
       const holdDur = 120;
       const downDur = 180;
-      const startTime = performance.now();
+      const totalDur = upDur + holdDur + downDur;
 
-      const tick = () => {
-        const elapsed = performance.now() - startTime;
-        if (elapsed < upDur) {
-          const t = easeOut3(elapsed / upDur);
-          setTapeOrbState({
-            screenX: startX + (endX - startX) * t,
-            screenY: startY + (endY - startY) * t,
-            color,
-          });
-        } else if (elapsed < upDur + holdDur) {
-          setTapeOrbState({ screenX: endX, screenY: endY, color });
-        } else if (elapsed < upDur + holdDur + downDur) {
-          const t2 = (elapsed - upDur - holdDur) / downDur;
-          setTapeOrbState({
-            screenX: endX + (startX - endX) * t2 * t2,
-            screenY: endY + (startY - endY) * t2 * t2,
-            color,
-          });
-        } else {
-          setTapeOrbState(null);
-          return;
-        }
+      await new Promise<void>(resolve => {
+        const startTime = performance.now();
+        const tick = () => {
+          const elapsed = performance.now() - startTime;
+          if (elapsed < upDur) {
+            const t = easeOut3(elapsed / upDur);
+            setTapeOrbState({
+              screenX: startX + (endX - startX) * t,
+              screenY: startY + (endY - startY) * t,
+              color: next.color,
+            });
+          } else if (elapsed < upDur + holdDur) {
+            setTapeOrbState({ screenX: endX, screenY: endY, color: next.color });
+          } else if (elapsed < totalDur) {
+            const t2 = (elapsed - upDur - holdDur) / downDur;
+            setTapeOrbState({
+              screenX: endX + (startX - endX) * t2 * t2,
+              screenY: endY + (startY - endY) * t2 * t2,
+              color: next.color,
+            });
+          } else {
+            setTapeOrbState(null);
+            resolve();
+            return;
+          }
+          tapeBeamFrameRef.current = requestAnimationFrame(tick);
+        };
         tapeBeamFrameRef.current = requestAnimationFrame(tick);
-      };
-      tapeBeamFrameRef.current = requestAnimationFrame(tick);
+      });
+
+      playNextOrb();
     };
 
     const triggerPieceAnim = (stp: ExecutionStep) => {
@@ -784,7 +803,7 @@ export default function GameplayScreen({ navigation }: Props) {
           const cellIdx = stp.type === 'transmitter'
             ? currentPulseRef.current
             : useGameStore.getState().machineState.dataTrail.headPosition;
-          fireTapeOrb(center.x, center.y, tapeColor, stp.type, cellIdx);
+          queueTapeOrb(center.x, center.y, tapeColor, stp.type, cellIdx);
         }
       }
     };
@@ -816,7 +835,8 @@ export default function GameplayScreen({ navigation }: Props) {
       const t0 = performance.now();
       const lit = new Set<number>();
       const flashed = new Set<number>();
-      let pauseTotal = 0;
+      let pauseStart = 0;
+      let pauseAccum = 0;
       let pauseEnd = 0;
 
       const tick = () => {
@@ -826,10 +846,11 @@ export default function GameplayScreen({ navigation }: Props) {
           return;
         }
         if (pauseEnd > 0) {
-          pauseTotal += 520;
+          pauseAccum += (pauseEnd - pauseStart);
           pauseEnd = 0;
+          pauseStart = 0;
         }
-        const rawT = Math.min(1, (now - t0 - pauseTotal) / totalMs);
+        const rawT = Math.min(1, (now - t0 - pauseAccum) / totalMs);
         const t = easeOut3(rawT);
         const headDist = t * path.total;
         const head = posAlongPath(path, headDist);
@@ -877,8 +898,13 @@ export default function GameplayScreen({ navigation }: Props) {
             if (isVoidBlocker) flashPiece(stp.pieceId, '#FF3B3B');
             else {
               triggerPieceAnim(stp);
-              if (TAPE_PIECE_COLORS[stp.type] && pauseEnd === 0) {
-                pauseEnd = performance.now() + 520;
+              if (TAPE_PIECE_COLORS[stp.type]) {
+                if (pauseEnd === 0) {
+                  pauseStart = performance.now();
+                  pauseEnd = pauseStart + 520;
+                } else {
+                  pauseEnd += 520;
+                }
               }
             }
           }
@@ -1358,6 +1384,8 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(tapeBeamFrameRef.current);
       tapeBeamFrameRef.current = null;
     }
+    tapeOrbQueueRef.current = [];
+    tapeOrbPlayingRef.current = false;
     setTapeOrbState(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
@@ -2074,6 +2102,8 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(tapeBeamFrameRef.current);
                   tapeBeamFrameRef.current = null;
                 }
+                tapeOrbQueueRef.current = [];
+                tapeOrbPlayingRef.current = false;
                 setTapeOrbState(null);
                 setBeamHeads([]);
                 setTrailSegments([]);
