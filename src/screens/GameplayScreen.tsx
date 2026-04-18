@@ -332,7 +332,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargePos, setChargePos] = useState<Pt | null>(null);
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
-  const [tapeBeamState, setTapeBeamState] = useState<{ x: number; originY: number; currentY: number; color: string } | null>(null);
+  const [tapeOrbState, setTapeOrbState] = useState<{ screenX: number; screenY: number; color: string } | null>(null);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
   // Ghost beam opacity — fades in during execution, out on reset
@@ -495,13 +495,6 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Dynamic board sizing (from available canvas space) ──
   const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
-  const [tapeOffsetY, setTapeOffsetY] = useState(0);
-  const canvasTopRef = useRef(0);
-  const boardTopRef = useRef(0);
-  const tapeTargetY = (tapeOffsetY > 0 && boardTopRef.current > 0)
-    ? tapeOffsetY - boardTopRef.current
-    : 0;
-
   const { pieces, wires } = machineState;
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
   const hasPlacedPieces = playerPieces.length > 0;
@@ -686,28 +679,56 @@ export default function GameplayScreen({ navigation }: Props) {
       transmitter: '#FFE000',
     };
 
-    const fireTapeBeam = (pieceX: number, pieceY: number, color: string) => {
+    const getBoardScreenPos = (): Promise<{ x: number; y: number }> =>
+      new Promise(resolve => {
+        if (boardGridRef.current) {
+          boardGridRef.current.measureInWindow((x: number, y: number) => resolve({ x, y }));
+        } else {
+          resolve({ x: 0, y: 0 });
+        }
+      });
+
+    const getTapeRowScreenPos = (pieceType: string): Promise<{ x: number; y: number; height: number }> =>
+      new Promise(resolve => {
+        const ref = pieceType === 'transmitter' ? outputTapeRowRef : dataTrailRowRef;
+        if (ref.current) {
+          ref.current.measureInWindow((x: number, y: number, _w: number, h: number) => resolve({ x, y, height: h }));
+        } else {
+          resolve({ x: 0, y: 0, height: 0 });
+        }
+      });
+
+    const fireTapeOrb = async (pieceX: number, pieceY: number, color: string, pieceType: string) => {
       if (tapeBeamFrameRef.current != null) {
         cancelAnimationFrame(tapeBeamFrameRef.current);
         tapeBeamFrameRef.current = null;
       }
-      const targetY = tapeTargetY;
+
+      const boardPos = await getBoardScreenPos();
+      const tapeRow = await getTapeRowScreenPos(pieceType);
+
+      const startX = boardPos.x + pieceX;
+      const startY = boardPos.y + pieceY;
+      const endX = startX;
+      const endY = tapeRow.y + tapeRow.height / 2;
+
       const upDur = 220;
       const holdDur = 120;
       const downDur = 180;
       const startTime = performance.now();
+
       const tick = () => {
         const elapsed = performance.now() - startTime;
         if (elapsed < upDur) {
           const t = easeOut3(elapsed / upDur);
-          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: pieceY + (targetY - pieceY) * t, color });
+          setTapeOrbState({ screenX: endX, screenY: startY + (endY - startY) * t, color });
         } else if (elapsed < upDur + holdDur) {
-          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: targetY, color });
+          setTapeOrbState({ screenX: endX, screenY: endY, color });
         } else if (elapsed < upDur + holdDur + downDur) {
           const t2 = (elapsed - upDur - holdDur) / downDur;
-          setTapeBeamState({ x: pieceX, originY: pieceY, currentY: targetY + (pieceY - targetY) * t2 * t2, color });
+          setTapeOrbState({ screenX: endX, screenY: endY + (startY - endY) * t2 * t2, color });
         } else {
-          setTapeBeamState(null);
+          setTapeOrbState(null);
           return;
         }
         tapeBeamFrameRef.current = requestAnimationFrame(tick);
@@ -733,7 +754,7 @@ export default function GameplayScreen({ navigation }: Props) {
       const tapeColor = TAPE_PIECE_COLORS[stp.type];
       if (tapeColor) {
         const center = getPieceCenter(stp.pieceId);
-        if (center) fireTapeBeam(center.x, center.y, tapeColor);
+        if (center) fireTapeOrb(center.x, center.y, tapeColor, stp.type);
       }
     };
 
@@ -1304,7 +1325,7 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(tapeBeamFrameRef.current);
       tapeBeamFrameRef.current = null;
     }
-    setTapeBeamState(null);
+    setTapeOrbState(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
     setBeamHeads([]);
@@ -1409,14 +1430,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
         {/* ── Turing Tape Display ── */}
         {level.inputTape && level.inputTape.length > 0 && (
-          <View
-            collapsable={false}
-            style={styles.tapeSection}
-            onLayout={e => {
-              const { y, height } = e.nativeEvent.layout;
-              setTapeOffsetY(y + height);
-            }}
-          >
+          <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
               <View style={styles.tapeCells}>
@@ -1538,22 +1552,15 @@ export default function GameplayScreen({ navigation }: Props) {
         <View
           style={styles.canvasOuter}
           onLayout={e => {
-            const { width: w, height: h, y: canvasY } = e.nativeEvent.layout;
+            const { width: w, height: h } = e.nativeEvent.layout;
             setCanvasLayout(prev =>
               prev.w === Math.round(w) && prev.h === Math.round(h)
                 ? prev
                 : { w: Math.round(w), h: Math.round(h) }
             );
-            canvasTopRef.current = canvasY;
           }}
         >
-          <View
-            ref={boardGridRef}
-            style={[styles.canvas, { width: gridW, height: gridH }]}
-            onLayout={e => {
-              boardTopRef.current = canvasTopRef.current + e.nativeEvent.layout.y;
-            }}
-          >
+          <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
             {/* Dot grid */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
@@ -1624,12 +1631,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   pointerEvents="none"
                   style={[StyleSheet.absoluteFill, { zIndex: 5 }, ghostBeamStyle]}
                 >
-                  <Svg
-                    width={gridW}
-                    height={gridH + Math.abs(tapeTargetY)}
-                    viewBox={`0 ${tapeTargetY} ${gridW} ${gridH + Math.abs(tapeTargetY)}`}
-                    style={[StyleSheet.absoluteFill, { top: tapeTargetY }]}
-                  >
+                  <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
                     {ghostPieces.map(p => {
                       const color = GHOST_PIECE_MAP[p.type];
                       const x = p.gridX * CELL_SIZE;
@@ -1637,9 +1639,9 @@ export default function GameplayScreen({ navigation }: Props) {
                         <Rect
                           key={`ghost-${p.id}`}
                           x={x}
-                          y={tapeTargetY}
+                          y={0}
                           width={CELL_SIZE}
-                          height={p.gridY * CELL_SIZE + CELL_SIZE - tapeTargetY}
+                          height={p.gridY * CELL_SIZE + CELL_SIZE}
                           fill={color}
                           opacity={0.15}
                         />
@@ -1649,46 +1651,6 @@ export default function GameplayScreen({ navigation }: Props) {
                 </Animated.View>
               );
             })()}
-
-            {/* Tape interaction tractor beam — sustained ray from piece to tape */}
-            {tapeBeamState && (
-              <View pointerEvents="none" style={[StyleSheet.absoluteFill, { zIndex: 6 }]}>
-                <Svg
-                  width={gridW}
-                  height={gridH + Math.abs(tapeTargetY)}
-                  viewBox={`0 ${tapeTargetY} ${gridW} ${gridH + Math.abs(tapeTargetY)}`}
-                  style={[StyleSheet.absoluteFill, { top: tapeTargetY }]}
-                >
-                  <Line
-                    x1={tapeBeamState.x}
-                    y1={tapeBeamState.originY}
-                    x2={tapeBeamState.x}
-                    y2={tapeBeamState.currentY}
-                    stroke={tapeBeamState.color}
-                    strokeWidth={8}
-                    strokeLinecap="round"
-                    opacity={0.15}
-                  />
-                  <Line
-                    x1={tapeBeamState.x}
-                    y1={tapeBeamState.originY}
-                    x2={tapeBeamState.x}
-                    y2={tapeBeamState.currentY}
-                    stroke={tapeBeamState.color}
-                    strokeWidth={3}
-                    strokeLinecap="round"
-                    opacity={0.7}
-                  />
-                  <Circle
-                    cx={tapeBeamState.x}
-                    cy={tapeBeamState.currentY}
-                    r={4}
-                    fill={tapeBeamState.color}
-                    opacity={0.9}
-                  />
-                </Svg>
-              </View>
-            )}
 
             {/* Signal beam overlay — wrapped in View so pointerEvents
                 component prop reliably passes touches through on iOS. */}
@@ -2079,7 +2041,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(tapeBeamFrameRef.current);
                   tapeBeamFrameRef.current = null;
                 }
-                setTapeBeamState(null);
+                setTapeOrbState(null);
                 setBeamHeads([]);
                 setTrailSegments([]);
                 setBranchTrails([]);
@@ -2576,6 +2538,29 @@ export default function GameplayScreen({ navigation }: Props) {
           spotlightCellSize={CELL_SIZE}
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}
+        />
+      )}
+
+      {/* Tape interaction floating orb */}
+      {tapeOrbState && (
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: tapeOrbState.screenX - 6,
+            top: tapeOrbState.screenY - 6,
+            width: 12,
+            height: 12,
+            borderRadius: 6,
+            backgroundColor: tapeOrbState.color,
+            opacity: 0.9,
+            shadowColor: tapeOrbState.color,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.8,
+            shadowRadius: 8,
+            elevation: 6,
+            zIndex: 100,
+          }}
         />
       )}
     </Animated.View>
