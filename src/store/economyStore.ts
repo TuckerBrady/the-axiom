@@ -12,6 +12,7 @@ interface EconomyState {
   spendCredits: (pieceType: PieceType, discipline: Discipline) => boolean;
   earnCredits: (amount: number) => void;
   resetLevelBudget: () => void;
+  spendDirect: (amount: number) => boolean;
 }
 
 export const useEconomyStore = create<EconomyState>((set, get) => ({
@@ -55,5 +56,12 @@ export const useEconomyStore = create<EconomyState>((set, get) => ({
 
   resetLevelBudget: () => {
     set({ levelBudget: 0, levelSpent: 0 });
+  },
+
+  spendDirect: (amount) => {
+    const state = get();
+    if (state.credits < amount) return false;
+    set({ credits: state.credits - amount });
+    return true;
   },
 }));

@@ -293,6 +293,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const [creditError, setCreditError] = useState(false);
 
   const [failCount, setFailCount] = useState(0);
+  const [blownCells, setBlownCells] = useState<Set<string>>(new Set());
+  const blownCellsRef = useRef<Set<string>>(new Set());
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -374,11 +376,15 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Level budget setup (skip on Axiom tutorial levels) ──
   useEffect(() => {
+    setBlownCells(new Set());
+    setFailCount(0);
     if (!level) return;
     if (level.sector === 'axiom') return; // free pieces on tutorial
     setLevelBudget(level.budget ?? 0);
     return () => resetLevelBudget();
   }, [level?.id]);
+
+  useEffect(() => { blownCellsRef.current = blownCells; }, [blownCells]);
 
   // ── Tutorial hints setup (suppress on replay) ──
   const isReplay = level ? isLevelDone(level.id) : false;
@@ -562,6 +568,7 @@ export default function GameplayScreen({ navigation }: Props) {
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
       if (count > 0) {
+        if (blownCells.has(`${gridX},${gridY}`)) return;
         const cost = isAxiomLevel ? 0 : getPieceCost(selectedPieceFromTray, discipline);
         if (cost > 0) {
           const ok = spendCredits(selectedPieceFromTray, discipline);
@@ -582,6 +589,7 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       }
     } else if (selectedPlacedPiece) {
+      if (blownCells.has(`${gridX},${gridY}`)) return;
       movePiece(selectedPlacedPiece, gridX, gridY);
       selectPlaced(null);
     }
@@ -622,6 +630,49 @@ export default function GameplayScreen({ navigation }: Props) {
       y: p.gridY * CELL_SIZE + CELL_SIZE / 2,
     };
   }, [machineState.pieces]);
+
+  const findBlownPiece = useCallback((
+    failureType: 'void' | 'wrongOutput',
+    steps: ExecutionStep[],
+  ): PlacedPiece | null => {
+    const allPieces = useGameStore.getState().machineState.pieces;
+    let candidate: PlacedPiece | null = null;
+
+    if (failureType === 'wrongOutput') {
+      candidate = allPieces.find(p => p.type === 'transmitter') ?? null;
+    } else {
+      for (let i = steps.length - 1; i >= 0; i--) {
+        const piece = allPieces.find(p => p.id === steps[i].pieceId);
+        if (piece) { candidate = piece; break; }
+      }
+    }
+
+    if (!candidate) return null;
+
+    if (candidate.isPrePlaced) {
+      const playerPieces = allPieces.filter(p =>
+        !p.isPrePlaced && !blownCells.has(`${p.gridX},${p.gridY}`)
+      );
+      if (playerPieces.length === 0) return null;
+      let nearest = playerPieces[0];
+      let bestDist = Math.abs(nearest.gridX - candidate.gridX) + Math.abs(nearest.gridY - candidate.gridY);
+      for (let i = 1; i < playerPieces.length; i++) {
+        const d = Math.abs(playerPieces[i].gridX - candidate.gridX) + Math.abs(playerPieces[i].gridY - candidate.gridY);
+        if (d < bestDist) { bestDist = d; nearest = playerPieces[i]; }
+      }
+      return nearest;
+    }
+
+    if (blownCells.has(`${candidate.gridX},${candidate.gridY}`)) return null;
+    return candidate;
+  }, [blownCells]);
+
+  const getBlownCellCOGSLine = (blownCount: number): string | null => {
+    if (blownCount === 0) return null;
+    if (blownCount === 1) return '"The board took damage. That cell is no longer available. Route around it."';
+    if (blownCount === 2) return '"Another cell lost. The board is becoming... constrained."';
+    return '"I would recommend fewer failed attempts."';
+  };
 
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
@@ -1144,6 +1195,13 @@ export default function GameplayScreen({ navigation }: Props) {
 
     // Wrong output: show diagnostic modal instead of void
     if (wrongOutput && storeOutputTape && level.expectedOutput) {
+      if (!isAxiomLevel) {
+        const blownPiece = findBlownPiece('wrongOutput', steps);
+        if (blownPiece) {
+          setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
+          deletePiece(blownPiece.id);
+        }
+      }
       setWrongOutputData({
         expected: [...level.expectedOutput],
         produced: [...storeOutputTape],
@@ -1365,6 +1423,13 @@ export default function GameplayScreen({ navigation }: Props) {
         return;
       }
 
+      if (!isAxiomLevel) {
+        const blownPiece = findBlownPiece('void', steps);
+        if (blownPiece) {
+          setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
+          deletePiece(blownPiece.id);
+        }
+      }
       setShowVoid(true);
       triggerHints('onVoid');
     }
@@ -1635,6 +1700,43 @@ export default function GameplayScreen({ navigation }: Props) {
                   />
                 )),
               )}
+
+              {/* Blown cell scars */}
+              {Array.from(blownCells).map(key => {
+                const [gx, gy] = key.split(',').map(Number);
+                const cx = gx * CELL_SIZE + CELL_SIZE / 2;
+                const cy = gy * CELL_SIZE + CELL_SIZE / 2;
+                return (
+                  <G key={`scar-${key}`}>
+                    <Rect
+                      x={gx * CELL_SIZE + 2}
+                      y={gy * CELL_SIZE + 2}
+                      width={CELL_SIZE - 4}
+                      height={CELL_SIZE - 4}
+                      rx={4}
+                      fill="rgba(180,30,30,0.12)"
+                      stroke="rgba(180,30,30,0.25)"
+                      strokeWidth={1}
+                    />
+                    <Line
+                      x1={cx - 6} y1={cy - 6}
+                      x2={cx + 4} y2={cy + 2}
+                      stroke="rgba(255,60,60,0.3)"
+                      strokeWidth={1}
+                    />
+                    <Line
+                      x1={cx + 2} y1={cy - 4}
+                      x2={cx - 3} y2={cy + 7}
+                      stroke="rgba(255,60,60,0.25)"
+                      strokeWidth={1}
+                    />
+                    <Circle
+                      cx={cx} cy={cy} r={3}
+                      fill="rgba(255,50,50,0.2)"
+                    />
+                  </G>
+                );
+              })}
 
               {/* Wires — only on Axiom tutorial levels */}
               {wires.map(wire => {
@@ -2258,6 +2360,32 @@ export default function GameplayScreen({ navigation }: Props) {
                   {"\""}The machine produced an answer. It was not the correct one. The data shows where.{"\""}
                 </Text>
               </View>
+              {blownCells.size > 0 && (
+                <TouchableOpacity
+                  style={[styles.wrongOutputRetryBtn, {
+                    borderColor: credits >= 50 ? Colors.amber : Colors.dim,
+                    opacity: credits >= 50 ? 1 : 0.5,
+                    marginBottom: 8,
+                  }]}
+                  onPress={() => {
+                    const ok = useEconomyStore.getState().spendDirect(50);
+                    if (ok) {
+                      setShowWrongOutput(false);
+                      setWrongOutputData(null);
+                      setBlownCells(new Set());
+                      handleReset();
+                    }
+                  }}
+                  activeOpacity={0.8}
+                  disabled={credits < 50}
+                >
+                  <Text style={[styles.wrongOutputRetryText, {
+                    color: credits >= 50 ? Colors.amber : Colors.dim,
+                  }]}>
+                    {credits >= 50 ? 'RESET BOARD — 50 CR' : 'RESET BOARD — INSUFFICIENT'}
+                  </Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity
                 style={styles.wrongOutputRetryBtn}
                 onPress={() => {
@@ -2302,6 +2430,11 @@ export default function GameplayScreen({ navigation }: Props) {
                 <Text style={styles.voidQuote}>
                   {VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]}
                 </Text>
+                {!isAxiomLevel && blownCells.size > 0 && (
+                  <Text style={styles.voidQuote}>
+                    {getBlownCellCOGSLine(blownCells.size)}
+                  </Text>
+                )}
               </View>
               {isDailyChallenge && (
                 <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.red, letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
@@ -2324,6 +2457,29 @@ export default function GameplayScreen({ navigation }: Props) {
                     activeOpacity={0.7}
                   >
                     <Text style={styles.voidBtnText}>TRY AGAIN</Text>
+                  </TouchableOpacity>
+                )}
+                {!isDailyChallenge && blownCells.size > 0 && (
+                  <TouchableOpacity
+                    style={[styles.voidBtn, {
+                      borderColor: credits >= 50 ? Colors.amber : Colors.dim,
+                      opacity: credits >= 50 ? 1 : 0.5,
+                    }]}
+                    onPress={() => {
+                      const ok = useEconomyStore.getState().spendDirect(50);
+                      if (ok) {
+                        setBlownCells(new Set());
+                        handleReset();
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    disabled={credits < 50}
+                  >
+                    <Text style={[styles.voidBtnText, {
+                      color: credits >= 50 ? Colors.amber : Colors.dim,
+                    }]}>
+                      {credits >= 50 ? 'RESET BOARD — 50 CR' : 'RESET BOARD — INSUFFICIENT'}
+                    </Text>
                   </TouchableOpacity>
                 )}
                 {!isDailyChallenge && (
