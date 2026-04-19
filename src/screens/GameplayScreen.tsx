@@ -126,6 +126,8 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+import { hexToRgba, getPulseSpeed } from '../game/bubbleMath';
+
 // ─── Signal beam path utilities ───────────────────────────────────────────────
 
 type Pt = { x: number; y: number };
@@ -280,6 +282,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const dataTrailRowRef = useRef<View>(null);
   const dataTrailCellsRef = useRef<View>(null);
   const outputTapeCellsRef = useRef<View>(null);
+  const inputTapeCellsRef = useRef<View>(null);
   const currentPulseRef = useRef(0);
   const trayConveyorRef = useRef<View>(null);
   const trayGearRef = useRef<View>(null);
@@ -337,7 +340,29 @@ export default function GameplayScreen({ navigation }: Props) {
   const [chargePos, setChargePos] = useState<Pt | null>(null);
   const [chargeProgress, setChargeProgress] = useState(0);
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
-  const [tapeOrbState, setTapeOrbState] = useState<{ screenX: number; screenY: number; color: string } | null>(null);
+  const [valueBubble, setValueBubble] = useState<{
+    screenX: number;
+    screenY: number;
+    color: string;
+    value: string;
+    size?: number;
+  } | null>(null);
+  const [bubbleTrail, setBubbleTrail] = useState<
+    Array<{ x: number; y: number; opacity: number; size: number }>
+  >([]);
+  const [tapeCellHighlights, setTapeCellHighlights] = useState<
+    Map<string, 'read' | 'write' | 'gate-pass' | 'gate-block'>
+  >(new Map());
+  // Visual override for the Data Trail and Output Tape during beam phase.
+  // machineState holds the post-engage values, but we want cells to pop in
+  // as their writes animate. When null, rendering falls through to
+  // machineState.
+  const [visualTrailOverride, setVisualTrailOverride] = useState<
+    (number | null)[] | null
+  >(null);
+  const [visualOutputOverride, setVisualOutputOverride] = useState<
+    number[] | null
+  >(null);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
   // Ghost beam opacity — fades in during execution, out on reset
@@ -345,9 +370,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const ghostBeamStyle = useAnimatedStyle(() => ({ opacity: ghostBeamOp.value }));
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
-  const tapeBeamFrameRef = useRef<number | null>(null);
-  const tapeOrbQueueRef = useRef<Array<{ pieceX: number; pieceY: number; color: string; pieceType: string; cellIndex: number }>>([]);
-  const tapeOrbPlayingRef = useRef(false);
+  const bubbleTrailRAFRef = useRef<number | null>(null);
+  const bubbleHistoryRef = useRef<Array<{ x: number; y: number }>>([]);
+  const valueBubblePosRef = useRef<{ x: number; y: number } | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -431,12 +456,12 @@ export default function GameplayScreen({ navigation }: Props) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
       }
-      if (tapeBeamFrameRef.current != null) {
-        cancelAnimationFrame(tapeBeamFrameRef.current);
-        tapeBeamFrameRef.current = null;
+      if (bubbleTrailRAFRef.current != null) {
+        cancelAnimationFrame(bubbleTrailRAFRef.current);
+        bubbleTrailRAFRef.current = null;
       }
-      tapeOrbQueueRef.current = [];
-      tapeOrbPlayingRef.current = false;
+      bubbleHistoryRef.current = [];
+      valueBubblePosRef.current = null;
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
     };
@@ -746,93 +771,229 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       });
 
-    const getTapeCellScreenPos = (
-      pieceType: string,
+    const getTapeCellPos = (
+      containerRef: React.RefObject<View | null>,
       cellIndex: number,
     ): Promise<{ x: number; y: number }> =>
       new Promise(resolve => {
-        const ref = pieceType === 'transmitter' ? outputTapeCellsRef : dataTrailCellsRef;
-        if (ref.current) {
-          ref.current.measureInWindow((rx: number, ry: number, _rw: number, rh: number) => {
-            const cellW = 24;
-            const cellGap = 3;
-            const cellCenterX = rx + cellIndex * (cellW + cellGap) + cellW / 2;
-            const cellCenterY = ry + rh / 2;
-            resolve({ x: cellCenterX, y: cellCenterY });
-          });
+        if (containerRef.current) {
+          containerRef.current.measureInWindow(
+            (rx: number, ry: number, _rw: number, rh: number) => {
+              const cellW = 24;
+              const cellGap = 3;
+              const cellCenterX = rx + cellIndex * (cellW + cellGap) + cellW / 2;
+              const cellCenterY = ry + rh / 2;
+              resolve({ x: cellCenterX, y: cellCenterY });
+            },
+          );
         } else {
           resolve({ x: 0, y: 0 });
         }
       });
 
-    const queueTapeOrb = (
-      pieceX: number,
-      pieceY: number,
-      color: string,
-      pieceType: string,
-      cellIndex: number,
-    ) => {
-      tapeOrbQueueRef.current.push({ pieceX, pieceY, color, pieceType, cellIndex });
-      if (!tapeOrbPlayingRef.current) {
-        playNextOrb();
-      }
+    // ── Ghost trail tick (8 dots, bright to wisp) ──
+    const startBubbleTrail = () => {
+      bubbleHistoryRef.current = [];
+      const tick = () => {
+        const pos = valueBubblePosRef.current;
+        if (!pos) {
+          setBubbleTrail([]);
+          return;
+        }
+        bubbleHistoryRef.current.unshift({ x: pos.x, y: pos.y });
+        if (bubbleHistoryRef.current.length > 40) {
+          bubbleHistoryRef.current.length = 40;
+        }
+
+        const spacings = [2, 4, 6, 9, 12, 16, 21, 27];
+        const opacities = [0.65, 0.55, 0.45, 0.35, 0.25, 0.18, 0.1, 0.05];
+        const scales = [0.9, 0.82, 0.74, 0.65, 0.55, 0.44, 0.33, 0.22];
+
+        const trail: Array<{ x: number; y: number; opacity: number; size: number }> = [];
+        spacings.forEach((sp, i) => {
+          if (bubbleHistoryRef.current.length > sp) {
+            const p = bubbleHistoryRef.current[sp];
+            trail.push({ x: p.x, y: p.y, opacity: opacities[i], size: 20 * scales[i] });
+          }
+        });
+        setBubbleTrail(trail);
+        bubbleTrailRAFRef.current = requestAnimationFrame(tick);
+      };
+      bubbleTrailRAFRef.current = requestAnimationFrame(tick);
     };
 
-    const playNextOrb = async () => {
-      const next = tapeOrbQueueRef.current.shift();
-      if (!next) {
-        tapeOrbPlayingRef.current = false;
-        return;
+    const stopBubbleTrail = () => {
+      if (bubbleTrailRAFRef.current) {
+        cancelAnimationFrame(bubbleTrailRAFRef.current);
+        bubbleTrailRAFRef.current = null;
       }
-      tapeOrbPlayingRef.current = true;
+      setTimeout(() => setBubbleTrail([]), 300);
+      bubbleHistoryRef.current = [];
+    };
 
+    // ── Bubble animation helpers ──
+    const animateBubbleTo = (
+      fromX: number, fromY: number,
+      toX: number, toY: number,
+      color: string, value: string,
+      duration: number,
+    ): Promise<void> => new Promise(resolve => {
+      const startTime = performance.now();
+      const tick = () => {
+        const elapsed = performance.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - t, 3); // cubic ease-out
+        const x = fromX + (toX - fromX) * ease;
+        const y = fromY + (toY - fromY) * ease;
+        setValueBubble({ screenX: x, screenY: y, color, value });
+        valueBubblePosRef.current = { x, y };
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(tick);
+    });
+
+    const showBubbleAt = (x: number, y: number, color: string, value: string) => {
+      setValueBubble({ screenX: x, screenY: y, color, value });
+      valueBubblePosRef.current = { x, y };
+    };
+
+    const hideBubble = () => {
+      setValueBubble(null);
+      valueBubblePosRef.current = null;
+      stopBubbleTrail();
+    };
+
+    const setHighlight = (
+      key: string,
+      kind: 'read' | 'write' | 'gate-pass' | 'gate-block',
+    ) => {
+      setTapeCellHighlights(prev => {
+        const m = new Map(prev);
+        m.set(key, kind);
+        return m;
+      });
+    };
+
+    const clearAllHighlights = () => {
+      setTapeCellHighlights(new Map());
+    };
+
+    const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
+
+    // ── Per-piece interaction sequences (return Promise; beam pauses) ──
+    const runScannerInteraction = async (stp: ExecutionStep): Promise<void> => {
+      const pulse = currentPulseRef.current;
+      const color = TAPE_PIECE_COLORS.scanner;
+      const speed = getPulseSpeed(pulse);
       const boardPos = await getBoardScreenPos();
-      const cellPos = await getTapeCellScreenPos(next.pieceType, next.cellIndex);
+      const pc = getPieceCenter(stp.pieceId);
+      if (!pc) return;
+      const scannerX = boardPos.x + pc.x;
+      const scannerY = boardPos.y + pc.y;
+      const tapeValue = level.inputTape?.[pulse];
+      const display = tapeValue === undefined ? '?' : String(tapeValue);
 
-      const startX = boardPos.x + next.pieceX;
-      const startY = boardPos.y + next.pieceY;
-      const endX = cellPos.x;
-      const endY = cellPos.y;
+      flashPiece(stp.pieceId, color);
+      await wait(120 * speed);
+      setHighlight(`in-${pulse}`, 'read');
 
-      const upDur = 220;
-      const holdDur = 120;
-      const downDur = 180;
-      const totalDur = upDur + holdDur + downDur;
+      showBubbleAt(scannerX, scannerY, color, display);
+      startBubbleTrail();
+      await wait(180 * speed);
 
-      await new Promise<void>(resolve => {
-        const startTime = performance.now();
-        const tick = () => {
-          const elapsed = performance.now() - startTime;
-          if (elapsed < upDur) {
-            const t = easeOut3(elapsed / upDur);
-            setTapeOrbState({
-              screenX: startX + (endX - startX) * t,
-              screenY: startY + (endY - startY) * t,
-              color: next.color,
-            });
-          } else if (elapsed < upDur + holdDur) {
-            setTapeOrbState({ screenX: endX, screenY: endY, color: next.color });
-          } else if (elapsed < totalDur) {
-            const t2 = (elapsed - upDur - holdDur) / downDur;
-            setTapeOrbState({
-              screenX: endX + (startX - endX) * t2 * t2,
-              screenY: endY + (startY - endY) * t2 * t2,
-              color: next.color,
-            });
-          } else {
-            setTapeOrbState(null);
-            resolve();
-            return;
-          }
-          tapeBeamFrameRef.current = requestAnimationFrame(tick);
-        };
-        tapeBeamFrameRef.current = requestAnimationFrame(tick);
+      const inputCell = await getTapeCellPos(inputTapeCellsRef, pulse);
+      await animateBubbleTo(scannerX, scannerY, inputCell.x, inputCell.y, color, display, 300 * speed);
+      await wait(180 * speed);
+      await animateBubbleTo(inputCell.x, inputCell.y, scannerX, scannerY, color, display, 240 * speed);
+      await wait(120 * speed);
+
+      const trailCell = await getTapeCellPos(dataTrailCellsRef, pulse);
+      await animateBubbleTo(scannerX, scannerY, trailCell.x, trailCell.y, color, display, 300 * speed);
+      setHighlight(`trail-${pulse}`, 'write');
+      if (tapeValue !== undefined) {
+        setVisualTrailOverride(prev => {
+          if (!prev) return prev;
+          const next = [...prev];
+          next[pulse] = tapeValue;
+          return next;
+        });
+      }
+
+      await wait(250 * speed);
+      hideBubble();
+      clearAllHighlights();
+    };
+
+    const runConfigNodeInteraction = async (stp: ExecutionStep): Promise<void> => {
+      const pulse = currentPulseRef.current;
+      const speed = getPulseSpeed(pulse);
+      const pass = !!stp.success;
+      const color = pass ? '#00FF87' : '#FF3B3B';
+      const pc = getPieceCenter(stp.pieceId);
+      if (!pc) return;
+      const boardPos = await getBoardScreenPos();
+      const nodeX = boardPos.x + pc.x;
+      const nodeY = boardPos.y + pc.y;
+
+      const trailCells = useGameStore.getState().machineState.dataTrail.cells;
+      const trailValue = trailCells.length > 0 && pulse < trailCells.length
+        ? trailCells[pulse]
+        : null;
+      const display = trailValue === null ? '?' : String(trailValue);
+
+      setHighlight(`trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
+      await wait(150 * speed);
+
+      const trailCell = await getTapeCellPos(dataTrailCellsRef, pulse);
+      showBubbleAt(trailCell.x, trailCell.y, color, display);
+      startBubbleTrail();
+      await wait(100 * speed);
+
+      await animateBubbleTo(trailCell.x, trailCell.y, nodeX, nodeY, color, display, 300 * speed);
+      flashPiece(stp.pieceId, color);
+      await wait((pass ? 350 : 450) * speed);
+
+      hideBubble();
+      clearAllHighlights();
+    };
+
+    const runTransmitterInteraction = async (stp: ExecutionStep): Promise<void> => {
+      const pulse = currentPulseRef.current;
+      const color = TAPE_PIECE_COLORS.transmitter;
+      const speed = getPulseSpeed(pulse);
+      const pc = getPieceCenter(stp.pieceId);
+      if (!pc) return;
+      const boardPos = await getBoardScreenPos();
+      const transmitterX = boardPos.x + pc.x;
+      const transmitterY = boardPos.y + pc.y;
+      const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
+      const display = String(written);
+
+      flashPiece(stp.pieceId, color);
+      showBubbleAt(transmitterX, transmitterY, color, display);
+
+      const outputCell = await getTapeCellPos(outputTapeCellsRef, pulse);
+      await animateBubbleTo(
+        transmitterX, transmitterY,
+        outputCell.x, outputCell.y,
+        color, display, 250 * speed,
+      );
+      setVisualOutputOverride(prev => {
+        if (!prev) return prev;
+        const next = [...prev];
+        next[pulse] = written;
+        return next;
       });
 
-      playNextOrb();
+      await wait(150 * speed);
+      hideBubble();
     };
 
-    const triggerPieceAnim = (stp: ExecutionStep) => {
+    const triggerPieceAnim = (stp: ExecutionStep): Promise<void> => {
       flashPiece(stp.pieceId, getBeamColor(stp.type));
       const anim = animMap[stp.type];
       if (anim) {
@@ -847,16 +1008,10 @@ export default function GameplayScreen({ navigation }: Props) {
         }, anim.duration);
         flashTimersRef.current.push(t);
       }
-      const tapeColor = TAPE_PIECE_COLORS[stp.type];
-      if (tapeColor) {
-        const center = getPieceCenter(stp.pieceId);
-        if (center) {
-          const cellIdx = stp.type === 'transmitter'
-            ? currentPulseRef.current
-            : useGameStore.getState().machineState.dataTrail.headPosition;
-          queueTapeOrb(center.x, center.y, tapeColor, stp.type, cellIdx);
-        }
-      }
+      if (stp.type === 'scanner') return runScannerInteraction(stp);
+      if (stp.type === 'configNode') return runConfigNodeInteraction(stp);
+      if (stp.type === 'transmitter') return runTransmitterInteraction(stp);
+      return Promise.resolve();
     };
 
     // ── Animate a single linear path (no forks) ──
@@ -948,14 +1103,19 @@ export default function GameplayScreen({ navigation }: Props) {
             const isVoidBlocker = hasVoid && i === waypoints.length - 1;
             if (isVoidBlocker) flashPiece(stp.pieceId, '#FF3B3B');
             else {
-              triggerPieceAnim(stp);
-              if (TAPE_PIECE_COLORS[stp.type]) {
-                if (pauseEnd === 0) {
-                  pauseStart = performance.now();
-                  pauseEnd = pauseStart + 520;
-                } else {
-                  pauseEnd += 520;
-                }
+              const isTapePiece = !!TAPE_PIECE_COLORS[stp.type];
+              if (isTapePiece) {
+                // Pause the beam indefinitely; the interaction promise will
+                // release the pause on completion. This keeps the beam
+                // synchronized with the read/write bubble sequence.
+                const now = performance.now();
+                pauseStart = now;
+                pauseEnd = now + 1e9; // effectively infinite until released
+                triggerPieceAnim(stp).then(() => {
+                  pauseEnd = performance.now();
+                });
+              } else {
+                triggerPieceAnim(stp);
               }
             }
           }
@@ -1054,6 +1214,16 @@ export default function GameplayScreen({ navigation }: Props) {
       });
     });
 
+    // Initialize progressive-reveal overrides for trail and output cells.
+    // During beam animation these show empty until a Scanner / Transmitter
+    // visually writes them; at lock they fall through to machineState.
+    if (level.dataTrail.cells.length > 0) {
+      setVisualTrailOverride(level.dataTrail.cells.map(() => null));
+    }
+    if (level.inputTape && level.inputTape.length > 0) {
+      setVisualOutputOverride(level.inputTape.map(() => -1));
+    }
+
     // PHASE 1 — CHARGE (300ms)
     const sourcePiece = machineState.pieces.find(p => p.type === 'source');
     if (sourcePiece) {
@@ -1092,6 +1262,10 @@ export default function GameplayScreen({ navigation }: Props) {
         await new Promise(r => setTimeout(r, 80));
       }
     }
+    // Beam complete — fall through to machineState-driven rendering.
+    setVisualTrailOverride(null);
+    setVisualOutputOverride(null);
+    setTapeCellHighlights(new Map());
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
@@ -1320,6 +1494,13 @@ export default function GameplayScreen({ navigation }: Props) {
           setChargePos(null);
           setChargeProgress(0);
           setLockRings([]);
+          setTapeCellHighlights(new Map());
+          if (level.dataTrail.cells.length > 0) {
+            setVisualTrailOverride(level.dataTrail.cells.map(() => null));
+          }
+          if (level.inputTape && level.inputTape.length > 0) {
+            setVisualOutputOverride(level.inputTape.map(() => -1));
+          }
 
           // CHARGE
           if (sourcePiece) {
@@ -1358,6 +1539,11 @@ export default function GameplayScreen({ navigation }: Props) {
             }
           }
           if (!loopingRef.current) break;
+
+          // Beam complete for this replay — reveal final values.
+          setVisualTrailOverride(null);
+          setVisualOutputOverride(null);
+          setTapeCellHighlights(new Map());
 
           // LOCK (visual only)
           const outP = machineState.pieces.find(pc => pc.type === 'terminal');
@@ -1445,13 +1631,17 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
     }
-    if (tapeBeamFrameRef.current != null) {
-      cancelAnimationFrame(tapeBeamFrameRef.current);
-      tapeBeamFrameRef.current = null;
+    if (bubbleTrailRAFRef.current != null) {
+      cancelAnimationFrame(bubbleTrailRAFRef.current);
+      bubbleTrailRAFRef.current = null;
     }
-    tapeOrbQueueRef.current = [];
-    tapeOrbPlayingRef.current = false;
-    setTapeOrbState(null);
+    bubbleHistoryRef.current = [];
+    valueBubblePosRef.current = null;
+    setValueBubble(null);
+    setBubbleTrail([]);
+    setTapeCellHighlights(new Map());
+    setVisualTrailOverride(null);
+    setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
     setBeamHeads([]);
@@ -1559,10 +1749,11 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
-              <View style={styles.tapeCells}>
+              <View ref={inputTapeCellsRef} style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
                   const isActive = signalPhase === 'beam' && i === currentPulseIndex;
                   const isPast = signalPhase === 'beam' && i < currentPulseIndex;
+                  const highlight = tapeCellHighlights.get(`in-${i}`);
                   return (
                     <View key={`in-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, !isActive && { opacity: 0 }]} />
@@ -1571,6 +1762,10 @@ export default function GameplayScreen({ navigation }: Props) {
                           styles.tapeCell,
                           isActive && styles.tapeCellActive,
                           isPast && styles.tapeCellPast,
+                          highlight === 'read' && styles.tapeCellHighlightRead,
+                          highlight === 'write' && styles.tapeCellHighlightWrite,
+                          highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
+                          highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
                         ]}
                       >
                         <Text
@@ -1595,7 +1790,10 @@ export default function GameplayScreen({ navigation }: Props) {
               <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
               <View ref={outputTapeCellsRef} style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
-                  const written = machineState.outputTape?.[i];
+                  const rawWritten = visualOutputOverride
+                    ? visualOutputOverride[i]
+                    : machineState.outputTape?.[i];
+                  const written = rawWritten;
                   const expected = level.expectedOutput?.[i];
                   const hasValue = written !== undefined && written !== -1;
                   const correct = hasValue && expected !== undefined && written === expected;
@@ -1631,12 +1829,23 @@ export default function GameplayScreen({ navigation }: Props) {
               <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
                 <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
                 <View ref={dataTrailCellsRef} style={styles.tapeCells}>
-                  {machineState.dataTrail.cells.map((cell, i) => {
+                  {machineState.dataTrail.cells.map((rawCell, i) => {
+                    const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                     const isHead = i === machineState.dataTrail.headPosition;
+                    const highlight = tapeCellHighlights.get(`trail-${i}`);
                     return (
                       <View key={`trail-${i}`} style={styles.tapeCellWrap}>
                         <View style={[styles.tapeHead, { opacity: 0 }]} />
-                        <View style={[styles.tapeCell, isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' }]}>
+                        <View
+                          style={[
+                            styles.tapeCell,
+                            isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
+                            highlight === 'read' && styles.tapeCellHighlightRead,
+                            highlight === 'write' && styles.tapeCellHighlightWrite,
+                            highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
+                            highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
+                          ]}
+                        >
                           <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
                             {cell === null ? '\u00B7' : cell}
                           </Text>
@@ -1656,14 +1865,25 @@ export default function GameplayScreen({ navigation }: Props) {
             <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
               <View ref={dataTrailCellsRef} style={styles.tapeCells}>
-                {machineState.dataTrail.cells.map((cell, i) => {
+                {machineState.dataTrail.cells.map((rawCell, i) => {
+                  const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                   const isHead = i === machineState.dataTrail.headPosition;
+                  const highlight = tapeCellHighlights.get(`trail-${i}`);
                   return (
                     <View key={`trail-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, { opacity: 0 }]} />
-                      <View style={[styles.tapeCell, isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' }]}>
-                        <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }]}>
-                          {cell}
+                      <View
+                        style={[
+                          styles.tapeCell,
+                          isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
+                          highlight === 'read' && styles.tapeCellHighlightRead,
+                          highlight === 'write' && styles.tapeCellHighlightWrite,
+                          highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
+                          highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
+                        ]}
+                      >
+                        <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
+                          {cell === null ? '\u00B7' : cell}
                         </Text>
                       </View>
                     </View>
@@ -2200,13 +2420,17 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(animFrameRef.current);
                   animFrameRef.current = null;
                 }
-                if (tapeBeamFrameRef.current != null) {
-                  cancelAnimationFrame(tapeBeamFrameRef.current);
-                  tapeBeamFrameRef.current = null;
+                if (bubbleTrailRAFRef.current != null) {
+                  cancelAnimationFrame(bubbleTrailRAFRef.current);
+                  bubbleTrailRAFRef.current = null;
                 }
-                tapeOrbQueueRef.current = [];
-                tapeOrbPlayingRef.current = false;
-                setTapeOrbState(null);
+                bubbleHistoryRef.current = [];
+                valueBubblePosRef.current = null;
+                setValueBubble(null);
+                setBubbleTrail([]);
+                setTapeCellHighlights(new Map());
+                setVisualTrailOverride(null);
+                setVisualOutputOverride(null);
                 setBeamHeads([]);
                 setTrailSegments([]);
                 setBranchTrails([]);
@@ -2760,27 +2984,64 @@ export default function GameplayScreen({ navigation }: Props) {
         />
       )}
 
-      {/* Tape interaction floating orb */}
-      {tapeOrbState && (
+      {/* Ghost trail (fades behind the value bubble) */}
+      {bubbleTrail.map((ghost, i) => (
+        <View
+          key={`ghost-${i}`}
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: ghost.x - ghost.size / 2,
+            top: ghost.y - ghost.size / 2,
+            width: ghost.size,
+            height: ghost.size,
+            borderRadius: ghost.size / 2,
+            backgroundColor: valueBubble ? hexToRgba(valueBubble.color, 0.25) : 'transparent',
+            opacity: ghost.opacity,
+            shadowColor: valueBubble?.color ?? 'transparent',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.4,
+            shadowRadius: 16,
+            zIndex: 99,
+          }}
+        />
+      ))}
+
+      {/* Value bubble — shows the read/write value as it travels */}
+      {valueBubble && (
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: tapeOrbState.screenX - 6,
-            top: tapeOrbState.screenY - 6,
-            width: 12,
-            height: 12,
-            borderRadius: 6,
-            backgroundColor: tapeOrbState.color,
-            opacity: 0.9,
-            shadowColor: tapeOrbState.color,
+            left: valueBubble.screenX - 11,
+            top: valueBubble.screenY - 11,
+            width: valueBubble.size ?? 22,
+            height: valueBubble.size ?? 22,
+            borderRadius: 11,
+            backgroundColor: hexToRgba(valueBubble.color, 0.2),
+            borderWidth: 1.5,
+            borderColor: hexToRgba(valueBubble.color, 0.7),
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: valueBubble.color,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
-            shadowRadius: 8,
-            elevation: 6,
+            shadowRadius: 12,
+            elevation: 8,
             zIndex: 100,
           }}
-        />
+        >
+          <Text
+            style={{
+              fontSize: valueBubble.value.length > 1 ? 9 : 11,
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+              color: valueBubble.color,
+            }}
+          >
+            {valueBubble.value}
+          </Text>
+        </View>
       )}
     </Animated.View>
   );
@@ -3511,6 +3772,22 @@ const styles = StyleSheet.create({
   tapeCellWrong: {
     borderColor: '#FF3B3B',
     backgroundColor: 'rgba(255,59,59,0.08)',
+  },
+  tapeCellHighlightRead: {
+    borderColor: 'rgba(0,229,255,0.9)',
+    backgroundColor: 'rgba(0,229,255,0.18)',
+  },
+  tapeCellHighlightWrite: {
+    borderColor: 'rgba(0,229,255,0.9)',
+    backgroundColor: 'rgba(0,229,255,0.22)',
+  },
+  tapeCellHighlightGatePass: {
+    borderColor: 'rgba(0,255,135,0.9)',
+    backgroundColor: 'rgba(0,255,135,0.18)',
+  },
+  tapeCellHighlightGateBlock: {
+    borderColor: 'rgba(255,59,59,0.9)',
+    backgroundColor: 'rgba(255,59,59,0.18)',
   },
   tapeCellText: {
     fontFamily: Fonts.spaceMono,
