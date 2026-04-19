@@ -1031,6 +1031,7 @@ export default function GameplayScreen({ navigation }: Props) {
         setHead: (h: Pt | null) => void;
         setTrail: (s: { points: Pt[]; color: string }[]) => void;
       },
+      speedMultiplier: number,
     ): Promise<void> => new Promise<void>(resolve => {
       const waypoints: Pt[] = [];
       for (const st of pathSteps) {
@@ -1049,7 +1050,7 @@ export default function GameplayScreen({ navigation }: Props) {
       // the path in a single RAF tick.
       const waypointDists = computeWaypointDists(waypoints);
       const refLen = CELL_SIZE * 4;
-      const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen)));
+      const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen))) * speedMultiplier;
       const segColors = pathSteps.map(s => getBeamColor(s.type));
       const hasVoid = pathSteps.some(s => s.type === 'void');
       opts.setTrail([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
@@ -1162,6 +1163,10 @@ export default function GameplayScreen({ navigation }: Props) {
 
     // ── runPulse: detects Splitter forks and runs dual beams ──
     const runPulse = (pulseSteps: typeof steps): Promise<void> => new Promise<void>(resolveAll => {
+      // Match beam travel speed to the bubble-interaction slowdown so
+      // pulse 0 moves at half speed for new players; subsequent pulses
+      // run at full speed.
+      const speed = getPulseSpeed(currentPulseRef.current);
       const forkIdx = pulseSteps.findIndex(s => s.type === 'splitter');
       const hasABranch = pulseSteps.some(s => s.branchId === 'A');
       const hasBBranch = pulseSteps.some(s => s.branchId === 'B');
@@ -1171,7 +1176,7 @@ export default function GameplayScreen({ navigation }: Props) {
         runLinearPath(pulseSteps, {
           setHead: (h) => setBeamHeads(h ? [h] : []),
           setTrail: setTrailSegments,
-        }).then(resolveAll);
+        }, speed).then(resolveAll);
         return;
       }
 
@@ -1187,7 +1192,7 @@ export default function GameplayScreen({ navigation }: Props) {
       runLinearPath(preForkSteps, {
         setHead: (h) => setBeamHeads(h ? [h] : []),
         setTrail: setTrailSegments,
-      }).then(() => {
+      }, speed).then(() => {
         if (!forkPt) { resolveAll(); return; }
 
         // Prepend a synthetic step for the Splitter center so each branch
@@ -1216,11 +1221,11 @@ export default function GameplayScreen({ navigation }: Props) {
           runLinearPath(aSteps, {
             setHead: (h) => { headA = h; syncHeads(); },
             setTrail: (s) => { trailA = s; syncHeads(); },
-          }),
+          }, speed),
           runLinearPath(bSteps, {
             setHead: (h) => { headB = h; syncHeads(); },
             setTrail: (s) => { trailB = s; syncHeads(); },
-          }),
+          }, speed),
         ]).then(() => {
           setBeamHeads([]);
           setTrailSegments([]);
