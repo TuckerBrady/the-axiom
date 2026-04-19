@@ -54,7 +54,7 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
     }
     case 'obstacle':
       return [];                              // Impassable terrain — no input
-    case 'inputPort':
+    case 'source':
       return [];                              // Source has no input
     case 'merger':
       return [rotateSide('left', rot), rotateSide('top', rot)];
@@ -64,7 +64,7 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
     case 'counter':
     case 'latch':
       return [rotateSide('left', rot)];
-    case 'outputPort':
+    case 'terminal':
     case 'gear':
     case 'configNode':
     case 'scanner':
@@ -92,7 +92,7 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
     }
     case 'obstacle':
       return [];                              // Impassable terrain — no output
-    case 'outputPort':
+    case 'terminal':
       return [];                              // Output has no output
     case 'merger':
       return [rotateSide('right', rot)];
@@ -102,7 +102,7 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
     case 'counter':
     case 'latch':
       return [rotateSide('right', rot)];
-    case 'inputPort':
+    case 'source':
     case 'gear':
     case 'configNode':
     case 'scanner':
@@ -283,7 +283,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   // scanner reads.
   const tapeValue: number | undefined = state.inputTape?.[pulseIndex];
 
-  const source = pieces.find(p => p.type === 'inputPort');
+  const source = pieces.find(p => p.type === 'source');
   if (!source) {
     steps.push({ pieceId: 'none', type: 'error', timestamp: stepTime, success: false, message: 'No source piece found' });
     return steps;
@@ -313,7 +313,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     };
 
     switch (piece.type) {
-      case 'inputPort':
+      case 'source':
         step.message = 'Signal initiated';
         break;
 
@@ -429,7 +429,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         break;
       }
 
-      case 'outputPort':
+      case 'terminal':
         step.message = 'Signal reached output — success!';
         steps.push(step);
         state.dataTrail.cells = trail.cells;
@@ -490,7 +490,7 @@ export function calculateStars(
   optimalPieces: number, // Reference only — kept for API compat
   totalTrayPieces?: number,
 ): 0 | 1 | 2 | 3 {
-  const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
+  const succeeded = steps.some(s => s.type === 'terminal' && s.success);
   if (!succeeded) return 1;
 
   const total = totalTrayPieces ?? optimalPieces;
@@ -514,8 +514,8 @@ export function getDefaultPorts(type: PlacedPiece['type']): PlacedPiece['ports']
 
 export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['category'] {
   switch (type) {
-    case 'inputPort':
-    case 'outputPort':
+    case 'source':
+    case 'terminal':
     case 'conveyor':
     case 'gear':
     case 'splitter':

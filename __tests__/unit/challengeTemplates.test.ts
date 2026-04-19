@@ -2,7 +2,7 @@ import { ALL_TEMPLATES, getTemplatesByDifficulty } from '../../src/game/challeng
 import type { PieceType } from '../../src/game/types';
 
 const VALID_PIECE_TYPES: PieceType[] = [
-  'inputPort', 'outputPort', 'conveyor', 'gear', 'splitter',
+  'source', 'terminal', 'conveyor', 'gear', 'splitter',
   'configNode', 'scanner', 'transmitter',
   'merger', 'bridge', 'inverter', 'counter', 'latch',
 ];

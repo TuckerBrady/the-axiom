@@ -26,10 +26,10 @@ describe('generateDailyChallenge', () => {
     expect(a.date).not.toBe(b.date);
   });
 
-  it('generated level has inputPort and outputPort', () => {
+  it('generated level has source and terminal', () => {
     const ch = generateDailyChallenge('2026-04-12');
-    expect(ch.level.prePlacedPieces.some(p => p.type === 'inputPort')).toBe(true);
-    expect(ch.level.prePlacedPieces.some(p => p.type === 'outputPort')).toBe(true);
+    expect(ch.level.prePlacedPieces.some(p => p.type === 'source')).toBe(true);
+    expect(ch.level.prePlacedPieces.some(p => p.type === 'terminal')).toBe(true);
   });
 
   it('challenge has COGS lines', () => {

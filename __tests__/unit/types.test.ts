@@ -1,9 +1,9 @@
 import { getPieceCost, PIECE_COSTS } from '../../src/game/types';
 
 describe('getPieceCost', () => {
-  it('returns 0 for inputPort/outputPort (no cost)', () => {
-    expect(getPieceCost('inputPort', null)).toBe(0);
-    expect(getPieceCost('outputPort', null)).toBe(0);
+  it('returns 0 for source/terminal (no cost)', () => {
+    expect(getPieceCost('source', null)).toBe(0);
+    expect(getPieceCost('terminal', null)).toBe(0);
   });
 
   it('returns base cost for conveyor', () => {

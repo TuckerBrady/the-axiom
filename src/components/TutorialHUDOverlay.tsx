@@ -667,7 +667,7 @@ export default function TutorialHUDOverlay({
         </>
       )}
 
-      {/* A1-1 spotlight rings on inputPort/outputPort inside board portal */}
+      {/* A1-1 spotlight rings on source/terminal inside board portal */}
       {showSpotlights && targetLayout && spotlightCells && spotlightCellSize && spotlightCells.map((sc, i) => {
         const cs = spotlightCellSize;
         const r = cs * 0.45;

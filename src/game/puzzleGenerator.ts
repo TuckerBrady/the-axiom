@@ -212,8 +212,8 @@ export function generatePuzzleFromTemplate(
 
   // 3. Pre-placed pieces
   const prePlaced = [
-    makePiece('inputPort', sx, sy, true),
-    makePiece('outputPort', ox, oy, true),
+    makePiece('source', sx, sy, true),
+    makePiece('terminal', ox, oy, true),
   ];
 
   // 4. Convert solution to PlacedPiece[] (for verification)

@@ -60,7 +60,7 @@ describe('getPieceCost', () => {
   });
 
   it('returns 0 for unknown piece type', () => {
-    expect(getPieceCost('inputPort' as PieceType, null)).toBe(0);
-    expect(getPieceCost('outputPort' as PieceType, null)).toBe(0);
+    expect(getPieceCost('source' as PieceType, null)).toBe(0);
+    expect(getPieceCost('terminal' as PieceType, null)).toBe(0);
   });
 });

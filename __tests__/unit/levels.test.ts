@@ -3,7 +3,7 @@ import type { LevelDefinition } from '../../src/game/types';
 import type { PieceType } from '../../src/game/types';
 
 const VALID_PIECE_TYPES: PieceType[] = [
-  'inputPort', 'outputPort', 'conveyor', 'gear', 'splitter',
+  'source', 'terminal', 'conveyor', 'gear', 'splitter',
   'configNode', 'scanner', 'transmitter',
   'merger', 'bridge', 'inverter', 'counter', 'latch',
 ];
@@ -46,10 +46,10 @@ describe('Level definitions', () => {
     }
   });
 
-  it('every level has inputPort and outputPort prePlaced', () => {
+  it('every level has source and terminal prePlaced', () => {
     for (const level of ALL_LEVELS) {
-      expect(level.prePlacedPieces.some(p => p.type === 'inputPort')).toBe(true);
-      expect(level.prePlacedPieces.some(p => p.type === 'outputPort')).toBe(true);
+      expect(level.prePlacedPieces.some(p => p.type === 'source')).toBe(true);
+      expect(level.prePlacedPieces.some(p => p.type === 'terminal')).toBe(true);
     }
   });
 });

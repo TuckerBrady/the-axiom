@@ -294,7 +294,7 @@ export function PieceIcon({
         </Svg>
       );
 
-    case 'inputPort': {
+    case 'source': {
       const chargeR1 = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 28] });
       const chargeR2 = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 22] });
       const chargeOp = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] });
@@ -314,7 +314,7 @@ export function PieceIcon({
       );
     }
 
-    case 'outputPort': {
+    case 'terminal': {
       const lockR1 = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 42] });
       const lockR2 = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 34] });
       const lockR3 = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 28] });

@@ -26,8 +26,8 @@ const MINIMAL_LEVEL: LevelDefinition = {
   gridWidth: 8,
   gridHeight: 7,
   prePlacedPieces: [
-    makePiece('pre-in', 'inputPort', 1, 3, { isPrePlaced: true }),
-    makePiece('pre-out', 'outputPort', 6, 3, { isPrePlaced: true }),
+    makePiece('pre-in', 'source', 1, 3, { isPrePlaced: true }),
+    makePiece('pre-out', 'terminal', 6, 3, { isPrePlaced: true }),
   ],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'splitter'],
   dataTrail: { cells: [], headPosition: 0 },

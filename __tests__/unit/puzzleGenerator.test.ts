@@ -11,7 +11,7 @@ describe('generatePuzzleFromTemplate', () => {
     expect(level.id).toContain('daily_');
     expect(level.gridWidth).toBe(template.gridWidth);
     expect(level.gridHeight).toBe(template.gridHeight);
-    expect(level.prePlacedPieces.length).toBe(2); // inputPort + outputPort
+    expect(level.prePlacedPieces.length).toBe(2); // source + terminal
     expect(level.availablePieces.length).toBeGreaterThan(0);
     expect(solutionPieces.length).toBeGreaterThan(0);
   });

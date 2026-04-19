@@ -1,8 +1,8 @@
 // ─── Piece System ─────────────────────────────────────────────────────────────
 
 export type PieceType =
-  | 'inputPort'
-  | 'outputPort'
+  | 'source'
+  | 'terminal'
   | 'conveyor'
   | 'gear'
   | 'splitter'

@@ -15,7 +15,7 @@ function makePlayerPiece(id: string, type: PlacedPiece['type']): PlacedPiece {
 describe('calculateScore', () => {
   it('returns completion bonus when succeeded', () => {
     const result = calculateScore({
-      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      executionSteps: [makeStep('source', true, 'src'), makeStep('terminal', true, 'out')],
       placedPieces: [],
       optimalPieces: 0,
       totalTrayPieces: 0,
@@ -43,12 +43,12 @@ describe('calculateScore', () => {
   it('machine complexity: full marks when all tray pieces used', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
         makeStep('conveyor', true, 'c3'),
         makeStep('conveyor', true, 'c4'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),
@@ -69,9 +69,9 @@ describe('calculateScore', () => {
   it('machine complexity: partial marks when fewer tray pieces used', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [makePlayerPiece('c1', 'conveyor')],
       optimalPieces: 1,
@@ -87,10 +87,10 @@ describe('calculateScore', () => {
   it('protocolPrecision: > 0 when protocol pieces active', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('configNode', true, 'cn'),
         makeStep('scanner', true, 'sc'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [makePlayerPiece('cn', 'configNode'), makePlayerPiece('sc', 'scanner')],
       optimalPieces: 2,
@@ -106,10 +106,10 @@ describe('calculateScore', () => {
   it('pathIntegrity: full marks when all placed pieces touched', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [makePlayerPiece('c1', 'conveyor'), makePlayerPiece('c2', 'conveyor')],
       optimalPieces: 2,
@@ -124,7 +124,7 @@ describe('calculateScore', () => {
 
   it('speedBonus: 10 when elapsed < 10s', () => {
     const result = calculateScore({
-      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      executionSteps: [makeStep('source', true, 'src'), makeStep('terminal', true, 'out')],
       placedPieces: [],
       optimalPieces: 0,
       totalTrayPieces: 0,
@@ -138,7 +138,7 @@ describe('calculateScore', () => {
 
   it('speedBonus: 0 when elapsed > 45s', () => {
     const result = calculateScore({
-      executionSteps: [makeStep('inputPort', true, 'src'), makeStep('outputPort', true, 'out')],
+      executionSteps: [makeStep('source', true, 'src'), makeStep('terminal', true, 'out')],
       placedPieces: [],
       optimalPieces: 0,
       totalTrayPieces: 0,
@@ -153,12 +153,12 @@ describe('calculateScore', () => {
   it('3 stars when high total', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
         makeStep('conveyor', true, 'c3'),
         makeStep('conveyor', true, 'c4'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),
@@ -248,9 +248,9 @@ describe('elaboration bonus', () => {
   it('returns 0 when no purchased pieces', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [makePlayerPiece('c1', 'conveyor')],
       optimalPieces: 1,
@@ -268,12 +268,12 @@ describe('elaboration bonus', () => {
   it('awards 9 points for 3 purchased-and-touched pieces', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
         makeStep('conveyor', true, 'c3'),
         makeStep('conveyor', true, 'c4'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),
@@ -295,12 +295,12 @@ describe('elaboration bonus', () => {
 
   it('caps at 15 points for 5 purchased-and-touched pieces', () => {
     const pieces = [];
-    const steps = [makeStep('inputPort', true, 'src')];
+    const steps = [makeStep('source', true, 'src')];
     for (let i = 0; i < 6; i++) {
       pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
       steps.push(makeStep('conveyor', true, `c${i}`));
     }
-    steps.push(makeStep('outputPort', true, 'out'));
+    steps.push(makeStep('terminal', true, 'out'));
     const result = calculateScore({
       executionSteps: steps,
       placedPieces: pieces,
@@ -317,12 +317,12 @@ describe('elaboration bonus', () => {
 
   it('caps at 15 for 7 purchased-and-touched pieces', () => {
     const pieces = [];
-    const steps = [makeStep('inputPort', true, 'src')];
+    const steps = [makeStep('source', true, 'src')];
     for (let i = 0; i < 8; i++) {
       pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
       steps.push(makeStep('conveyor', true, `c${i}`));
     }
-    steps.push(makeStep('outputPort', true, 'out'));
+    steps.push(makeStep('terminal', true, 'out'));
     const result = calculateScore({
       executionSteps: steps,
       placedPieces: pieces,
@@ -340,10 +340,10 @@ describe('elaboration bonus', () => {
   it('awards 3 points when 3 purchased but only 1 touched', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),
@@ -366,9 +366,9 @@ describe('elaboration bonus', () => {
   it('returns 0 when purchased pieces exist but none touched', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),
@@ -388,12 +388,12 @@ describe('elaboration bonus', () => {
 
   it('total can exceed 100 with elaboration', () => {
     const pieces = [];
-    const steps = [makeStep('inputPort', true, 'src')];
+    const steps = [makeStep('source', true, 'src')];
     for (let i = 0; i < 6; i++) {
       pieces.push(makePlayerPiece(`c${i}`, 'conveyor'));
       steps.push(makeStep('conveyor', true, `c${i}`));
     }
-    steps.push(makeStep('outputPort', true, 'out'));
+    steps.push(makeStep('terminal', true, 'out'));
     const result = calculateScore({
       executionSteps: steps,
       placedPieces: pieces,
@@ -411,11 +411,11 @@ describe('elaboration bonus', () => {
   it('purchasedTouchedCount in breakdown matches expected', () => {
     const result = calculateScore({
       executionSteps: [
-        makeStep('inputPort', true, 'src'),
+        makeStep('source', true, 'src'),
         makeStep('conveyor', true, 'c1'),
         makeStep('conveyor', true, 'c2'),
         makeStep('conveyor', true, 'c3'),
-        makeStep('outputPort', true, 'out'),
+        makeStep('terminal', true, 'out'),
       ],
       placedPieces: [
         makePlayerPiece('c1', 'conveyor'),

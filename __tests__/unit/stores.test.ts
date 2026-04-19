@@ -58,7 +58,7 @@ describe('economyStore', () => {
   });
 
   it('spendCredits: free for zero-cost pieces', () => {
-    const success = useEconomyStore.getState().spendCredits('inputPort', null);
+    const success = useEconomyStore.getState().spendCredits('source', null);
     expect(success).toBe(true);
   });
 

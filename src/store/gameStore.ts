@@ -286,7 +286,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Tape-enabled levels: run one pulse per tape cell, concatenating
     // execution steps. The animation layer already detects pulse
-    // boundaries by counting inputPort-typed steps.
+    // boundaries by counting source-typed steps.
     const pulseCount = inputTape ? inputTape.length : 1;
     let allSteps: ExecutionStep[] = [];
     for (let i = 0; i < pulseCount; i++) {
@@ -296,7 +296,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const reachedOutputEveryPulse =
       pulseCount > 0 &&
-      allSteps.filter(s => s.type === 'outputPort' && s.success).length >= pulseCount;
+      allSteps.filter(s => s.type === 'terminal' && s.success).length >= pulseCount;
 
     // For tape levels, success additionally requires outputTape to match
     // expectedOutput. For legacy levels, the single-pulse output success
@@ -309,7 +309,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         outputTape.every((v, i) => v === expectedOutput[i]);
       succeeded = reachedOutputEveryPulse && tapeMatches;
     } else {
-      succeeded = allSteps.some(s => s.type === 'outputPort' && s.success);
+      succeeded = allSteps.some(s => s.type === 'terminal' && s.success);
     }
 
     const playerPiecesUsed = machineState.pieces.filter(p => !p.isPrePlaced).length;

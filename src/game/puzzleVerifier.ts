@@ -51,7 +51,7 @@ export function verifyPuzzle(
 
   // Execute
   const steps = executeMachine(state);
-  const succeeded = steps.some(s => s.type === 'outputPort' && s.success);
+  const succeeded = steps.some(s => s.type === 'terminal' && s.success);
 
   if (succeeded) {
     return {

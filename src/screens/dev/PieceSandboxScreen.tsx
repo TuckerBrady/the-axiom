@@ -31,29 +31,29 @@ const DOT_R = 1.5;
 const INITIAL_PIECES: PlacedPiece[] = [
   {
     id: 'sb-input',
-    type: 'inputPort',
+    type: 'source',
     category: 'physics',
     gridX: 1,
     gridY: 6,
-    ports: getDefaultPorts('inputPort'),
+    ports: getDefaultPorts('source'),
     rotation: 0,
     isPrePlaced: false,
   },
   {
     id: 'sb-output',
-    type: 'outputPort',
+    type: 'terminal',
     category: 'physics',
     gridX: 10,
     gridY: 6,
-    ports: getDefaultPorts('outputPort'),
+    ports: getDefaultPorts('terminal'),
     rotation: 0,
     isPrePlaced: false,
   },
 ];
 
 const TRAY: { type: PieceType; count: number }[] = [
-  { type: 'inputPort', count: 1 },
-  { type: 'outputPort', count: 4 },
+  { type: 'source', count: 1 },
+  { type: 'terminal', count: 4 },
   { type: 'conveyor', count: 8 },
   { type: 'gear', count: 4 },
   { type: 'splitter', count: 4 },
@@ -152,7 +152,7 @@ export default function PieceSandboxScreen() {
       status: 'running' as const,
     };
     const steps = executeMachine(state);
-    const success = steps.some(s => s.type === 'outputPort' && s.success);
+    const success = steps.some(s => s.type === 'terminal' && s.success);
 
     // Build waypoints from ALL steps (pass or fail) so the beam always
     // traces as far as the signal traveled.
@@ -327,8 +327,8 @@ export default function PieceSandboxScreen() {
             const sz = CELL - 4;
             const off = (CELL - sz) / 2;
             const iconSz = sz * 0.6;
-            const isSource = piece.type === 'inputPort';
-            const isOutput = piece.type === 'outputPort';
+            const isSource = piece.type === 'source';
+            const isOutput = piece.type === 'terminal';
             const clr = isSource ? '#F0B429' : isOutput ? '#00C48C' : Colors.blue;
             return (
               <Pressable
@@ -362,8 +362,8 @@ export default function PieceSandboxScreen() {
         {TRAY.map(t => {
           const remaining = trayCounts[t.type] ?? 0;
           const isActive = selectedTray === t.type;
-          const isPort = t.type === 'inputPort' || t.type === 'outputPort';
-          const trayColor = t.type === 'inputPort' ? '#F0B429' : t.type === 'outputPort' ? '#00C48C' : Colors.blue;
+          const isPort = t.type === 'source' || t.type === 'terminal';
+          const trayColor = t.type === 'source' ? '#F0B429' : t.type === 'terminal' ? '#00C48C' : Colors.blue;
           return (
             <TouchableOpacity
               key={t.type}
@@ -375,7 +375,7 @@ export default function PieceSandboxScreen() {
               <View style={{ opacity: remaining > 0 ? 1 : 0.3 }}>
                 <PieceIcon type={t.type} size={18} color={trayColor} />
               </View>
-              <Text style={st.trayLabel}>{t.type === 'inputPort' ? 'IN' : t.type === 'outputPort' ? 'OUT' : t.type.toUpperCase()}</Text>
+              <Text style={st.trayLabel}>{t.type === 'source' ? 'IN' : t.type === 'terminal' ? 'OUT' : t.type.toUpperCase()}</Text>
               <View style={[st.trayBadge, { backgroundColor: remaining > 0 ? trayColor : Colors.dim }]}>
                 <Text style={st.trayBadgeText}>{remaining}</Text>
               </View>

@@ -70,8 +70,8 @@ type Props = {
 // ─── Piece label ──────────────────────────────────────────────────────────────
 
 const PIECE_LABELS: Record<PieceType, string> = {
-  inputPort: 'IN',
-  outputPort: 'OUT',
+  source: 'IN',
+  terminal: 'OUT',
   conveyor: 'CONV',
   gear: 'GEAR',
   splitter: 'SPLIT',
@@ -103,8 +103,8 @@ function getPieceColor(type: PieceType): string {
 // Blue   = protocol layer (scanner, configNode, transmitter)
 function getBeamColor(pieceType: string): string {
   switch (pieceType) {
-    case 'inputPort':
-    case 'outputPort':
+    case 'source':
+    case 'terminal':
       return '#8B5CF6';
     case 'conveyor':
     case 'gear':
@@ -549,7 +549,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Auto-orientation: face away from Source if adjacent ──
   const getAutoRotation = useCallback((gridX: number, gridY: number): number => {
-    const source = pieces.find(p => p.type === 'inputPort');
+    const source = pieces.find(p => p.type === 'source');
     if (!source) return 0;
     const dx = gridX - source.gridX;
     const dy = gridY - source.gridY;
@@ -694,7 +694,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // step begins a new traversal.
     const pulseStarts: number[] = [];
     for (let i = 0; i < steps.length; i++) {
-      if (steps[i].type === 'inputPort') pulseStarts.push(i);
+      if (steps[i].type === 'source') pulseStarts.push(i);
     }
     if (pulseStarts.length === 0) pulseStarts.push(0);
     const pulses: typeof steps[] = [];
@@ -722,8 +722,8 @@ export default function GameplayScreen({ navigation }: Props) {
 
     // ── Per-piece animation trigger (shared by all beam paths) ──
     const animMap: Record<string, { tag: string; duration: number }> = {
-      inputPort: { tag: 'charging', duration: 280 },
-      outputPort: { tag: 'locking', duration: 400 },
+      source: { tag: 'charging', duration: 280 },
+      terminal: { tag: 'locking', duration: 400 },
       conveyor: { tag: 'rolling', duration: 180 },
       gear: { tag: 'spinning', duration: 400 },
       splitter: { tag: 'splitting', duration: 180 },
@@ -1055,7 +1055,7 @@ export default function GameplayScreen({ navigation }: Props) {
     });
 
     // PHASE 1 — CHARGE (300ms)
-    const sourcePiece = machineState.pieces.find(p => p.type === 'inputPort');
+    const sourcePiece = machineState.pieces.find(p => p.type === 'source');
     if (sourcePiece) {
       const sp = getPieceCenter(sourcePiece.id);
       if (sp) {
@@ -1101,12 +1101,12 @@ export default function GameplayScreen({ navigation }: Props) {
     const tapeMatches = hasTape && !!storeOutputTape && !!level.expectedOutput &&
       storeOutputTape.length === level.expectedOutput.length &&
       storeOutputTape.every((v, i) => v === (level.expectedOutput as number[])[i]);
-    const reachedOutputEveryPulse = steps.filter(s => s.type === 'outputPort' && s.success).length >= (pulses.length || 1);
+    const reachedOutputEveryPulse = steps.filter(s => s.type === 'terminal' && s.success).length >= (pulses.length || 1);
     const wrongOutput = hasTape && reachedOutputEveryPulse && !tapeMatches;
 
     if (wrongOutput) {
       // Mark mismatched outputTape cells for X overlay on output port.
-      const outputPiece = machineState.pieces.find(p => p.type === 'outputPort');
+      const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
         setFailColors(prev => {
           const next = new Map(prev);
@@ -1145,9 +1145,9 @@ export default function GameplayScreen({ navigation }: Props) {
     }
 
     // PHASE 3 — LOCK (400ms) — only on success (and matching tape if tape level)
-    const succeededFinal = !wrongOutput && steps.some(s => s.type === 'outputPort' && s.success);
+    const succeededFinal = !wrongOutput && steps.some(s => s.type === 'terminal' && s.success);
     if (succeededFinal) {
-      const outputPiece = machineState.pieces.find(p => p.type === 'outputPort');
+      const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
         const op = getPieceCenter(outputPiece.id);
         if (op) {
@@ -1212,7 +1212,7 @@ export default function GameplayScreen({ navigation }: Props) {
     }
 
     // Flash effect before showing overlay
-    const succeeded = !wrongOutput && steps.some(s => s.type === 'outputPort' && s.success);
+    const succeeded = !wrongOutput && steps.some(s => s.type === 'terminal' && s.success);
     if (succeeded) {
       // Calculate score using new scoring engine
       const engageDurationMs = Date.now() - engageStartTime;
@@ -1360,7 +1360,7 @@ export default function GameplayScreen({ navigation }: Props) {
           if (!loopingRef.current) break;
 
           // LOCK (visual only)
-          const outP = machineState.pieces.find(pc => pc.type === 'outputPort');
+          const outP = machineState.pieces.find(pc => pc.type === 'terminal');
           if (outP) {
             const opc = getPieceCenter(outP.id);
             if (opc) {
@@ -1899,8 +1899,8 @@ export default function GameplayScreen({ navigation }: Props) {
             {/* Pieces */}
             {pieces.map(piece => {
               const isPrePlaced = piece.isPrePlaced;
-              const isSource = piece.type === 'inputPort';
-              const isOutput = piece.type === 'outputPort';
+              const isSource = piece.type === 'source';
+              const isOutput = piece.type === 'terminal';
               const isPrePlacedScanner = isPrePlaced && piece.type === 'scanner';
               const pieceSize = CELL_SIZE - 4;
               const offset = (CELL_SIZE - pieceSize) / 2;
@@ -2748,11 +2748,11 @@ export default function GameplayScreen({ navigation }: Props) {
             dataTrailRow: dataTrailRowRef,
           }}
           spotlightCells={level!.prePlacedPieces
-            .filter(p => p.type === 'inputPort' || p.type === 'outputPort')
+            .filter(p => p.type === 'source' || p.type === 'terminal')
             .map(p => ({
               col: p.gridX,
               row: p.gridY,
-              color: p.type === 'inputPort' ? '#8B5CF6' : '#00C48C',
+              color: p.type === 'source' ? '#8B5CF6' : '#00C48C',
             }))}
           spotlightCellSize={CELL_SIZE}
           onComplete={() => setTutorialComplete(true)}

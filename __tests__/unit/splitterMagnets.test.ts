@@ -123,7 +123,7 @@ describe('computeSplitterMagnets input side exclusion', () => {
   it('with 3 adjacent (1 upstream, 2 downstream), magnets attach to 2 downstream only', () => {
     // InputPort at (3,2) outputs bottom → faces Splitter at (3,3) on its top side.
     const pieces = [
-      makePiece('src', 'inputPort', 3, 2),   // upstream: outputs all (including bottom)
+      makePiece('src', 'source', 3, 2),   // upstream: outputs all (including bottom)
       makePiece('s1', 'splitter', 3, 3),
       makePiece('c1', 'conveyor', 4, 3),     // downstream right
       makePiece('c2', 'conveyor', 2, 3),     // downstream left
@@ -131,7 +131,7 @@ describe('computeSplitterMagnets input side exclusion', () => {
     const result = computeSplitterMagnets(pieces);
     const sp = result.find(p => p.id === 's1')!;
     expect(sp.connectedMagnetSides).toHaveLength(2);
-    // Top is input (from inputPort), should be excluded
+    // Top is input (from source), should be excluded
     expect(sp.connectedMagnetSides).not.toContain('top');
   });
 

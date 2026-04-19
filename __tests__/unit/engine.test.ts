@@ -41,44 +41,44 @@ function makeState(pieces: PlacedPiece[], overrides?: Partial<MachineState>): Ma
 describe('executeMachine', () => {
   it('signal reaches output on simple linear path', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('c1', 'conveyor', 1, 0),
       makePiece('c2', 'conveyor', 2, 0),
-      makePiece('o', 'outputPort', 3, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('signal changes direction through Gear', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('g', 'gear', 1, 0),
       makePiece('c', 'conveyor', 1, 1, { rotation: 90 }),
-      makePiece('o', 'outputPort', 1, 2, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 1, 2, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Config Node passes when trail value matches configValue', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     // Trail has 1 at head position, configValue=1 → passes
     const steps = executeMachine(makeState(pieces, {
       dataTrail: { cells: [1, 0, 0, 0], headPosition: 0 },
     }));
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Config Node blocks when trail value mismatches configValue', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     // Trail has 0 at head position, configValue=1 → blocks
     const steps = executeMachine(makeState(pieces, {
@@ -90,30 +90,30 @@ describe('executeMachine', () => {
 
   it('Config Node: configValue=1, tapeValue=1 → passes', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1] }), 0);
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Config Node: configValue=0, tapeValue=0 → passes', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 0 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1] }), 0);
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Config Node: configValue=1, Scanner writes 0 to trail → blocks', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('sc', 'scanner', 1, 0),
       makePiece('cn', 'configNode', 2, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 3, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
@@ -122,10 +122,10 @@ describe('executeMachine', () => {
 
   it('Config Node: configValue=0, Scanner writes 1 to trail → blocks', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('sc', 'scanner', 1, 0),
       makePiece('cn', 'configNode', 2, 0, { configValue: 0 }),
-      makePiece('o', 'outputPort', 3, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
@@ -134,41 +134,41 @@ describe('executeMachine', () => {
 
   it('Config Node passes by default with empty trail and no tape', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     // No tape, empty trail → fallback matches nodeValue → passes
     const steps = executeMachine(makeState(pieces));
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Splitter with 2 magnets forks to both outputs', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 1, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 1, { isPrePlaced: true }),
       makePiece('sp', 'splitter', 1, 1, { connectedMagnetSides: ['right', 'bottom'] }),
-      makePiece('o1', 'outputPort', 2, 1, { isPrePlaced: true }),
+      makePiece('o1', 'terminal', 2, 1, { isPrePlaced: true }),
       makePiece('c2', 'conveyor', 1, 2, { rotation: 90 }),
     ];
     const steps = executeMachine(makeState(pieces));
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
     expect(steps.some(s => s.type === 'splitter')).toBe(true);
   });
 
   it('Splitter with <2 magnets blocks', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('sp', 'splitter', 1, 0, { connectedMagnetSides: ['right'] }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
-    // Splitter has no outputs → signal never reaches outputPort
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(false);
+    // Splitter has no outputs → signal never reaches terminal
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(false);
   });
 
   it('incomplete path results in void', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('c', 'conveyor', 1, 0),
       // No output port — signal lost
     ];
@@ -182,7 +182,7 @@ describe('executeMachine', () => {
 describe('autoConnectPhysicsPieces', () => {
   it('connects adjacent pieces with compatible ports', () => {
     const pieces = [
-      makePiece('a', 'inputPort', 0, 0),
+      makePiece('a', 'source', 0, 0),
       makePiece('b', 'conveyor', 1, 0),
     ];
     const wires = autoConnectPhysicsPieces(pieces);
@@ -192,11 +192,11 @@ describe('autoConnectPhysicsPieces', () => {
   });
 
   it('wire direction follows port flow (output→input)', () => {
-    // inputPort outputs to the right, conveyor inputs from the left.
-    // Wire should flow inputPort → conveyor.
+    // source outputs to the right, conveyor inputs from the left.
+    // Wire should flow source → conveyor.
     const pieces = [
       makePiece('conv', 'conveyor', 1, 0),
-      makePiece('src', 'inputPort', 0, 0),
+      makePiece('src', 'source', 0, 0),
     ];
     const wires = autoConnectPhysicsPieces(pieces);
     expect(wires.length).toBe(1);
@@ -206,7 +206,7 @@ describe('autoConnectPhysicsPieces', () => {
 
   it('does not connect non-adjacent pieces', () => {
     const pieces = [
-      makePiece('a', 'inputPort', 0, 0),
+      makePiece('a', 'source', 0, 0),
       makePiece('b', 'conveyor', 3, 0),
     ];
     const wires = autoConnectPhysicsPieces(pieces);
@@ -220,13 +220,13 @@ describe('canSendTo', () => {
   const { canSendTo } = require('../../src/game/engine');
 
   it('returns true for adjacent compatible pieces', () => {
-    const a = makePiece('a', 'inputPort', 0, 0);
+    const a = makePiece('a', 'source', 0, 0);
     const b = makePiece('b', 'conveyor', 1, 0);
     expect(canSendTo(a, b)).toBe(true);
   });
 
   it('returns false for non-adjacent pieces', () => {
-    const a = makePiece('a', 'inputPort', 0, 0);
+    const a = makePiece('a', 'source', 0, 0);
     const b = makePiece('b', 'conveyor', 3, 0);
     expect(canSendTo(a, b)).toBe(false);
   });
@@ -249,9 +249,9 @@ describe('getActivePorts', () => {
 describe('executeMachine advanced', () => {
   it('Scanner reads tape value', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('sc', 'scanner', 1, 0),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const state = makeState(pieces, { inputTape: [1, 0], outputTape: [-1, -1] });
     const steps = executeMachine(state, 0);
@@ -261,9 +261,9 @@ describe('executeMachine advanced', () => {
 
   it('Transmitter writes to output tape', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('tx', 'transmitter', 1, 0),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const state = makeState(pieces, { inputTape: [1], outputTape: [-1] });
     executeMachine(state, 0);
@@ -272,9 +272,9 @@ describe('executeMachine advanced', () => {
 
   it('Counter blocks below threshold', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('ct', 'counter', 1, 0, { threshold: 2, count: 0 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     const ctStep = steps.find(s => s.type === 'counter');
@@ -283,9 +283,9 @@ describe('executeMachine advanced', () => {
 
   it('Latch write mode stores value', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('lt', 'latch', 1, 0, { latchMode: 'write' }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const state = makeState(pieces, { inputTape: [1], outputTape: [-1] });
     executeMachine(state, 0);
@@ -295,9 +295,9 @@ describe('executeMachine advanced', () => {
 
   it('Latch read mode blocks when no stored value', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('lt', 'latch', 1, 0, { latchMode: 'read', storedValue: null }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     const ltStep = steps.find(s => s.type === 'latch');
@@ -306,9 +306,9 @@ describe('executeMachine advanced', () => {
 
   it('Inverter inverts tape value', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('inv', 'inverter', 1, 0),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1] }), 0);
     const invStep = steps.find(s => s.type === 'inverter');
@@ -318,9 +318,9 @@ describe('executeMachine advanced', () => {
 
   it('Merger accepts signal', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 1, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 1, { isPrePlaced: true }),
       makePiece('m', 'merger', 1, 1),
-      makePiece('o', 'outputPort', 2, 1, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 1, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'merger')).toBe(true);
@@ -328,16 +328,16 @@ describe('executeMachine advanced', () => {
 
   it('Bridge passes signal through', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('br', 'bridge', 1, 0),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'bridge')).toBe(true);
   });
 
-  it('returns error when no inputPort', () => {
-    const pieces = [makePiece('o', 'outputPort', 0, 0)];
+  it('returns error when no source', () => {
+    const pieces = [makePiece('o', 'terminal', 0, 0)];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'error')).toBe(true);
   });
@@ -348,9 +348,9 @@ describe('executeMachine advanced', () => {
 describe('Kepler piece engine behavior', () => {
   it('Latch write mode stores tape value across pulses', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('lt', 'latch', 1, 0, { latchMode: 'write' }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const state = makeState(pieces, { inputTape: [1, 0], outputTape: [-1, -1] });
     executeMachine(state, 0);
@@ -363,9 +363,9 @@ describe('Kepler piece engine behavior', () => {
 
   it('Latch read mode outputs stored value', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('lt', 'latch', 1, 0, { latchMode: 'read', storedValue: 1 }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     const ltStep = steps.find(s => s.type === 'latch');
@@ -375,9 +375,9 @@ describe('Kepler piece engine behavior', () => {
 
   it('Latch read mode with null stored value blocks', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('lt', 'latch', 1, 0, { latchMode: 'read', storedValue: null }),
-      makePiece('o', 'outputPort', 2, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     const ltStep = steps.find(s => s.type === 'latch');
@@ -386,34 +386,34 @@ describe('Kepler piece engine behavior', () => {
 
   it('Merger passes signal from left input', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 1, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 1, { isPrePlaced: true }),
       makePiece('c', 'conveyor', 1, 1),
       makePiece('m', 'merger', 2, 1),
-      makePiece('o', 'outputPort', 3, 1, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 3, 1, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'merger')).toBe(true);
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 
   it('Bridge passes signal through horizontal path', () => {
     const pieces = [
-      makePiece('s', 'inputPort', 0, 0, { isPrePlaced: true }),
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('c1', 'conveyor', 1, 0),
       makePiece('br', 'bridge', 2, 0),
       makePiece('c2', 'conveyor', 3, 0),
-      makePiece('o', 'outputPort', 4, 0, { isPrePlaced: true }),
+      makePiece('o', 'terminal', 4, 0, { isPrePlaced: true }),
     ];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'bridge')).toBe(true);
-    expect(steps.some(s => s.type === 'outputPort' && s.success)).toBe(true);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 });
 
 // ─── calculateStars ──────────────────────────────────────────────────────────
 
 describe('calculateStars', () => {
-  const success = [{ pieceId: 'o', type: 'outputPort', timestamp: 0, success: true }];
+  const success = [{ pieceId: 'o', type: 'terminal', timestamp: 0, success: true }];
   const fail = [{ pieceId: 'x', type: 'void', timestamp: 0, success: false }];
 
   it('returns 1 on failure (void display)', () => {

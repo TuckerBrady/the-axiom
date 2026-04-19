@@ -143,7 +143,7 @@ export function calculateScore(params: {
   succeeded?: boolean;
 }): ScoreResult {
   const { executionSteps, placedPieces, totalTrayPieces, engageDurationMs, elapsedSeconds } = params;
-  const succeeded = params.succeeded ?? executionSteps.some(s => s.type === 'outputPort' && s.success);
+  const succeeded = params.succeeded ?? executionSteps.some(s => s.type === 'terminal' && s.success);
 
   const playerPieces = placedPieces.filter(p => !p.isPrePlaced);
   const trayTotal = totalTrayPieces ?? playerPieces.length; // fallback to placed count

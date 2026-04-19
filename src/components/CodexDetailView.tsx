@@ -34,13 +34,13 @@ export const CODEX_PIECES: PieceEntry[] = [
     description: 'A mechanical belt that accepts an item on one end and delivers it to the other. No branching. No memory.',
     cogsNote: 'The Conveyor carries signal in a straight line. Input enters from the rear, output exits the front. It cannot bend, branch, or redirect \u2014 that is not what it is for. Direction is set before you place it, not after. A Conveyor facing away from the signal source is not a Conveyor. It is a dead end. Rotate first.',
     firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
-  { id: 'inputPort', name: 'Input Port', type: 'Physics',
+  { id: 'source', name: 'Source', type: 'Physics',
     description: 'Primary input node. The origin of all signal flow aboard the vessel.',
-    cogsNote: 'The Input Port is not a piece you place. It is fixed infrastructure \u2014 part of the ship itself. Signal begins here and nowhere else.',
+    cogsNote: 'The Source is not a piece you place. It is fixed infrastructure \u2014 part of the ship itself. Signal begins here and nowhere else.',
     firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
-  { id: 'outputPort', name: 'Output Port', type: 'Physics',
+  { id: 'terminal', name: 'Terminal', type: 'Physics',
     description: 'Terminal destination node. Accepts the final signal and confirms circuit completion.',
-    cogsNote: 'The Output Port is also fixed \u2014 you route to it, not with it. When signal arrives here, the system activates.',
+    cogsNote: 'The Terminal is also fixed \u2014 you route to it, not with it. When signal arrives here, the system activates.',
     firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
   { id: 'gear', name: 'Gear', type: 'Physics',
     description: 'A rotational transmission component. Accepts signal from one direction and redirects it ninety degrees.',
@@ -166,9 +166,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C3.x} y1={C3.y} x2={O.x} y2={O.y} lit={t > 0.68} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' }, { cell: C2, type: 'conveyor', color: '#00D4FF' }, { cell: C3, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'gear': {
@@ -183,11 +183,11 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
         </>), pieces: [
           // Bug 9 fix: C1 flows horizontally (left->right into Gear),
           // C2 flows vertically (top->bottom out of Gear toward Output).
-          { cell: S, type: 'inputPort', color: '#F0B429', rotation: 0 },
+          { cell: S, type: 'source', color: '#F0B429', rotation: 0 },
           { cell: C1, type: 'conveyor', color: '#00D4FF', rotation: 0 },
           { cell: G, type: 'gear', color: '#00D4FF', rotation: 0 },
           { cell: C2, type: 'conveyor', color: '#00D4FF', rotation: 90 },
-          { cell: O, type: 'outputPort', color: '#00C48C', rotation: 0 },
+          { cell: O, type: 'terminal', color: '#00C48C', rotation: 0 },
         ] };
       }
       case 'splitter': {
@@ -207,14 +207,14 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           {ballR && <SvgCircle cx={ballR.x} cy={ballR.y} r="5" fill="#00D4FF" />}
           {ballD && <SvgCircle cx={ballD.x} cy={ballD.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: SP, type: 'splitter', color: '#00D4FF' },
-          { cell: O1, type: 'outputPort', color: '#00C48C' },
-          { cell: O2, type: 'outputPort', color: '#00C48C' },
+          { cell: O1, type: 'terminal', color: '#00C48C' },
+          { cell: O2, type: 'terminal', color: '#00C48C' },
         ] };
       }
-      case 'inputPort': {
+      case 'source': {
         const S = getCell(1, 1, 3, 3);
         const r1 = S.r * 0.25 + (t * S.r * 0.6), r2 = S.r * 0.25 + (((t + 0.33) % 1) * S.r * 0.6), r3 = S.r * 0.25 + (((t + 0.66) % 1) * S.r * 0.6);
         const a1 = Math.max(0, 0.35 - t * 0.35), a2 = Math.max(0, 0.35 - ((t + 0.33) % 1) * 0.35), a3 = Math.max(0, 0.35 - ((t + 0.66) % 1) * 0.35);
@@ -222,9 +222,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a1} />
           <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a2} />
           <SvgCircle cx={S.x} cy={S.y} r={r3} fill="none" stroke="#F0B429" strokeWidth="1" opacity={a3} />
-        </>), pieces: [{ cell: S, type: 'inputPort', color: '#F0B429' }] };
+        </>), pieces: [{ cell: S, type: 'source', color: '#F0B429' }] };
       }
-      case 'outputPort': {
+      case 'terminal': {
         const S = getCell(0, 1, 5, 3), C1 = getCell(1, 1, 5, 3), C2 = getCell(2, 1, 5, 3), C3 = getCell(3, 1, 5, 3), O = getCell(4, 1, 5, 3);
         const ball = t < 0.85 ? interpPath([S, C1, C2, C3, O], t, 0.85) : O;
         return { svgContent: (<>
@@ -234,9 +234,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C3.x} y1={C3.y} x2={O.x} y2={O.y} lit={t > 0.68} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' }, { cell: C2, type: 'conveyor', color: '#00D4FF' }, { cell: C3, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'configNode': {
@@ -257,9 +257,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           {passed && t < PASS_T + 0.08 && <SvgText x={CN.x} y={CN.y - CN.r * 0.55} fill="#00C48C" fontSize="9" fontFamily="monospace" textAnchor="middle" fontWeight="bold">PASS</SvgText>}
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isPaused || passed ? '#A78BFA' : '#00D4FF'} />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: S, type: 'source', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: CN, type: 'configNode', color: '#A78BFA' }, { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'scanner': {
@@ -281,9 +281,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           {done && t < DONE_T + 0.1 && <SvgText x={SC.x + SC.r * 0.5} y={SC.y - SC.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>STORED</SvgText>}
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isReading || done ? '#A78BFA' : '#00D4FF'} />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: S, type: 'source', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: SC, type: 'scanner', color: '#A78BFA' }, { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'transmitter': {
@@ -305,9 +305,9 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           {isWriting && <SvgText x={TX.x + TX.r * 0.5} y={TX.y - TX.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>WRITING</SvgText>}
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isWriting || done ? '#A78BFA' : '#00D4FF'} />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
+          { cell: S, type: 'source', color: '#F0B429' }, { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: TX, type: 'transmitter', color: '#A78BFA' }, { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'merger': {
@@ -322,11 +322,11 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={M.x} y1={M.y} x2={O.x} y2={O.y} lit={t > 0.55} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: S2, type: 'conveyor', color: '#00D4FF', rotation: 90 },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: M, type: 'merger', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'bridge': {
@@ -344,11 +344,11 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={B.x} y1={B.y} x2={VBot.x} y2={VBot.y} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: B, type: 'bridge', color: '#00D4FF' },
           { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'inverter': {
@@ -361,11 +361,11 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: I, type: 'inverter', color: '#8B5CF6' },
           { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'counter': {
@@ -378,11 +378,11 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: CT, type: 'counter', color: '#8B5CF6' },
           { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       case 'latch': {
@@ -395,17 +395,17 @@ function PieceSimulation({ pieceType }: { pieceType: string }) {
           <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} />
           {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
         </>), pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' },
+          { cell: S, type: 'source', color: '#F0B429' },
           { cell: C1, type: 'conveyor', color: '#00D4FF' },
           { cell: L, type: 'latch', color: '#8B5CF6' },
           { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
       default: {
         const S = getCell(0, 1, 5, 3), O = getCell(4, 1, 5, 3);
         return { svgContent: null, pieces: [
-          { cell: S, type: 'inputPort', color: '#F0B429' }, { cell: O, type: 'outputPort', color: '#00C48C' },
+          { cell: S, type: 'source', color: '#F0B429' }, { cell: O, type: 'terminal', color: '#00C48C' },
         ] };
       }
     }

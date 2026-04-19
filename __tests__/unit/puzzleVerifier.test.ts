@@ -12,7 +12,7 @@ function mp(id: string, type: PlacedPiece['type'], x: number, y: number, pre = f
 const BASE_LEVEL: LevelDefinition = {
   id: 'test', name: 'Test', sector: 'test', description: '', cogsLine: '',
   gridWidth: 8, gridHeight: 7,
-  prePlacedPieces: [mp('s', 'inputPort', 1, 3, true), mp('o', 'outputPort', 5, 3, true)],
+  prePlacedPieces: [mp('s', 'source', 1, 3, true), mp('o', 'terminal', 5, 3, true)],
   availablePieces: ['conveyor', 'conveyor', 'conveyor'],
   dataTrail: { cells: [], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],

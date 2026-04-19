@@ -73,7 +73,7 @@ function IntegrityBar({ percent }: { percent: number }) {
 
 // ─── Board cell ───────────────────────────────────────────────────────────────
 
-type CellKind = 'inputPort' | 'outputPort' | 'empty' | 'conveyor';
+type CellKind = 'source' | 'terminal' | 'empty' | 'conveyor';
 
 function BoardCell({
   kind,
@@ -85,14 +85,14 @@ function BoardCell({
   onPress?: () => void;
 }) {
   const content =
-    kind === 'inputPort' ? <PieceIcon type="inputPort" size={56} /> :
-    kind === 'outputPort' ? <PieceIcon type="outputPort" size={56} /> :
+    kind === 'source' ? <PieceIcon type="source" size={56} /> :
+    kind === 'terminal' ? <PieceIcon type="terminal" size={56} /> :
     kind === 'conveyor' ? <PieceIcon type="conveyor" size={64} /> :
     isTarget ? <Text style={s.emptyPlus}>+</Text> : null;
 
   const cellStyle =
-    kind === 'inputPort' ? s.cellSource :
-    kind === 'outputPort' ? s.cellOutput :
+    kind === 'source' ? s.cellSource :
+    kind === 'terminal' ? s.cellOutput :
     s.cellRegular;
 
   return (
@@ -262,7 +262,7 @@ export default function RepairScreen({ navigation }: Props) {
         {/* Board */}
         <View ref={boardRef} style={s.board}>
           <View ref={srcRef} collapsable={false}>
-            <BoardCell kind="inputPort" />
+            <BoardCell kind="source" />
           </View>
           <View ref={convRef} collapsable={false}>
             <BoardCell
@@ -272,7 +272,7 @@ export default function RepairScreen({ navigation }: Props) {
             />
           </View>
           <View ref={outRef} collapsable={false}>
-            <BoardCell kind="outputPort" />
+            <BoardCell kind="terminal" />
           </View>
           {/* Signal beam SVG overlay — wrapped so pointerEvents
               component prop reliably passes touches through on iOS. */}
