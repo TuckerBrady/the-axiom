@@ -130,6 +130,11 @@ export type LevelDefinition = {
   // levels leave both undefined.
   inputTape?: number[];
   expectedOutput?: number[];
+  // Minimum number of pulses that must reach Terminal for the level
+  // to pass. If omitted, defaults to 1 (any single successful pulse
+  // is sufficient). For tape-enabled levels without a Transmitter,
+  // this replaces expectedOutput as the success condition.
+  requiredTerminalCount?: number;
   // Documentation fields — not rendered in game. Used by level designers
   // to verify each level teaches what it claims to teach.
   computationalGoal?: string;

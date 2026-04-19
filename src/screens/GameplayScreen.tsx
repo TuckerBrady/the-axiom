@@ -278,6 +278,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showVoid, setShowVoid] = useState(false);
   const [showWrongOutput, setShowWrongOutput] = useState(false);
   const [wrongOutputData, setWrongOutputData] = useState<{ expected: number[]; produced: number[] } | null>(null);
+  const [showInsufficientPulses, setShowInsufficientPulses] = useState(false);
+  const [pulseResultData, setPulseResultData] = useState<{
+    results: boolean[];
+    required: number;
+    achieved: number;
+  } | null>(null);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
@@ -326,6 +332,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const valueBubblePosRef = useRef<{ x: number; y: number } | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Counts pulses that reached Terminal with success during handleEngage.
+  // Read by the live pulse counter; reset at the start of each run.
+  const terminalSuccessCountRef = useRef(0);
   const cacheRef = useRef<MeasurementCache>({
     board: { x: 0, y: 0 },
     input: null,
@@ -545,7 +554,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
-    if (isExecuting || showResults || showVoid || showWrongOutput) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
 
     if (selectedPieceFromTray) {
       const count = availableCounts[selectedPieceFromTray] || 0;
@@ -579,7 +588,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((piece: PlacedPiece) => {
-    if (isExecuting || showResults || showVoid || showWrongOutput) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
     if (piece.isPrePlaced) return;
 
     // Type-specific tap actions
@@ -599,7 +608,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Long press returns piece to tray (no ghost/held state) ──
   const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
     if (piece.isPrePlaced) return;
-    if (isExecuting || showResults || showVoid || showWrongOutput) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
     deletePiece(piece.id);
   }, [isExecuting, showResults, showVoid, deletePiece]);
 
@@ -772,10 +781,21 @@ export default function GameplayScreen({ navigation }: Props) {
 
     // PHASE 2 — BEAM (one or more pulses)
     setBeamState(prev => ({ ...prev, phase: 'beam' }));
+    // Reset the live terminal-success counter for this run. Read by
+    // the pulse HUD to show "REACHED: X / N" progress.
+    terminalSuccessCountRef.current = 0;
     for (let p = 0; p < pulses.length; p++) {
       currentPulseRef.current = p;
       setCurrentPulseIndex(p);
       await engageRunPulse(ctx, pulses[p]);
+
+      const pulseReachedTerminal = pulses[p].some(
+        s => s.type === 'terminal' && s.success,
+      );
+      if (pulseReachedTerminal) {
+        terminalSuccessCountRef.current += 1;
+      }
+
       if (p < pulses.length - 1) {
         if (sourcePiece) engageFlashPiece(ctx, sourcePiece.id, '#F0B429');
         await new Promise(r => setTimeout(r, 80));
@@ -797,6 +817,14 @@ export default function GameplayScreen({ navigation }: Props) {
     const reachedOutputEveryPulse = steps.filter(s => s.type === 'terminal' && s.success).length >= (pulses.length || 1);
     const wrongOutput = hasTape && reachedOutputEveryPulse && !tapeMatches;
 
+    // Count pulses that reached Terminal. Levels without a Transmitter
+    // use this for their success condition via requiredTerminalCount.
+    const terminalSuccessCount = steps.filter(
+      s => s.type === 'terminal' && s.success,
+    ).length;
+    const requiredCount = level.requiredTerminalCount ?? 1;
+    const metPulseRequirement = terminalSuccessCount >= requiredCount;
+
     if (wrongOutput) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
@@ -810,8 +838,41 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
 
+    // Insufficient-pulses failure (no Transmitter, requiredTerminalCount
+    // not met). Fires red rings then shows the INSUFFICIENT PULSES modal.
+    if (!metPulseRequirement && !wrongOutput) {
+      const pulseResults: boolean[] = [];
+      for (let p = 0; p < pulses.length; p++) {
+        const reached = pulses[p].some(
+          s => s.type === 'terminal' && s.success,
+        );
+        pulseResults.push(reached);
+      }
+
+      const outputPiece = machineState.pieces.find(pp => pp.type === 'terminal');
+      if (outputPiece) {
+        setPieceAnimState(prev => {
+          const next = new Map(prev.failColors);
+          next.set(outputPiece.id, '#FF3B3B');
+          return { ...prev, failColors: next };
+        });
+        const op = getPieceCenter(outputPiece.id);
+        if (op) await runWrongOutputRings(ctx, op);
+      }
+
+      setBeamState(prev => ({ ...prev, phase: 'idle' }));
+      setPulseResultData({
+        results: pulseResults,
+        required: requiredCount,
+        achieved: terminalSuccessCount,
+      });
+      setShowInsufficientPulses(true);
+      if (!isAxiomLevel) loseLife();
+      return;
+    }
+
     // PHASE 3 — LOCK (400ms) — only on success (and matching tape if tape level)
-    const succeededFinal = !wrongOutput && steps.some(s => s.type === 'terminal' && s.success);
+    const succeededFinal = !wrongOutput && metPulseRequirement;
     if (succeededFinal) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
@@ -838,7 +899,7 @@ export default function GameplayScreen({ navigation }: Props) {
       return;
     }
 
-    const succeeded = !wrongOutput && steps.some(s => s.type === 'terminal' && s.success);
+    const succeeded = !wrongOutput && metPulseRequirement;
     if (succeeded) {
       const engageDurationMs = Date.now() - engageStartTime;
       const routed = await handleSuccess({
@@ -928,6 +989,9 @@ export default function GameplayScreen({ navigation }: Props) {
     setChargeState(CHARGE_INITIAL);
     setLockRings([]);
     setCurrentPulseIndex(0);
+    setShowInsufficientPulses(false);
+    setPulseResultData(null);
+    terminalSuccessCountRef.current = 0;
     reset();
     // Restart the elapsed timer from zero.
     setElapsedSeconds(0);
@@ -1005,6 +1069,9 @@ export default function GameplayScreen({ navigation }: Props) {
             {level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam' && (
               <Text style={styles.pulseCounterText}>
                 PULSE {Math.min(currentPulseIndex + 1, level.inputTape.length)} / {level.inputTape.length}
+                {level.requiredTerminalCount && level.requiredTerminalCount > 1
+                  ? ` — REACHED: ${terminalSuccessCountRef.current} / ${level.requiredTerminalCount}`
+                  : ''}
               </Text>
             )}
           </View>
@@ -1122,6 +1189,14 @@ export default function GameplayScreen({ navigation }: Props) {
                     );
                   })}
                 </View>
+              </View>
+            )}
+            {level.requiredTerminalCount && level.requiredTerminalCount > 1 &&
+             !isExecuting && !showResults && !showVoid && !showWrongOutput && !showInsufficientPulses && (
+              <View style={styles.pulseTargetRow}>
+                <Text style={styles.pulseTargetText}>
+                  TARGET: {level.requiredTerminalCount} OF {level.inputTape?.length ?? '?'} PULSES MUST REACH OUTPUT
+                </Text>
               </View>
             )}
           </View>
@@ -1863,6 +1938,60 @@ export default function GameplayScreen({ navigation }: Props) {
                 activeOpacity={0.8}
               >
                 <Text style={styles.wrongOutputRetryText}>RETRY</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* ── Insufficient Pulses Overlay (requiredTerminalCount not met) ── */}
+        {showInsufficientPulses && pulseResultData && (
+          <Animated.View style={styles.completionCardWrap} entering={FadeIn.duration(300)}>
+            <View style={styles.wrongOutputCard}>
+              <Text style={styles.wrongOutputTitle}>INSUFFICIENT PULSES</Text>
+              <Text style={styles.insufficientSubtext}>
+                {pulseResultData.achieved} of {pulseResultData.required} required pulses reached the output.
+              </Text>
+              <View style={styles.pulseResultsRow}>
+                {pulseResultData.results.map((reached, i) => (
+                  <View
+                    key={`pulse-${i}`}
+                    style={[
+                      styles.pulseResultCell,
+                      reached ? styles.pulseResultPass : styles.pulseResultFail,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.pulseResultText,
+                      { color: reached ? '#22C55E' : '#EF4444' },
+                    ]}>
+                      {'P' + (i + 1)}
+                    </Text>
+                    <Text style={[
+                      styles.pulseResultIcon,
+                      { color: reached ? '#22C55E' : '#EF4444' },
+                    ]}>
+                      {reached ? 'PASS' : 'BLOCKED'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+                <CogsAvatar size="small" state="damaged" />
+                {/* [PROPOSED] COGS line — Tucker sign-off required before removing tag */}
+                <Text style={styles.wrongOutputCogsText}>
+                  {"\""}The machine ran. Not enough pulses completed the route. Check the gate configuration.{"\""}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.wrongOutputRetryBtn}
+                onPress={() => {
+                  setShowInsufficientPulses(false);
+                  setPulseResultData(null);
+                  handleReset();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -2945,6 +3074,60 @@ const styles = StyleSheet.create({
     color: '#1A3050',
     marginTop: 2,
     letterSpacing: 1,
+  },
+  pulseTargetRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  pulseTargetText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 2,
+    color: Colors.amber,
+    textTransform: 'uppercase',
+    opacity: 0.7,
+  },
+  insufficientSubtext: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: Colors.muted,
+    textAlign: 'center',
+    marginBottom: 12,
+    letterSpacing: 1,
+  },
+  pulseResultsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginVertical: 8,
+  },
+  pulseResultCell: {
+    width: 44,
+    height: 44,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pulseResultPass: {
+    borderColor: 'rgba(34, 197, 94, 0.4)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+  },
+  pulseResultFail: {
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+    backgroundColor: 'rgba(239, 68, 68, 0.08)',
+  },
+  pulseResultText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 1,
+  },
+  pulseResultIcon: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 7,
+    letterSpacing: 1,
+    marginTop: 2,
   },
   tapeSection: {
     paddingHorizontal: Spacing.md,

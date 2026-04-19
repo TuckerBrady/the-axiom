@@ -293,7 +293,7 @@ export const levelA1_5: LevelDefinition = {
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'configNode', 'scanner'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0],
-  expectedOutput: [1, 0, 1, 1, 0],
+  requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6,
   systemRepaired: 'Communication Array',
