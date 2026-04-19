@@ -2,6 +2,7 @@ import {
   hexToRgba,
   getPulseSpeed,
   getTapeCellPosFromCache,
+  computeWaypointDists,
 } from '../../src/game/bubbleMath';
 
 describe('hexToRgba', () => {
@@ -59,5 +60,58 @@ describe('getTapeCellPosFromCache', () => {
     const tall = { x: 0, y: 0, w: 100, h: 80 };
     expect(getTapeCellPosFromCache(tall, 0).y).toBe(40);
     expect(getTapeCellPosFromCache(tall, 3).y).toBe(40);
+  });
+});
+
+describe('computeWaypointDists', () => {
+  it('returns [0] for a single waypoint (no path)', () => {
+    expect(computeWaypointDists([{ x: 10, y: 10 }])).toEqual([0]);
+  });
+
+  it('returns [0] for an empty list', () => {
+    expect(computeWaypointDists([])).toEqual([0]);
+  });
+
+  it('accumulates distance along horizontal segments', () => {
+    const wps = [
+      { x: 0, y: 0 },
+      { x: 40, y: 0 },
+      { x: 100, y: 0 },
+    ];
+    expect(computeWaypointDists(wps)).toEqual([0, 40, 100]);
+  });
+
+  it('accumulates distance along vertical segments', () => {
+    const wps = [
+      { x: 50, y: 50 },
+      { x: 50, y: 110 },
+      { x: 50, y: 150 },
+    ];
+    expect(computeWaypointDists(wps)).toEqual([0, 60, 100]);
+  });
+
+  it('uses Euclidean distance for diagonal segments', () => {
+    // 3-4-5 triangle → segment length 5
+    const wps = [
+      { x: 0, y: 0 },
+      { x: 3, y: 4 },
+      { x: 3, y: 10 }, // +6 vertical
+    ];
+    expect(computeWaypointDists(wps)).toEqual([0, 5, 11]);
+  });
+
+  it('produces dists whose last entry equals the signal path total length', () => {
+    // Confirms the distance array endpoints align with buildSignalPath's
+    // per-segment `e` field — the property runLinearPath relies on.
+    const wps = [
+      { x: 0, y: 0 },
+      { x: 0, y: 80 },
+      { x: 60, y: 80 },
+      { x: 60, y: 140 },
+    ];
+    const dists = computeWaypointDists(wps);
+    expect(dists.length).toBe(wps.length);
+    expect(dists[0]).toBe(0);
+    expect(dists[dists.length - 1]).toBe(80 + 60 + 60);
   });
 });

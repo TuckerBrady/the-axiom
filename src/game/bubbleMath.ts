@@ -38,3 +38,22 @@ export const getTapeCellPosFromCache = (
   const cellCenterY = cached.y + cached.h / 2;
   return { x: cellCenterX, y: cellCenterY };
 };
+
+// Cumulative distance along the signal path at which each waypoint
+// sits. waypoint[0] = 0 (start); waypoint[i] = end of segment i-1.
+// Used for distance-based waypoint detection so a beam head cannot
+// skip a tape-piece interaction on frames where it jumps far along
+// the path in a single RAF tick.
+export const computeWaypointDists = (
+  waypoints: { x: number; y: number }[],
+): number[] => {
+  const dists: number[] = [0];
+  let total = 0;
+  for (let i = 1; i < waypoints.length; i++) {
+    const dx = waypoints[i].x - waypoints[i - 1].x;
+    const dy = waypoints[i].y - waypoints[i - 1].y;
+    total += Math.sqrt(dx * dx + dy * dy);
+    dists.push(total);
+  }
+  return dists;
+};

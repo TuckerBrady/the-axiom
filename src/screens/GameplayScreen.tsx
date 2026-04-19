@@ -130,6 +130,7 @@ import {
   hexToRgba,
   getPulseSpeed,
   getTapeCellPosFromCache,
+  computeWaypointDists,
   type TapeCellContainerMeasure,
 } from '../game/bubbleMath';
 
@@ -1042,6 +1043,11 @@ export default function GameplayScreen({ navigation }: Props) {
         return;
       }
       const path = buildSignalPath(waypoints);
+      // Distance along the path at which each waypoint sits. Used for
+      // distance-based waypoint detection so the beam head cannot skip
+      // a tape-piece interaction on frames where it jumps far along
+      // the path in a single RAF tick.
+      const waypointDists = computeWaypointDists(waypoints);
       const refLen = CELL_SIZE * 4;
       const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen)));
       const segColors = pathSteps.map(s => getBeamColor(s.type));
@@ -1103,10 +1109,11 @@ export default function GameplayScreen({ navigation }: Props) {
         }
         for (let i = 0; i < waypoints.length; i++) {
           if (flashed.has(i)) continue;
-          const wp = waypoints[i];
-          const ddx = head.x - wp.x;
-          const ddy = head.y - wp.y;
-          if (Math.sqrt(ddx * ddx + ddy * ddy) < 4 || (i === waypoints.length - 1 && rawT >= 1)) {
+          const wpDist = waypointDists[i];
+          // Distance-based detection — fires as soon as the head passes
+          // the waypoint's position on the path, even if a single frame
+          // jumped past it. The `flashed` set prevents double-firing.
+          if (headDist >= wpDist || (i === waypoints.length - 1 && rawT >= 1)) {
             flashed.add(i);
             const stp = pathSteps[i];
             const isVoidBlocker = hasVoid && i === waypoints.length - 1;
