@@ -118,9 +118,17 @@ import {
   handleSuccess,
   handleWrongOutput,
   handleVoidFailure,
+  BEAM_INITIAL,
+  PIECE_ANIM_INITIAL,
+  BUBBLE_INITIAL,
+  CHARGE_INITIAL,
   type Pt,
   type EngagementContext,
   type MeasurementCache,
+  type BeamState,
+  type PieceAnimState,
+  type BubbleAnimState,
+  type ChargeState,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -284,34 +292,19 @@ export default function GameplayScreen({ navigation }: Props) {
   const [elaborationMult, setElaborationMult] = useState(1);
   const [flashColor, setFlashColor] = useState<string | null>(null);
 
-  // ── New signal beam animation state ──
-  const [beamHeads, setBeamHeads] = useState<Pt[]>([]);
-  const [beamHeadColor, setBeamHeadColor] = useState('#8B5CF6');
-  const [trailSegments, setTrailSegments] = useState<{ points: Pt[]; color: string }[]>([]);
-  const [branchTrails, setBranchTrails] = useState<{ points: Pt[]; color: string }[][]>([]);
-  const [voidPulse, setVoidPulse] = useState<{ x: number; y: number; r: number; opacity: number } | null>(null);
-  const [litWires, setLitWires] = useState<Set<string>>(new Set());
-  const [flashingPieces, setFlashingPieces] = useState<Map<string, string>>(new Map());
-  // Active per-piece animations (rolling, spinning, charging, etc.) keyed by
-  // piece id. Values are animation tags matching PieceIcon props.
-  const [activeAnimations, setActiveAnimations] = useState<Map<string, string>>(new Map());
-  const [gateResults, setGateResults] = useState<Map<string, 'pass' | 'block'>>(new Map());
-  // Per-piece failure colors for red-X overlay on wrong output / void.
-  const [failColors, setFailColors] = useState<Map<string, string>>(new Map());
-  const [lockedPieces, setLockedPieces] = useState<Set<string>>(new Set());
-  const [chargePos, setChargePos] = useState<Pt | null>(null);
-  const [chargeProgress, setChargeProgress] = useState(0);
+  // ── Animation state (grouped to reduce per-frame setState calls) ──
+  // beamState: heads, headColor, trails, beamState.branchTrails, beamState.voidPulse, phase, beamState.litWires
+  const [beamState, setBeamState] = useState<BeamState>(BEAM_INITIAL);
+  // pieceAnimState: flashing, animations, gates, pieceAnimState.failColors, locked
+  const [pieceAnimState, setPieceAnimState] = useState<PieceAnimState>(PIECE_ANIM_INITIAL);
+  // bubbleAnimState: bubble, trail
+  const [bubbleAnimState, setBubbleAnimState] = useState<BubbleAnimState>(BUBBLE_INITIAL);
+  // chargeState: pos, progress
+  const [chargeState, setChargeState] = useState<ChargeState>(CHARGE_INITIAL);
+
+  // Lock rings fire twice (start/end of lock phase), not at RAF rate,
+  // so they remain on their own.
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
-  const [valueBubble, setValueBubble] = useState<{
-    screenX: number;
-    screenY: number;
-    color: string;
-    value: string;
-    size?: number;
-  } | null>(null);
-  const [bubbleTrail, setBubbleTrail] = useState<
-    Array<{ x: number; y: number; opacity: number; size: number }>
-  >([]);
   const [tapeCellHighlights, setTapeCellHighlights] = useState<
     Map<string, 'read' | 'write' | 'gate-pass' | 'gate-block'>
   >(new Map());
@@ -325,7 +318,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const [visualOutputOverride, setVisualOutputOverride] = useState<
     number[] | null
   >(null);
-  const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
@@ -723,26 +715,11 @@ export default function GameplayScreen({ navigation }: Props) {
       CELL_SIZE,
       getPieceCenter,
       machineStatePieces: machineState.pieces,
-      setBeamHeads,
-      setBeamHeadColor,
-      setTrailSegments,
-      setBranchTrails,
-      setVoidPulse,
-      setLitWires,
-      setFlashingPieces,
-      setActiveAnimations,
-      setGateResults,
-      setFailColors,
-      setLockedPieces,
-      setChargePos,
-      setChargeProgress,
-      setSignalPhase,
+      setBeamState,
+      setPieceAnimState,
+      setBubbleAnimState,
+      setChargeState,
       setLockRings,
-      setValueBubble,
-      setBubbleTrail,
-      valueBubblePosRef,
-      bubbleHistoryRef,
-      bubbleTrailRAFRef,
       setTapeCellHighlights,
       setVisualTrailOverride,
       setVisualOutputOverride,
@@ -750,6 +727,9 @@ export default function GameplayScreen({ navigation }: Props) {
       currentPulseRef,
       animFrameRef,
       flashTimersRef,
+      valueBubblePosRef,
+      bubbleHistoryRef,
+      bubbleTrailRAFRef,
       boardGridRef,
       inputTapeCellsRef,
       dataTrailCellsRef,
@@ -791,7 +771,7 @@ export default function GameplayScreen({ navigation }: Props) {
     cacheRef.current = { board: board0, input: input0, trail: trail0, output: output0 };
 
     // PHASE 2 — BEAM (one or more pulses)
-    setSignalPhase('beam');
+    setBeamState(prev => ({ ...prev, phase: 'beam' }));
     for (let p = 0; p < pulses.length; p++) {
       currentPulseRef.current = p;
       setCurrentPulseIndex(p);
@@ -820,10 +800,10 @@ export default function GameplayScreen({ navigation }: Props) {
     if (wrongOutput) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
-        setFailColors(prev => {
-          const next = new Map(prev);
+        setPieceAnimState(prev => {
+          const next = new Map(prev.failColors);
           next.set(outputPiece.id, '#FF3B3B');
-          return next;
+          return { ...prev, failColors: next };
         });
         const op = getPieceCenter(outputPiece.id);
         if (op) await runWrongOutputRings(ctx, op);
@@ -839,7 +819,7 @@ export default function GameplayScreen({ navigation }: Props) {
         if (op) await runLockPhase(ctx, op);
       }
     }
-    setSignalPhase('idle');
+    setBeamState(prev => ({ ...prev, phase: 'idle' }));
 
     // Wrong output: show diagnostic modal instead of void
     if (wrongOutput && storeOutputTape && level.expectedOutput) {
@@ -888,7 +868,7 @@ export default function GameplayScreen({ navigation }: Props) {
       if (routed) return;
 
       // Post-completion beam replay loop — visual only, no re-scoring.
-      setSignalPhase('lock');
+      setBeamState(prev => ({ ...prev, phase: 'lock' }));
       loopingRef.current = true;
       const terminalPieceId = machineState.pieces.find(pc => pc.type === 'terminal')?.id ?? null;
       void runReplayLoop({
@@ -937,27 +917,17 @@ export default function GameplayScreen({ navigation }: Props) {
     }
     bubbleHistoryRef.current = [];
     valueBubblePosRef.current = null;
-    setValueBubble(null);
-    setBubbleTrail([]);
+    setBubbleAnimState(BUBBLE_INITIAL);
     setTapeCellHighlights(new Map());
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
-    setBeamHeads([]);
-    setTrailSegments([]);
-    setBranchTrails([]);
-    setVoidPulse(null);
-    setLitWires(new Set());
-    setFlashingPieces(new Map());
-    setLockedPieces(new Set());
-    setChargePos(null);
+    setBeamState(BEAM_INITIAL);
+    setPieceAnimState(PIECE_ANIM_INITIAL);
+    setChargeState(CHARGE_INITIAL);
     setLockRings([]);
-    setSignalPhase('idle');
     setCurrentPulseIndex(0);
-    setActiveAnimations(new Map());
-    setGateResults(new Map());
-    setFailColors(new Map());
     reset();
     // Restart the elapsed timer from zero.
     setElapsedSeconds(0);
@@ -1032,7 +1002,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {!showResults && !showVoid && !tutorialIsActive && (
               <Text style={styles.timerText}>{formatMMSS(elapsedSeconds)}</Text>
             )}
-            {level.inputTape && level.inputTape.length > 0 && signalPhase === 'beam' && (
+            {level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam' && (
               <Text style={styles.pulseCounterText}>
                 PULSE {Math.min(currentPulseIndex + 1, level.inputTape.length)} / {level.inputTape.length}
               </Text>
@@ -1049,8 +1019,8 @@ export default function GameplayScreen({ navigation }: Props) {
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
               <View ref={inputTapeCellsRef} style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
-                  const isActive = signalPhase === 'beam' && i === currentPulseIndex;
-                  const isPast = signalPhase === 'beam' && i < currentPulseIndex;
+                  const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
+                  const isPast = beamState.phase === 'beam' && i < currentPulseIndex;
                   const highlight = tapeCellHighlights.get(`in-${i}`);
                   return (
                     <View key={`in-${i}`} style={styles.tapeCellWrap}>
@@ -1274,8 +1244,8 @@ export default function GameplayScreen({ navigation }: Props) {
                 const dashOff = Math.round(CELL_SIZE / 8);
 
                 const wireKey = `${wire.fromPieceId}_${wire.toPieceId}`;
-                const isLit = litWires.has(wireKey);
-                const isLocked = signalPhase === 'lock' && lockedPieces.size > 0;
+                const isLit = beamState.litWires.has(wireKey);
+                const isLocked = beamState.phase === 'lock' && pieceAnimState.locked.size > 0;
                 const strokeC = isLocked ? '#00C48C' : isLit ? getBeamColor(toPiece.type) : wireColor;
                 const strokeOp = isLocked ? 0.45 : isLit ? 0.85 : 0.5;
                 const sw = isLit || isLocked ? wireSW * 1.6 : wireSW;
@@ -1305,38 +1275,38 @@ export default function GameplayScreen({ navigation }: Props) {
               height={gridH}
               style={StyleSheet.absoluteFill}
             >
-              {signalPhase === 'charge' && chargePos && (
+              {beamState.phase === 'charge' && chargeState.pos && (
                 <>
                   <Circle
-                    cx={chargePos.x} cy={chargePos.y}
-                    r={6 + chargeProgress * 18}
+                    cx={chargeState.pos.x} cy={chargeState.pos.y}
+                    r={6 + chargeState.progress * 18}
                     fill="none" stroke="#8B5CF6" strokeWidth={2}
-                    opacity={0.8 * (1 - chargeProgress)}
+                    opacity={0.8 * (1 - chargeState.progress)}
                   />
                   <Circle
-                    cx={chargePos.x} cy={chargePos.y}
-                    r={2 + chargeProgress * 26}
+                    cx={chargeState.pos.x} cy={chargeState.pos.y}
+                    r={2 + chargeState.progress * 26}
                     fill="none" stroke="#8B5CF6" strokeWidth={1.5}
-                    opacity={0.5 * (1 - chargeProgress)}
+                    opacity={0.5 * (1 - chargeState.progress)}
                   />
                 </>
               )}
               {/* Pre-fork trail segments */}
-              {trailSegments.map((seg, i) => (
+              {beamState.trails.map((seg, i) => (
                 seg.points.length > 1 ? (
                   <Polyline
                     key={`seg-${i}`}
                     points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
                     fill="none"
                     stroke={seg.color}
-                    strokeWidth={i === trailSegments.length - 1 ? 2.5 : 2}
+                    strokeWidth={i === beamState.trails.length - 1 ? 2.5 : 2}
                     strokeLinecap="round"
-                    opacity={i === trailSegments.length - 1 ? 0.72 : 0.45}
+                    opacity={i === beamState.trails.length - 1 ? 0.72 : 0.45}
                   />
                 ) : null
               ))}
               {/* Fork branch trail segments */}
-              {branchTrails.map((branch, bi) =>
+              {beamState.branchTrails.map((branch, bi) =>
                 branch.map((seg, si) => (
                   seg.points.length > 1 ? (
                     <Polyline
@@ -1351,17 +1321,17 @@ export default function GameplayScreen({ navigation }: Props) {
                   ) : null
                 )),
               )}
-              {beamHeads.map((bh, bi) => (
+              {beamState.heads.map((bh, bi) => (
                 <G key={`bh-${bi}`}>
-                  <Circle cx={bh.x} cy={bh.y} r={11} fill={beamHeadColor} opacity={0.25} />
+                  <Circle cx={bh.x} cy={bh.y} r={11} fill={beamState.headColor} opacity={0.25} />
                   <Circle cx={bh.x} cy={bh.y} r={3.5} fill="white" opacity={0.95} />
                 </G>
               ))}
-              {voidPulse && (
+              {beamState.voidPulse && (
                 <Circle
-                  cx={voidPulse.x} cy={voidPulse.y} r={voidPulse.r}
+                  cx={beamState.voidPulse.x} cy={beamState.voidPulse.y} r={beamState.voidPulse.r}
                   stroke="#FF3B3B" strokeWidth={2.5}
-                  fill="none" opacity={voidPulse.opacity}
+                  fill="none" opacity={beamState.voidPulse.opacity}
                 />
               )}
               {lockRings.map((ring, i) => (
@@ -1387,8 +1357,8 @@ export default function GameplayScreen({ navigation }: Props) {
               const cellPy = piece.gridY * CELL_SIZE + offset;
               const iconSize = (CELL_SIZE - 4) * 0.60;
               const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
-              const flashColorP = flashingPieces.get(piece.id);
-              const isLocked = lockedPieces.has(piece.id);
+              const flashColorP = pieceAnimState.flashing.get(piece.id);
+              const isLocked = pieceAnimState.locked.has(piece.id);
               const borderColorP = flashColorP ? flashColorP
                 : isLocked ? '#00C48C'
                 : undefined;
@@ -1427,16 +1397,16 @@ export default function GameplayScreen({ navigation }: Props) {
                       type={piece.type}
                       size={iconSize}
                       color={iconColor}
-                      spinning={activeAnimations.get(piece.id) === 'spinning'}
-                      scanning={activeAnimations.get(piece.id) === 'scanning'}
-                      transmitting={activeAnimations.get(piece.id) === 'transmitting'}
-                      rolling={activeAnimations.get(piece.id) === 'rolling'}
-                      splitting={activeAnimations.get(piece.id) === 'splitting'}
-                      gating={activeAnimations.get(piece.id) === 'gating'}
-                      gateResult={gateResults.get(piece.id) ?? null}
-                      locking={activeAnimations.get(piece.id) === 'locking'}
-                      charging={activeAnimations.get(piece.id) === 'charging'}
-                      failColor={failColors.get(piece.id) ?? null}
+                      spinning={pieceAnimState.animations.get(piece.id) === 'spinning'}
+                      scanning={pieceAnimState.animations.get(piece.id) === 'scanning'}
+                      transmitting={pieceAnimState.animations.get(piece.id) === 'transmitting'}
+                      rolling={pieceAnimState.animations.get(piece.id) === 'rolling'}
+                      splitting={pieceAnimState.animations.get(piece.id) === 'splitting'}
+                      gating={pieceAnimState.animations.get(piece.id) === 'gating'}
+                      gateResult={pieceAnimState.gates.get(piece.id) ?? null}
+                      locking={pieceAnimState.animations.get(piece.id) === 'locking'}
+                      charging={pieceAnimState.animations.get(piece.id) === 'charging'}
+                      failColor={pieceAnimState.failColors.get(piece.id) ?? null}
                       configValue={piece.type === 'configNode' ? piece.configValue : undefined}
                       connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
                     />
@@ -1685,17 +1655,19 @@ export default function GameplayScreen({ navigation }: Props) {
                 }
                 bubbleHistoryRef.current = [];
                 valueBubblePosRef.current = null;
-                setValueBubble(null);
-                setBubbleTrail([]);
+                setBubbleAnimState(BUBBLE_INITIAL);
                 setTapeCellHighlights(new Map());
                 setVisualTrailOverride(null);
                 setVisualOutputOverride(null);
-                setBeamHeads([]);
-                setTrailSegments([]);
-                setBranchTrails([]);
+                setBeamState(prev => ({
+                  ...prev,
+                  heads: [],
+                  trails: [],
+                  branchTrails: [],
+                  phase: 'idle',
+                }));
                 setLockRings([]);
-                setChargePos(null);
-                setSignalPhase('idle');
+                setChargeState(prev => ({ ...prev, pos: null }));
                 setShowCompletionCard(false);
                 setShowResults(true);
               }}
@@ -1879,15 +1851,14 @@ export default function GameplayScreen({ navigation }: Props) {
                   }
                   // Board state preserved — pieces stay where they are
                   // Reset execution state only
-                  setBeamHeads([]);
-                  setTrailSegments([]);
-                  setBranchTrails([]);
-                  setFlashingPieces(new Map());
-                  setActiveAnimations(new Map());
-                  setGateResults(new Map());
-                  setFailColors(new Map());
-                  setLockedPieces(new Set());
-                  setLitWires(new Set());
+                  setBeamState(prev => ({
+                    ...prev,
+                    heads: [],
+                    trails: [],
+                    branchTrails: [],
+                    litWires: new Set(),
+                  }));
+                  setPieceAnimState(PIECE_ANIM_INITIAL);
                 }}
                 activeOpacity={0.8}
               >
@@ -2243,7 +2214,7 @@ export default function GameplayScreen({ navigation }: Props) {
       )}
 
       {/* Ghost trail (fades behind the value bubble) */}
-      {bubbleTrail.map((ghost, i) => (
+      {bubbleAnimState.trail.map((ghost, i) => (
         <View
           key={`ghost-${i}`}
           pointerEvents="none"
@@ -2254,9 +2225,9 @@ export default function GameplayScreen({ navigation }: Props) {
             width: ghost.size,
             height: ghost.size,
             borderRadius: ghost.size / 2,
-            backgroundColor: valueBubble ? hexToRgba(valueBubble.color, 0.25) : 'transparent',
+            backgroundColor: bubbleAnimState.bubble ? hexToRgba(bubbleAnimState.bubble.color, 0.25) : 'transparent',
             opacity: ghost.opacity,
-            shadowColor: valueBubble?.color ?? 'transparent',
+            shadowColor: bubbleAnimState.bubble?.color ?? 'transparent',
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.4,
             shadowRadius: 16,
@@ -2266,22 +2237,22 @@ export default function GameplayScreen({ navigation }: Props) {
       ))}
 
       {/* Value bubble — shows the read/write value as it travels */}
-      {valueBubble && (
+      {bubbleAnimState.bubble && (
         <View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: valueBubble.screenX - 11,
-            top: valueBubble.screenY - 11,
-            width: valueBubble.size ?? 22,
-            height: valueBubble.size ?? 22,
+            left: bubbleAnimState.bubble.screenX - 11,
+            top: bubbleAnimState.bubble.screenY - 11,
+            width: bubbleAnimState.bubble.size ?? 22,
+            height: bubbleAnimState.bubble.size ?? 22,
             borderRadius: 11,
-            backgroundColor: hexToRgba(valueBubble.color, 0.2),
+            backgroundColor: hexToRgba(bubbleAnimState.bubble.color, 0.2),
             borderWidth: 1.5,
-            borderColor: hexToRgba(valueBubble.color, 0.7),
+            borderColor: hexToRgba(bubbleAnimState.bubble.color, 0.7),
             alignItems: 'center',
             justifyContent: 'center',
-            shadowColor: valueBubble.color,
+            shadowColor: bubbleAnimState.bubble.color,
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.8,
             shadowRadius: 12,
@@ -2291,13 +2262,13 @@ export default function GameplayScreen({ navigation }: Props) {
         >
           <Text
             style={{
-              fontSize: valueBubble.value.length > 1 ? 9 : 11,
+              fontSize: bubbleAnimState.bubble.value.length > 1 ? 9 : 11,
               fontWeight: 'bold',
               fontFamily: 'monospace',
-              color: valueBubble.color,
+              color: bubbleAnimState.bubble.color,
             }}
           >
-            {valueBubble.value}
+            {bubbleAnimState.bubble.value}
           </Text>
         </View>
       )}

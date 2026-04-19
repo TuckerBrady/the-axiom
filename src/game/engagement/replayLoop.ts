@@ -3,9 +3,10 @@ import type { RefObject } from 'react';
 import type { EngagementContext, ExecutionStep, MeasurementCache } from './types';
 import type { TapeCellContainerMeasure } from '../bubbleMath';
 import { runPulse } from './beamAnimation';
-import { runReplayChargePhase, } from './chargePhase';
+import { runReplayChargePhase } from './chargePhase';
 import { runReplayLockPhase } from './lockPhase';
 import { flashPiece } from './bubbleHelpers';
+import { setSignalPhase } from './stateHelpers';
 
 type GetBoardScreenPos = () => Promise<{ x: number; y: number }>;
 type MeasureTapeContainer = (
@@ -39,14 +40,21 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     await new Promise(r => setTimeout(r, 800));
     if (!ctx.loopingRef.current) break;
 
-    ctx.setBeamHeads([]);
-    ctx.setTrailSegments([]);
-    ctx.setBranchTrails([]);
-    ctx.setFlashingPieces(new Map());
-    ctx.setActiveAnimations(new Map());
-    ctx.setGateResults(new Map());
-    ctx.setChargePos(null);
-    ctx.setChargeProgress(0);
+    // Reset beam / piece-anim state in single setState calls per
+    // compound group, instead of one per field.
+    ctx.setBeamState(prev => ({
+      ...prev,
+      heads: [],
+      trails: [],
+      branchTrails: [],
+    }));
+    ctx.setPieceAnimState(prev => ({
+      ...prev,
+      flashing: new Map(),
+      animations: new Map(),
+      gates: new Map(),
+    }));
+    ctx.setChargeState({ pos: null, progress: 0 });
     ctx.setLockRings([]);
     ctx.setTapeCellHighlights(new Map());
     if (dataTrailCellsLength > 0) {
@@ -75,7 +83,7 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     };
     ctx.cacheRef.current = freshCache;
 
-    ctx.setSignalPhase('beam');
+    setSignalPhase(ctx.setBeamState, 'beam');
     for (let lp = 0; lp < pulses.length; lp++) {
       if (!ctx.loopingRef.current) break;
       ctx.currentPulseRef.current = lp;

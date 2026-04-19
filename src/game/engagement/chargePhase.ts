@@ -1,4 +1,9 @@
 import type { EngagementContext } from './types';
+import {
+  setChargePos as setChargePosField,
+  setChargeProgress as setChargeProgressField,
+  setSignalPhase,
+} from './stateHelpers';
 
 export async function runChargePhase(
   ctx: EngagementContext,
@@ -6,13 +11,13 @@ export async function runChargePhase(
 ): Promise<void> {
   const sp = ctx.getPieceCenter(sourcePieceId);
   if (!sp) return;
-  ctx.setChargePos(sp);
-  ctx.setSignalPhase('charge');
+  setChargePosField(ctx.setChargeState, sp);
+  setSignalPhase(ctx.setBeamState, 'charge');
   const chargeStart = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {
       const ct = Math.min(1, (performance.now() - chargeStart) / 280);
-      ctx.setChargeProgress(ct);
+      setChargeProgressField(ctx.setChargeState, ct);
       if (ct < 1) {
         ctx.animFrameRef.current = requestAnimationFrame(tick);
       } else {
@@ -21,7 +26,7 @@ export async function runChargePhase(
     };
     ctx.animFrameRef.current = requestAnimationFrame(tick);
   });
-  ctx.setChargePos(null);
+  setChargePosField(ctx.setChargeState, null);
 }
 
 // Variant used by the post-completion replay loop. Bails if looping
@@ -32,18 +37,18 @@ export async function runReplayChargePhase(
 ): Promise<void> {
   const sp = ctx.getPieceCenter(sourcePieceId);
   if (!sp) return;
-  ctx.setChargePos(sp);
-  ctx.setSignalPhase('charge');
+  setChargePosField(ctx.setChargeState, sp);
+  setSignalPhase(ctx.setBeamState, 'charge');
   const cs = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {
       if (!ctx.loopingRef.current) { res(); return; }
       const ct = Math.min(1, (performance.now() - cs) / 280);
-      ctx.setChargeProgress(ct);
+      setChargeProgressField(ctx.setChargeState, ct);
       if (ct < 1) { ctx.animFrameRef.current = requestAnimationFrame(tick); }
       else { res(); }
     };
     ctx.animFrameRef.current = requestAnimationFrame(tick);
   });
-  ctx.setChargePos(null);
+  setChargePosField(ctx.setChargeState, null);
 }

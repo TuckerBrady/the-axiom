@@ -61,35 +61,72 @@ export type MeasurementCache = {
   output: TapeCellContainerMeasure | null;
 };
 
+// Compound animation state objects. Grouping related fields into
+// one useState call reduces per-frame setState invocations during
+// the beam animation tick loop.
+
+export interface BeamState {
+  heads: Pt[];
+  headColor: string;
+  trails: { points: Pt[]; color: string }[];
+  branchTrails: { points: Pt[]; color: string }[][];
+  voidPulse: VoidPulseState;
+  phase: SignalPhase;
+  litWires: Set<string>;
+}
+
+export const BEAM_INITIAL: BeamState = {
+  heads: [],
+  headColor: '#8B5CF6',
+  trails: [],
+  branchTrails: [],
+  voidPulse: null,
+  phase: 'idle',
+  litWires: new Set(),
+};
+
+export interface PieceAnimState {
+  flashing: Map<string, string>;
+  animations: Map<string, string>;
+  gates: Map<string, 'pass' | 'block'>;
+  failColors: Map<string, string>;
+  locked: Set<string>;
+}
+
+export const PIECE_ANIM_INITIAL: PieceAnimState = {
+  flashing: new Map(),
+  animations: new Map(),
+  gates: new Map(),
+  failColors: new Map(),
+  locked: new Set(),
+};
+
+export interface BubbleAnimState {
+  bubble: ValueBubbleState;
+  trail: BubbleTrailItem[];
+}
+
+export const BUBBLE_INITIAL: BubbleAnimState = { bubble: null, trail: [] };
+
+export interface ChargeState {
+  pos: Pt | null;
+  progress: number;
+}
+
+export const CHARGE_INITIAL: ChargeState = { pos: null, progress: 0 };
+
 export interface EngagementContext {
   CELL_SIZE: number;
 
   getPieceCenter: (pieceId: string) => Pt | null;
   machineStatePieces: PlacedPiece[];
 
-  setBeamHeads: (heads: Pt[]) => void;
-  setBeamHeadColor: (color: string) => void;
-  setTrailSegments: (segs: { points: Pt[]; color: string }[]) => void;
-  setBranchTrails: (trails: { points: Pt[]; color: string }[][]) => void;
-  setVoidPulse: (pulse: VoidPulseState) => void;
-  setLitWires: Dispatch<SetStateAction<Set<string>>>;
-  setFlashingPieces: Dispatch<SetStateAction<Map<string, string>>>;
-  setActiveAnimations: Dispatch<SetStateAction<Map<string, string>>>;
-  setGateResults: Dispatch<SetStateAction<Map<string, 'pass' | 'block'>>>;
-  setFailColors: Dispatch<SetStateAction<Map<string, string>>>;
-  setLockedPieces: (pieces: Set<string>) => void;
+  setBeamState: Dispatch<SetStateAction<BeamState>>;
+  setPieceAnimState: Dispatch<SetStateAction<PieceAnimState>>;
+  setBubbleAnimState: Dispatch<SetStateAction<BubbleAnimState>>;
+  setChargeState: Dispatch<SetStateAction<ChargeState>>;
 
-  setChargePos: (pos: Pt | null) => void;
-  setChargeProgress: (p: number) => void;
-  setSignalPhase: (phase: SignalPhase) => void;
   setLockRings: (rings: LockRing[]) => void;
-
-  setValueBubble: (b: ValueBubbleState) => void;
-  setBubbleTrail: (trail: BubbleTrailItem[]) => void;
-  valueBubblePosRef: MutableRefObject<{ x: number; y: number } | null>;
-  bubbleHistoryRef: MutableRefObject<Array<{ x: number; y: number }>>;
-  bubbleTrailRAFRef: MutableRefObject<number | null>;
-
   setTapeCellHighlights: Dispatch<SetStateAction<Map<string, TapeHighlight>>>;
   setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
   setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
@@ -98,6 +135,9 @@ export interface EngagementContext {
 
   animFrameRef: MutableRefObject<number | null>;
   flashTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
+  valueBubblePosRef: MutableRefObject<{ x: number; y: number } | null>;
+  bubbleHistoryRef: MutableRefObject<Array<{ x: number; y: number }>>;
+  bubbleTrailRAFRef: MutableRefObject<number | null>;
 
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;

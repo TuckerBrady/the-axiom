@@ -46,7 +46,18 @@ export type {
   SignalPhase,
   WireRef,
   MeasurementCache,
+  BeamState,
+  PieceAnimState,
+  BubbleAnimState,
+  ChargeState,
   ExecutionStep,
   PlacedPiece,
   PieceType,
 } from './types';
+export {
+  BEAM_INITIAL,
+  PIECE_ANIM_INITIAL,
+  BUBBLE_INITIAL,
+  CHARGE_INITIAL,
+} from './types';
+export * as stateHelpers from './stateHelpers';

@@ -1,17 +1,22 @@
 import type { EngagementContext, TapeHighlight } from './types';
+import {
+  updateFlashingPieces,
+  setValueBubble as setValueBubbleField,
+  setBubbleTrail as setBubbleTrailField,
+} from './stateHelpers';
 
 export function flashPiece(
   ctx: EngagementContext,
   pieceId: string,
   color: string,
 ): void {
-  ctx.setFlashingPieces(prev => {
+  updateFlashingPieces(ctx.setPieceAnimState, prev => {
     const m = new Map(prev);
     m.set(pieceId, color);
     return m;
   });
   const t = setTimeout(() => {
-    ctx.setFlashingPieces(prev => {
+    updateFlashingPieces(ctx.setPieceAnimState, prev => {
       const m = new Map(prev);
       m.delete(pieceId);
       return m;
@@ -25,7 +30,7 @@ export function startBubbleTrail(ctx: EngagementContext): void {
   const tick = (): void => {
     const pos = ctx.valueBubblePosRef.current;
     if (!pos) {
-      ctx.setBubbleTrail([]);
+      setBubbleTrailField(ctx.setBubbleAnimState, []);
       return;
     }
     ctx.bubbleHistoryRef.current.unshift({ x: pos.x, y: pos.y });
@@ -44,7 +49,7 @@ export function startBubbleTrail(ctx: EngagementContext): void {
         trail.push({ x: p.x, y: p.y, opacity: opacities[i], size: 20 * scales[i] });
       }
     });
-    ctx.setBubbleTrail(trail);
+    setBubbleTrailField(ctx.setBubbleAnimState, trail);
     ctx.bubbleTrailRAFRef.current = requestAnimationFrame(tick);
   };
   ctx.bubbleTrailRAFRef.current = requestAnimationFrame(tick);
@@ -55,7 +60,7 @@ export function stopBubbleTrail(ctx: EngagementContext): void {
     cancelAnimationFrame(ctx.bubbleTrailRAFRef.current);
     ctx.bubbleTrailRAFRef.current = null;
   }
-  setTimeout(() => ctx.setBubbleTrail([]), 300);
+  setTimeout(() => setBubbleTrailField(ctx.setBubbleAnimState, []), 300);
   ctx.bubbleHistoryRef.current = [];
 }
 
@@ -77,7 +82,7 @@ export function animateBubbleTo(
       const ease = 1 - Math.pow(1 - t, 3);
       const x = fromX + (toX - fromX) * ease;
       const y = fromY + (toY - fromY) * ease;
-      ctx.setValueBubble({ screenX: x, screenY: y, color, value });
+      setValueBubbleField(ctx.setBubbleAnimState, { screenX: x, screenY: y, color, value });
       ctx.valueBubblePosRef.current = { x, y };
       if (t < 1) {
         requestAnimationFrame(tick);
@@ -96,12 +101,12 @@ export function showBubbleAt(
   color: string,
   value: string,
 ): void {
-  ctx.setValueBubble({ screenX: x, screenY: y, color, value });
+  setValueBubbleField(ctx.setBubbleAnimState, { screenX: x, screenY: y, color, value });
   ctx.valueBubblePosRef.current = { x, y };
 }
 
 export function hideBubble(ctx: EngagementContext): void {
-  ctx.setValueBubble(null);
+  setValueBubbleField(ctx.setBubbleAnimState, null);
   ctx.valueBubblePosRef.current = null;
   stopBubbleTrail(ctx);
 }

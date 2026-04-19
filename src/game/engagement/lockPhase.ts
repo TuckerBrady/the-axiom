@@ -1,10 +1,16 @@
 import type { EngagementContext, Pt, LockRing } from './types';
+import {
+  setSignalPhase,
+  setVoidPulse,
+  setLockedPieces,
+  updateLitWires,
+} from './stateHelpers';
 
 export async function runLockPhase(
   ctx: EngagementContext,
   outputCenter: Pt,
 ): Promise<void> {
-  ctx.setSignalPhase('lock');
+  setSignalPhase(ctx.setBeamState, 'lock');
   const ringStart = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {
@@ -27,8 +33,8 @@ export async function runLockPhase(
     };
     ctx.animFrameRef.current = requestAnimationFrame(tick);
   });
-  ctx.setLockedPieces(new Set(ctx.machineStatePieces.map(p => p.id)));
-  ctx.setLitWires(prev => {
+  setLockedPieces(ctx.setPieceAnimState, new Set(ctx.machineStatePieces.map(p => p.id)));
+  updateLitWires(ctx.setBeamState, prev => {
     const next = new Set(prev);
     for (const w of ctx.wires) {
       next.add(`${w.fromPieceId}_${w.toPieceId}`);
@@ -55,11 +61,11 @@ export async function runWrongOutputRings(
           ringsState.push({ x: outputCenter.x, y: outputCenter.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
         }
       }
-      if (ringsState[0]) ctx.setVoidPulse({ x: ringsState[0].x, y: ringsState[0].y, r: ringsState[0].r, opacity: ringsState[0].opacity });
+      if (ringsState[0]) setVoidPulse(ctx.setBeamState, { x: ringsState[0].x, y: ringsState[0].y, r: ringsState[0].r, opacity: ringsState[0].opacity });
       if (elapsed < 320) {
         ctx.animFrameRef.current = requestAnimationFrame(tick);
       } else {
-        ctx.setVoidPulse(null);
+        setVoidPulse(ctx.setBeamState, null);
         res();
       }
     };
@@ -72,7 +78,7 @@ export async function runReplayLockPhase(
   ctx: EngagementContext,
   outputCenter: Pt,
 ): Promise<void> {
-  ctx.setSignalPhase('lock');
+  setSignalPhase(ctx.setBeamState, 'lock');
   const rs = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {

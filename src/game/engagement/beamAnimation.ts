@@ -9,6 +9,14 @@ import {
 } from './constants';
 import { flashPiece } from './bubbleHelpers';
 import { triggerPieceAnim } from './interactions';
+import {
+  setBeamHeads,
+  setBeamHeadColor,
+  setTrailSegments,
+  setBranchTrails,
+  setVoidPulse,
+  updateLitWires,
+} from './stateHelpers';
 
 export function runLinearPath(
   ctx: EngagementContext,
@@ -78,7 +86,7 @@ export function runLinearPath(
         ? '#FF3B3B'
         : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
       opts.setHead(head);
-      ctx.setBeamHeadColor(currentColor);
+      setBeamHeadColor(ctx.setBeamState, currentColor);
 
       for (let i = 0; i < path.segs.length; i++) {
         if (lit.has(i)) continue;
@@ -88,7 +96,7 @@ export function runLinearPath(
           const fromId = pathSteps[i].pieceId;
           const toId = pathSteps[i + 1]?.pieceId;
           if (fromId && toId) {
-            ctx.setLitWires(prev => { const n = new Set(prev); n.add(`${fromId}_${toId}`); n.add(`${toId}_${fromId}`); return n; });
+            updateLitWires(ctx.setBeamState, prev => { const n = new Set(prev); n.add(`${fromId}_${toId}`); n.add(`${toId}_${fromId}`); return n; });
           }
         }
       }
@@ -124,9 +132,9 @@ export function runLinearPath(
           const voidTick = (): void => {
             const e = performance.now() - ps;
             const p = Math.min(1, e / 320);
-            ctx.setVoidPulse({ x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
+            setVoidPulse(ctx.setBeamState, { x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
             if (p < 1) ctx.animFrameRef.current = requestAnimationFrame(voidTick);
-            else { ctx.setVoidPulse(null); opts.setHead(null); opts.setTrail([]); resolve(); }
+            else { setVoidPulse(ctx.setBeamState, null); opts.setHead(null); opts.setTrail([]); resolve(); }
           };
           ctx.animFrameRef.current = requestAnimationFrame(voidTick);
         } else {
@@ -152,8 +160,8 @@ export function runPulse(
 
     if (forkIdx === -1 || !hasABranch || !hasBBranch) {
       runLinearPath(ctx, pulseSteps, {
-        setHead: (h) => ctx.setBeamHeads(h ? [h] : []),
-        setTrail: ctx.setTrailSegments,
+        setHead: (h) => setBeamHeads(ctx.setBeamState, h ? [h] : []),
+        setTrail: (s) => setTrailSegments(ctx.setBeamState, s),
       }, speed).then(resolveAll);
       return;
     }
@@ -165,8 +173,8 @@ export function runPulse(
     const forkPt = ctx.getPieceCenter(pulseSteps[forkIdx].pieceId);
 
     runLinearPath(ctx, preForkSteps, {
-      setHead: (h) => ctx.setBeamHeads(h ? [h] : []),
-      setTrail: ctx.setTrailSegments,
+      setHead: (h) => setBeamHeads(ctx.setBeamState, h ? [h] : []),
+      setTrail: (s) => setTrailSegments(ctx.setBeamState, s),
     }, speed).then(() => {
       if (!forkPt) { resolveAll(); return; }
 
@@ -183,8 +191,13 @@ export function runPulse(
         const heads: Pt[] = [];
         if (headA) heads.push(headA);
         if (headB) heads.push(headB);
-        ctx.setBeamHeads(heads);
-        ctx.setBranchTrails([trailA, trailB]);
+        // Single setState call writing both heads + branch trails at
+        // once so Promise.all branch A/B updates share one reconciliation.
+        ctx.setBeamState(prev => ({
+          ...prev,
+          heads,
+          branchTrails: [trailA, trailB],
+        }));
       };
 
       Promise.all([
@@ -197,9 +210,13 @@ export function runPulse(
           setTrail: (s) => { trailB = s; syncHeads(); },
         }, speed),
       ]).then(() => {
-        ctx.setBeamHeads([]);
-        ctx.setTrailSegments([]);
-        ctx.setBranchTrails([]);
+        // Clear heads, trails, and branch trails in one reconciliation.
+        ctx.setBeamState(prev => ({
+          ...prev,
+          heads: [],
+          trails: [],
+          branchTrails: [],
+        }));
         resolveAll();
       });
     });

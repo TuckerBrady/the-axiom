@@ -12,6 +12,10 @@ import {
   clearAllHighlights,
   wait,
 } from './bubbleHelpers';
+import {
+  updateActiveAnimations,
+  updateGateResults,
+} from './stateHelpers';
 
 export async function runScannerInteraction(
   ctx: EngagementContext,
@@ -156,13 +160,13 @@ export function triggerPieceAnim(
   const anim = animMap[stp.type];
   if (anim) {
     const pieceId = stp.pieceId;
-    ctx.setActiveAnimations(prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
+    updateActiveAnimations(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
     if (stp.type === 'configNode') {
       const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
-      ctx.setGateResults(prev => { const n = new Map(prev); n.set(pieceId, result); return n; });
+      updateGateResults(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.set(pieceId, result); return n; });
     }
     const t = setTimeout(() => {
-      ctx.setActiveAnimations(prev => { const n = new Map(prev); n.delete(pieceId); return n; });
+      updateActiveAnimations(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.delete(pieceId); return n; });
     }, anim.duration);
     ctx.flashTimersRef.current.push(t);
   }
