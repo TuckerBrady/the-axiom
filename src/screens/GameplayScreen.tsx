@@ -126,7 +126,12 @@ function formatMMSS(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-import { hexToRgba, getPulseSpeed } from '../game/bubbleMath';
+import {
+  hexToRgba,
+  getPulseSpeed,
+  getTapeCellPosFromCache,
+  type TapeCellContainerMeasure,
+} from '../game/bubbleMath';
 
 // ─── Signal beam path utilities ───────────────────────────────────────────────
 
@@ -365,9 +370,6 @@ export default function GameplayScreen({ navigation }: Props) {
   >(null);
   const [signalPhase, setSignalPhase] = useState<'idle' | 'charge' | 'beam' | 'lock'>('idle');
 
-  // Ghost beam opacity — fades in during execution, out on reset
-  const ghostBeamOp = useSharedValue(0);
-  const ghostBeamStyle = useAnimatedStyle(() => ({ opacity: ghostBeamOp.value }));
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
   const bubbleTrailRAFRef = useRef<number | null>(null);
@@ -771,25 +773,26 @@ export default function GameplayScreen({ navigation }: Props) {
         }
       });
 
-    const getTapeCellPos = (
+    const measureTapeContainer = (
       containerRef: React.RefObject<View | null>,
-      cellIndex: number,
-    ): Promise<{ x: number; y: number }> =>
+    ): Promise<TapeCellContainerMeasure | null> =>
       new Promise(resolve => {
-        if (containerRef.current) {
-          containerRef.current.measureInWindow(
-            (rx: number, ry: number, _rw: number, rh: number) => {
-              const cellW = 24;
-              const cellGap = 3;
-              const cellCenterX = rx + cellIndex * (cellW + cellGap) + cellW / 2;
-              const cellCenterY = ry + rh / 2;
-              resolve({ x: cellCenterX, y: cellCenterY });
-            },
-          );
-        } else {
-          resolve({ x: 0, y: 0 });
+        if (!containerRef.current) {
+          resolve(null);
+          return;
         }
+        containerRef.current.measureInWindow(
+          (x: number, y: number, w: number, h: number) => resolve({ x, y, w, h }),
+        );
       });
+
+    // Cached screen positions — populated once before the BEAM phase
+    // begins so re-renders during the pulse loop cannot return stale
+    // (0, 0) measurements from measureInWindow mid-animation.
+    let cachedBoardPos: { x: number; y: number } = { x: 0, y: 0 };
+    let cachedInputCells: TapeCellContainerMeasure | null = null;
+    let cachedTrailCells: TapeCellContainerMeasure | null = null;
+    let cachedOutputCells: TapeCellContainerMeasure | null = null;
 
     // ── Ghost trail tick (8 dots, bright to wisp) ──
     const startBubbleTrail = () => {
@@ -889,11 +892,13 @@ export default function GameplayScreen({ navigation }: Props) {
       const pulse = currentPulseRef.current;
       const color = TAPE_PIECE_COLORS.scanner;
       const speed = getPulseSpeed(pulse);
-      const boardPos = await getBoardScreenPos();
       const pc = getPieceCenter(stp.pieceId);
-      if (!pc) return;
-      const scannerX = boardPos.x + pc.x;
-      const scannerY = boardPos.y + pc.y;
+      if (!pc) {
+        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
+        return;
+      }
+      const scannerX = cachedBoardPos.x + pc.x;
+      const scannerY = cachedBoardPos.y + pc.y;
       const tapeValue = level.inputTape?.[pulse];
       const display = tapeValue === undefined ? '?' : String(tapeValue);
 
@@ -905,13 +910,13 @@ export default function GameplayScreen({ navigation }: Props) {
       startBubbleTrail();
       await wait(180 * speed);
 
-      const inputCell = await getTapeCellPos(inputTapeCellsRef, pulse);
+      const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
       await animateBubbleTo(scannerX, scannerY, inputCell.x, inputCell.y, color, display, 300 * speed);
       await wait(180 * speed);
       await animateBubbleTo(inputCell.x, inputCell.y, scannerX, scannerY, color, display, 240 * speed);
       await wait(120 * speed);
 
-      const trailCell = await getTapeCellPos(dataTrailCellsRef, pulse);
+      const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
       await animateBubbleTo(scannerX, scannerY, trailCell.x, trailCell.y, color, display, 300 * speed);
       setHighlight(`trail-${pulse}`, 'write');
       if (tapeValue !== undefined) {
@@ -934,10 +939,12 @@ export default function GameplayScreen({ navigation }: Props) {
       const pass = !!stp.success;
       const color = pass ? '#00FF87' : '#FF3B3B';
       const pc = getPieceCenter(stp.pieceId);
-      if (!pc) return;
-      const boardPos = await getBoardScreenPos();
-      const nodeX = boardPos.x + pc.x;
-      const nodeY = boardPos.y + pc.y;
+      if (!pc) {
+        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
+        return;
+      }
+      const nodeX = cachedBoardPos.x + pc.x;
+      const nodeY = cachedBoardPos.y + pc.y;
 
       const trailCells = useGameStore.getState().machineState.dataTrail.cells;
       const trailValue = trailCells.length > 0 && pulse < trailCells.length
@@ -948,7 +955,7 @@ export default function GameplayScreen({ navigation }: Props) {
       setHighlight(`trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
       await wait(150 * speed);
 
-      const trailCell = await getTapeCellPos(dataTrailCellsRef, pulse);
+      const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
       showBubbleAt(trailCell.x, trailCell.y, color, display);
       startBubbleTrail();
       await wait(100 * speed);
@@ -966,17 +973,19 @@ export default function GameplayScreen({ navigation }: Props) {
       const color = TAPE_PIECE_COLORS.transmitter;
       const speed = getPulseSpeed(pulse);
       const pc = getPieceCenter(stp.pieceId);
-      if (!pc) return;
-      const boardPos = await getBoardScreenPos();
-      const transmitterX = boardPos.x + pc.x;
-      const transmitterY = boardPos.y + pc.y;
+      if (!pc) {
+        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
+        return;
+      }
+      const transmitterX = cachedBoardPos.x + pc.x;
+      const transmitterY = cachedBoardPos.y + pc.y;
       const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
       const display = String(written);
 
       flashPiece(stp.pieceId, color);
       showBubbleAt(transmitterX, transmitterY, color, display);
 
-      const outputCell = await getTapeCellPos(outputTapeCellsRef, pulse);
+      const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);
       await animateBubbleTo(
         transmitterX, transmitterY,
         outputCell.x, outputCell.y,
@@ -1231,8 +1240,6 @@ export default function GameplayScreen({ navigation }: Props) {
       if (sp) {
         setChargePos(sp);
         setSignalPhase('charge');
-        // Ghost beams: fade in at execution start
-        ghostBeamOp.value = withTiming(0.2, { duration: 300 });
         const chargeStart = performance.now();
         await new Promise<void>(res => {
           const tick = () => {
@@ -1249,6 +1256,16 @@ export default function GameplayScreen({ navigation }: Props) {
         setChargePos(null);
       }
     }
+
+    // Cache screen coordinates once — board and tape containers do not
+    // move during execution, and re-measuring per pulse can return
+    // stale (0, 0) during re-render windows.
+    cachedBoardPos = await getBoardScreenPos();
+    [cachedInputCells, cachedTrailCells, cachedOutputCells] = await Promise.all([
+      measureTapeContainer(inputTapeCellsRef),
+      measureTapeContainer(dataTrailCellsRef),
+      measureTapeContainer(outputTapeCellsRef),
+    ]);
 
     // PHASE 2 — BEAM (one or more pulses)
     setSignalPhase('beam');
@@ -1364,8 +1381,6 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
     setSignalPhase('idle');
-    // Ghost beams fade out
-    ghostBeamOp.value = withTiming(0, { duration: 300 });
 
     // Wrong output: show diagnostic modal instead of void
     if (wrongOutput && storeOutputTape && level.expectedOutput) {
@@ -1508,7 +1523,6 @@ export default function GameplayScreen({ navigation }: Props) {
             if (sp2) {
               setChargePos(sp2);
               setSignalPhase('charge');
-              ghostBeamOp.value = withTiming(0.2, { duration: 300 });
               const cs = performance.now();
               await new Promise<void>(res => {
                 const tick = () => {
@@ -1524,6 +1538,15 @@ export default function GameplayScreen({ navigation }: Props) {
             }
           }
           if (!loopingRef.current) break;
+
+          // Re-cache before each replay BEAM in case layout shifted
+          // (keyboard, modals, orientation) between loops.
+          cachedBoardPos = await getBoardScreenPos();
+          [cachedInputCells, cachedTrailCells, cachedOutputCells] = await Promise.all([
+            measureTapeContainer(inputTapeCellsRef),
+            measureTapeContainer(dataTrailCellsRef),
+            measureTapeContainer(outputTapeCellsRef),
+          ]);
 
           // BEAM
           setSignalPhase('beam');
@@ -1572,7 +1595,6 @@ export default function GameplayScreen({ navigation }: Props) {
               });
             }
           }
-          ghostBeamOp.value = withTiming(0, { duration: 300 });
         }
       })();
     } else {
@@ -1649,8 +1671,6 @@ export default function GameplayScreen({ navigation }: Props) {
     setBranchTrails([]);
     setVoidPulse(null);
     setLitWires(new Set());
-    // Ghost beams: fade out on reset
-    ghostBeamOp.value = withTiming(0, { duration: 300 });
     setFlashingPieces(new Map());
     setLockedPieces(new Set());
     setChargePos(null);
@@ -1995,45 +2015,6 @@ export default function GameplayScreen({ navigation }: Props) {
                 );
               })}
             </Svg>
-
-            {/* Ghost beams — semi-transparent colored columns connecting
-                tape-interacting pieces to their tape strip rows. Render
-                behind the signal beam. Only visible during execution. */}
-            {(() => {
-              const GHOST_PIECE_MAP: Record<string, string> = {
-                scanner: Colors.neonCyan,
-                configNode: Colors.neonGreen,
-                transmitter: Colors.neonYellow,
-              };
-              const ghostPieces = pieces.filter(p =>
-                GHOST_PIECE_MAP[p.type] !== undefined,
-              );
-              if (ghostPieces.length === 0) return null;
-              return (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[StyleSheet.absoluteFill, { zIndex: 5 }, ghostBeamStyle]}
-                >
-                  <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
-                    {ghostPieces.map(p => {
-                      const color = GHOST_PIECE_MAP[p.type];
-                      const x = p.gridX * CELL_SIZE;
-                      return (
-                        <Rect
-                          key={`ghost-${p.id}`}
-                          x={x}
-                          y={0}
-                          width={CELL_SIZE}
-                          height={p.gridY * CELL_SIZE + CELL_SIZE}
-                          fill={color}
-                          opacity={0.15}
-                        />
-                      );
-                    })}
-                  </Svg>
-                </Animated.View>
-              );
-            })()}
 
             {/* Signal beam overlay — wrapped in View so pointerEvents
                 component prop reliably passes touches through on iOS. */}
@@ -2437,7 +2418,6 @@ export default function GameplayScreen({ navigation }: Props) {
                 setLockRings([]);
                 setChargePos(null);
                 setSignalPhase('idle');
-                ghostBeamOp.value = withTiming(0, { duration: 300 });
                 setShowCompletionCard(false);
                 setShowResults(true);
               }}
