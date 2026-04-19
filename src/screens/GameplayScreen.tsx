@@ -97,29 +97,6 @@ function getPieceColor(type: PieceType): string {
   }
 }
 
-// Segmented beam color by piece layer.
-// Purple = data entry/exit (source, output)
-// Amber  = physics layer (conveyor, gear, splitter)
-// Blue   = protocol layer (scanner, configNode, transmitter)
-function getBeamColor(pieceType: string): string {
-  switch (pieceType) {
-    case 'source':
-    case 'terminal':
-      return '#8B5CF6';
-    case 'conveyor':
-    case 'gear':
-    case 'splitter':
-      return '#F0B429';
-    case 'scanner':
-    case 'configNode':
-    case 'config_node':
-    case 'transmitter':
-      return '#00D4FF';
-    default:
-      return '#F0B429';
-  }
-}
-
 function formatMMSS(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -128,44 +105,23 @@ function formatMMSS(totalSeconds: number): string {
 
 import {
   hexToRgba,
-  getPulseSpeed,
-  getTapeCellPosFromCache,
-  computeWaypointDists,
   type TapeCellContainerMeasure,
 } from '../game/bubbleMath';
-
-// ─── Signal beam path utilities ───────────────────────────────────────────────
-
-type Pt = { x: number; y: number };
-type Segment = { s: number; e: number; l: number; dx: number; dy: number; x0: number; y0: number };
-type SignalPath = { segs: Segment[]; total: number };
-
-function buildSignalPath(points: Pt[]): SignalPath {
-  const segs: Segment[] = [];
-  let total = 0;
-  for (let i = 1; i < points.length; i++) {
-    const dx = points[i].x - points[i - 1].x;
-    const dy = points[i].y - points[i - 1].y;
-    const l = Math.sqrt(dx * dx + dy * dy);
-    segs.push({ s: total, e: total + l, l, dx, dy, x0: points[i - 1].x, y0: points[i - 1].y });
-    total += l;
-  }
-  return { segs, total };
-}
-
-function posAlongPath(path: SignalPath, d: number): Pt {
-  d = Math.max(0, Math.min(d, path.total));
-  for (const seg of path.segs) {
-    if (d <= seg.e) {
-      const t = seg.l > 0 ? (d - seg.s) / seg.l : 0;
-      return { x: seg.x0 + seg.dx * t, y: seg.y0 + seg.dy * t };
-    }
-  }
-  const last = path.segs[path.segs.length - 1];
-  return last ? { x: last.x0 + last.dx, y: last.y0 + last.dy } : { x: 0, y: 0 };
-}
-
-const easeOut3 = (t: number) => 1 - Math.pow(1 - t, 3);
+import {
+  getBeamColor,
+  flashPiece as engageFlashPiece,
+  runChargePhase,
+  runPulse as engageRunPulse,
+  runLockPhase,
+  runWrongOutputRings,
+  runReplayLoop,
+  handleSuccess,
+  handleWrongOutput,
+  handleVoidFailure,
+  type Pt,
+  type EngagementContext,
+  type MeasurementCache,
+} from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
 
@@ -378,6 +334,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const valueBubblePosRef = useRef<{ x: number; y: number } | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const cacheRef = useRef<MeasurementCache>({
+    board: { x: 0, y: 0 },
+    input: null,
+    trail: null,
+    output: null,
+  });
 
   // Screen is immediately visible — slide_from_bottom handles entry transition
   const screenOpacity = useSharedValue(1);
@@ -717,54 +679,21 @@ export default function GameplayScreen({ navigation }: Props) {
     const engageStartTime = Date.now();
     const steps = engage();
 
-    // ── New beam animation pipeline ─────────────────────────────────────────
-    // Determine pulse boundaries by counting source-typed steps. Each source
-    // step begins a new traversal.
+    // Determine pulse boundaries by counting source-typed steps. Each
+    // source step begins a new traversal.
     const pulseStarts: number[] = [];
     for (let i = 0; i < steps.length; i++) {
       if (steps[i].type === 'source') pulseStarts.push(i);
     }
     if (pulseStarts.length === 0) pulseStarts.push(0);
-    const pulses: typeof steps[] = [];
+    const pulses: ExecutionStep[][] = [];
     for (let pi = 0; pi < pulseStarts.length; pi++) {
       const start = pulseStarts[pi];
       const end = pi + 1 < pulseStarts.length ? pulseStarts[pi + 1] : steps.length;
       pulses.push(partitionBranches(steps.slice(start, end), pieces));
     }
 
-    const flashPiece = (pieceId: string, c: string) => {
-      setFlashingPieces(prev => {
-        const m = new Map(prev);
-        m.set(pieceId, c);
-        return m;
-      });
-      const t = setTimeout(() => {
-        setFlashingPieces(prev => {
-          const m = new Map(prev);
-          m.delete(pieceId);
-          return m;
-        });
-      }, 180);
-      flashTimersRef.current.push(t);
-    };
-
-    // ── Per-piece animation trigger (shared by all beam paths) ──
-    const animMap: Record<string, { tag: string; duration: number }> = {
-      source: { tag: 'charging', duration: 280 },
-      terminal: { tag: 'locking', duration: 400 },
-      conveyor: { tag: 'rolling', duration: 180 },
-      gear: { tag: 'spinning', duration: 400 },
-      splitter: { tag: 'splitting', duration: 180 },
-      scanner: { tag: 'scanning', duration: 200 },
-      configNode: { tag: 'gating', duration: 300 },
-      transmitter: { tag: 'transmitting', duration: 180 },
-    };
-    const TAPE_PIECE_COLORS: Record<string, string> = {
-      scanner: '#00E5FF',
-      configNode: '#00FF87',
-      transmitter: '#FFE000',
-    };
-
+    // Screen-position helpers (need refs at component scope — keep inline).
     const getBoardScreenPos = (): Promise<{ x: number; y: number }> =>
       new Promise(resolve => {
         if (boardGridRef.current) {
@@ -787,453 +716,52 @@ export default function GameplayScreen({ navigation }: Props) {
         );
       });
 
-    // Cached screen positions — populated once before the BEAM phase
-    // begins so re-renders during the pulse loop cannot return stale
-    // (0, 0) measurements from measureInWindow mid-animation.
-    let cachedBoardPos: { x: number; y: number } = { x: 0, y: 0 };
-    let cachedInputCells: TapeCellContainerMeasure | null = null;
-    let cachedTrailCells: TapeCellContainerMeasure | null = null;
-    let cachedOutputCells: TapeCellContainerMeasure | null = null;
-
-    // ── Ghost trail tick (8 dots, bright to wisp) ──
-    const startBubbleTrail = () => {
-      bubbleHistoryRef.current = [];
-      const tick = () => {
-        const pos = valueBubblePosRef.current;
-        if (!pos) {
-          setBubbleTrail([]);
-          return;
-        }
-        bubbleHistoryRef.current.unshift({ x: pos.x, y: pos.y });
-        if (bubbleHistoryRef.current.length > 40) {
-          bubbleHistoryRef.current.length = 40;
-        }
-
-        const spacings = [2, 4, 6, 9, 12, 16, 21, 27];
-        const opacities = [0.65, 0.55, 0.45, 0.35, 0.25, 0.18, 0.1, 0.05];
-        const scales = [0.9, 0.82, 0.74, 0.65, 0.55, 0.44, 0.33, 0.22];
-
-        const trail: Array<{ x: number; y: number; opacity: number; size: number }> = [];
-        spacings.forEach((sp, i) => {
-          if (bubbleHistoryRef.current.length > sp) {
-            const p = bubbleHistoryRef.current[sp];
-            trail.push({ x: p.x, y: p.y, opacity: opacities[i], size: 20 * scales[i] });
-          }
-        });
-        setBubbleTrail(trail);
-        bubbleTrailRAFRef.current = requestAnimationFrame(tick);
-      };
-      bubbleTrailRAFRef.current = requestAnimationFrame(tick);
+    // Build the EngagementContext once for this run. State setters and
+    // refs flow into the extracted phase functions through here instead
+    // of via closure capture.
+    const ctx: EngagementContext = {
+      CELL_SIZE,
+      getPieceCenter,
+      machineStatePieces: machineState.pieces,
+      setBeamHeads,
+      setBeamHeadColor,
+      setTrailSegments,
+      setBranchTrails,
+      setVoidPulse,
+      setLitWires,
+      setFlashingPieces,
+      setActiveAnimations,
+      setGateResults,
+      setFailColors,
+      setLockedPieces,
+      setChargePos,
+      setChargeProgress,
+      setSignalPhase,
+      setLockRings,
+      setValueBubble,
+      setBubbleTrail,
+      valueBubblePosRef,
+      bubbleHistoryRef,
+      bubbleTrailRAFRef,
+      setTapeCellHighlights,
+      setVisualTrailOverride,
+      setVisualOutputOverride,
+      setCurrentPulseIndex,
+      currentPulseRef,
+      animFrameRef,
+      flashTimersRef,
+      boardGridRef,
+      inputTapeCellsRef,
+      dataTrailCellsRef,
+      outputTapeCellsRef,
+      loopingRef,
+      wires,
+      inputTape: level.inputTape,
+      cacheRef,
     };
 
-    const stopBubbleTrail = () => {
-      if (bubbleTrailRAFRef.current) {
-        cancelAnimationFrame(bubbleTrailRAFRef.current);
-        bubbleTrailRAFRef.current = null;
-      }
-      setTimeout(() => setBubbleTrail([]), 300);
-      bubbleHistoryRef.current = [];
-    };
-
-    // ── Bubble animation helpers ──
-    const animateBubbleTo = (
-      fromX: number, fromY: number,
-      toX: number, toY: number,
-      color: string, value: string,
-      duration: number,
-    ): Promise<void> => new Promise(resolve => {
-      const startTime = performance.now();
-      const tick = () => {
-        const elapsed = performance.now() - startTime;
-        const t = Math.min(elapsed / duration, 1);
-        const ease = 1 - Math.pow(1 - t, 3); // cubic ease-out
-        const x = fromX + (toX - fromX) * ease;
-        const y = fromY + (toY - fromY) * ease;
-        setValueBubble({ screenX: x, screenY: y, color, value });
-        valueBubblePosRef.current = { x, y };
-        if (t < 1) {
-          requestAnimationFrame(tick);
-        } else {
-          resolve();
-        }
-      };
-      requestAnimationFrame(tick);
-    });
-
-    const showBubbleAt = (x: number, y: number, color: string, value: string) => {
-      setValueBubble({ screenX: x, screenY: y, color, value });
-      valueBubblePosRef.current = { x, y };
-    };
-
-    const hideBubble = () => {
-      setValueBubble(null);
-      valueBubblePosRef.current = null;
-      stopBubbleTrail();
-    };
-
-    const setHighlight = (
-      key: string,
-      kind: 'read' | 'write' | 'gate-pass' | 'gate-block',
-    ) => {
-      setTapeCellHighlights(prev => {
-        const m = new Map(prev);
-        m.set(key, kind);
-        return m;
-      });
-    };
-
-    const clearAllHighlights = () => {
-      setTapeCellHighlights(new Map());
-    };
-
-    const wait = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-
-    // ── Per-piece interaction sequences (return Promise; beam pauses) ──
-    const runScannerInteraction = async (stp: ExecutionStep): Promise<void> => {
-      const pulse = currentPulseRef.current;
-      const color = TAPE_PIECE_COLORS.scanner;
-      const speed = getPulseSpeed(pulse);
-      const pc = getPieceCenter(stp.pieceId);
-      if (!pc) {
-        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
-        return;
-      }
-      const scannerX = cachedBoardPos.x + pc.x;
-      const scannerY = cachedBoardPos.y + pc.y;
-      const tapeValue = level.inputTape?.[pulse];
-      const display = tapeValue === undefined ? '?' : String(tapeValue);
-
-      flashPiece(stp.pieceId, color);
-      await wait(120 * speed);
-      setHighlight(`in-${pulse}`, 'read');
-
-      showBubbleAt(scannerX, scannerY, color, display);
-      startBubbleTrail();
-      await wait(180 * speed);
-
-      const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
-      await animateBubbleTo(scannerX, scannerY, inputCell.x, inputCell.y, color, display, 300 * speed);
-      await wait(180 * speed);
-      await animateBubbleTo(inputCell.x, inputCell.y, scannerX, scannerY, color, display, 240 * speed);
-      await wait(120 * speed);
-
-      const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
-      await animateBubbleTo(scannerX, scannerY, trailCell.x, trailCell.y, color, display, 300 * speed);
-      setHighlight(`trail-${pulse}`, 'write');
-      if (tapeValue !== undefined) {
-        setVisualTrailOverride(prev => {
-          if (!prev) return prev;
-          const next = [...prev];
-          next[pulse] = tapeValue;
-          return next;
-        });
-      }
-
-      await wait(250 * speed);
-      hideBubble();
-      clearAllHighlights();
-    };
-
-    const runConfigNodeInteraction = async (stp: ExecutionStep): Promise<void> => {
-      const pulse = currentPulseRef.current;
-      const speed = getPulseSpeed(pulse);
-      const pass = !!stp.success;
-      const color = pass ? '#00FF87' : '#FF3B3B';
-      const pc = getPieceCenter(stp.pieceId);
-      if (!pc) {
-        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
-        return;
-      }
-      const nodeX = cachedBoardPos.x + pc.x;
-      const nodeY = cachedBoardPos.y + pc.y;
-
-      const trailCells = useGameStore.getState().machineState.dataTrail.cells;
-      const trailValue = trailCells.length > 0 && pulse < trailCells.length
-        ? trailCells[pulse]
-        : null;
-      const display = trailValue === null ? '?' : String(trailValue);
-
-      setHighlight(`trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
-      await wait(150 * speed);
-
-      const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
-      showBubbleAt(trailCell.x, trailCell.y, color, display);
-      startBubbleTrail();
-      await wait(100 * speed);
-
-      await animateBubbleTo(trailCell.x, trailCell.y, nodeX, nodeY, color, display, 300 * speed);
-      flashPiece(stp.pieceId, color);
-      await wait((pass ? 350 : 450) * speed);
-
-      hideBubble();
-      clearAllHighlights();
-    };
-
-    const runTransmitterInteraction = async (stp: ExecutionStep): Promise<void> => {
-      const pulse = currentPulseRef.current;
-      const color = TAPE_PIECE_COLORS.transmitter;
-      const speed = getPulseSpeed(pulse);
-      const pc = getPieceCenter(stp.pieceId);
-      if (!pc) {
-        if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
-        return;
-      }
-      const transmitterX = cachedBoardPos.x + pc.x;
-      const transmitterY = cachedBoardPos.y + pc.y;
-      const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
-      const display = String(written);
-
-      flashPiece(stp.pieceId, color);
-      showBubbleAt(transmitterX, transmitterY, color, display);
-
-      const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);
-      await animateBubbleTo(
-        transmitterX, transmitterY,
-        outputCell.x, outputCell.y,
-        color, display, 250 * speed,
-      );
-      setVisualOutputOverride(prev => {
-        if (!prev) return prev;
-        const next = [...prev];
-        next[pulse] = written;
-        return next;
-      });
-
-      await wait(150 * speed);
-      hideBubble();
-    };
-
-    const triggerPieceAnim = (stp: ExecutionStep): Promise<void> => {
-      flashPiece(stp.pieceId, getBeamColor(stp.type));
-      const anim = animMap[stp.type];
-      if (anim) {
-        const pieceId = stp.pieceId;
-        setActiveAnimations(prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
-        if (stp.type === 'configNode') {
-          const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
-          setGateResults(prev => { const n = new Map(prev); n.set(pieceId, result); return n; });
-        }
-        const t = setTimeout(() => {
-          setActiveAnimations(prev => { const n = new Map(prev); n.delete(pieceId); return n; });
-        }, anim.duration);
-        flashTimersRef.current.push(t);
-      }
-      if (stp.type === 'scanner') return runScannerInteraction(stp);
-      if (stp.type === 'configNode') return runConfigNodeInteraction(stp);
-      if (stp.type === 'transmitter') return runTransmitterInteraction(stp);
-      return Promise.resolve();
-    };
-
-    // ── Animate a single linear path (no forks) ──
-    const runLinearPath = (
-      pathSteps: ExecutionStep[],
-      opts: {
-        setHead: (h: Pt | null) => void;
-        setTrail: (s: { points: Pt[]; color: string }[]) => void;
-      },
-      speedMultiplier: number,
-    ): Promise<void> => new Promise<void>(resolve => {
-      const waypoints: Pt[] = [];
-      for (const st of pathSteps) {
-        const c = getPieceCenter(st.pieceId);
-        if (c) waypoints.push(c);
-      }
-      if (waypoints.length < 2) {
-        if (pathSteps[0]) triggerPieceAnim(pathSteps[0]);
-        setTimeout(resolve, 180);
-        return;
-      }
-      const path = buildSignalPath(waypoints);
-      // Distance along the path at which each waypoint sits. Used for
-      // distance-based waypoint detection so the beam head cannot skip
-      // a tape-piece interaction on frames where it jumps far along
-      // the path in a single RAF tick.
-      const waypointDists = computeWaypointDists(waypoints);
-      const refLen = CELL_SIZE * 4;
-      const totalMs = Math.max(300, Math.min(1200, 480 * (path.total / refLen))) * speedMultiplier;
-      const segColors = pathSteps.map(s => getBeamColor(s.type));
-      const hasVoid = pathSteps.some(s => s.type === 'void');
-      opts.setTrail([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
-      const t0 = performance.now();
-      const lit = new Set<number>();
-      const flashed = new Set<number>();
-      let pauseStart = 0;
-      let pauseAccum = 0;
-      let pauseEnd = 0;
-
-      const tick = () => {
-        const now = performance.now();
-        if (pauseEnd > 0 && now < pauseEnd) {
-          animFrameRef.current = requestAnimationFrame(tick);
-          return;
-        }
-        if (pauseEnd > 0) {
-          pauseAccum += (pauseEnd - pauseStart);
-          pauseEnd = 0;
-          pauseStart = 0;
-        }
-        const rawT = Math.min(1, (now - t0 - pauseAccum) / totalMs);
-        const t = easeOut3(rawT);
-        const headDist = t * path.total;
-        const head = posAlongPath(path, headDist);
-
-        const newSegs: { points: Pt[]; color: string }[] = [];
-        for (let i = 0; i < path.segs.length; i++) {
-          const sg = path.segs[i];
-          const color = segColors[i] ?? '#F0B429';
-          if (headDist >= sg.e) {
-            newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy }], color });
-          } else if (headDist > sg.s) {
-            const tt = sg.l > 0 ? (headDist - sg.s) / sg.l : 0;
-            newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt }], color });
-            break;
-          }
-        }
-        opts.setTrail(newSegs);
-        const currentColor = hasVoid && rawT > 0.85
-          ? '#FF3B3B'
-          : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
-        opts.setHead(head);
-        setBeamHeadColor(currentColor);
-
-        for (let i = 0; i < path.segs.length; i++) {
-          if (lit.has(i)) continue;
-          const mid = path.segs[i].s + path.segs[i].l / 2;
-          if (headDist >= mid) {
-            lit.add(i);
-            const fromId = pathSteps[i].pieceId;
-            const toId = pathSteps[i + 1]?.pieceId;
-            if (fromId && toId) {
-              setLitWires(prev => { const n = new Set(prev); n.add(`${fromId}_${toId}`); n.add(`${toId}_${fromId}`); return n; });
-            }
-          }
-        }
-        for (let i = 0; i < waypoints.length; i++) {
-          if (flashed.has(i)) continue;
-          const wpDist = waypointDists[i];
-          // Distance-based detection — fires as soon as the head passes
-          // the waypoint's position on the path, even if a single frame
-          // jumped past it. The `flashed` set prevents double-firing.
-          if (headDist >= wpDist || (i === waypoints.length - 1 && rawT >= 1)) {
-            flashed.add(i);
-            const stp = pathSteps[i];
-            const isVoidBlocker = hasVoid && i === waypoints.length - 1;
-            if (isVoidBlocker) flashPiece(stp.pieceId, '#FF3B3B');
-            else {
-              const isTapePiece = !!TAPE_PIECE_COLORS[stp.type];
-              if (isTapePiece) {
-                // Pause the beam indefinitely; the interaction promise will
-                // release the pause on completion. This keeps the beam
-                // synchronized with the read/write bubble sequence.
-                const now = performance.now();
-                pauseStart = now;
-                pauseEnd = now + 1e9; // effectively infinite until released
-                triggerPieceAnim(stp).then(() => {
-                  pauseEnd = performance.now();
-                });
-              } else {
-                triggerPieceAnim(stp);
-              }
-            }
-          }
-        }
-        if (rawT < 1) {
-          animFrameRef.current = requestAnimationFrame(tick);
-        } else {
-          if (hasVoid) {
-            const blocker = waypoints[waypoints.length - 1];
-            const ps = performance.now();
-            const voidTick = () => {
-              const e = performance.now() - ps;
-              const p = Math.min(1, e / 320);
-              setVoidPulse({ x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
-              if (p < 1) animFrameRef.current = requestAnimationFrame(voidTick);
-              else { setVoidPulse(null); opts.setHead(null); opts.setTrail([]); resolve(); }
-            };
-            animFrameRef.current = requestAnimationFrame(voidTick);
-          } else {
-            opts.setHead(null);
-            opts.setTrail([]);
-            resolve();
-          }
-        }
-      };
-      animFrameRef.current = requestAnimationFrame(tick);
-    });
-
-    // ── runPulse: detects Splitter forks and runs dual beams ──
-    const runPulse = (pulseSteps: typeof steps): Promise<void> => new Promise<void>(resolveAll => {
-      // Match beam travel speed to the bubble-interaction slowdown so
-      // pulse 0 moves at half speed for new players; subsequent pulses
-      // run at full speed.
-      const speed = getPulseSpeed(currentPulseRef.current);
-      const forkIdx = pulseSteps.findIndex(s => s.type === 'splitter');
-      const hasABranch = pulseSteps.some(s => s.branchId === 'A');
-      const hasBBranch = pulseSteps.some(s => s.branchId === 'B');
-
-      // No fork: run single-path as before
-      if (forkIdx === -1 || !hasABranch || !hasBBranch) {
-        runLinearPath(pulseSteps, {
-          setHead: (h) => setBeamHeads(h ? [h] : []),
-          setTrail: setTrailSegments,
-        }, speed).then(resolveAll);
-        return;
-      }
-
-      // Fork detected — split into pre-fork + two branches
-      const preForkSteps = pulseSteps.slice(0, forkIdx + 1); // up to and including splitter
-      const branchASteps = pulseSteps.filter(s => s.branchId === 'A');
-      const branchBSteps = pulseSteps.filter(s => s.branchId === 'B');
-
-      // Get Splitter center as the starting point for both branches
-      const forkPt = getPieceCenter(pulseSteps[forkIdx].pieceId);
-
-      // Phase 1: animate pre-fork path
-      runLinearPath(preForkSteps, {
-        setHead: (h) => setBeamHeads(h ? [h] : []),
-        setTrail: setTrailSegments,
-      }, speed).then(() => {
-        if (!forkPt) { resolveAll(); return; }
-
-        // Prepend a synthetic step for the Splitter center so each branch
-        // starts its beam from the fork point.
-        const splitterStep = pulseSteps[forkIdx];
-        const aSteps = [splitterStep, ...branchASteps];
-        const bSteps = [splitterStep, ...branchBSteps];
-
-        // Phase 2: animate both branches simultaneously.
-        // Use branchTrails for the two branch polylines and beamHeads
-        // for the two head positions.
-        let headA: Pt | null = null;
-        let headB: Pt | null = null;
-        let trailA: { points: Pt[]; color: string }[] = [];
-        let trailB: { points: Pt[]; color: string }[] = [];
-
-        const syncHeads = () => {
-          const heads: Pt[] = [];
-          if (headA) heads.push(headA);
-          if (headB) heads.push(headB);
-          setBeamHeads(heads);
-          setBranchTrails([trailA, trailB]);
-        };
-
-        Promise.all([
-          runLinearPath(aSteps, {
-            setHead: (h) => { headA = h; syncHeads(); },
-            setTrail: (s) => { trailA = s; syncHeads(); },
-          }, speed),
-          runLinearPath(bSteps, {
-            setHead: (h) => { headB = h; syncHeads(); },
-            setTrail: (s) => { trailB = s; syncHeads(); },
-          }, speed),
-        ]).then(() => {
-          setBeamHeads([]);
-          setTrailSegments([]);
-          setBranchTrails([]);
-          resolveAll();
-        });
-      });
-    });
+    // Reset the measurement cache for this run.
+    cacheRef.current = { board: { x: 0, y: 0 }, input: null, trail: null, output: null };
 
     // Initialize progressive-reveal overrides for trail and output cells.
     // During beam animation these show empty until a Scanner / Transmitter
@@ -1245,49 +773,31 @@ export default function GameplayScreen({ navigation }: Props) {
       setVisualOutputOverride(level.inputTape.map(() => -1));
     }
 
-    // PHASE 1 — CHARGE (300ms)
+    // PHASE 1 — CHARGE
     const sourcePiece = machineState.pieces.find(p => p.type === 'source');
     if (sourcePiece) {
-      const sp = getPieceCenter(sourcePiece.id);
-      if (sp) {
-        setChargePos(sp);
-        setSignalPhase('charge');
-        const chargeStart = performance.now();
-        await new Promise<void>(res => {
-          const tick = () => {
-            const ct = Math.min(1, (performance.now() - chargeStart) / 280);
-            setChargeProgress(ct);
-            if (ct < 1) {
-              animFrameRef.current = requestAnimationFrame(tick);
-            } else {
-              res();
-            }
-          };
-          animFrameRef.current = requestAnimationFrame(tick);
-        });
-        setChargePos(null);
-      }
+      await runChargePhase(ctx, sourcePiece.id);
     }
 
     // Cache screen coordinates once — board and tape containers do not
     // move during execution, and re-measuring per pulse can return
     // stale (0, 0) during re-render windows.
-    cachedBoardPos = await getBoardScreenPos();
-    [cachedInputCells, cachedTrailCells, cachedOutputCells] = await Promise.all([
+    const board0 = await getBoardScreenPos();
+    const [input0, trail0, output0] = await Promise.all([
       measureTapeContainer(inputTapeCellsRef),
       measureTapeContainer(dataTrailCellsRef),
       measureTapeContainer(outputTapeCellsRef),
     ]);
+    cacheRef.current = { board: board0, input: input0, trail: trail0, output: output0 };
 
     // PHASE 2 — BEAM (one or more pulses)
     setSignalPhase('beam');
     for (let p = 0; p < pulses.length; p++) {
       currentPulseRef.current = p;
       setCurrentPulseIndex(p);
-      await runPulse(pulses[p]);
+      await engageRunPulse(ctx, pulses[p]);
       if (p < pulses.length - 1) {
-        // Brief gap + source re-flash
-        if (sourcePiece) flashPiece(sourcePiece.id, '#F0B429');
+        if (sourcePiece) engageFlashPiece(ctx, sourcePiece.id, '#F0B429');
         await new Promise(r => setTimeout(r, 80));
       }
     }
@@ -1308,7 +818,6 @@ export default function GameplayScreen({ navigation }: Props) {
     const wrongOutput = hasTape && reachedOutputEveryPulse && !tapeMatches;
 
     if (wrongOutput) {
-      // Mark mismatched outputTape cells for X overlay on output port.
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
         setFailColors(prev => {
@@ -1317,33 +826,7 @@ export default function GameplayScreen({ navigation }: Props) {
           return next;
         });
         const op = getPieceCenter(outputPiece.id);
-        if (op) {
-          // 2 red rings expanding from output, 200ms each, staggered.
-          const ringStart = performance.now();
-          await new Promise<void>(res => {
-            const tick = () => {
-              const elapsed = performance.now() - ringStart;
-              const ringsState: { x: number; y: number; r: number; opacity: number }[] = [];
-              for (let ri = 0; ri < 2; ri++) {
-                const ringElapsed = elapsed - ri * 100;
-                if (ringElapsed >= 0 && ringElapsed <= 200) {
-                  const rt = ringElapsed / 200;
-                  ringsState.push({ x: op.x, y: op.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
-                }
-              }
-              // Reuse lockRings state but the rendering will still show
-              // green rings; for simplicity we overlay via voidPulse too.
-              if (ringsState[0]) setVoidPulse({ x: ringsState[0].x, y: ringsState[0].y, r: ringsState[0].r, opacity: ringsState[0].opacity });
-              if (elapsed < 320) {
-                animFrameRef.current = requestAnimationFrame(tick);
-              } else {
-                setVoidPulse(null);
-                res();
-              }
-            };
-            animFrameRef.current = requestAnimationFrame(tick);
-          });
-        }
+        if (op) await runWrongOutputRings(ctx, op);
       }
     }
 
@@ -1353,307 +836,90 @@ export default function GameplayScreen({ navigation }: Props) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
         const op = getPieceCenter(outputPiece.id);
-        if (op) {
-          setSignalPhase('lock');
-          // Two expanding rings (200ms each, staggered)
-          const ringStart = performance.now();
-          await new Promise<void>(res => {
-            const tick = () => {
-              const elapsed = performance.now() - ringStart;
-              const ringsState: { x: number; y: number; r: number; opacity: number }[] = [];
-              for (let ri = 0; ri < 2; ri++) {
-                const ringElapsed = elapsed - ri * 100;
-                if (ringElapsed >= 0 && ringElapsed <= 200) {
-                  const rt = ringElapsed / 200;
-                  ringsState.push({ x: op.x, y: op.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
-                }
-              }
-              setLockRings(ringsState);
-              if (elapsed < 320) {
-                animFrameRef.current = requestAnimationFrame(tick);
-              } else {
-                setLockRings([]);
-                res();
-              }
-            };
-            animFrameRef.current = requestAnimationFrame(tick);
-          });
-          // Lock all pieces and wires
-          setLockedPieces(new Set(machineState.pieces.map(p => p.id)));
-          setLitWires(prev => {
-            const next = new Set(prev);
-            for (const w of wires) {
-              next.add(`${w.fromPieceId}_${w.toPieceId}`);
-              next.add(`${w.toPieceId}_${w.fromPieceId}`);
-            }
-            return next;
-          });
-          await new Promise(r => setTimeout(r, 160));
-        }
+        if (op) await runLockPhase(ctx, op);
       }
     }
     setSignalPhase('idle');
 
     // Wrong output: show diagnostic modal instead of void
     if (wrongOutput && storeOutputTape && level.expectedOutput) {
-      if (!isAxiomLevel) {
-        const blownPiece = findBlownPiece('wrongOutput', steps);
-        if (blownPiece) {
-          setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
-          deletePiece(blownPiece.id);
-        }
-      }
-      setWrongOutputData({
-        expected: [...level.expectedOutput],
-        produced: [...storeOutputTape],
+      handleWrongOutput({
+        steps,
+        expected: level.expectedOutput,
+        produced: storeOutputTape,
+        isAxiomLevel,
+        findBlownPiece,
+        deletePiece,
+        setBlownCells,
+        setWrongOutputData,
+        setShowWrongOutput,
+        loseLife,
       });
-      setShowWrongOutput(true);
-      loseLife();
       return;
     }
 
-    // Flash effect before showing overlay
     const succeeded = !wrongOutput && steps.some(s => s.type === 'terminal' && s.success);
     if (succeeded) {
-      // Calculate score using new scoring engine
       const engageDurationMs = Date.now() - engageStartTime;
-      const currentDiscipline = discipline ?? 'field'; // fallback
-      const result = calculateScore({
-        executionSteps: steps,
-        placedPieces: machineState.pieces,
-        optimalPieces: level.optimalPieces,
-        trayPieceTypes: level.availablePieces ?? [],
-        discipline: currentDiscipline,
+      const routed = await handleSuccess({
+        steps,
+        level,
+        pieces: machineState.pieces,
+        discipline,
         engageDurationMs,
-        elapsedSeconds: lockedElapsed,
+        lockedElapsed,
+        levelSpent,
+        setScoreResult,
+        setCogsScoreComment,
+        setFirstTimeBonus,
+        setElaborationMult,
+        setFlashColor,
+        setShowSystemRestored,
+        setShowCompletionScene,
+        setCompletionText,
+        setShowCompletionCard,
+        completeLevel,
+        earnCredits,
+        addLivesCredits: addCredits,
+        triggerHints,
+        navigation,
+        greenColor: Colors.green,
       });
+      if (routed) return;
 
-      // Axiom tutorial levels: always 3 stars, honest COGS quote
-      const isTutorial = level.sector === 'axiom';
-      const displayStars = isTutorial ? 3 : result.stars;
-      const displayResult: ScoreResult = isTutorial
-        ? { ...result, stars: 3 as 0 | 1 | 2 | 3 }
-        : result;
-      setScoreResult(displayResult);
-
-      const playerPieceCount = machineState.pieces.filter(p => !p.isPrePlaced).length;
-      setCogsScoreComment(
-        isTutorial
-          ? getTutorialCOGSComment(result.total, currentDiscipline)
-          : getCOGSScoreComment(result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces),
-      );
-
-      // Record progression — save displayed stars (3 for tutorial)
-      const levelId = level.id;
-      const starsEarned = displayStars as 0 | 1 | 2 | 3;
-      const isFirst = completeLevel(levelId, starsEarned);
-      setFirstTimeBonus(isFirst);
-
-      // Credit rewards
-      const cappedMult = Math.min(1.0 + (result.breakdown.purchasedTouchedCount * 0.1), 1.5);
-      setElaborationMult(cappedMult);
-      if (result.stars === 3) earnCredits(Math.floor((levelSpent + 25) * cappedMult));
-      else if (result.stars === 2) earnCredits(Math.floor(Math.ceil(levelSpent * 0.5) * cappedMult));
-      if (isFirst) {
-        earnCredits(25);
-        addCredits(25);
-      }
-      triggerHints('onSuccess');
-
-      // Green flash
-      setFlashColor(Colors.green);
-      await new Promise(resolve => setTimeout(resolve, 300));
-      setFlashColor(null);
-
-      // Show system restored for Axiom levels
-      if (level.systemRepaired) {
-        setShowSystemRestored(level.systemRepaired);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        setShowSystemRestored(null);
-      } else {
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-
-      // A1-8 completion scene — check if all 8 Axiom levels are now done
-      if (level.id === 'A1-8' && isFirst) {
-        const { getSectorCompletedCount } = useProgressionStore.getState();
-        if (getSectorCompletedCount('A1-') >= 8) {
-          setShowCompletionScene(true);
-          const lines = [
-            'The Axiom is fully operational.',
-            'For the first time since I can remember.',
-            '',
-            'You did that.',
-            '',
-            'I will not say that again.',
-          ];
-          const delays = [1200, 2400, 3600, 4400, 5200, 5800];
-          for (let i = 0; i < lines.length; i++) {
-            await new Promise(resolve => setTimeout(resolve, i === 0 ? delays[0] : delays[i] - delays[i - 1]));
-            setCompletionText(lines.slice(0, i + 1).join('\n'));
-          }
-          await new Promise(resolve => setTimeout(resolve, 1200));
-          setShowCompletionScene(false);
-          navigation.navigate('Tabs');
-          return;
-        }
-      }
-
-      // Bug 10: do not open Results immediately. Show the COGS
-      // completion card over the held lock state — player must
-      // tap Continue before Results animates in.
-      setShowCompletionCard(true);
-
-      // Post-completion beam replay loop — visual only, no re-scoring
+      // Post-completion beam replay loop — visual only, no re-scoring.
       setSignalPhase('lock');
       loopingRef.current = true;
-      (async () => {
-        while (loopingRef.current) {
-          await new Promise(r => setTimeout(r, 800));
-          if (!loopingRef.current) break;
-
-          setBeamHeads([]);
-          setTrailSegments([]);
-          setBranchTrails([]);
-          setFlashingPieces(new Map());
-          setActiveAnimations(new Map());
-          setGateResults(new Map());
-          setChargePos(null);
-          setChargeProgress(0);
-          setLockRings([]);
-          setTapeCellHighlights(new Map());
-          if (level.dataTrail.cells.length > 0) {
-            setVisualTrailOverride(level.dataTrail.cells.map(() => null));
-          }
-          if (level.inputTape && level.inputTape.length > 0) {
-            setVisualOutputOverride(level.inputTape.map(() => -1));
-          }
-
-          // CHARGE
-          if (sourcePiece) {
-            const sp2 = getPieceCenter(sourcePiece.id);
-            if (sp2) {
-              setChargePos(sp2);
-              setSignalPhase('charge');
-              const cs = performance.now();
-              await new Promise<void>(res => {
-                const tick = () => {
-                  if (!loopingRef.current) { res(); return; }
-                  const ct = Math.min(1, (performance.now() - cs) / 280);
-                  setChargeProgress(ct);
-                  if (ct < 1) { animFrameRef.current = requestAnimationFrame(tick); }
-                  else { res(); }
-                };
-                animFrameRef.current = requestAnimationFrame(tick);
-              });
-              setChargePos(null);
-            }
-          }
-          if (!loopingRef.current) break;
-
-          // Re-cache before each replay BEAM in case layout shifted
-          // (keyboard, modals, orientation) between loops.
-          cachedBoardPos = await getBoardScreenPos();
-          [cachedInputCells, cachedTrailCells, cachedOutputCells] = await Promise.all([
-            measureTapeContainer(inputTapeCellsRef),
-            measureTapeContainer(dataTrailCellsRef),
-            measureTapeContainer(outputTapeCellsRef),
-          ]);
-
-          // BEAM
-          setSignalPhase('beam');
-          for (let lp = 0; lp < pulses.length; lp++) {
-            if (!loopingRef.current) break;
-            currentPulseRef.current = lp;
-            setCurrentPulseIndex(lp);
-            await runPulse(pulses[lp]);
-            if (!loopingRef.current) break;
-            if (lp < pulses.length - 1) {
-              if (sourcePiece) flashPiece(sourcePiece.id, '#F0B429');
-              await new Promise(r => setTimeout(r, 80));
-            }
-          }
-          if (!loopingRef.current) break;
-
-          // Beam complete for this replay — reveal final values.
-          setVisualTrailOverride(null);
-          setVisualOutputOverride(null);
-          setTapeCellHighlights(new Map());
-
-          // LOCK (visual only)
-          const outP = machineState.pieces.find(pc => pc.type === 'terminal');
-          if (outP) {
-            const opc = getPieceCenter(outP.id);
-            if (opc) {
-              setSignalPhase('lock');
-              const rs = performance.now();
-              await new Promise<void>(res => {
-                const tick = () => {
-                  if (!loopingRef.current) { setLockRings([]); res(); return; }
-                  const el = performance.now() - rs;
-                  const rings: { x: number; y: number; r: number; opacity: number }[] = [];
-                  for (let ri = 0; ri < 2; ri++) {
-                    const re = el - ri * 100;
-                    if (re >= 0 && re <= 200) {
-                      const rt = re / 200;
-                      rings.push({ x: opc.x, y: opc.y, r: 6 + rt * 36, opacity: 0.95 * (1 - rt) });
-                    }
-                  }
-                  setLockRings(rings);
-                  if (el < 320) { animFrameRef.current = requestAnimationFrame(tick); }
-                  else { setLockRings([]); res(); }
-                };
-                animFrameRef.current = requestAnimationFrame(tick);
-              });
-            }
-          }
-        }
-      })();
+      const terminalPieceId = machineState.pieces.find(pc => pc.type === 'terminal')?.id ?? null;
+      void runReplayLoop({
+        ctx,
+        pulses,
+        sourcePieceId: sourcePiece?.id ?? null,
+        terminalPieceId,
+        dataTrailCellsLength: level.dataTrail.cells.length,
+        inputTapeLength: level.inputTape?.length ?? 0,
+        getBoardScreenPos,
+        measureTapeContainer,
+      });
     } else {
-      // Red flash 3 times
-      for (let f = 0; f < 3; f++) {
-        setFlashColor(Colors.red);
-        await new Promise(resolve => setTimeout(resolve, 150));
-        setFlashColor(null);
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-      await new Promise(resolve => setTimeout(resolve, 200));
-
-      // Progressive teaching on A1-3 failures
-      const newFailCount = failCount + 1;
-      setFailCount(newFailCount);
-
-      if (level.id === 'A1-3' && newFailCount === 1) {
-        setShowTeachCard([
-          'The Config Node blocked the signal.',
-          'A Config Node reads the current Configuration value. It only passes the signal when that value matches its condition.',
-          'The condition here requires Configuration = 1. Check that Configuration is set to ACTIVE before engaging.',
-          'The Data Trail at the bottom is the memory. The Scanner reads it. What it reads can affect the Configuration.',
-        ]);
-        return;
-      }
-      if (level.id === 'A1-3' && newFailCount === 2) {
-        setShowTeachCard([
-          'Still blocked. Let me be more direct.',
-          'The Data Trail reads left to right as the signal travels. Cell 0 first, then cell 1, then cell 2.',
-          'The Scanner reads the trail value at the current head position when the signal reaches it.',
-          'Check which value the Scanner will read. If it reads 1, the Config Node opens. If it reads 0, it stays closed.',
-          'Toggle the Configuration to ACTIVE before engaging. That is the key.',
-        ]);
-        return;
-      }
-
-      if (!isAxiomLevel) {
-        const blownPiece = findBlownPiece('void', steps);
-        if (blownPiece) {
-          setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
-          deletePiece(blownPiece.id);
-        }
-      }
-      setShowVoid(true);
-      triggerHints('onVoid');
+      await handleVoidFailure({
+        steps,
+        levelId: level.id,
+        isAxiomLevel,
+        failCount,
+        findBlownPiece,
+        deletePiece,
+        setBlownCells,
+        setFailCount,
+        setFlashColor,
+        setShowTeachCard,
+        setShowVoid,
+        triggerHints,
+        redColor: Colors.red,
+      });
     }
   }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
+
 
   // ── Reset ──
   const handleReset = useCallback(() => {
