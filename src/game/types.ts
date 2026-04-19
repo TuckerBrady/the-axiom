@@ -63,7 +63,7 @@ export type Wire = {
 // ─── Data Trail (Turing tape) ─────────────────────────────────────────────────
 
 export type DataTrail = {
-  cells: (0 | 1)[];
+  cells: (0 | 1 | null)[];
   headPosition: number;
 };
 

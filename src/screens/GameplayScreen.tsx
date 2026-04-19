@@ -1637,8 +1637,8 @@ export default function GameplayScreen({ navigation }: Props) {
                       <View key={`trail-${i}`} style={styles.tapeCellWrap}>
                         <View style={[styles.tapeHead, { opacity: 0 }]} />
                         <View style={[styles.tapeCell, isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' }]}>
-                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }]}>
-                            {cell}
+                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
+                            {cell === null ? '\u00B7' : cell}
                           </Text>
                         </View>
                       </View>

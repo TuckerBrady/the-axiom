@@ -331,7 +331,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'configNode': {
         const nodeValue = piece.configValue ?? 1;
-        let trailValue: number;
+        let trailValue: number | null;
         if (trail.cells.length > 0 && pulseIndex < trail.cells.length) {
           trailValue = trail.cells[pulseIndex];
         } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
@@ -339,14 +339,16 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         } else {
           trailValue = nodeValue;
         }
-        const passes = trailValue === nodeValue;
+        const passes = trailValue !== null && trailValue === nodeValue;
         if (!passes) {
           step.success = false;
-          step.message = `Configuration check failed — trail ${trailValue} !== gate ${nodeValue}`;
+          const displayTrail = trailValue === null ? 'empty' : trailValue;
+          step.message = `Configuration check failed — trail ${displayTrail} !== gate ${nodeValue}`;
           steps.push(step);
           continue;
         }
-        step.message = `Configuration check passed — trail ${trailValue} === gate ${nodeValue}`;
+        const displayTrail = trailValue === null ? 'empty' : trailValue;
+        step.message = `Configuration check passed — trail ${displayTrail} === gate ${nodeValue}`;
         break;
       }
 

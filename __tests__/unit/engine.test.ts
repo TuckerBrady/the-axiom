@@ -115,7 +115,7 @@ describe('executeMachine', () => {
       makePiece('cn', 'configNode', 2, 0, { configValue: 1 }),
       makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
     ];
-    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
+    const steps = executeMachine(makeState(pieces, { inputTape: [0], outputTape: [-1], dataTrail: { cells: [null], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
     expect(cnStep?.success).toBe(false);
   });
@@ -127,7 +127,7 @@ describe('executeMachine', () => {
       makePiece('cn', 'configNode', 2, 0, { configValue: 0 }),
       makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
     ];
-    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1], dataTrail: { cells: [0], headPosition: 0 } }), 0);
+    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: [-1], dataTrail: { cells: [null], headPosition: 0 } }), 0);
     const cnStep = steps.find(s => s.type === 'configNode');
     expect(cnStep?.success).toBe(false);
   });
@@ -340,6 +340,53 @@ describe('executeMachine advanced', () => {
     const pieces = [makePiece('o', 'terminal', 0, 0)];
     const steps = executeMachine(makeState(pieces));
     expect(steps.some(s => s.type === 'error')).toBe(true);
+  });
+});
+
+describe('null trail cells', () => {
+  it('Scanner writes to null trail cell', () => {
+    const pieces = [
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
+      makePiece('sc', 'scanner', 1, 0),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
+    ];
+    const state = makeState(pieces, {
+      inputTape: [1],
+      outputTape: [-1],
+      dataTrail: { cells: [null], headPosition: 0 },
+    });
+    executeMachine(state, 0);
+    expect(state.dataTrail.cells[0]).toBe(1);
+  });
+
+  it('Config Node blocks on null trail cell', () => {
+    const pieces = [
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
+      makePiece('cn', 'configNode', 1, 0, { configValue: 1 }),
+      makePiece('o', 'terminal', 2, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, {
+      inputTape: [1],
+      outputTape: [-1],
+      dataTrail: { cells: [null], headPosition: 0 },
+    }), 0);
+    const cnStep = steps.find(s => s.type === 'configNode');
+    expect(cnStep?.success).toBe(false);
+  });
+
+  it('Config Node passes after Scanner writes matching value', () => {
+    const pieces = [
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
+      makePiece('sc', 'scanner', 1, 0),
+      makePiece('cn', 'configNode', 2, 0, { configValue: 1 }),
+      makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
+    ];
+    const steps = executeMachine(makeState(pieces, {
+      inputTape: [1],
+      outputTape: [-1],
+      dataTrail: { cells: [null], headPosition: 0 },
+    }), 0);
+    expect(steps.some(s => s.type === 'terminal' && s.success)).toBe(true);
   });
 });
 
