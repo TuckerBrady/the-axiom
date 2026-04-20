@@ -60,7 +60,11 @@ export function stopBubbleTrail(ctx: EngagementContext): void {
     cancelAnimationFrame(ctx.bubbleTrailRAFRef.current);
     ctx.bubbleTrailRAFRef.current = null;
   }
-  setTimeout(() => setBubbleTrailField(ctx.setBubbleAnimState, []), 300);
+  // Track the clear-trail timeout in flashTimersRef so handleReset
+  // cancels it; otherwise it would keep firing into stale state
+  // after navigation or level reset.
+  const t = setTimeout(() => setBubbleTrailField(ctx.setBubbleAnimState, []), 300);
+  ctx.flashTimersRef.current.push(t);
   ctx.bubbleHistoryRef.current = [];
 }
 
@@ -85,12 +89,13 @@ export function animateBubbleTo(
       setValueBubbleField(ctx.setBubbleAnimState, { screenX: x, screenY: y, color, value });
       ctx.valueBubblePosRef.current = { x, y };
       if (t < 1) {
-        requestAnimationFrame(tick);
+        ctx.bubbleAnimRAFRef.current = requestAnimationFrame(tick);
       } else {
+        ctx.bubbleAnimRAFRef.current = null;
         resolve();
       }
     };
-    requestAnimationFrame(tick);
+    ctx.bubbleAnimRAFRef.current = requestAnimationFrame(tick);
   });
 }
 
@@ -106,6 +111,12 @@ export function showBubbleAt(
 }
 
 export function hideBubble(ctx: EngagementContext): void {
+  // Cancel any in-flight bubble animation RAF so it can't keep
+  // writing into stale state after hide.
+  if (ctx.bubbleAnimRAFRef.current) {
+    cancelAnimationFrame(ctx.bubbleAnimRAFRef.current);
+    ctx.bubbleAnimRAFRef.current = null;
+  }
   setValueBubbleField(ctx.setBubbleAnimState, null);
   ctx.valueBubblePosRef.current = null;
   stopBubbleTrail(ctx);

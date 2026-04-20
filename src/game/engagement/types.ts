@@ -138,6 +138,7 @@ export interface EngagementContext {
   valueBubblePosRef: MutableRefObject<{ x: number; y: number } | null>;
   bubbleHistoryRef: MutableRefObject<Array<{ x: number; y: number }>>;
   bubbleTrailRAFRef: MutableRefObject<number | null>;
+  bubbleAnimRAFRef: MutableRefObject<number | null>;
 
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;

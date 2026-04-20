@@ -37,22 +37,49 @@ export async function runScannerInteraction(
   const tapeValue = ctx.inputTape?.[pulse];
   const display = tapeValue === undefined ? '?' : String(tapeValue);
 
+  // Read-operation flow: the Scanner doesn't know the tape value
+  // until it reads the tape. The bubble is a read head — it leaves
+  // the Scanner carrying "?", acquires the value at the input cell,
+  // then carries the value back for the subsequent write to Trail.
+
+  // Step 1: Scanner activates.
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
-  setHighlight(ctx, `in-${pulse}`, 'read');
 
-  showBubbleAt(ctx, scannerX, scannerY, color, display);
+  // Step 2: Read head dispatched — bubble starts with "?".
+  showBubbleAt(ctx, scannerX, scannerY, color, '?');
   startBubbleTrail(ctx);
-  await wait(180 * speed);
+  await wait(100 * speed);
 
+  // Step 3: Bubble travels to IN tape cell, still carrying "?".
   const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
-  await animateBubbleTo(ctx, scannerX, scannerY, inputCell.x, inputCell.y, color, display, 300 * speed);
-  await wait(180 * speed);
-  await animateBubbleTo(ctx, inputCell.x, inputCell.y, scannerX, scannerY, color, display, 240 * speed);
+  await animateBubbleTo(
+    ctx, scannerX, scannerY,
+    inputCell.x, inputCell.y,
+    color, '?', 300 * speed,
+  );
+
+  // Step 4: Bubble acquires the tape value. Highlight the IN cell
+  // as 'read' only at this moment.
+  setHighlight(ctx, `in-${pulse}`, 'read');
+  showBubbleAt(ctx, inputCell.x, inputCell.y, color, display);
+  await wait(200 * speed);
+
+  // Step 5: Bubble returns to the Scanner with the value.
+  await animateBubbleTo(
+    ctx, inputCell.x, inputCell.y,
+    scannerX, scannerY,
+    color, display, 240 * speed,
+  );
   await wait(120 * speed);
 
+  // Step 6: Bubble continues from Scanner to the Trail cell (write).
   const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
-  await animateBubbleTo(ctx, scannerX, scannerY, trailCell.x, trailCell.y, color, display, 300 * speed);
+  await animateBubbleTo(
+    ctx, scannerX, scannerY,
+    trailCell.x, trailCell.y,
+    color, display, 300 * speed,
+  );
   setHighlight(ctx, `trail-${pulse}`, 'write');
   if (tapeValue !== undefined) {
     ctx.setVisualTrailOverride(prev => {

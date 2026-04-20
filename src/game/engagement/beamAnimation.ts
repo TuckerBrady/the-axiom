@@ -114,7 +114,21 @@ export function runLinearPath(
               const now2 = performance.now();
               pauseStart = now2;
               pauseEnd = now2 + 1e9;
+              // Safety net: if the interaction promise never settles
+              // (orphan callback, unmount mid-animation), force-resume
+              // the beam after 8s so pauseEnd can never stay stuck
+              // at infinity.
+              const safetyTimer = setTimeout(() => {
+                if (pauseEnd > performance.now()) {
+                  pauseEnd = performance.now();
+                }
+              }, 8000);
+              ctx.flashTimersRef.current.push(safetyTimer);
               triggerPieceAnim(ctx, stp).then(() => {
+                clearTimeout(safetyTimer);
+                pauseEnd = performance.now();
+              }).catch(() => {
+                clearTimeout(safetyTimer);
                 pauseEnd = performance.now();
               });
             } else {

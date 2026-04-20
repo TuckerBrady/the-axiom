@@ -328,6 +328,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
   const bubbleTrailRAFRef = useRef<number | null>(null);
+  const bubbleAnimRAFRef = useRef<number | null>(null);
   const bubbleHistoryRef = useRef<Array<{ x: number; y: number }>>([]);
   const valueBubblePosRef = useRef<{ x: number; y: number } | null>(null);
   const loopingRef = useRef(false);
@@ -425,6 +426,10 @@ export default function GameplayScreen({ navigation }: Props) {
       if (bubbleTrailRAFRef.current != null) {
         cancelAnimationFrame(bubbleTrailRAFRef.current);
         bubbleTrailRAFRef.current = null;
+      }
+      if (bubbleAnimRAFRef.current != null) {
+        cancelAnimationFrame(bubbleAnimRAFRef.current);
+        bubbleAnimRAFRef.current = null;
       }
       bubbleHistoryRef.current = [];
       valueBubblePosRef.current = null;
@@ -739,6 +744,7 @@ export default function GameplayScreen({ navigation }: Props) {
       valueBubblePosRef,
       bubbleHistoryRef,
       bubbleTrailRAFRef,
+      bubbleAnimRAFRef,
       boardGridRef,
       inputTapeCellsRef,
       dataTrailCellsRef,
@@ -976,6 +982,10 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(bubbleTrailRAFRef.current);
       bubbleTrailRAFRef.current = null;
     }
+    if (bubbleAnimRAFRef.current != null) {
+      cancelAnimationFrame(bubbleAnimRAFRef.current);
+      bubbleAnimRAFRef.current = null;
+    }
     bubbleHistoryRef.current = [];
     valueBubblePosRef.current = null;
     setBubbleAnimState(BUBBLE_INITIAL);
@@ -1088,15 +1098,22 @@ export default function GameplayScreen({ navigation }: Props) {
                 {level.inputTape.map((bit, i) => {
                   const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
                   const isPast = beamState.phase === 'beam' && i < currentPulseIndex;
+                  const isFuture = beamState.phase === 'beam' && i > currentPulseIndex;
+                  // Pre-beam "next" marker — cell 0 gets the head
+                  // indicator while the machine is idle / charging so
+                  // the player knows which cell fires first.
+                  const isPreBeamNext =
+                    (beamState.phase === 'idle' || beamState.phase === 'charge') && i === 0;
                   const highlight = tapeCellHighlights.get(`in-${i}`);
                   return (
                     <View key={`in-${i}`} style={styles.tapeCellWrap}>
-                      <View style={[styles.tapeHead, !isActive && { opacity: 0 }]} />
+                      <View style={[styles.tapeHead, !(isActive || isPreBeamNext) && { opacity: 0 }]} />
                       <View
                         style={[
                           styles.tapeCell,
                           isActive && styles.tapeCellActive,
                           isPast && styles.tapeCellPast,
+                          isFuture && { opacity: 0.55 },
                           highlight === 'read' && styles.tapeCellHighlightRead,
                           highlight === 'write' && styles.tapeCellHighlightWrite,
                           highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
@@ -1728,6 +1745,10 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(bubbleTrailRAFRef.current);
                   bubbleTrailRAFRef.current = null;
                 }
+                if (bubbleAnimRAFRef.current != null) {
+                  cancelAnimationFrame(bubbleAnimRAFRef.current);
+                  bubbleAnimRAFRef.current = null;
+                }
                 bubbleHistoryRef.current = [];
                 valueBubblePosRef.current = null;
                 setBubbleAnimState(BUBBLE_INITIAL);
@@ -1977,9 +1998,9 @@ export default function GameplayScreen({ navigation }: Props) {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
                 <CogsAvatar size="small" state="damaged" />
-                {/* [PROPOSED] COGS line — Tucker sign-off required before removing tag */}
+                {/* COGS line — approved by Tucker 2026-04-19 */}
                 <Text style={styles.wrongOutputCogsText}>
-                  {"\""}The machine ran. Not enough pulses completed the route. Check the gate configuration.{"\""}
+                  {"\""}Three pulses were required. The machine delivered fewer. The configuration was not aligned with the input.{"\""}
                 </Text>
               </View>
               <TouchableOpacity

@@ -293,6 +293,11 @@ export const levelA1_5: LevelDefinition = {
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'configNode', 'scanner'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0],
+  // Scanner writes tape to trail; Config Node (configValue=1) then
+  // passes the three 1-valued pulses through to Terminal. No
+  // Transmitter in the tray, so expectedOutput is documentary —
+  // requiredTerminalCount is the live success gate.
+  expectedOutput: [1, 1, 1],
   requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6,
@@ -375,6 +380,7 @@ export const levelA1_6: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 1, 0],
   expectedOutput: [1, 0, 1, 1, 0, 1, 1, 0],
+  requiredTerminalCount: 8,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 8,
   systemRepaired: 'Sensor Grid',
@@ -428,6 +434,7 @@ export const levelA1_7: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1],
   expectedOutput: [1, 1, 0, 1, 0, 0, 1, 1],
+  requiredTerminalCount: 8,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 7,
   systemRepaired: 'Weapons Lock',
@@ -494,6 +501,7 @@ export const levelA1_8: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 0, 1],
   expectedOutput: [1, 0, 1, 1, 0, 1, 0, 1],
+  requiredTerminalCount: 8,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 11,
   systemRepaired: 'Bridge Systems',

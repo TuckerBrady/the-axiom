@@ -44,22 +44,26 @@ describe('getTapeCellPosFromCache', () => {
     expect(getTapeCellPosFromCache(null, 5)).toEqual({ x: 0, y: 0 });
   });
 
-  it('centers the first cell at container x + 12 and vertical midpoint', () => {
+  it('centers the first cell at container x + 12, cell-center vertically', () => {
     // x = 100 + 0 * (24 + 3) + 24/2 = 112
-    // y = 50 + 40/2 = 70
-    expect(getTapeCellPosFromCache(container, 0)).toEqual({ x: 112, y: 70 });
+    // y = cached.y + cached.h - 12 = 50 + 40 - 12 = 78
+    // The cell sits at the BOTTOM of the container (head row sits
+    // above). We want the bubble on the cell's own midpoint, not the
+    // geometric center of the container that includes the head row.
+    expect(getTapeCellPosFromCache(container, 0)).toEqual({ x: 112, y: 78 });
   });
 
   it('advances each subsequent cell by 27px (cell + gap)', () => {
-    expect(getTapeCellPosFromCache(container, 1)).toEqual({ x: 139, y: 70 });
-    expect(getTapeCellPosFromCache(container, 2)).toEqual({ x: 166, y: 70 });
-    expect(getTapeCellPosFromCache(container, 4)).toEqual({ x: 220, y: 70 });
+    expect(getTapeCellPosFromCache(container, 1)).toEqual({ x: 139, y: 78 });
+    expect(getTapeCellPosFromCache(container, 2)).toEqual({ x: 166, y: 78 });
+    expect(getTapeCellPosFromCache(container, 4)).toEqual({ x: 220, y: 78 });
   });
 
-  it('uses the container height for the vertical center regardless of cell index', () => {
+  it('targets the cell-center y regardless of cell index', () => {
     const tall = { x: 0, y: 0, w: 100, h: 80 };
-    expect(getTapeCellPosFromCache(tall, 0).y).toBe(40);
-    expect(getTapeCellPosFromCache(tall, 3).y).toBe(40);
+    // y = 0 + 80 - 12 = 68
+    expect(getTapeCellPosFromCache(tall, 0).y).toBe(68);
+    expect(getTapeCellPosFromCache(tall, 3).y).toBe(68);
   });
 });
 

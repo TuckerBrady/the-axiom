@@ -136,7 +136,11 @@ describe('A1-5 level definition', () => {
     expect(levelA1_5.inputTape).toEqual([1, 0, 1, 1, 0]);
   });
 
-  it('no longer carries expectedOutput (Transmitter-based validation)', () => {
-    expect(levelA1_5.expectedOutput).toBeUndefined();
+  // Prompt 67 restored expectedOutput as a documentary field: Config
+  // Node gating with configValue=1 passes the three 1-valued input
+  // pulses. No Transmitter on this level, so requiredTerminalCount
+  // is the live success gate; expectedOutput is for design clarity.
+  it('documents expectedOutput as the three 1-valued pulses', () => {
+    expect(levelA1_5.expectedOutput).toEqual([1, 1, 1]);
   });
 });
