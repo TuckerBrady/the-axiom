@@ -17,11 +17,16 @@ import {
   posAlongChain,
   computePhase,
   computeProtocolPhase,
+  computeCounterPhase,
   configNodeMode,
+  latchMode,
   PHYSICS_CYCLE_MS,
   PROTOCOL_CYCLE_MS,
+  COUNTER_CYCLE_MS,
+  CT_P1_CHARGE_END,
   type Phase,
   type ProtocolPhase,
+  type CounterPhase,
 } from './pieceSimulationMath';
 
 export {
@@ -33,6 +38,7 @@ export {
   posAlongChain,
   computePhase,
   computeProtocolPhase,
+  computeCounterPhase,
 };
 
 const PHYSICS_TYPES = new Set([
@@ -42,16 +48,21 @@ const PHYSICS_TYPES = new Set([
   'source',
   'terminal',
   'output',
+  'merger',
+  'bridge',
 ]);
 
-// Protocol pieces with the new charge/beam/interact/lock cycle. Other
-// Protocol pieces (merger, bridge, inverter, counter, latch) keep the
-// legacy 3600ms sliding-dot animation until Prompt 65.
+// Protocol pieces that use the Protocol beam cycle + tape strips.
 const PROTOCOL_BEAM_TYPES = new Set([
   'configNode',
   'scanner',
   'transmitter',
+  'inverter',
+  'latch',
 ]);
+
+// Counter is a Protocol piece but has its own 2-pulse cycle timing.
+const COUNTER_TYPE = 'counter';
 
 const AMBER = '#F0B429';
 const GREEN = '#22C55E';
@@ -121,12 +132,22 @@ type SimPieceProps = {
   gateResult?: 'pass' | 'block' | null;
   transmitting?: boolean;
   configValue?: number;
+  merging?: boolean;
+  bridging?: boolean;
+  inverting?: boolean;
+  counting?: boolean;
+  count?: number;
+  threshold?: number;
+  latching?: boolean;
+  latchMode?: 'write' | 'read';
 };
 
 function SimPiece({
   cell, type, color, rotation = 0,
   charging, rolling, spinning, splitting, locking,
   scanning, gating, gateResult, transmitting, configValue,
+  merging, bridging, inverting, counting, count, threshold,
+  latching, latchMode: lm,
 }: SimPieceProps) {
   const sz = cell.r * 0.8;
   return (
@@ -152,6 +173,14 @@ function SimPiece({
           gateResult={gateResult}
           transmitting={transmitting}
           configValue={configValue}
+          merging={merging}
+          bridging={bridging}
+          inverting={inverting}
+          counting={counting}
+          count={count}
+          threshold={threshold}
+          latching={latching}
+          latchMode={lm}
         />
       </View>
     </View>
@@ -247,12 +276,16 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
   const type = pieceType === 'config_node' ? 'configNode' : pieceType;
   const isPhysics = PHYSICS_TYPES.has(type);
   const isProtocolBeam = PROTOCOL_BEAM_TYPES.has(type);
-  // Physics: 1700ms. Protocol beam: 2100ms. Legacy Protocol: 3600ms.
+  const isCounter = type === COUNTER_TYPE;
+  // Physics: 1700ms. Protocol beam: 2100ms. Counter: 3700ms.
+  // Anything else: legacy 3600ms.
   const cycleMs = isPhysics
     ? PHYSICS_CYCLE_MS
     : isProtocolBeam
       ? PROTOCOL_CYCLE_MS
-      : 3600;
+      : isCounter
+        ? COUNTER_CYCLE_MS
+        : 3600;
 
   useEffect(() => {
     loopCountRef.current = 0;
@@ -285,7 +318,9 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
     ? renderPhysicsSim(type, t)
     : isProtocolBeam
       ? renderProtocolBeamSim(type, t, loopCount)
-      : renderProtocolSim(type, t);
+      : isCounter
+        ? renderCounterSim(t)
+        : renderProtocolSim(type, t);
 
   return (
     <View style={simStyles.container}>
@@ -309,6 +344,14 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
             gateResult={p.gateResult}
             transmitting={p.transmitting}
             configValue={p.configValue}
+            merging={p.merging}
+            bridging={p.bridging}
+            inverting={p.inverting}
+            counting={p.counting}
+            count={p.count}
+            threshold={p.threshold}
+            latching={p.latching}
+            latchMode={p.latchMode}
           />
         ))}
       </View>
@@ -336,6 +379,14 @@ type PieceDef = {
   gateResult?: 'pass' | 'block' | null;
   transmitting?: boolean;
   configValue?: number;
+  merging?: boolean;
+  bridging?: boolean;
+  inverting?: boolean;
+  counting?: boolean;
+  count?: number;
+  threshold?: number;
+  latching?: boolean;
+  latchMode?: 'write' | 'read';
 };
 
 type SimData = {
@@ -433,6 +484,10 @@ function renderPhysicsSim(type: string, t: number): SimData {
         phase, progress, S, C1, SP, O1, O2,
       });
     }
+    case 'merger':
+      return renderMergerSim(phase, progress);
+    case 'bridge':
+      return renderBridgeSim(phase, progress);
     default: {
       const S = getCell(0, 1, 5, 3);
       const O = getCell(4, 1, 5, 3);
@@ -694,6 +749,259 @@ function renderSplitterPhysics(args: {
   };
 }
 
+// ── Merger: two staggered sources converge ──────────────────────────────
+// Grid 4x3. Source A (0,0) → Conv A (1,0) ↘ Merger (2,1) → Terminal (3,1)
+//         Source B (0,2) → Conv B (1,2) ↗
+// Head A starts with the beam phase; Head B starts at progress 0.25.
+function renderMergerSim(phase: Phase, progress: number): SimData {
+  const SA = getCell(0, 0, 4, 3);
+  const CA = getCell(1, 0, 4, 3);
+  const SB = getCell(0, 2, 4, 3);
+  const CB = getCell(1, 2, 4, 3);
+  const M = getCell(2, 1, 4, 3);
+  const O = getCell(3, 1, 4, 3);
+
+  const pathA = [SA, CA, M];
+  const pathB = [SB, CB, M];
+  const pathOut = [M, O];
+
+  // Head A tracks the whole beam phase; Head B starts at 0.25.
+  const HB_START = 0.25;
+  const MERGED_T = 0.7; // when outgoing head starts leaving the Merger
+
+  const phaseP = phase === 'beam' ? progress : phase === 'charge' ? 0 : 1;
+  const aProgress = Math.min(1, phaseP / MERGED_T);
+  const bProgress = phaseP < HB_START
+    ? 0
+    : Math.min(1, (phaseP - HB_START) / (MERGED_T - HB_START));
+  const outProgress = phaseP < MERGED_T
+    ? 0
+    : Math.min(1, (phaseP - MERGED_T) / (1 - MERGED_T));
+
+  const headA = posAlongChain(pathA, aProgress);
+  const headB = posAlongChain(pathB, bProgress);
+  const headOut = posAlongChain(pathOut, outProgress);
+
+  const reachedA = aProgress >= 1 ? pathA.length - 1 : headA.reachedIndex;
+  const reachedB = bProgress >= 1 ? pathB.length - 1 : headB.reachedIndex;
+  const bothAtMerger = aProgress >= 1 && bProgress >= 1;
+  const mergerActive = phase !== 'charge' && phase !== 'pause' && bothAtMerger;
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  // Assemble trails.
+  const trailA: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= reachedA; i++) trailA.push(pathA[i]);
+    if (aProgress > 0 && aProgress < 1) trailA.push({ x: headA.x, y: headA.y });
+    if (aProgress >= 1) trailA.push(pathA[pathA.length - 1]);
+  }
+  const trailB: { x: number; y: number }[] = [];
+  if (phase !== 'charge' && bProgress > 0) {
+    for (let i = 0; i <= reachedB; i++) trailB.push(pathB[i]);
+    if (bProgress > 0 && bProgress < 1) trailB.push({ x: headB.x, y: headB.y });
+    if (bProgress >= 1) trailB.push(pathB[pathB.length - 1]);
+  }
+  const trailOut: { x: number; y: number }[] = [];
+  if (phase === 'beam' && outProgress > 0) {
+    trailOut.push(M);
+    if (outProgress > 0 && outProgress < 1) trailOut.push({ x: headOut.x, y: headOut.y });
+    if (outProgress >= 1) trailOut.push(O);
+  }
+  if (phase === 'lock' || phase === 'pause') {
+    trailOut.push(M, O);
+  }
+
+  const pieces: PieceDef[] = [
+    { cell: SA, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: CA, type: 'conveyor', color: AMBER,
+      rolling: phase === 'beam' && reachedA >= 1 && aProgress < 1 },
+    { cell: SB, type: 'source', color: AMBER,
+      charging: phase === 'beam' && progress >= HB_START && progress < HB_START + 0.1 },
+    { cell: CB, type: 'conveyor', color: AMBER,
+      rolling: phase === 'beam' && reachedB >= 1 && bProgress < 1 },
+    { cell: M, type: 'merger', color: AMBER, merging: mergerActive },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  const drawTrail = (pts: { x: number; y: number }[]) => pts.length >= 2
+    && pts.slice(0, -1).map((p, i) => (
+      <SvgLine
+        key={`tl-${i}-${p.x}-${p.y}`}
+        x1={p.x} y1={p.y}
+        x2={pts[i + 1].x} y2={pts[i + 1].y}
+        stroke={AMBER}
+        strokeWidth={2}
+        opacity={trailOpacity}
+      />
+    ));
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={SA.x} y1={SA.y} x2={CA.x} y2={CA.y}
+          lit={phase === 'beam' && reachedA >= 1 || phase === 'lock'} />
+        <DrawConn x1={CA.x} y1={CA.y} x2={M.x} y2={M.y}
+          lit={phase === 'beam' && aProgress >= 1 || phase === 'lock'} />
+        <DrawConn x1={SB.x} y1={SB.y} x2={CB.x} y2={CB.y}
+          lit={phase === 'beam' && reachedB >= 1 || phase === 'lock'} />
+        <DrawConn x1={CB.x} y1={CB.y} x2={M.x} y2={M.y}
+          lit={phase === 'beam' && bProgress >= 1 || phase === 'lock'} />
+        <DrawConn x1={M.x} y1={M.y} x2={O.x} y2={O.y}
+          lit={phase === 'beam' && outProgress > 0 || phase === 'lock'} />
+
+        {phase === 'charge' && renderChargeRings(SA, progress)}
+
+        {drawTrail(trailA)}
+        {drawTrail(trailB)}
+        {drawTrail(trailOut)}
+
+        {phase === 'beam' && aProgress < 1 && (
+          <>
+            <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={AMBER} opacity={0.2} />
+            <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={AMBER} />
+          </>
+        )}
+        {phase === 'beam' && bProgress > 0 && bProgress < 1 && (
+          <>
+            <SvgCircle cx={headB.x} cy={headB.y} r={8} fill={AMBER} opacity={0.2} />
+            <SvgCircle cx={headB.x} cy={headB.y} r={4} fill={AMBER} />
+          </>
+        )}
+        {phase === 'beam' && outProgress > 0 && outProgress < 1 && (
+          <>
+            <SvgCircle cx={headOut.x} cy={headOut.y} r={8} fill={AMBER} opacity={0.2} />
+            <SvgCircle cx={headOut.x} cy={headOut.y} r={4} fill={AMBER} />
+          </>
+        )}
+
+        {phase === 'lock' && renderLockPulse(O, progress)}
+      </>
+    ),
+    pieces,
+  };
+}
+
+// ── Bridge: two independent perpendicular beams cross ────────────────────
+// Grid 5x3. Horizontal path: Source H (0,1) → Conv (1,1) → Bridge (2,1)
+//                             → Conv (3,1) → Terminal H (4,1)
+// Vertical path:   Source V (2,0) → Bridge → Terminal V (2,2)
+// H is amber, V is cyan. Both travel independently with slight stagger.
+function renderBridgeSim(phase: Phase, progress: number): SimData {
+  const SH = getCell(0, 1, 5, 3);
+  const CL = getCell(1, 1, 5, 3);
+  const B = getCell(2, 1, 5, 3);
+  const CR = getCell(3, 1, 5, 3);
+  const TH = getCell(4, 1, 5, 3);
+  const SV = getCell(2, 0, 5, 3);
+  const TV = getCell(2, 2, 5, 3);
+
+  const pathH = [SH, CL, B, CR, TH];
+  const pathV = [SV, B, TV];
+
+  const HV_START = 0.15;
+  const phaseP = phase === 'beam' ? progress : phase === 'charge' ? 0 : 1;
+  const hProgress = Math.min(1, phaseP);
+  const vProgress = phaseP < HV_START
+    ? 0
+    : Math.min(1, (phaseP - HV_START) / (1 - HV_START));
+
+  const headH = posAlongChain(pathH, hProgress);
+  const headV = posAlongChain(pathV, vProgress);
+
+  const reachedH = hProgress >= 1 ? pathH.length - 1 : headH.reachedIndex;
+  const reachedV = vProgress >= 1 ? pathV.length - 1 : headV.reachedIndex;
+
+  // Bridge is "bridging" whenever either head is at or past it.
+  const bridgeActive = phase !== 'charge' && phase !== 'pause' &&
+    ((hProgress > 0 && reachedH >= 2) || (vProgress > 0 && reachedV >= 1));
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const trailH: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= reachedH; i++) trailH.push(pathH[i]);
+    if (hProgress > 0 && hProgress < 1) trailH.push({ x: headH.x, y: headH.y });
+    if (hProgress >= 1) trailH.push(pathH[pathH.length - 1]);
+  }
+  const trailV: { x: number; y: number }[] = [];
+  if (phase !== 'charge' && vProgress > 0) {
+    for (let i = 0; i <= reachedV; i++) trailV.push(pathV[i]);
+    if (vProgress > 0 && vProgress < 1) trailV.push({ x: headV.x, y: headV.y });
+    if (vProgress >= 1) trailV.push(pathV[pathV.length - 1]);
+  }
+
+  const pieces: PieceDef[] = [
+    { cell: SH, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: CL, type: 'conveyor', color: AMBER,
+      rolling: phase === 'beam' && reachedH >= 1 && hProgress < 1 },
+    { cell: B, type: 'bridge', color: AMBER, bridging: bridgeActive },
+    { cell: CR, type: 'conveyor', color: AMBER,
+      rolling: phase === 'beam' && reachedH >= 3 && hProgress < 1 },
+    { cell: TH, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: SV, type: 'source', color: CYAN,
+      charging: phase === 'beam' && progress >= HV_START && progress < HV_START + 0.1 },
+    { cell: TV, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={SH.x} y1={SH.y} x2={CL.x} y2={CL.y}
+          lit={phase === 'beam' && reachedH >= 1 || phase === 'lock'} />
+        <DrawConn x1={CL.x} y1={CL.y} x2={B.x} y2={B.y}
+          lit={phase === 'beam' && reachedH >= 2 || phase === 'lock'} />
+        <DrawConn x1={B.x} y1={B.y} x2={CR.x} y2={CR.y}
+          lit={phase === 'beam' && reachedH >= 3 || phase === 'lock'} />
+        <DrawConn x1={CR.x} y1={CR.y} x2={TH.x} y2={TH.y}
+          lit={phase === 'beam' && hProgress >= 1 || phase === 'lock'} />
+        <DrawConn x1={SV.x} y1={SV.y} x2={B.x} y2={B.y}
+          lit={phase === 'beam' && reachedV >= 1 || phase === 'lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={B.x} y1={B.y} x2={TV.x} y2={TV.y}
+          lit={phase === 'beam' && vProgress >= 1 || phase === 'lock'} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderChargeRings(SH, progress)}
+
+        {trailH.length >= 2 && trailH.slice(0, -1).map((p, i) => (
+          <SvgLine
+            key={`hr-${i}-${p.x}-${p.y}`}
+            x1={p.x} y1={p.y} x2={trailH[i + 1].x} y2={trailH[i + 1].y}
+            stroke={AMBER} strokeWidth={2} opacity={trailOpacity}
+          />
+        ))}
+        {trailV.length >= 2 && trailV.slice(0, -1).map((p, i) => (
+          <SvgLine
+            key={`vr-${i}-${p.x}-${p.y}`}
+            x1={p.x} y1={p.y} x2={trailV[i + 1].x} y2={trailV[i + 1].y}
+            stroke={CYAN} strokeWidth={2} opacity={trailOpacity}
+          />
+        ))}
+
+        {phase === 'beam' && hProgress < 1 && (
+          <>
+            <SvgCircle cx={headH.x} cy={headH.y} r={8} fill={AMBER} opacity={0.2} />
+            <SvgCircle cx={headH.x} cy={headH.y} r={4} fill={AMBER} />
+          </>
+        )}
+        {phase === 'beam' && vProgress > 0 && vProgress < 1 && (
+          <>
+            <SvgCircle cx={headV.x} cy={headV.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headV.x} cy={headV.y} r={4} fill={CYAN} />
+          </>
+        )}
+
+        {phase === 'lock' && (
+          <>
+            {renderLockPulse(TH, progress)}
+            {renderLockPulse(TV, progress)}
+          </>
+        )}
+      </>
+    ),
+    pieces,
+  };
+}
+
 function renderChargeRings(S: Cell, progress: number) {
   // Two expanding amber rings during the charge phase.
   const r1 = S.r * 0.3 + progress * S.r * 0.7;
@@ -731,6 +1039,10 @@ function renderProtocolBeamSim(type: string, t: number, loopCount: number): SimD
       return renderScannerSim(phase, progress);
     case 'transmitter':
       return renderTransmitterSim(phase, progress);
+    case 'inverter':
+      return renderInverterSim(phase, progress);
+    case 'latch':
+      return renderLatchSim(phase, progress, loopCount);
     default:
       return { svgContent: null, pieces: [] };
   }
@@ -1141,156 +1453,439 @@ function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
   };
 }
 
-// ─── Protocol renderer (legacy — merger, bridge, inverter, counter, latch) ─
+// ── Inverter ──
+// Layout: Source -> Conveyor -> Inverter -> Conveyor -> Terminal.
+// Interact: incoming "1" at top, flip at piece, outgoing "0" at bottom.
+function renderInverterSim(phase: ProtocolPhase, progress: number): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const C1 = getCell(1, 1, 5, 3);
+  const I = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
 
-function renderProtocolSim(type: string, t: number): SimData {
-  switch (type) {
-    case 'merger': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const S2 = getCell(1, 0, 5, 3);
-      const M = getCell(2, 1, 5, 3);
-      const O = getCell(3, 1, 5, 3);
-      const ball = t < 0.85 ? interpPath([S, C1, M, O], t, 0.85) : O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={S2.x} y1={S2.y} x2={M.x} y2={M.y} lit={t > 0.1} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={M.x} y2={M.y} lit={t > 0.3} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={M.x} y1={M.y} x2={O.x} y2={O.y} lit={t > 0.55} litColor="rgba(0,212,255,0.6)" />
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: S2, type: 'conveyor', color: '#00D4FF', rotation: 90 },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: M, type: 'merger', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'bridge': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const B = getCell(2, 1, 5, 3);
-      const C2 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const VTop = getCell(2, 0, 5, 3);
-      const VBot = getCell(2, 2, 5, 3);
-      const ball = t < 0.85 ? interpPath([S, C1, B, C2, O], t, 0.85) : O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={B.x} y2={B.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={B.x} y1={B.y} x2={C2.x} y2={C2.y} lit={t > 0.5} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={VTop.x} y1={VTop.y} x2={B.x} y2={B.y} />
-            <DrawConn x1={B.x} y1={B.y} x2={VBot.x} y2={VBot.y} />
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: B, type: 'bridge', color: '#00D4FF' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'inverter': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const I = getCell(2, 1, 5, 3);
-      const C2 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const ball = t < 0.85 ? interpPath([S, C1, I, C2, O], t, 0.85) : O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={I.x} y2={I.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={I.x} y1={I.y} x2={C2.x} y2={C2.y} lit={t > 0.5} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} litColor="rgba(0,212,255,0.6)" />
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: I, type: 'inverter', color: '#8B5CF6' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'counter': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const CT = getCell(2, 1, 5, 3);
-      const C2 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const ball = t < 0.85 ? interpPath([S, C1, CT, C2, O], t, 0.85) : O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={CT.x} y2={CT.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={CT.x} y1={CT.y} x2={C2.x} y2={C2.y} lit={t > 0.5} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} litColor="rgba(0,212,255,0.6)" />
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: CT, type: 'counter', color: '#8B5CF6' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'latch': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const L = getCell(2, 1, 5, 3);
-      const C2 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const ball = t < 0.85 ? interpPath([S, C1, L, C2, O], t, 0.85) : O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={L.x} y2={L.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={L.x} y1={L.y} x2={C2.x} y2={C2.y} lit={t > 0.5} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.7} litColor="rgba(0,212,255,0.6)" />
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill="#00D4FF" />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: L, type: 'latch', color: '#8B5CF6' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    default: {
-      const S = getCell(0, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      return {
-        svgContent: null,
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
+  const pre = [S, C1, I];
+  const post = [I, C2, O];
+
+  const preProgress = phase === 'beam-pre' ? progress : phase === 'charge' ? 0 : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const postProgress = phase === 'beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (phase === 'beam-post' || phase === 'lock' || phase === 'pause') {
+    const reach = phase === 'beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
     }
   }
+
+  // Value bubble: "1" above → flip at piece (briefly both values) → "0" below.
+  const inZone = { x: I.x, y: 12 };
+  const outZone = { x: I.x, y: SIM_H - 14 };
+  let bubbleValue = '1';
+  let bubblePos: { x: number; y: number } | null = null;
+  let flipOverlay: { oldOpacity: number; newOpacity: number } | null = null;
+  if (phase === 'interact') {
+    if (progress < 0.3) {
+      bubblePos = { x: inZone.x, y: inZone.y + (I.y - inZone.y) * (progress / 0.3) };
+      bubbleValue = '1';
+    } else if (progress < 0.6) {
+      bubblePos = { x: I.x, y: I.y };
+      const p = (progress - 0.3) / 0.3;
+      flipOverlay = { oldOpacity: 1 - p, newOpacity: p };
+      bubbleValue = p < 0.5 ? '1' : '0';
+    } else {
+      const p = (progress - 0.6) / 0.4;
+      bubblePos = {
+        x: I.x + (outZone.x - I.x) * p,
+        y: I.y + (outZone.y - I.y) * p,
+      };
+      bubbleValue = '0';
+    }
+  }
+
+  const outFilled = (phase === 'interact' && progress >= 0.9) ||
+    phase === 'beam-post' || phase === 'lock' || phase === 'pause';
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: I, type: 'inverter', color: PROTOCOL_VIOLET, inverting: phase === 'interact' },
+    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  const tapeStrips = (
+    <>
+      <MiniTapeStrip
+        label="IN"
+        cells={[{ value: '1', highlighted: phase === 'beam-pre' || phase === 'interact' }]}
+      />
+      <MiniTapeStrip
+        label="OUT"
+        cells={[{ value: outFilled ? '0' : '\u00B7', highlighted: outFilled }]}
+      />
+    </>
+  );
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y}
+          lit={phase !== 'charge' && preReached > 0 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={C1.x} y1={C1.y} x2={I.x} y2={I.y}
+          lit={phase !== 'charge' && preReached > 1 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={I.x} y1={I.y} x2={C2.x} y2={C2.y}
+          lit={(phase === 'beam-post' && postReached > 0) || phase === 'lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={(phase === 'beam-post' && postReached > 1) || phase === 'lock'} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {phase === 'beam-pre' && renderCyanBeamHead(preHead.x, preHead.y)}
+        {phase === 'beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {phase === 'lock' && renderLockGlow(O, progress)}
+
+        {flipOverlay && bubblePos && (
+          <>
+            <SvgCircle cx={bubblePos.x} cy={bubblePos.y} r={10} fill={RED} opacity={0.15} />
+            <SvgText x={bubblePos.x} y={bubblePos.y - 3}
+              fill={RED} fontSize="8" fontFamily="monospace"
+              textAnchor="middle" opacity={flipOverlay.oldOpacity}>1</SvgText>
+            <SvgText x={bubblePos.x} y={bubblePos.y + 6}
+              fill={CYAN} fontSize="8" fontFamily="monospace"
+              textAnchor="middle" opacity={flipOverlay.newOpacity}>0</SvgText>
+          </>
+        )}
+        {!flipOverlay && bubblePos && (
+          <ValueBubble x={bubblePos.x} y={bubblePos.y} value={bubbleValue} />
+        )}
+      </>
+    ),
+    pieces,
+    tapeStrips,
+  };
+}
+
+// ── Latch ──
+// Layout: Source -> Conveyor -> Latch -> Conveyor -> Terminal.
+// Alternates WRITE / READ per loop. Tape strips show IN / STORED / OUT.
+function renderLatchSim(
+  phase: ProtocolPhase,
+  progress: number,
+  loopCount: number,
+): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const C1 = getCell(1, 1, 5, 3);
+  const L = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+
+  const mode = latchMode(loopCount); // 'write' | 'read'
+  const inputValue = mode === 'write' ? '1' : '0'; // irrelevant in read
+  const storedValue = '1'; // stored by the preceding write loop
+  const outValue = '1'; // latch outputs its stored value
+
+  const pre = [S, C1, L];
+  const post = [L, C2, O];
+
+  const preProgress = phase === 'beam-pre' ? progress : phase === 'charge' ? 0 : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const postProgress = phase === 'beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (phase === 'beam-post' || phase === 'lock' || phase === 'pause') {
+    const reach = phase === 'beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
+    }
+  }
+
+  // Value bubble movement depends on mode.
+  // Write: incoming value moves from beam area → absorbed into Latch.
+  // Read: stored value emerges from Latch → moves toward output.
+  const inZone = { x: L.x, y: 12 };
+  const outZone = { x: L.x, y: SIM_H - 14 };
+  let bubblePos: { x: number; y: number } | null = null;
+  let bubbleValue = '1';
+  if (phase === 'interact' && mode === 'write') {
+    if (progress < 0.5) {
+      const p = progress / 0.5;
+      bubblePos = { x: inZone.x, y: inZone.y + (L.y - inZone.y) * p };
+      bubbleValue = inputValue;
+    } else {
+      bubblePos = { x: L.x, y: L.y };
+      bubbleValue = inputValue;
+    }
+  } else if (phase === 'interact' && mode === 'read') {
+    if (progress < 0.3) {
+      bubblePos = { x: L.x, y: L.y };
+      bubbleValue = storedValue;
+    } else {
+      const p = (progress - 0.3) / 0.7;
+      bubblePos = {
+        x: L.x,
+        y: L.y + (outZone.y - L.y) * p,
+      };
+      bubbleValue = storedValue;
+    }
+  }
+
+  const modeLabel = mode === 'write' ? 'W' : 'R';
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: L, type: 'latch', color: PROTOCOL_VIOLET,
+      latching: phase === 'interact', latchMode: mode },
+    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  const storedFilled = true; // always shows "1" once stored (write on first loop)
+
+  const tapeStrips = (
+    <>
+      <MiniTapeStrip
+        label="IN"
+        cells={[{
+          value: inputValue,
+          highlighted: phase === 'beam-pre' || (phase === 'interact' && mode === 'write'),
+        }]}
+      />
+      <MiniTapeStrip
+        label="STORED"
+        cells={[{
+          value: storedFilled ? storedValue : '\u00B7',
+          highlighted: phase === 'interact' || phase === 'beam-post' || phase === 'lock',
+        }]}
+      />
+      <MiniTapeStrip
+        label="OUT"
+        cells={[{
+          value: mode === 'read' && (phase === 'beam-post' || phase === 'lock' || phase === 'pause')
+            ? outValue
+            : '\u00B7',
+          highlighted: mode === 'read' && (phase === 'beam-post' || phase === 'lock'),
+        }]}
+      />
+    </>
+  );
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y}
+          lit={phase !== 'charge' && preReached > 0 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={C1.x} y1={C1.y} x2={L.x} y2={L.y}
+          lit={phase !== 'charge' && preReached > 1 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={L.x} y1={L.y} x2={C2.x} y2={C2.y}
+          lit={(phase === 'beam-post' && postReached > 0) || phase === 'lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={(phase === 'beam-post' && postReached > 1) || phase === 'lock'} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {phase === 'beam-pre' && renderCyanBeamHead(preHead.x, preHead.y)}
+        {phase === 'beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {phase === 'lock' && renderLockGlow(O, progress)}
+
+        {phase === 'interact' && progress < 0.4 && (
+          <SvgText x={L.x} y={L.y - L.r * 0.55}
+            fill={PROTOCOL_VIOLET} fontSize="10" fontFamily="monospace"
+            textAnchor="middle" fontWeight="bold" opacity={0.9}>
+            {modeLabel}
+          </SvgText>
+        )}
+        {phase === 'interact' && progress >= 0.4 && (
+          <SvgText x={L.x} y={L.y - L.r * 0.55}
+            fill={CYAN} fontSize="9" fontFamily="monospace"
+            textAnchor="middle" fontWeight="bold">
+            {storedValue}
+          </SvgText>
+        )}
+
+        {bubblePos && <ValueBubble x={bubblePos.x} y={bubblePos.y} value={bubbleValue} />}
+      </>
+    ),
+    pieces,
+    tapeStrips,
+  };
+}
+
+// ── Counter ──
+// Layout: Source -> Conveyor -> Counter -> Conveyor -> Terminal.
+// Runs a 2-pulse cycle: pulse 1 blocks (count=1, red), pulse 2 passes
+// (count=2, green). No tape strips — this is about pulse counting.
+function renderCounterSim(t: number): SimData {
+  const { phase, progress } = computeCounterPhase(t);
+
+  const S = getCell(0, 1, 5, 3);
+  const C1 = getCell(1, 1, 5, 3);
+  const CT = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+
+  const pre = [S, C1, CT];
+  const post = [CT, C2, O];
+
+  // Determine which pulse we're in and per-pulse beam progress.
+  const isP1 = phase.startsWith('p1-');
+  const isP2 = phase.startsWith('p2-');
+
+  const preProgress = phase === 'p1-beam-pre' || phase === 'p2-beam-pre' ? progress
+    : (phase === 'p1-charge' || phase === 'p2-charge' || t < CT_P1_CHARGE_END) ? 0
+    : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const postProgress = phase === 'p2-beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  // Count value shown by the Counter.
+  const countValue = isP1 ? 1 : 2;
+  const threshold = 2;
+  const counting = phase === 'p1-interact' || phase === 'p2-interact';
+
+  // Flash colors on Counter during interact.
+  const showRedFlash = phase === 'p1-interact';
+  const showGreenFlash = phase === 'p2-interact' && progress < 0.6;
+
+  // Pulse 1 pause fades the pre-trail out. Pulse 2 beam-post/lock
+  // shows full trail.
+  const p1Pause = phase === 'p1-pause';
+  const p2Final = phase === 'p2-lock' || phase === 'p2-pause';
+  const trailOpacity = p1Pause ? Math.max(0, 0.6 - progress * 0.6)
+    : (phase === 'p2-pause') ? Math.max(0, 0.6 - progress * 0.6)
+    : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'p1-charge' && phase !== 'p2-charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (phase === 'p2-beam-post' || p2Final) {
+    const reach = phase === 'p2-beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'p2-beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
+    }
+  }
+
+  const isCharge = phase === 'p1-charge' || phase === 'p2-charge';
+  const isBeamPre = phase === 'p1-beam-pre' || phase === 'p2-beam-pre';
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: isCharge },
+    { cell: C1, type: 'conveyor', color: AMBER, rolling: isBeamPre && preReached >= 1 },
+    { cell: CT, type: 'counter', color: PROTOCOL_VIOLET,
+      counting, count: countValue, threshold },
+    { cell: C2, type: 'conveyor', color: AMBER,
+      rolling: phase === 'p2-beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'p2-lock' },
+  ];
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y}
+          lit={!isCharge && preReached > 0 && !p1Pause && phase !== 'p2-pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={C1.x} y1={C1.y} x2={CT.x} y2={CT.y}
+          lit={!isCharge && preReached > 1 && !p1Pause && phase !== 'p2-pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={CT.x} y1={CT.y} x2={C2.x} y2={C2.y}
+          lit={(phase === 'p2-beam-post' && postReached > 0) || phase === 'p2-lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={(phase === 'p2-beam-post' && postReached > 1) || phase === 'p2-lock'} litColor={CYAN_LIT} />
+
+        {isCharge && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {isBeamPre && preProgress < 1 && renderCyanBeamHead(preHead.x, preHead.y)}
+        {phase === 'p2-beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {phase === 'p2-lock' && renderLockGlow(O, progress)}
+
+        {showRedFlash && (
+          <>
+            <SvgCircle cx={CT.x} cy={CT.y} r={14} fill={RED} opacity={0.35 * (1 - progress)} />
+            <SvgText x={CT.x} y={CT.y - CT.r * 0.55}
+              fill={PROTOCOL_VIOLET} fontSize="9" fontFamily="monospace"
+              textAnchor="middle" fontWeight="bold">
+              {`${countValue} / ${threshold}`}
+            </SvgText>
+          </>
+        )}
+        {showGreenFlash && (
+          <>
+            <SvgCircle cx={CT.x} cy={CT.y} r={14} fill={GREEN} opacity={0.35 * (1 - progress / 0.6)} />
+            <SvgText x={CT.x} y={CT.y - CT.r * 0.55}
+              fill={GREEN} fontSize="9" fontFamily="monospace"
+              textAnchor="middle" fontWeight="bold">
+              {`${countValue} / ${threshold}`}
+            </SvgText>
+          </>
+        )}
+        {phase === 'p2-interact' && progress >= 0.6 && (
+          <SvgText x={CT.x} y={CT.y - CT.r * 0.55}
+            fill={GREEN} fontSize="9" fontFamily="monospace"
+            textAnchor="middle" fontWeight="bold">PASS</SvgText>
+        )}
+      </>
+    ),
+    pieces,
+  };
+}
+
+// ─── Protocol renderer (legacy — fallback for unknown piece types) ────────
+
+function renderProtocolSim(_type: string, _t: number): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+  return {
+    svgContent: null,
+    pieces: [
+      { cell: S, type: 'source', color: '#F0B429' },
+      { cell: O, type: 'terminal', color: '#00C48C' },
+    ],
+  };
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────

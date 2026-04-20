@@ -2,7 +2,7 @@
   "expo": {
     "name": "The Axiom",
     "slug": "the-axiom",
-    "version": "0.9.260",
+    "version": "0.9.261",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "theaxiom",

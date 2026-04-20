@@ -139,3 +139,100 @@ export function configNodeMode(loopCount: number): 'pass' | 'block' {
   return loopCount % 2 === 0 ? 'pass' : 'block';
 }
 
+// Latch alternates WRITE / READ per loop so the player can see both
+// behaviors. Pattern mirrors Config Node's alternation.
+export function latchMode(loopCount: number): 'write' | 'read' {
+  return loopCount % 2 === 0 ? 'write' : 'read';
+}
+
+// ── Counter sim phase machine ────────────────────────────────────────────
+// The Counter sim runs a two-pulse cycle to demonstrate that the piece
+// blocks until its threshold is met. Total 3700ms.
+
+export type CounterPhase =
+  | 'p1-charge'
+  | 'p1-beam-pre'
+  | 'p1-interact'
+  | 'p1-pause'
+  | 'p2-charge'
+  | 'p2-beam-pre'
+  | 'p2-interact'
+  | 'p2-beam-post'
+  | 'p2-lock'
+  | 'p2-pause';
+
+export const COUNTER_CYCLE_MS = 3700;
+
+// Pulse 1: 200 + 400 + 500 + 300 = 1400ms
+// Pulse 2: 200 + 400 + 400 + 400 + 300 + 500 = 2200ms
+// Total:   3600ms  (rounded to 3700 for a 100ms cushion at the end)
+export const CT_P1_CHARGE_END = 200 / COUNTER_CYCLE_MS;      // 0.0541
+export const CT_P1_BEAM_PRE_END = 600 / COUNTER_CYCLE_MS;    // 0.1622
+export const CT_P1_INTERACT_END = 1100 / COUNTER_CYCLE_MS;   // 0.2973
+export const CT_P1_PAUSE_END = 1400 / COUNTER_CYCLE_MS;      // 0.3784
+export const CT_P2_CHARGE_END = 1600 / COUNTER_CYCLE_MS;     // 0.4324
+export const CT_P2_BEAM_PRE_END = 2000 / COUNTER_CYCLE_MS;   // 0.5405
+export const CT_P2_INTERACT_END = 2400 / COUNTER_CYCLE_MS;   // 0.6486
+export const CT_P2_BEAM_POST_END = 2800 / COUNTER_CYCLE_MS;  // 0.7568
+export const CT_P2_LOCK_END = 3100 / COUNTER_CYCLE_MS;       // 0.8378
+
+export function computeCounterPhase(
+  t: number,
+): { phase: CounterPhase; progress: number } {
+  if (t < CT_P1_CHARGE_END) {
+    return { phase: 'p1-charge', progress: t / CT_P1_CHARGE_END };
+  }
+  if (t < CT_P1_BEAM_PRE_END) {
+    return {
+      phase: 'p1-beam-pre',
+      progress: (t - CT_P1_CHARGE_END) / (CT_P1_BEAM_PRE_END - CT_P1_CHARGE_END),
+    };
+  }
+  if (t < CT_P1_INTERACT_END) {
+    return {
+      phase: 'p1-interact',
+      progress: (t - CT_P1_BEAM_PRE_END) / (CT_P1_INTERACT_END - CT_P1_BEAM_PRE_END),
+    };
+  }
+  if (t < CT_P1_PAUSE_END) {
+    return {
+      phase: 'p1-pause',
+      progress: (t - CT_P1_INTERACT_END) / (CT_P1_PAUSE_END - CT_P1_INTERACT_END),
+    };
+  }
+  if (t < CT_P2_CHARGE_END) {
+    return {
+      phase: 'p2-charge',
+      progress: (t - CT_P1_PAUSE_END) / (CT_P2_CHARGE_END - CT_P1_PAUSE_END),
+    };
+  }
+  if (t < CT_P2_BEAM_PRE_END) {
+    return {
+      phase: 'p2-beam-pre',
+      progress: (t - CT_P2_CHARGE_END) / (CT_P2_BEAM_PRE_END - CT_P2_CHARGE_END),
+    };
+  }
+  if (t < CT_P2_INTERACT_END) {
+    return {
+      phase: 'p2-interact',
+      progress: (t - CT_P2_BEAM_PRE_END) / (CT_P2_INTERACT_END - CT_P2_BEAM_PRE_END),
+    };
+  }
+  if (t < CT_P2_BEAM_POST_END) {
+    return {
+      phase: 'p2-beam-post',
+      progress: (t - CT_P2_INTERACT_END) / (CT_P2_BEAM_POST_END - CT_P2_INTERACT_END),
+    };
+  }
+  if (t < CT_P2_LOCK_END) {
+    return {
+      phase: 'p2-lock',
+      progress: (t - CT_P2_BEAM_POST_END) / (CT_P2_LOCK_END - CT_P2_BEAM_POST_END),
+    };
+  }
+  return {
+    phase: 'p2-pause',
+    progress: (t - CT_P2_LOCK_END) / (1 - CT_P2_LOCK_END),
+  };
+}
+
