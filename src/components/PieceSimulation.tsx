@@ -410,9 +410,9 @@ function renderPhysicsSim(type: string, t: number): SimData {
         phase, progress, waypoints, S, O,
         pieces: [
           { cell: S, type: 'source', color: AMBER },
-          { cell: C1, type: 'conveyor', color: AMBER },
-          { cell: C2, type: 'conveyor', color: AMBER },
-          { cell: C3, type: 'conveyor', color: AMBER },
+          { cell: C1, type: 'conveyor', color: CYAN },
+          { cell: C2, type: 'conveyor', color: CYAN },
+          { cell: C3, type: 'conveyor', color: CYAN },
           { cell: O, type: 'terminal', color: TERM_GREEN },
         ],
       });
@@ -428,9 +428,9 @@ function renderPhysicsSim(type: string, t: number): SimData {
         phase, progress, waypoints, S, O,
         pieces: [
           { cell: S, type: 'source', color: AMBER, rotation: 0 },
-          { cell: C1, type: 'conveyor', color: AMBER, rotation: 0 },
-          { cell: G, type: 'gear', color: AMBER, rotation: 0 },
-          { cell: C2, type: 'conveyor', color: AMBER, rotation: 90 },
+          { cell: C1, type: 'conveyor', color: CYAN, rotation: 0 },
+          { cell: G, type: 'gear', color: CYAN, rotation: 0 },
+          { cell: C2, type: 'conveyor', color: CYAN, rotation: 90 },
           { cell: O, type: 'terminal', color: TERM_GREEN, rotation: 0 },
         ],
       });
@@ -456,32 +456,18 @@ function renderPhysicsSim(type: string, t: number): SimData {
       };
     }
     case 'terminal':
-    case 'output': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const C2 = getCell(2, 1, 5, 3);
-      const C3 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const waypoints = [S, C1, C2, C3, O];
-      return renderLinearPhysics({
-        phase, progress, waypoints, S, O,
-        pieces: [
-          { cell: S, type: 'source', color: AMBER },
-          { cell: C1, type: 'conveyor', color: AMBER },
-          { cell: C2, type: 'conveyor', color: AMBER },
-          { cell: C3, type: 'conveyor', color: AMBER },
-          { cell: O, type: 'terminal', color: TERM_GREEN },
-        ],
-      });
-    }
+    case 'output':
+      return renderTerminalSim(phase, progress);
     case 'splitter': {
-      const S = getCell(0, 0, 4, 2);
-      const C1 = getCell(1, 0, 4, 2);
-      const SP = getCell(2, 0, 4, 2);
-      const O1 = getCell(3, 0, 4, 2);
-      const O2 = getCell(2, 1, 4, 2);
+      const S = getCell(0, 0, 5, 3);
+      const C1 = getCell(1, 0, 5, 3);
+      const SP = getCell(2, 0, 5, 3);
+      const C2 = getCell(3, 0, 5, 3);
+      const O1 = getCell(4, 0, 5, 3);
+      const C3 = getCell(2, 1, 5, 3);
+      const O2 = getCell(2, 2, 5, 3);
       return renderSplitterPhysics({
-        phase, progress, S, C1, SP, O1, O2,
+        phase, progress, S, C1, SP, C2, O1, C3, O2,
       });
     }
     case 'merger':
@@ -603,15 +589,18 @@ function renderSplitterPhysics(args: {
   S: Cell;
   C1: Cell;
   SP: Cell;
+  C2: Cell;
   O1: Cell;
+  C3: Cell;
   O2: Cell;
 }): SimData {
-  const { phase, progress, S, C1, SP, O1, O2 } = args;
+  const { phase, progress, S, C1, SP, C2, O1, C3, O2 } = args;
 
-  // Pre-fork waypoints + each branch after the split.
+  // Pre-fork waypoints + each branch after the split (now with
+  // intermediate Conveyors between Splitter and each Terminal).
   const preFork = [S, C1, SP];
-  const branchA = [SP, O1];
-  const branchB = [SP, O2];
+  const branchA = [SP, C2, O1];
+  const branchB = [SP, C3, O2];
 
   // Split the beam progress: first 50% = preFork, last 50% = both branches.
   const SPLIT_POINT = 0.5;
@@ -628,6 +617,8 @@ function renderSplitterPhysics(args: {
   const headB = posAlongChain(branchB, branchPClamped);
 
   const reachedPre = preForkP >= 1 ? preFork.length - 1 : preHead.reachedIndex;
+  const reachedA = branchPClamped >= 1 ? branchA.length - 1 : headA.reachedIndex;
+  const reachedB = branchPClamped >= 1 ? branchB.length - 1 : headB.reachedIndex;
   const splitterReached = reachedPre >= 2; // SP index in preFork
   const branchActive = phase === 'beam' && branchP > 0;
   const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
@@ -638,16 +629,25 @@ function renderSplitterPhysics(args: {
       charging: phase === 'charge',
     },
     {
-      cell: C1, type: 'conveyor', color: AMBER,
+      cell: C1, type: 'conveyor', color: CYAN,
       rolling: phase !== 'charge' && reachedPre >= 1 && phase !== 'pause',
     },
     {
-      cell: SP, type: 'splitter', color: AMBER,
+      cell: SP, type: 'splitter', color: CYAN,
       splitting: phase !== 'charge' && splitterReached && phase !== 'pause',
+    },
+    {
+      cell: C2, type: 'conveyor', color: CYAN,
+      rolling: branchActive && reachedA >= 1,
     },
     {
       cell: O1, type: 'terminal', color: TERM_GREEN,
       locking: phase === 'lock',
+    },
+    {
+      // Vertical branch conveyor rotated 90° to face downward.
+      cell: C3, type: 'conveyor', color: CYAN, rotation: 90,
+      rolling: branchActive && reachedB >= 1,
     },
     {
       cell: O2, type: 'terminal', color: TERM_GREEN,
@@ -663,17 +663,37 @@ function renderSplitterPhysics(args: {
     if (preForkP >= 1) preTrail.push(preFork[preFork.length - 1]);
   }
 
-  // Branch trails — only when branches have started.
-  const trailA: { x: number; y: number }[] = branchActive
-    ? [SP, { x: headA.x, y: headA.y }]
-    : phase === 'lock' || phase === 'pause'
-      ? [SP, O1]
-      : [];
-  const trailB: { x: number; y: number }[] = branchActive
-    ? [SP, { x: headB.x, y: headB.y }]
-    : phase === 'lock' || phase === 'pause'
-      ? [SP, O2]
-      : [];
+  // Branch trails — full polylines that follow through each Conveyor.
+  const trailA: { x: number; y: number }[] = [];
+  if (branchActive || phase === 'lock' || phase === 'pause') {
+    const reach = branchActive && branchPClamped < 1 ? reachedA : branchA.length - 1;
+    for (let i = 0; i <= reach; i++) trailA.push(branchA[i]);
+    if (branchActive && branchPClamped > 0 && branchPClamped < 1) {
+      trailA.push({ x: headA.x, y: headA.y });
+    }
+    if (branchPClamped >= 1) trailA.push(branchA[branchA.length - 1]);
+  }
+  const trailB: { x: number; y: number }[] = [];
+  if (branchActive || phase === 'lock' || phase === 'pause') {
+    const reach = branchActive && branchPClamped < 1 ? reachedB : branchB.length - 1;
+    for (let i = 0; i <= reach; i++) trailB.push(branchB[i]);
+    if (branchActive && branchPClamped > 0 && branchPClamped < 1) {
+      trailB.push({ x: headB.x, y: headB.y });
+    }
+    if (branchPClamped >= 1) trailB.push(branchB[branchB.length - 1]);
+  }
+
+  const drawBranchTrail = (pts: { x: number; y: number }[], keyPrefix: string) =>
+    pts.length >= 2 && pts.slice(0, -1).map((p, i) => (
+      <SvgLine
+        key={`${keyPrefix}-${i}-${p.x}-${p.y}`}
+        x1={p.x} y1={p.y}
+        x2={pts[i + 1].x} y2={pts[i + 1].y}
+        stroke={AMBER}
+        strokeWidth={2}
+        opacity={trailOpacity}
+      />
+    ));
 
   const chargeRing = phase === 'charge' ? renderChargeRings(S, progress) : null;
   const lockPulseA = phase === 'lock' ? renderLockPulse(O1, progress) : null;
@@ -686,10 +706,16 @@ function renderSplitterPhysics(args: {
           lit={phase !== 'charge' && reachedPre >= 1 && phase !== 'pause'} />
         <DrawConn x1={C1.x} y1={C1.y} x2={SP.x} y2={SP.y}
           lit={phase !== 'charge' && reachedPre >= 2 && phase !== 'pause'} />
-        <DrawConn x1={SP.x} y1={SP.y} x2={O1.x} y2={O1.y}
+        {/* Horizontal branch connectors */}
+        <DrawConn x1={SP.x} y1={SP.y} x2={C2.x} y2={C2.y}
           lit={phase !== 'charge' && branchP > 0 && phase !== 'pause'} />
-        <DrawConn x1={SP.x} y1={SP.y} x2={O2.x} y2={O2.y}
+        <DrawConn x1={C2.x} y1={C2.y} x2={O1.x} y2={O1.y}
+          lit={branchActive && reachedA >= 2 || phase === 'lock'} />
+        {/* Vertical branch connectors */}
+        <DrawConn x1={SP.x} y1={SP.y} x2={C3.x} y2={C3.y}
           lit={phase !== 'charge' && branchP > 0 && phase !== 'pause'} />
+        <DrawConn x1={C3.x} y1={C3.y} x2={O2.x} y2={O2.y}
+          lit={branchActive && reachedB >= 2 || phase === 'lock'} />
 
         {/* Pre-fork trail */}
         {preTrail.length >= 2 && preTrail.slice(0, -1).map((p, i) => (
@@ -702,26 +728,8 @@ function renderSplitterPhysics(args: {
             opacity={trailOpacity}
           />
         ))}
-        {/* Branch A trail */}
-        {trailA.length >= 2 && (
-          <SvgLine
-            x1={trailA[0].x} y1={trailA[0].y}
-            x2={trailA[1].x} y2={trailA[1].y}
-            stroke={AMBER}
-            strokeWidth={2}
-            opacity={trailOpacity}
-          />
-        )}
-        {/* Branch B trail */}
-        {trailB.length >= 2 && (
-          <SvgLine
-            x1={trailB[0].x} y1={trailB[0].y}
-            x2={trailB[1].x} y2={trailB[1].y}
-            stroke={AMBER}
-            strokeWidth={2}
-            opacity={trailOpacity}
-          />
-        )}
+        {drawBranchTrail(trailA, 'bra')}
+        {drawBranchTrail(trailB, 'brb')}
 
         {/* Pre-fork head (only while preForkP < 1) */}
         {phase === 'beam' && preForkP < 1 && (
@@ -731,7 +739,7 @@ function renderSplitterPhysics(args: {
           </>
         )}
         {/* Two branch heads after the split */}
-        {branchActive && branchP < 1 && (
+        {branchActive && branchPClamped < 1 && (
           <>
             <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={AMBER} opacity={0.2} />
             <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={AMBER} />
@@ -814,13 +822,13 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: SA, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: CA, type: 'conveyor', color: AMBER,
+    { cell: CA, type: 'conveyor', color: CYAN,
       rolling: phase === 'beam' && reachedA >= 1 && aProgress < 1 },
     { cell: SB, type: 'source', color: AMBER,
       charging: phase === 'beam' && progress >= HB_START && progress < HB_START + 0.1 },
-    { cell: CB, type: 'conveyor', color: AMBER,
+    { cell: CB, type: 'conveyor', color: CYAN,
       rolling: phase === 'beam' && reachedB >= 1 && bProgress < 1 },
-    { cell: M, type: 'merger', color: AMBER, merging: mergerActive },
+    { cell: M, type: 'merger', color: CYAN, merging: mergerActive },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -933,10 +941,10 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: SH, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: CL, type: 'conveyor', color: AMBER,
+    { cell: CL, type: 'conveyor', color: CYAN,
       rolling: phase === 'beam' && reachedH >= 1 && hProgress < 1 },
-    { cell: B, type: 'bridge', color: AMBER, bridging: bridgeActive },
-    { cell: CR, type: 'conveyor', color: AMBER,
+    { cell: B, type: 'bridge', color: CYAN, bridging: bridgeActive },
+    { cell: CR, type: 'conveyor', color: CYAN,
       rolling: phase === 'beam' && reachedH >= 3 && hProgress < 1 },
     { cell: TH, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
     { cell: SV, type: 'source', color: CYAN,
@@ -1000,6 +1008,90 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
     ),
     pieces,
   };
+}
+
+// Terminal sim — compact showcase of the lock pulse.
+// Layout: Source → Conveyor → Terminal. 3-cell wide grid keeps the
+// Terminal prominent. Charge / beam / lock / pause follow the shared
+// Physics cycle, but the lock phase renders three staggered expanding
+// green rings at the Terminal — the satisfying "arrival" moment.
+function renderTerminalSim(phase: Phase, progress: number): SimData {
+  const S = getCell(0, 1, 3, 3);
+  const C = getCell(1, 1, 3, 3);
+  const O = getCell(2, 1, 3, 3);
+
+  const waypoints = [S, C, O];
+  const beamProgress = phase === 'beam' ? progress : phase === 'lock' || phase === 'pause' ? 1 : 0;
+  const head = posAlongChain(waypoints, beamProgress);
+  const reachedIdx = beamProgress >= 1 ? waypoints.length - 1 : head.reachedIndex;
+
+  const trailPoints: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= reachedIdx; i++) trailPoints.push(waypoints[i]);
+    if (beamProgress > 0 && beamProgress < 1) trailPoints.push({ x: head.x, y: head.y });
+    if (beamProgress >= 1) trailPoints.push(waypoints[waypoints.length - 1]);
+  }
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: C, type: 'conveyor', color: CYAN,
+      rolling: phase === 'beam' && reachedIdx >= 1 && reachedIdx < 2 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C.x} y2={C.y}
+          lit={phase !== 'charge' && reachedIdx >= 1 && phase !== 'pause'} />
+        <DrawConn x1={C.x} y1={C.y} x2={O.x} y2={O.y}
+          lit={(phase !== 'charge' && reachedIdx >= 2) || phase === 'lock'} />
+
+        {phase === 'charge' && renderChargeRings(S, progress)}
+
+        {trailPoints.length >= 2 && trailPoints.slice(0, -1).map((p, i) => (
+          <SvgLine
+            key={`tt-${i}`}
+            x1={p.x} y1={p.y}
+            x2={trailPoints[i + 1].x} y2={trailPoints[i + 1].y}
+            stroke={AMBER}
+            strokeWidth={2}
+            opacity={trailOpacity}
+          />
+        ))}
+
+        {phase === 'beam' && beamProgress < 1 && (
+          <>
+            <SvgCircle cx={head.x} cy={head.y} r={8} fill={AMBER} opacity={0.2} />
+            <SvgCircle cx={head.x} cy={head.y} r={4} fill={AMBER} />
+          </>
+        )}
+
+        {phase === 'lock' && renderLockShowcase(O, progress)}
+      </>
+    ),
+    pieces,
+  };
+}
+
+// Multi-ring green lock pulse. Three staggered expanding rings,
+// mirroring the Source sim's amber charge rings.
+function renderLockShowcase(O: Cell, progress: number) {
+  const r1 = O.r * 0.3 + progress * O.r * 0.8;
+  const r2 = O.r * 0.3 + ((progress + 0.35) % 1) * O.r * 0.8;
+  const r3 = O.r * 0.3 + ((progress + 0.7) % 1) * O.r * 0.8;
+  const a1 = Math.max(0, 0.5 * (1 - progress));
+  const a2 = Math.max(0, 0.5 * (1 - ((progress + 0.35) % 1)));
+  const a3 = Math.max(0, 0.5 * (1 - ((progress + 0.7) % 1)));
+  return (
+    <>
+      <SvgCircle cx={O.x} cy={O.y} r={r1} fill="none" stroke={TERM_GREEN} strokeWidth="1.5" opacity={a1} />
+      <SvgCircle cx={O.x} cy={O.y} r={r2} fill="none" stroke={TERM_GREEN} strokeWidth="1.5" opacity={a2} />
+      <SvgCircle cx={O.x} cy={O.y} r={r3} fill="none" stroke={TERM_GREEN} strokeWidth="1.5" opacity={a3} />
+      <SvgCircle cx={O.x} cy={O.y} r={4} fill={TERM_GREEN} opacity={0.8} />
+    </>
+  );
 }
 
 function renderChargeRings(S: Cell, progress: number) {
@@ -1159,7 +1251,7 @@ function renderConfigNodeSim(
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'beam-pre' && preReached >= 1 },
     { cell: CN, type: 'configNode', color: PROTOCOL_VIOLET,
       gating, gateResult, configValue: 1 },
-    { cell: C2, type: 'conveyor', color: AMBER, rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', color: CYAN, rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: mode === 'pass' && phase === 'lock' },
   ];
 
@@ -1295,9 +1387,9 @@ function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1404,9 +1496,9 @@ function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: TX, type: 'transmitter', color: PROTOCOL_VIOLET, transmitting: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1521,9 +1613,9 @@ function renderInverterSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: I, type: 'inverter', color: PROTOCOL_VIOLET, inverting: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1664,10 +1756,10 @@ function renderLatchSim(
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: L, type: 'latch', color: PROTOCOL_VIOLET,
       latching: phase === 'interact', latchMode: mode },
-    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1813,10 +1905,10 @@ function renderCounterSim(t: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: isCharge },
-    { cell: C1, type: 'conveyor', color: AMBER, rolling: isBeamPre && preReached >= 1 },
+    { cell: C1, type: 'conveyor', color: CYAN, rolling: isBeamPre && preReached >= 1 },
     { cell: CT, type: 'counter', color: PROTOCOL_VIOLET,
       counting, count: countValue, threshold },
-    { cell: C2, type: 'conveyor', color: AMBER,
+    { cell: C2, type: 'conveyor', color: CYAN,
       rolling: phase === 'p2-beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'p2-lock' },
   ];
