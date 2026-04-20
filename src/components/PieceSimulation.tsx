@@ -120,7 +120,9 @@ function DrawDataTrail({
 type SimPieceProps = {
   cell: { x: number; y: number; r: number };
   type: string;
-  color: string;
+  // Omit to let PieceIcon use its natural per-piece default — the
+  // same look as the hero icon at the top of each Codex entry.
+  color?: string;
   rotation?: number;
   charging?: boolean;
   rolling?: boolean;
@@ -140,6 +142,7 @@ type SimPieceProps = {
   threshold?: number;
   latching?: boolean;
   latchMode?: 'write' | 'read';
+  connectedMagnetSides?: string[];
 };
 
 function SimPiece({
@@ -147,7 +150,7 @@ function SimPiece({
   charging, rolling, spinning, splitting, locking,
   scanning, gating, gateResult, transmitting, configValue,
   merging, bridging, inverting, counting, count, threshold,
-  latching, latchMode: lm,
+  latching, latchMode: lm, connectedMagnetSides,
 }: SimPieceProps) {
   const sz = cell.r * 0.8;
   return (
@@ -181,6 +184,7 @@ function SimPiece({
           threshold={threshold}
           latching={latching}
           latchMode={lm}
+          connectedMagnetSides={connectedMagnetSides}
         />
       </View>
     </View>
@@ -352,6 +356,7 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
             threshold={p.threshold}
             latching={p.latching}
             latchMode={p.latchMode}
+            connectedMagnetSides={p.connectedMagnetSides}
           />
         ))}
       </View>
@@ -367,7 +372,9 @@ type Cell = { x: number; y: number; r: number };
 type PieceDef = {
   cell: Cell;
   type: string;
-  color: string;
+  // Optional — omit to let PieceIcon apply its natural default so
+  // the sim matches the Codex hero icon.
+  color?: string;
   rotation?: number;
   charging?: boolean;
   rolling?: boolean;
@@ -387,6 +394,7 @@ type PieceDef = {
   threshold?: number;
   latching?: boolean;
   latchMode?: 'write' | 'read';
+  connectedMagnetSides?: string[];
 };
 
 type SimData = {
@@ -410,9 +418,9 @@ function renderPhysicsSim(type: string, t: number): SimData {
         phase, progress, waypoints, S, O,
         pieces: [
           { cell: S, type: 'source', color: AMBER },
-          { cell: C1, type: 'conveyor', color: CYAN },
-          { cell: C2, type: 'conveyor', color: CYAN },
-          { cell: C3, type: 'conveyor', color: CYAN },
+          { cell: C1, type: 'conveyor' },
+          { cell: C2, type: 'conveyor' },
+          { cell: C3, type: 'conveyor' },
           { cell: O, type: 'terminal', color: TERM_GREEN },
         ],
       });
@@ -428,9 +436,9 @@ function renderPhysicsSim(type: string, t: number): SimData {
         phase, progress, waypoints, S, O,
         pieces: [
           { cell: S, type: 'source', color: AMBER, rotation: 0 },
-          { cell: C1, type: 'conveyor', color: CYAN, rotation: 0 },
-          { cell: G, type: 'gear', color: CYAN, rotation: 0 },
-          { cell: C2, type: 'conveyor', color: CYAN, rotation: 90 },
+          { cell: C1, type: 'conveyor', rotation: 0 },
+          { cell: G, type: 'gear', rotation: 0 },
+          { cell: C2, type: 'conveyor', rotation: 90 },
           { cell: O, type: 'terminal', color: TERM_GREEN, rotation: 0 },
         ],
       });
@@ -629,15 +637,19 @@ function renderSplitterPhysics(args: {
       charging: phase === 'charge',
     },
     {
-      cell: C1, type: 'conveyor', color: CYAN,
+      cell: C1, type: 'conveyor',
       rolling: phase !== 'charge' && reachedPre >= 1 && phase !== 'pause',
     },
     {
-      cell: SP, type: 'splitter', color: CYAN,
+      cell: SP, type: 'splitter',
+      // Magnets extend toward the horizontal (right) and vertical
+      // (bottom) branches so the piece visually connects to both
+      // downstream Conveyors.
+      connectedMagnetSides: ['right', 'bottom'],
       splitting: phase !== 'charge' && splitterReached && phase !== 'pause',
     },
     {
-      cell: C2, type: 'conveyor', color: CYAN,
+      cell: C2, type: 'conveyor',
       rolling: branchActive && reachedA >= 1,
     },
     {
@@ -646,7 +658,7 @@ function renderSplitterPhysics(args: {
     },
     {
       // Vertical branch conveyor rotated 90° to face downward.
-      cell: C3, type: 'conveyor', color: CYAN, rotation: 90,
+      cell: C3, type: 'conveyor', rotation: 90,
       rolling: branchActive && reachedB >= 1,
     },
     {
@@ -822,13 +834,13 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: SA, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: CA, type: 'conveyor', color: CYAN,
+    { cell: CA, type: 'conveyor',
       rolling: phase === 'beam' && reachedA >= 1 && aProgress < 1 },
     { cell: SB, type: 'source', color: AMBER,
       charging: phase === 'beam' && progress >= HB_START && progress < HB_START + 0.1 },
-    { cell: CB, type: 'conveyor', color: CYAN,
+    { cell: CB, type: 'conveyor',
       rolling: phase === 'beam' && reachedB >= 1 && bProgress < 1 },
-    { cell: M, type: 'merger', color: CYAN, merging: mergerActive },
+    { cell: M, type: 'merger', merging: mergerActive },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -941,13 +953,13 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: SH, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: CL, type: 'conveyor', color: CYAN,
+    { cell: CL, type: 'conveyor',
       rolling: phase === 'beam' && reachedH >= 1 && hProgress < 1 },
-    { cell: B, type: 'bridge', color: CYAN, bridging: bridgeActive },
-    { cell: CR, type: 'conveyor', color: CYAN,
+    { cell: B, type: 'bridge', bridging: bridgeActive },
+    { cell: CR, type: 'conveyor',
       rolling: phase === 'beam' && reachedH >= 3 && hProgress < 1 },
     { cell: TH, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
-    { cell: SV, type: 'source', color: CYAN,
+    { cell: SV, type: 'source', color: AMBER,
       charging: phase === 'beam' && progress >= HV_START && progress < HV_START + 0.1 },
     { cell: TV, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
@@ -1035,7 +1047,7 @@ function renderTerminalSim(phase: Phase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C, type: 'conveyor', color: CYAN,
+    { cell: C, type: 'conveyor',
       rolling: phase === 'beam' && reachedIdx >= 1 && reachedIdx < 2 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
@@ -1251,7 +1263,7 @@ function renderConfigNodeSim(
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'beam-pre' && preReached >= 1 },
     { cell: CN, type: 'configNode', color: PROTOCOL_VIOLET,
       gating, gateResult, configValue: 1 },
-    { cell: C2, type: 'conveyor', color: CYAN, rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: mode === 'pass' && phase === 'lock' },
   ];
 
@@ -1387,9 +1399,9 @@ function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1496,9 +1508,9 @@ function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: TX, type: 'transmitter', color: PROTOCOL_VIOLET, transmitting: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1613,9 +1625,9 @@ function renderInverterSim(phase: ProtocolPhase, progress: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: I, type: 'inverter', color: PROTOCOL_VIOLET, inverting: phase === 'interact' },
-    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1756,10 +1768,10 @@ function renderLatchSim(
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
-    { cell: C1, type: 'conveyor', color: CYAN, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: L, type: 'latch', color: PROTOCOL_VIOLET,
       latching: phase === 'interact', latchMode: mode },
-    { cell: C2, type: 'conveyor', color: CYAN, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
@@ -1905,10 +1917,10 @@ function renderCounterSim(t: number): SimData {
 
   const pieces: PieceDef[] = [
     { cell: S, type: 'source', color: AMBER, charging: isCharge },
-    { cell: C1, type: 'conveyor', color: CYAN, rolling: isBeamPre && preReached >= 1 },
+    { cell: C1, type: 'conveyor', rolling: isBeamPre && preReached >= 1 },
     { cell: CT, type: 'counter', color: PROTOCOL_VIOLET,
       counting, count: countValue, threshold },
-    { cell: C2, type: 'conveyor', color: CYAN,
+    { cell: C2, type: 'conveyor',
       rolling: phase === 'p2-beam-post' && postReached >= 1 },
     { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'p2-lock' },
   ];
