@@ -16,11 +16,24 @@ import {
   cumulativeDistances,
   posAlongChain,
   computePhase,
+  computeProtocolPhase,
+  configNodeMode,
   PHYSICS_CYCLE_MS,
+  PROTOCOL_CYCLE_MS,
   type Phase,
+  type ProtocolPhase,
 } from './pieceSimulationMath';
 
-export { SIM_W, SIM_H, getCell, interpPath, cumulativeDistances, posAlongChain, computePhase };
+export {
+  SIM_W,
+  SIM_H,
+  getCell,
+  interpPath,
+  cumulativeDistances,
+  posAlongChain,
+  computePhase,
+  computeProtocolPhase,
+};
 
 const PHYSICS_TYPES = new Set([
   'conveyor',
@@ -31,9 +44,22 @@ const PHYSICS_TYPES = new Set([
   'output',
 ]);
 
+// Protocol pieces with the new charge/beam/interact/lock cycle. Other
+// Protocol pieces (merger, bridge, inverter, counter, latch) keep the
+// legacy 3600ms sliding-dot animation until Prompt 65.
+const PROTOCOL_BEAM_TYPES = new Set([
+  'configNode',
+  'scanner',
+  'transmitter',
+]);
+
 const AMBER = '#F0B429';
 const GREEN = '#22C55E';
 const TERM_GREEN = '#00C48C';
+const CYAN = '#00D4FF';
+const CYAN_LIT = 'rgba(0,212,255,0.6)';
+const PROTOCOL_VIOLET = '#A78BFA';
+const RED = '#EF4444';
 
 // ─── SVG primitives ────────────────────────────────────────────────────────
 
@@ -90,11 +116,17 @@ type SimPieceProps = {
   spinning?: boolean;
   splitting?: boolean;
   locking?: boolean;
+  scanning?: boolean;
+  gating?: boolean;
+  gateResult?: 'pass' | 'block' | null;
+  transmitting?: boolean;
+  configValue?: number;
 };
 
 function SimPiece({
   cell, type, color, rotation = 0,
   charging, rolling, spinning, splitting, locking,
+  scanning, gating, gateResult, transmitting, configValue,
 }: SimPieceProps) {
   const sz = cell.r * 0.8;
   return (
@@ -115,9 +147,66 @@ function SimPiece({
           spinning={spinning}
           splitting={splitting}
           locking={locking}
+          scanning={scanning}
+          gating={gating}
+          gateResult={gateResult}
+          transmitting={transmitting}
+          configValue={configValue}
         />
       </View>
     </View>
+  );
+}
+
+// ─── Mini tape strip (Protocol sims only) ─────────────────────────────────
+
+type MiniTapeCell = { value: string; highlighted?: boolean };
+
+function MiniTapeStrip({ label, cells }: {
+  label: string;
+  cells: MiniTapeCell[];
+}) {
+  return (
+    <View style={tapeStyles.strip}>
+      <Text style={tapeStyles.label}>{label}</Text>
+      <View style={tapeStyles.cells}>
+        {cells.map((cell, i) => (
+          <View
+            key={i}
+            style={[
+              tapeStyles.cell,
+              cell.highlighted && tapeStyles.cellHighlighted,
+            ]}
+          >
+            <Text style={[
+              tapeStyles.cellValue,
+              cell.highlighted && tapeStyles.cellValueHighlighted,
+            ]}>
+              {cell.value}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// ─── Value bubble (Protocol sims only) ────────────────────────────────────
+
+function ValueBubble({ x, y, value, opacity = 1 }: {
+  x: number; y: number; value: string; opacity?: number;
+}) {
+  return (
+    <>
+      <SvgCircle cx={x} cy={y} r={8} fill="rgba(0,212,255,0.15)" opacity={opacity} />
+      <SvgText
+        x={x} y={y + 3}
+        fill="#00D4FF" fontSize="8" fontFamily="monospace"
+        textAnchor="middle" opacity={opacity}
+      >
+        {value}
+      </SvgText>
+    </>
   );
 }
 
@@ -150,15 +239,34 @@ export interface PieceSimulationProps {
 export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
   const animVal = useRef(new RNAnimated.Value(0)).current;
   const [t, setT] = useState(0);
+  // Incremented whenever `t` rolls back past 0.5 (i.e. the anim loop
+  // restarts). Config Node uses this to alternate pass/block per cycle.
+  const loopCountRef = useRef(0);
+  const [loopCount, setLoopCount] = useState(0);
 
-  // Physics pieces loop on the 1700ms charge/beam/lock/pause cycle.
-  // Protocol pieces keep the original 3600ms linear cycle (sliding dot).
   const type = pieceType === 'config_node' ? 'configNode' : pieceType;
   const isPhysics = PHYSICS_TYPES.has(type);
-  const cycleMs = isPhysics ? PHYSICS_CYCLE_MS : 3600;
+  const isProtocolBeam = PROTOCOL_BEAM_TYPES.has(type);
+  // Physics: 1700ms. Protocol beam: 2100ms. Legacy Protocol: 3600ms.
+  const cycleMs = isPhysics
+    ? PHYSICS_CYCLE_MS
+    : isProtocolBeam
+      ? PROTOCOL_CYCLE_MS
+      : 3600;
 
   useEffect(() => {
-    const id = animVal.addListener(({ value }) => setT(value));
+    loopCountRef.current = 0;
+    setLoopCount(0);
+    let prevValue = 0;
+    const id = animVal.addListener(({ value }) => {
+      // Detect loop rollover: value dropped from ~1 back to ~0.
+      if (prevValue > 0.8 && value < 0.2) {
+        loopCountRef.current += 1;
+        setLoopCount(loopCountRef.current);
+      }
+      prevValue = value;
+      setT(value);
+    });
     const loop = RNAnimated.loop(
       RNAnimated.timing(animVal, {
         toValue: 1,
@@ -173,16 +281,18 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
 
   const caption = SIM_CAPTIONS[pieceType] ?? SIM_CAPTIONS[type] ?? 'Field simulation.';
 
-  const { svgContent, pieces: simPieces } = isPhysics
+  const simData: SimData = isPhysics
     ? renderPhysicsSim(type, t)
-    : renderProtocolSim(type, t);
+    : isProtocolBeam
+      ? renderProtocolBeamSim(type, t, loopCount)
+      : renderProtocolSim(type, t);
 
   return (
     <View style={simStyles.container}>
       <Text style={simStyles.label}>FIELD SIMULATION</Text>
       <View style={[simStyles.canvas, { position: 'relative' }]}>
-        <Svg width={SIM_W} height={SIM_H}>{svgContent}</Svg>
-        {simPieces.map((p, i) => (
+        <Svg width={SIM_W} height={SIM_H}>{simData.svgContent}</Svg>
+        {simData.pieces.map((p, i) => (
           <SimPiece
             key={i}
             cell={p.cell}
@@ -194,9 +304,15 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
             spinning={p.spinning}
             splitting={p.splitting}
             locking={p.locking}
+            scanning={p.scanning}
+            gating={p.gating}
+            gateResult={p.gateResult}
+            transmitting={p.transmitting}
+            configValue={p.configValue}
           />
         ))}
       </View>
+      {simData.tapeStrips}
       <Text style={simStyles.caption}>{caption}</Text>
     </View>
   );
@@ -215,9 +331,18 @@ type PieceDef = {
   spinning?: boolean;
   splitting?: boolean;
   locking?: boolean;
+  scanning?: boolean;
+  gating?: boolean;
+  gateResult?: 'pass' | 'block' | null;
+  transmitting?: boolean;
+  configValue?: number;
 };
 
-type SimData = { svgContent: React.ReactNode; pieces: PieceDef[] };
+type SimData = {
+  svgContent: React.ReactNode;
+  pieces: PieceDef[];
+  tapeStrips?: React.ReactNode;
+};
 
 function renderPhysicsSim(type: string, t: number): SimData {
   const { phase, progress } = computePhase(t);
@@ -592,122 +717,434 @@ function renderLockPulse(O: Cell, progress: number) {
   );
 }
 
-// ─── Protocol renderer (unchanged from previous CodexDetailView) ──────────
+// ─── Protocol beam renderer (charge/beam/interact/lock cycle) ────────────
+// Config Node, Scanner, and Transmitter use the charge/beam/interact/
+// beam-post/lock/pause phase machine with mini tape strips and value
+// bubbles. Protocol beam color is cyan (#00D4FF).
+
+function renderProtocolBeamSim(type: string, t: number, loopCount: number): SimData {
+  const { phase, progress } = computeProtocolPhase(t);
+  switch (type) {
+    case 'configNode':
+      return renderConfigNodeSim(phase, progress, loopCount);
+    case 'scanner':
+      return renderScannerSim(phase, progress);
+    case 'transmitter':
+      return renderTransmitterSim(phase, progress);
+    default:
+      return { svgContent: null, pieces: [] };
+  }
+}
+
+function renderProtocolChargeRings(S: Cell, progress: number) {
+  const r1 = S.r * 0.3 + progress * S.r * 0.7;
+  const r2 = S.r * 0.3 + ((progress + 0.4) % 1) * S.r * 0.7;
+  const a1 = Math.max(0, 0.4 * (1 - progress));
+  const a2 = Math.max(0, 0.4 * (1 - ((progress + 0.4) % 1)));
+  return (
+    <>
+      <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={AMBER} strokeWidth="1" opacity={a1} />
+      <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={AMBER} strokeWidth="1" opacity={a2} />
+    </>
+  );
+}
+
+function renderCyanBeamHead(x: number, y: number) {
+  return (
+    <>
+      <SvgCircle cx={x} cy={y} r={8} fill={CYAN} opacity={0.2} />
+      <SvgCircle cx={x} cy={y} r={4} fill={CYAN} />
+    </>
+  );
+}
+
+function renderCyanTrail(points: { x: number; y: number }[], opacity = 0.6) {
+  if (points.length < 2) return null;
+  return (
+    <>
+      {points.slice(0, -1).map((p, i) => (
+        <SvgLine
+          key={`trail-${i}`}
+          x1={p.x} y1={p.y}
+          x2={points[i + 1].x} y2={points[i + 1].y}
+          stroke={CYAN}
+          strokeWidth={2}
+          opacity={opacity}
+        />
+      ))}
+    </>
+  );
+}
+
+function renderLockGlow(O: Cell, progress: number) {
+  const r = 4 + progress * 12;
+  const opacity = Math.max(0, 0.5 * (1 - progress));
+  return <SvgCircle cx={O.x} cy={O.y} r={r} fill={GREEN} opacity={opacity} />;
+}
+
+function renderConfigNodeSim(
+  phase: ProtocolPhase,
+  progress: number,
+  loopCount: number,
+): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const SC = getCell(1, 1, 5, 3);
+  const CN = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+
+  const mode = configNodeMode(loopCount);
+  const trailValue = mode === 'pass' ? '1' : '0';
+  const inputValue = trailValue;
+
+  const pre = [S, SC, CN];
+  const preProgress = phase === 'beam-pre' ? progress : phase === 'charge' ? 0 : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const post = [CN, C2, O];
+  const postProgress = mode === 'pass' && phase === 'beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  const preConnLit = (i: number) =>
+    phase !== 'charge' && phase !== 'pause' && preReached > i;
+  const postConnLit = (i: number) =>
+    mode === 'pass' && phase !== 'charge' && phase !== 'pause' &&
+    ((phase === 'beam-post' && postReached > i) || phase === 'lock');
+
+  const inBlockFlash = mode === 'block' &&
+    (phase === 'beam-post' || phase === 'lock');
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (mode === 'pass' && (phase === 'beam-post' || phase === 'lock' || phase === 'pause')) {
+    const reach = phase === 'beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
+    }
+  }
+
+  const showChecking = phase === 'interact' && progress < 0.6;
+  const showPassLabel = phase === 'interact' && progress >= 0.6 && mode === 'pass';
+  const showBlockLabel = phase === 'interact' && progress >= 0.6 && mode === 'block';
+
+  const gating = phase === 'interact';
+  const gateResult: 'pass' | 'block' | null = gating
+    ? (progress >= 0.6 ? mode : null)
+    : null;
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'beam-pre' && preReached >= 1 },
+    { cell: CN, type: 'configNode', color: PROTOCOL_VIOLET,
+      gating, gateResult, configValue: 1 },
+    { cell: C2, type: 'conveyor', color: AMBER, rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: mode === 'pass' && phase === 'lock' },
+  ];
+
+  const tapeStrips = (
+    <>
+      <MiniTapeStrip
+        label="IN"
+        cells={[{ value: inputValue, highlighted: phase === 'beam-pre' || phase === 'interact' || phase === 'beam-post' || phase === 'lock' }]}
+      />
+      <MiniTapeStrip
+        label="TRAIL"
+        cells={[{ value: trailValue, highlighted: phase === 'interact' || phase === 'beam-post' || phase === 'lock' }]}
+      />
+    </>
+  );
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={SC.x} y2={SC.y}
+          lit={preConnLit(0)} litColor={CYAN_LIT} />
+        <DrawConn x1={SC.x} y1={SC.y} x2={CN.x} y2={CN.y}
+          lit={preConnLit(1)} litColor={CYAN_LIT} />
+        <DrawConn x1={CN.x} y1={CN.y} x2={C2.x} y2={C2.y}
+          lit={postConnLit(0)} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={postConnLit(1)} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {phase === 'beam-pre' && renderCyanBeamHead(preHead.x, preHead.y)}
+        {mode === 'pass' && phase === 'beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {mode === 'pass' && phase === 'lock' && renderLockGlow(O, progress)}
+        {inBlockFlash && (
+          <SvgCircle cx={CN.x} cy={CN.y} r={14} fill={RED} opacity={0.35 * (1 - progress)} />
+        )}
+
+        {showChecking && (
+          <SvgText
+            x={CN.x} y={CN.y - CN.r * 0.55}
+            fill={PROTOCOL_VIOLET} fontSize="8" fontFamily="monospace"
+            textAnchor="middle" opacity={0.8}
+          >
+            CHECKING
+          </SvgText>
+        )}
+        {showPassLabel && (
+          <SvgText
+            x={CN.x} y={CN.y - CN.r * 0.55}
+            fill="#00C48C" fontSize="9" fontFamily="monospace"
+            textAnchor="middle" fontWeight="bold"
+          >
+            PASS
+          </SvgText>
+        )}
+        {showBlockLabel && (
+          <SvgText
+            x={CN.x} y={CN.y - CN.r * 0.55}
+            fill={RED} fontSize="9" fontFamily="monospace"
+            textAnchor="middle" fontWeight="bold"
+          >
+            BLOCKED
+          </SvgText>
+        )}
+      </>
+    ),
+    pieces,
+    tapeStrips,
+  };
+}
+
+function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const C1 = getCell(1, 1, 5, 3);
+  const SC = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+
+  const pre = [S, C1, SC];
+  const post = [SC, C2, O];
+
+  const preProgress = phase === 'beam-pre' ? progress : phase === 'charge' ? 0 : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const postProgress = phase === 'beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (phase === 'beam-post' || phase === 'lock' || phase === 'pause') {
+    const reach = phase === 'beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
+    }
+  }
+
+  const inZone = { x: SC.x, y: 12 };
+  const trailZone = { x: SC.x, y: SIM_H - 14 };
+  let bubblePos: { x: number; y: number } | null = null;
+  if (phase === 'interact') {
+    if (progress < 0.4) bubblePos = inZone;
+    else if (progress < 0.7) {
+      const p = (progress - 0.4) / 0.3;
+      bubblePos = {
+        x: inZone.x + (SC.x - inZone.x) * p,
+        y: inZone.y + (SC.y - inZone.y) * p,
+      };
+    } else {
+      const p = (progress - 0.7) / 0.3;
+      bubblePos = {
+        x: SC.x + (trailZone.x - SC.x) * p,
+        y: SC.y + (trailZone.y - SC.y) * p,
+      };
+    }
+  }
+
+  const trailFilled = (phase === 'interact' && progress >= 0.9) ||
+    phase === 'beam-post' || phase === 'lock' || phase === 'pause';
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'interact' },
+    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  const tapeStrips = (
+    <>
+      <MiniTapeStrip
+        label="IN"
+        cells={[{ value: '1', highlighted: phase === 'interact' || phase === 'beam-pre' }]}
+      />
+      <MiniTapeStrip
+        label="TRAIL"
+        cells={[{ value: trailFilled ? '1' : '\u00B7', highlighted: trailFilled }]}
+      />
+    </>
+  );
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y}
+          lit={phase !== 'charge' && preReached > 0 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={C1.x} y1={C1.y} x2={SC.x} y2={SC.y}
+          lit={phase !== 'charge' && preReached > 1 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={SC.x} y1={SC.y} x2={C2.x} y2={C2.y}
+          lit={(phase === 'beam-post' && postReached > 0) || phase === 'lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={(phase === 'beam-post' && postReached > 1) || phase === 'lock'} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {phase === 'beam-pre' && renderCyanBeamHead(preHead.x, preHead.y)}
+        {phase === 'beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {phase === 'lock' && renderLockGlow(O, progress)}
+
+        {bubblePos && <ValueBubble x={bubblePos.x} y={bubblePos.y} value="1" />}
+      </>
+    ),
+    pieces,
+    tapeStrips,
+  };
+}
+
+function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
+  const S = getCell(0, 1, 5, 3);
+  const C1 = getCell(1, 1, 5, 3);
+  const TX = getCell(2, 1, 5, 3);
+  const C2 = getCell(3, 1, 5, 3);
+  const O = getCell(4, 1, 5, 3);
+
+  const pre = [S, C1, TX];
+  const post = [TX, C2, O];
+
+  const preProgress = phase === 'beam-pre' ? progress : phase === 'charge' ? 0 : 1;
+  const preHead = posAlongChain(pre, preProgress);
+  const preReached = preProgress >= 1 ? pre.length - 1 : preHead.reachedIndex;
+
+  const postProgress = phase === 'beam-post' ? progress : 0;
+  const postHead = posAlongChain(post, postProgress);
+  const postReached = postProgress >= 1 ? post.length - 1 : postHead.reachedIndex;
+
+  const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
+
+  const preTrail: { x: number; y: number }[] = [];
+  if (phase !== 'charge') {
+    for (let i = 0; i <= preReached; i++) preTrail.push(pre[i]);
+    if (preProgress > 0 && preProgress < 1) preTrail.push({ x: preHead.x, y: preHead.y });
+    if (preProgress >= 1) preTrail.push(pre[pre.length - 1]);
+  }
+  const postTrail: { x: number; y: number }[] = [];
+  if (phase === 'beam-post' || phase === 'lock' || phase === 'pause') {
+    const reach = phase === 'beam-post' ? postReached : post.length - 1;
+    for (let i = 0; i <= reach; i++) postTrail.push(post[i]);
+    if (phase === 'beam-post' && postProgress > 0 && postProgress < 1) {
+      postTrail.push({ x: postHead.x, y: postHead.y });
+    }
+  }
+
+  const trailZone = { x: TX.x, y: 12 };
+  const outZone = { x: TX.x, y: SIM_H - 14 };
+  let bubblePos: { x: number; y: number } | null = null;
+  if (phase === 'interact') {
+    if (progress < 0.3) bubblePos = trailZone;
+    else if (progress < 0.6) {
+      const p = (progress - 0.3) / 0.3;
+      bubblePos = {
+        x: trailZone.x + (TX.x - trailZone.x) * p,
+        y: trailZone.y + (TX.y - trailZone.y) * p,
+      };
+    } else {
+      const p = (progress - 0.6) / 0.4;
+      bubblePos = {
+        x: TX.x + (outZone.x - TX.x) * p,
+        y: TX.y + (outZone.y - TX.y) * p,
+      };
+    }
+  }
+
+  const outFilled = (phase === 'interact' && progress >= 0.9) ||
+    phase === 'beam-post' || phase === 'lock' || phase === 'pause';
+
+  const pieces: PieceDef[] = [
+    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: C1, type: 'conveyor', color: AMBER, rolling: phase === 'beam-pre' && preReached >= 1 },
+    { cell: TX, type: 'transmitter', color: PROTOCOL_VIOLET, transmitting: phase === 'interact' },
+    { cell: C2, type: 'conveyor', color: AMBER, rolling: phase === 'beam-post' && postReached >= 1 },
+    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+  ];
+
+  const tapeStrips = (
+    <>
+      <MiniTapeStrip
+        label="TRAIL"
+        cells={[{ value: '1', highlighted: phase === 'interact' || phase === 'beam-pre' }]}
+      />
+      <MiniTapeStrip
+        label="OUT"
+        cells={[{ value: outFilled ? '1' : '\u00B7', highlighted: outFilled }]}
+      />
+    </>
+  );
+
+  return {
+    svgContent: (
+      <>
+        <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y}
+          lit={phase !== 'charge' && preReached > 0 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={C1.x} y1={C1.y} x2={TX.x} y2={TX.y}
+          lit={phase !== 'charge' && preReached > 1 && phase !== 'pause'} litColor={CYAN_LIT} />
+        <DrawConn x1={TX.x} y1={TX.y} x2={C2.x} y2={C2.y}
+          lit={(phase === 'beam-post' && postReached > 0) || phase === 'lock'} litColor={CYAN_LIT} />
+        <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y}
+          lit={(phase === 'beam-post' && postReached > 1) || phase === 'lock'} litColor={CYAN_LIT} />
+
+        {phase === 'charge' && renderProtocolChargeRings(S, progress)}
+
+        {renderCyanTrail(preTrail, trailOpacity)}
+        {renderCyanTrail(postTrail, trailOpacity)}
+
+        {phase === 'beam-pre' && renderCyanBeamHead(preHead.x, preHead.y)}
+        {phase === 'beam-post' && postProgress < 1 && renderCyanBeamHead(postHead.x, postHead.y)}
+
+        {phase === 'lock' && renderLockGlow(O, progress)}
+
+        {bubblePos && <ValueBubble x={bubblePos.x} y={bubblePos.y} value="1" />}
+      </>
+    ),
+    pieces,
+    tapeStrips,
+  };
+}
+
+// ─── Protocol renderer (legacy — merger, bridge, inverter, counter, latch) ─
 
 function renderProtocolSim(type: string, t: number): SimData {
   switch (type) {
-    case 'configNode': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const CN = getCell(2, 1, 5, 3);
-      const C2 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
-      const CHECK_T = 0.45;
-      const PASS_T = 0.58;
-      const isPaused = t >= CHECK_T && t < PASS_T;
-      const passed = t >= PASS_T;
-      let ball: { x: number; y: number };
-      if (t < CHECK_T) ball = interpPath([S, C1, CN], t, CHECK_T);
-      else if (isPaused) ball = CN;
-      else if (t < 0.9) ball = interpPath([CN, C2, O], (t - PASS_T) / (0.9 - PASS_T) * 0.85, 0.85);
-      else ball = O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={CN.x} y2={CN.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={CN.x} y1={CN.y} x2={C2.x} y2={C2.y} lit={passed} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} litColor="rgba(0,212,255,0.6)" />
-            {isPaused && <SvgText x={CN.x} y={CN.y - CN.r * 0.55} fill="#A78BFA" fontSize="8" fontFamily="monospace" textAnchor="middle" opacity={0.8}>CHECKING</SvgText>}
-            {passed && t < PASS_T + 0.08 && <SvgText x={CN.x} y={CN.y - CN.r * 0.55} fill="#00C48C" fontSize="9" fontFamily="monospace" textAnchor="middle" fontWeight="bold">PASS</SvgText>}
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isPaused || passed ? '#A78BFA' : '#00D4FF'} />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: CN, type: 'configNode', color: '#A78BFA' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'scanner': {
-      const S = getCell(0, 1, 5, 4);
-      const C1 = getCell(1, 1, 5, 4);
-      const SC = getCell(2, 1, 5, 4);
-      const C2 = getCell(3, 1, 5, 4);
-      const O = getCell(4, 1, 5, 4);
-      const DT = getCell(2, 2, 5, 4);
-      const SCAN_T = 0.45;
-      const DONE_T = 0.6;
-      const isReading = t >= SCAN_T && t < DONE_T;
-      const done = t >= DONE_T;
-      let ball: { x: number; y: number };
-      if (t < SCAN_T) ball = interpPath([S, C1, SC], t, SCAN_T);
-      else if (isReading) ball = SC;
-      else if (t < 0.9) ball = interpPath([SC, C2, O], t - DONE_T, 0.9 - DONE_T);
-      else ball = O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={SC.x} y2={SC.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={SC.x} y1={SC.y} x2={C2.x} y2={C2.y} lit={done} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} litColor="rgba(0,212,255,0.6)" />
-            {isReading && <SvgLine x1={SC.x} y1={SC.y + SC.r * 0.4} x2={DT.x} y2={DT.y - DT.r * 0.35} stroke="#A78BFA" strokeWidth="1.5" strokeDasharray="3,3" opacity={0.7} />}
-            <DrawDataTrail cx={DT.x} cy={DT.y} r={DT.r} val="1" highlight={isReading || done} />
-            {done && t < DONE_T + 0.1 && <SvgText x={SC.x + SC.r * 0.5} y={SC.y - SC.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>STORED</SvgText>}
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isReading || done ? '#A78BFA' : '#00D4FF'} />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: SC, type: 'scanner', color: '#A78BFA' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
-    case 'transmitter': {
-      const S = getCell(0, 1, 5, 4);
-      const C1 = getCell(1, 1, 5, 4);
-      const TX = getCell(2, 1, 5, 4);
-      const C2 = getCell(3, 1, 5, 4);
-      const O = getCell(4, 1, 5, 4);
-      const DT = getCell(2, 2, 5, 4);
-      const WRITE_T = 0.45;
-      const DONE_T = 0.58;
-      const isWriting = t >= WRITE_T && t < DONE_T;
-      const done = t >= DONE_T;
-      let ball: { x: number; y: number };
-      if (t < WRITE_T) ball = interpPath([S, C1, TX], t, WRITE_T);
-      else if (isWriting) ball = TX;
-      else if (t < 0.9) ball = interpPath([TX, C2, O], (t - DONE_T) / (0.9 - DONE_T) * 0.85, 0.85);
-      else ball = O;
-      return {
-        svgContent: (
-          <>
-            <DrawConn x1={S.x} y1={S.y} x2={C1.x} y2={C1.y} lit={t > 0.05} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C1.x} y1={C1.y} x2={TX.x} y2={TX.y} lit={t > 0.25} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={TX.x} y1={TX.y} x2={C2.x} y2={C2.y} lit={done} litColor="rgba(0,212,255,0.6)" />
-            <DrawConn x1={C2.x} y1={C2.y} x2={O.x} y2={O.y} lit={t > 0.75} litColor="rgba(0,212,255,0.6)" />
-            {isWriting && <SvgLine x1={TX.x} y1={TX.y + TX.r * 0.4} x2={DT.x} y2={DT.y - DT.r * 0.35} stroke="#A78BFA" strokeWidth="2" opacity={0.9} />}
-            <DrawDataTrail cx={DT.x} cy={DT.y} r={DT.r} val={done ? '1' : '0'} highlight={isWriting || done} />
-            {isWriting && <SvgText x={TX.x + TX.r * 0.5} y={TX.y - TX.r * 0.45} fill="#A78BFA" fontSize="7" fontFamily="monospace" opacity={0.8}>WRITING</SvgText>}
-            {t < 0.95 && <SvgCircle cx={ball.x} cy={ball.y} r="5" fill={isWriting || done ? '#A78BFA' : '#00D4FF'} />}
-          </>
-        ),
-        pieces: [
-          { cell: S, type: 'source', color: '#F0B429' },
-          { cell: C1, type: 'conveyor', color: '#00D4FF' },
-          { cell: TX, type: 'transmitter', color: '#A78BFA' },
-          { cell: C2, type: 'conveyor', color: '#00D4FF' },
-          { cell: O, type: 'terminal', color: '#00C48C' },
-        ],
-      };
-    }
     case 'merger': {
       const S = getCell(0, 1, 5, 3);
       const C1 = getCell(1, 1, 5, 3);
@@ -885,6 +1322,49 @@ const simStyles = StyleSheet.create({
     fontSize: 9,
     color: Colors.muted,
     textAlign: 'center',
+  },
+});
+
+const tapeStyles = StyleSheet.create({
+  strip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  label: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 7,
+    color: 'rgba(0,212,255,0.4)',
+    letterSpacing: 1,
+    width: 32,
+    textAlign: 'right',
+  },
+  cells: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  cell: {
+    width: 18,
+    height: 18,
+    borderRadius: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.15)',
+    backgroundColor: 'rgba(0,212,255,0.03)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cellHighlighted: {
+    borderColor: 'rgba(0,212,255,0.5)',
+    backgroundColor: 'rgba(0,212,255,0.1)',
+  },
+  cellValue: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: 'rgba(0,212,255,0.3)',
+  },
+  cellValueHighlighted: {
+    color: '#00D4FF',
   },
 });
 

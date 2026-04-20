@@ -77,3 +77,65 @@ export function computePhase(t: number): { phase: Phase; progress: number } {
   if (t < LOCK_END) return { phase: 'lock', progress: (t - BEAM_END) / (LOCK_END - BEAM_END) };
   return { phase: 'pause', progress: (t - LOCK_END) / (1 - LOCK_END) };
 }
+
+// ── Protocol sim phase machine ───────────────────────────────────────────
+// Protocol pieces (Config Node, Scanner, Transmitter) interact with tapes
+// mid-pulse, so their sim cycle pauses at the piece between beam-pre and
+// beam-post. Total 2100ms.
+
+export type ProtocolPhase =
+  | 'charge'
+  | 'beam-pre'
+  | 'interact'
+  | 'beam-post'
+  | 'lock'
+  | 'pause';
+
+export const PROTOCOL_CYCLE_MS = 2100;
+
+// Phase boundaries as fractions of the total cycle.
+export const P_CHARGE_END = 200 / PROTOCOL_CYCLE_MS;      // ~0.0952
+export const P_BEAM_PRE_END = 600 / PROTOCOL_CYCLE_MS;    // ~0.2857
+export const P_INTERACT_END = 1000 / PROTOCOL_CYCLE_MS;   // ~0.4762
+export const P_BEAM_POST_END = 1400 / PROTOCOL_CYCLE_MS;  // ~0.6667
+export const P_LOCK_END = 1700 / PROTOCOL_CYCLE_MS;       // ~0.8095
+
+export function computeProtocolPhase(
+  t: number,
+): { phase: ProtocolPhase; progress: number } {
+  if (t < P_CHARGE_END) {
+    return { phase: 'charge', progress: t / P_CHARGE_END };
+  }
+  if (t < P_BEAM_PRE_END) {
+    return {
+      phase: 'beam-pre',
+      progress: (t - P_CHARGE_END) / (P_BEAM_PRE_END - P_CHARGE_END),
+    };
+  }
+  if (t < P_INTERACT_END) {
+    return {
+      phase: 'interact',
+      progress: (t - P_BEAM_PRE_END) / (P_INTERACT_END - P_BEAM_PRE_END),
+    };
+  }
+  if (t < P_BEAM_POST_END) {
+    return {
+      phase: 'beam-post',
+      progress: (t - P_INTERACT_END) / (P_BEAM_POST_END - P_INTERACT_END),
+    };
+  }
+  if (t < P_LOCK_END) {
+    return {
+      phase: 'lock',
+      progress: (t - P_BEAM_POST_END) / (P_LOCK_END - P_BEAM_POST_END),
+    };
+  }
+  return { phase: 'pause', progress: (t - P_LOCK_END) / (1 - P_LOCK_END) };
+}
+
+// Config Node alternates PASS / BLOCK on each loop to teach both
+// outcomes. Shared here so tests can assert on the predicate.
+export function configNodeMode(loopCount: number): 'pass' | 'block' {
+  return loopCount % 2 === 0 ? 'pass' : 'block';
+}
+

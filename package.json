@@ -1,7 +1,7 @@
 {
   "name": "the-axiom",
   "main": "index.js",
-  "version": "1.0.1",
+  "version": "0.9.260",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
