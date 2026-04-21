@@ -1094,7 +1094,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
-              <View ref={inputTapeCellsRef} style={styles.tapeCells}>
+              <View ref={inputTapeCellsRef} collapsable={false} style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
                   const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
                   const isPast = beamState.phase === 'beam' && i < currentPulseIndex;
@@ -1140,7 +1140,7 @@ export default function GameplayScreen({ navigation }: Props) {
               level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
-              <View ref={outputTapeCellsRef} style={styles.tapeCells}>
+              <View ref={outputTapeCellsRef} collapsable={false} style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
                   const rawWritten = visualOutputOverride
                     ? visualOutputOverride[i]
@@ -1180,7 +1180,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {level.dataTrail.cells.length > 0 && (
               <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
                 <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-                <View ref={dataTrailCellsRef} style={styles.tapeCells}>
+                <View ref={dataTrailCellsRef} collapsable={false} style={styles.tapeCells}>
                   {machineState.dataTrail.cells.map((rawCell, i) => {
                     const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                     const isHead = i === machineState.dataTrail.headPosition;
@@ -1212,7 +1212,7 @@ export default function GameplayScreen({ navigation }: Props) {
              !isExecuting && !showResults && !showVoid && !showWrongOutput && !showInsufficientPulses && (
               <View style={styles.pulseTargetRow}>
                 <Text style={styles.pulseTargetText}>
-                  TARGET: {level.requiredTerminalCount} OF {level.inputTape?.length ?? '?'} PULSES MUST REACH OUTPUT
+                  TARGET: {level.requiredTerminalCount} OF {level.inputTape?.length ?? '?'} PULSES MUST REACH TERMINAL
                 </Text>
               </View>
             )}
@@ -1224,7 +1224,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-              <View ref={dataTrailCellsRef} style={styles.tapeCells}>
+              <View ref={dataTrailCellsRef} collapsable={false} style={styles.tapeCells}>
                 {machineState.dataTrail.cells.map((rawCell, i) => {
                   const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                   const isHead = i === machineState.dataTrail.headPosition;
@@ -1970,7 +1970,7 @@ export default function GameplayScreen({ navigation }: Props) {
             <View style={styles.wrongOutputCard}>
               <Text style={styles.wrongOutputTitle}>INSUFFICIENT PULSES</Text>
               <Text style={styles.insufficientSubtext}>
-                {pulseResultData.achieved} of {pulseResultData.required} required pulses reached the output.
+                {pulseResultData.achieved} of {pulseResultData.required} required pulses reached the terminal.
               </Text>
               <View style={styles.pulseResultsRow}>
                 {pulseResultData.results.map((reached, i) => (

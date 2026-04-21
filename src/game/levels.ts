@@ -379,8 +379,11 @@ export const levelA1_6: LevelDefinition = {
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'scanner', 'configNode', 'configNode'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 1, 0],
-  expectedOutput: [1, 0, 1, 1, 0, 1, 1, 0],
-  requiredTerminalCount: 8,
+  // Config Node configValue=0 passes the three 0-valued pulses and
+  // blocks the five 1-valued pulses. Teaches that 0 is a valid
+  // filter target.
+  expectedOutput: [0, 0, 0],
+  requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 8,
   systemRepaired: 'Sensor Grid',
@@ -433,8 +436,11 @@ export const levelA1_7: LevelDefinition = {
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'transmitter', 'configNode', 'configNode'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1],
-  expectedOutput: [1, 1, 0, 1, 0, 0, 1, 1],
-  requiredTerminalCount: 8,
+  // Config Node configValue=1 passes the five 1-valued pulses
+  // and blocks the three 0-valued pulses. Transmitter writes the
+  // passing pulses to the output tape.
+  expectedOutput: [1, 1, 1, 1, 1],
+  requiredTerminalCount: 5,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 7,
   systemRepaired: 'Weapons Lock',
@@ -500,8 +506,10 @@ export const levelA1_8: LevelDefinition = {
   ],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 0, 1],
-  expectedOutput: [1, 0, 1, 1, 0, 1, 0, 1],
-  requiredTerminalCount: 8,
+  // Capstone: Config Node configValue=0 passes the three 0-valued
+  // pulses. The five 1-valued pulses are blocked.
+  expectedOutput: [0, 0, 0],
+  requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 11,
   systemRepaired: 'Bridge Systems',
