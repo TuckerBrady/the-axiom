@@ -1094,7 +1094,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
-              <View ref={inputTapeCellsRef} collapsable={false} style={styles.tapeCells}>
+              <View style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
                   const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
                   const isPast = beamState.phase === 'beam' && i < currentPulseIndex;
@@ -1109,6 +1109,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     <View key={`in-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, !(isActive || isPreBeamNext) && { opacity: 0 }]} />
                       <View
+                        ref={i === 0 ? inputTapeCellsRef : undefined}
+                        collapsable={false}
                         style={[
                           styles.tapeCell,
                           isActive && styles.tapeCellActive,
@@ -1140,7 +1142,7 @@ export default function GameplayScreen({ navigation }: Props) {
               level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
-              <View ref={outputTapeCellsRef} collapsable={false} style={styles.tapeCells}>
+              <View style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
                   const rawWritten = visualOutputOverride
                     ? visualOutputOverride[i]
@@ -1154,6 +1156,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     <View key={`out-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, { opacity: 0 }]} />
                       <View
+                        ref={i === 0 ? outputTapeCellsRef : undefined}
+                        collapsable={false}
                         style={[
                           styles.tapeCell,
                           correct && styles.tapeCellCorrect,
@@ -1180,7 +1184,7 @@ export default function GameplayScreen({ navigation }: Props) {
             {level.dataTrail.cells.length > 0 && (
               <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
                 <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-                <View ref={dataTrailCellsRef} collapsable={false} style={styles.tapeCells}>
+                <View style={styles.tapeCells}>
                   {machineState.dataTrail.cells.map((rawCell, i) => {
                     const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                     const isHead = i === machineState.dataTrail.headPosition;
@@ -1189,6 +1193,8 @@ export default function GameplayScreen({ navigation }: Props) {
                       <View key={`trail-${i}`} style={styles.tapeCellWrap}>
                         <View style={[styles.tapeHead, { opacity: 0 }]} />
                         <View
+                          ref={i === 0 ? dataTrailCellsRef : undefined}
+                          collapsable={false}
                           style={[
                             styles.tapeCell,
                             isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
@@ -1224,7 +1230,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-              <View ref={dataTrailCellsRef} collapsable={false} style={styles.tapeCells}>
+              <View style={styles.tapeCells}>
                 {machineState.dataTrail.cells.map((rawCell, i) => {
                   const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
                   const isHead = i === machineState.dataTrail.headPosition;
@@ -1233,6 +1239,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     <View key={`trail-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, { opacity: 0 }]} />
                       <View
+                        ref={i === 0 ? dataTrailCellsRef : undefined}
+                        collapsable={false}
                         style={[
                           styles.tapeCell,
                           isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
@@ -2410,16 +2418,18 @@ export default function GameplayScreen({ navigation }: Props) {
             zIndex: 100,
           }}
         >
-          <Text
-            style={{
-              fontSize: bubbleAnimState.bubble.value.length > 1 ? 9 : 11,
-              fontWeight: 'bold',
-              fontFamily: 'monospace',
-              color: bubbleAnimState.bubble.color,
-            }}
-          >
-            {bubbleAnimState.bubble.value}
-          </Text>
+          {bubbleAnimState.bubble.value !== '' && (
+            <Text
+              style={{
+                fontSize: bubbleAnimState.bubble.value.length > 1 ? 9 : 11,
+                fontWeight: 'bold',
+                fontFamily: 'monospace',
+                color: bubbleAnimState.bubble.color,
+              }}
+            >
+              {bubbleAnimState.bubble.value}
+            </Text>
+          )}
         </View>
       )}
     </Animated.View>

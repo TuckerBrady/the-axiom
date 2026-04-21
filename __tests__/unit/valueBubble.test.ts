@@ -36,34 +36,34 @@ describe('getPulseSpeed', () => {
 });
 
 describe('getTapeCellPosFromCache', () => {
-  // Layout constants (24px cell, 3px gap) are baked into the helper.
-  const container = { x: 100, y: 50, w: 200, h: 40 };
+  // `cached` is the first cell's own measurement — a 24x24 tape cell
+  // with 3px gap between cells.
+  const firstCell = { x: 100, y: 50, w: 24, h: 24 };
 
   it('returns (0, 0) when the cached measurement is null', () => {
     expect(getTapeCellPosFromCache(null, 0)).toEqual({ x: 0, y: 0 });
     expect(getTapeCellPosFromCache(null, 5)).toEqual({ x: 0, y: 0 });
   });
 
-  it('centers the first cell at container x + 12, cell-center vertically', () => {
+  it('centers the first cell at cell x + w/2, y + h/2', () => {
     // x = 100 + 0 * (24 + 3) + 24/2 = 112
-    // y = cached.y + cached.h - 12 = 50 + 40 - 12 = 78
-    // The cell sits at the BOTTOM of the container (head row sits
-    // above). We want the bubble on the cell's own midpoint, not the
-    // geometric center of the container that includes the head row.
-    expect(getTapeCellPosFromCache(container, 0)).toEqual({ x: 112, y: 78 });
+    // y = 50 + 24/2 = 62
+    expect(getTapeCellPosFromCache(firstCell, 0)).toEqual({ x: 112, y: 62 });
   });
 
-  it('advances each subsequent cell by 27px (cell + gap)', () => {
-    expect(getTapeCellPosFromCache(container, 1)).toEqual({ x: 139, y: 78 });
-    expect(getTapeCellPosFromCache(container, 2)).toEqual({ x: 166, y: 78 });
-    expect(getTapeCellPosFromCache(container, 4)).toEqual({ x: 220, y: 78 });
+  it('advances each subsequent cell by w + gap (27px for a 24px cell)', () => {
+    expect(getTapeCellPosFromCache(firstCell, 1)).toEqual({ x: 139, y: 62 });
+    expect(getTapeCellPosFromCache(firstCell, 2)).toEqual({ x: 166, y: 62 });
+    expect(getTapeCellPosFromCache(firstCell, 4)).toEqual({ x: 220, y: 62 });
   });
 
-  it('targets the cell-center y regardless of cell index', () => {
-    const tall = { x: 0, y: 0, w: 100, h: 80 };
-    // y = 0 + 80 - 12 = 68
-    expect(getTapeCellPosFromCache(tall, 0).y).toBe(68);
-    expect(getTapeCellPosFromCache(tall, 3).y).toBe(68);
+  it('scales with cached cell width — advances by cached.w + gap', () => {
+    const bigCell = { x: 0, y: 0, w: 40, h: 30 };
+    // x at i=1: 0 + 1 * (40 + 3) + 40/2 = 63
+    expect(getTapeCellPosFromCache(bigCell, 1).x).toBe(63);
+    // y = 0 + 30/2 = 15 for any index
+    expect(getTapeCellPosFromCache(bigCell, 0).y).toBe(15);
+    expect(getTapeCellPosFromCache(bigCell, 5).y).toBe(15);
   });
 });
 

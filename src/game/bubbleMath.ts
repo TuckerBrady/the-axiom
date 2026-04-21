@@ -25,13 +25,16 @@ export type TapeCellContainerMeasure = {
 };
 
 // Resolve the screen-space center of a single tape cell from a cached
-// container measurement and the cell's index within the container.
-// Cell layout is fixed: 24px square with a 3px gap between cells.
-// The container also encloses a 4px tape-head indicator + 2px spacer
-// above each cell — we target the cell itself, not the container's
-// geometric center, so the bubble lands on the value's midpoint
-// instead of drifting upward into the head row.
-const TAPE_CELL_SIZE = 24;
+// measurement of the FIRST cell in the tape row. All cells in a row
+// share the same y (cells are laid out horizontally); x advances by
+// cell width + gap.
+//
+// Prior versions measured the enclosing container and tried to compute
+// the cell center from the container height. That was fragile — React
+// Native's view flattening on Android made the container measurement
+// ambiguous (could measure the full wrap with the head indicator, or
+// just the cell row, or a flattened parent). Measuring the cell itself
+// sidesteps the issue entirely.
 const TAPE_CELL_GAP = 3;
 
 export const getTapeCellPosFromCache = (
@@ -39,11 +42,8 @@ export const getTapeCellPosFromCache = (
   cellIndex: number,
 ): { x: number; y: number } => {
   if (!cached) return { x: 0, y: 0 };
-  const cellCenterX =
-    cached.x + cellIndex * (TAPE_CELL_SIZE + TAPE_CELL_GAP) + TAPE_CELL_SIZE / 2;
-  // Cells are anchored to the bottom of the container (head row sits
-  // above the cells). Bottom minus half-height = cell center.
-  const cellCenterY = cached.y + cached.h - TAPE_CELL_SIZE / 2;
+  const cellCenterX = cached.x + cellIndex * (cached.w + TAPE_CELL_GAP) + cached.w / 2;
+  const cellCenterY = cached.y + cached.h / 2;
   return { x: cellCenterX, y: cellCenterY };
 };
 

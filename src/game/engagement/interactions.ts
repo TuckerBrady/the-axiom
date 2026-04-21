@@ -46,17 +46,18 @@ export async function runScannerInteraction(
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
 
-  // Step 2: Read head dispatched — bubble starts with "?".
-  showBubbleAt(ctx, scannerX, scannerY, color, '?');
+  // Step 2: Read head dispatched — bubble starts EMPTY (no label).
+  // The Scanner does not know the value until it reads the tape.
+  showBubbleAt(ctx, scannerX, scannerY, color, '');
   startBubbleTrail(ctx);
   await wait(100 * speed);
 
-  // Step 3: Bubble travels to IN tape cell, still carrying "?".
+  // Step 3: Bubble travels to IN tape cell, still empty.
   const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
   await animateBubbleTo(
     ctx, scannerX, scannerY,
     inputCell.x, inputCell.y,
-    color, '?', 300 * speed,
+    color, '', 300 * speed,
   );
 
   // Step 4: Bubble acquires the tape value. Highlight the IN cell
