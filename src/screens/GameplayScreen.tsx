@@ -91,7 +91,10 @@ function getPieceColor(type: PieceType): string {
     case 'configNode':
     case 'scanner':
     case 'transmitter':
-      return Colors.amber;
+    case 'inverter':
+    case 'counter':
+    case 'latch':
+      return '#8B5CF6';
     default:
       return Colors.blue;
   }

@@ -468,19 +468,19 @@ export function PieceIcon({
       const sweepOpacity = scanY.interpolate({ inputRange: [0, 0.1, 0.9, 1], outputRange: [0, 0.9, 0.9, 0] });
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Circle cx="20" cy="20" r="15" fill="#0e1f36" stroke={color ?? Colors.amber} strokeWidth="1.5" />
-          <Circle cx="20" cy="20" r="10" fill="none" stroke="#F0B429" strokeWidth="1" strokeOpacity="0.5" />
-          <Circle cx="20" cy="20" r="5" fill="none" stroke={Colors.amber} strokeWidth="1" strokeOpacity="0.45" />
-          <Line x1="20" y1="5" x2="20" y2="35" stroke={Colors.amber} strokeWidth="1" strokeOpacity="0.45" />
-          <Line x1="5" y1="20" x2="35" y2="20" stroke={Colors.amber} strokeWidth="1" strokeOpacity="0.45" />
-          <Circle cx="20" cy="20" r="2" fill="#F0B429" />
+          <Circle cx="20" cy="20" r="15" fill="#0e1f36" stroke={color ?? '#8B5CF6'} strokeWidth="1.5" />
+          <Circle cx="20" cy="20" r="10" fill="none" stroke="#8B5CF6" strokeWidth="1" strokeOpacity="0.5" />
+          <Circle cx="20" cy="20" r="5" fill="none" stroke="#8B5CF6" strokeWidth="1" strokeOpacity="0.45" />
+          <Line x1="20" y1="5" x2="20" y2="35" stroke="#8B5CF6" strokeWidth="1" strokeOpacity="0.45" />
+          <Line x1="5" y1="20" x2="35" y2="20" stroke="#8B5CF6" strokeWidth="1" strokeOpacity="0.45" />
+          <Circle cx="20" cy="20" r="2" fill="#8B5CF6" />
           {/* Readout panel */}
-          <Rect x="12" y="35" width="16" height="3" fill="#F0B429" opacity="0.5" />
+          <Rect x="12" y="35" width="16" height="3" fill="#8B5CF6" opacity="0.5" />
           {/* Active scan sweep */}
           <AnimatedLine
             x1="6" y1={sweepY as unknown as number}
             x2="34" y2={sweepY as unknown as number}
-            stroke="#F0B429" strokeWidth="1.5"
+            stroke="#8B5CF6" strokeWidth="1.5"
             strokeOpacity={sweepOpacity as unknown as number}
           />
         </Svg>
@@ -497,18 +497,18 @@ export function PieceIcon({
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
           {/* Base circle */}
-          <Circle cx="20" cy="32" r="5" fill="rgba(0,212,255,0.15)" stroke="#00D4FF" strokeOpacity="0.7" strokeWidth="1.2" />
+          <Circle cx="20" cy="32" r="5" fill="rgba(139,92,246,0.15)" stroke="#8B5CF6" strokeOpacity="0.7" strokeWidth="1.2" />
           {/* Antenna mast */}
-          <Path d="M 20 28 L 20 12" stroke={color ?? Colors.blue} strokeWidth="2" strokeLinecap="round" />
+          <Path d="M 20 28 L 20 12" stroke={color ?? '#8B5CF6'} strokeWidth="2" strokeLinecap="round" />
           {/* Wave arcs (innermost / mid / outer) */}
-          <AnimatedPath d="M 14 22 Q 10 16 14 10" stroke={Colors.blue} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeOpacity={innerOp as unknown as number} />
-          <AnimatedPath d="M 26 22 Q 30 16 26 10" stroke={Colors.blue} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeOpacity={innerOp as unknown as number} />
-          <AnimatedPath d="M 11 25 Q 6 17 11 7" stroke={Colors.blue} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeOpacity={midOp as unknown as number} />
-          <AnimatedPath d="M 29 25 Q 34 17 29 7" stroke={Colors.blue} strokeWidth="1.2" fill="none" strokeLinecap="round" strokeOpacity={midOp as unknown as number} />
-          <AnimatedPath d="M 8 27 Q 2 17 8 5" stroke={Colors.blue} strokeWidth="1" fill="none" strokeLinecap="round" strokeOpacity={outerOp as unknown as number} />
-          <AnimatedPath d="M 32 27 Q 38 17 32 5" stroke={Colors.blue} strokeWidth="1" fill="none" strokeLinecap="round" strokeOpacity={outerOp as unknown as number} />
+          <AnimatedPath d="M 14 22 Q 10 16 14 10" stroke="#8B5CF6" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeOpacity={innerOp as unknown as number} />
+          <AnimatedPath d="M 26 22 Q 30 16 26 10" stroke="#8B5CF6" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeOpacity={innerOp as unknown as number} />
+          <AnimatedPath d="M 11 25 Q 6 17 11 7" stroke="#8B5CF6" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeOpacity={midOp as unknown as number} />
+          <AnimatedPath d="M 29 25 Q 34 17 29 7" stroke="#8B5CF6" strokeWidth="1.2" fill="none" strokeLinecap="round" strokeOpacity={midOp as unknown as number} />
+          <AnimatedPath d="M 8 27 Q 2 17 8 5" stroke="#8B5CF6" strokeWidth="1" fill="none" strokeLinecap="round" strokeOpacity={outerOp as unknown as number} />
+          <AnimatedPath d="M 32 27 Q 38 17 32 5" stroke="#8B5CF6" strokeWidth="1" fill="none" strokeLinecap="round" strokeOpacity={outerOp as unknown as number} />
           {/* Antenna tip pulse dot */}
-          <Circle cx="20" cy="12" r="2" fill="#00D4FF" opacity="0.9" />
+          <Circle cx="20" cy="12" r="2" fill="#8B5CF6" opacity="0.9" />
         </Svg>
       );
     }
@@ -517,11 +517,11 @@ export function PieceIcon({
       const juncR = mergePulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [3.5, 5.2, 3.5] });
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Path d="M 6 12 L 20 20" stroke={color ?? Colors.blue} strokeWidth="1.8" strokeLinecap="round" />
+          <Path d="M 6 12 L 20 20" stroke={color ?? Colors.copper} strokeWidth="1.8" strokeLinecap="round" />
           <Path d="M 20 6 L 20 20" stroke="#00C48C" strokeWidth="1.8" strokeLinecap="round" />
-          <AnimatedCircle cx="20" cy="20" r={juncR as unknown as number} fill="rgba(0,212,255,0.12)" stroke={Colors.blue} strokeWidth="1.5" />
-          <Path d="M 22 20 L 34 20" stroke="#00D4FF" strokeWidth="2" strokeLinecap="round" />
-          <Path d="M 30 17 L 34 20 L 30 23" stroke="#00D4FF" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <AnimatedCircle cx="20" cy="20" r={juncR as unknown as number} fill="rgba(200,121,65,0.12)" stroke={Colors.copper} strokeWidth="1.5" />
+          <Path d="M 22 20 L 34 20" stroke="#F0B429" strokeWidth="2" strokeLinecap="round" />
+          <Path d="M 30 17 L 34 20 L 30 23" stroke="#F0B429" strokeWidth="1.5" fill="none" strokeLinecap="round" />
         </Svg>
       );
     }
@@ -534,13 +534,16 @@ export function PieceIcon({
           {/* Horizontal line (with gap at center) */}
           <Line x1="4" y1="20" x2="17" y2="20" stroke={color ?? Colors.copper} strokeWidth="2.2" strokeLinecap="round" opacity={hOp} />
           <Line x1="23" y1="20" x2="36" y2="20" stroke={Colors.copper} strokeWidth="2.2" strokeLinecap="round" opacity={hOp} />
-          {/* Vertical line (continuous, in front) */}
-          <Line x1="20" y1="4" x2="20" y2="36" stroke={Colors.blue} strokeWidth="2.2" strokeLinecap="round" opacity={vOp} />
+          {/* Vertical line (continuous, in front) — amber keeps it in
+              the Physics palette while remaining distinct from the
+              horizontal's copper so the two crossing paths read as
+              independent. */}
+          <Line x1="20" y1="4" x2="20" y2="36" stroke="#F0B429" strokeWidth="2.2" strokeLinecap="round" opacity={vOp} />
           {/* Endcap accents */}
           <Circle cx="4" cy="20" r="1.6" fill={Colors.copper} />
           <Circle cx="36" cy="20" r="1.6" fill={Colors.copper} />
-          <Circle cx="20" cy="4" r="1.6" fill={Colors.blue} />
-          <Circle cx="20" cy="36" r="1.6" fill={Colors.blue} />
+          <Circle cx="20" cy="4" r="1.6" fill="#F0B429" />
+          <Circle cx="20" cy="36" r="1.6" fill="#F0B429" />
         </Svg>
       );
     }
@@ -580,19 +583,20 @@ export function PieceIcon({
       const valStr = storedValue == null ? '?' : String(storedValue);
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          {/* Left half (write) */}
-          <Rect x="6" y="10" width="14" height="20" rx="2" fill="#0e1f36" stroke={Colors.amber} strokeWidth="1.5" opacity={writeOp} />
-          <Path d="M 13 14 L 13 22 M 10 19 L 13 22 L 16 19" stroke={Colors.amber} strokeWidth="1.2" fill="none" strokeLinecap="round" />
-          {/* Right half (read) */}
-          <Rect x="20" y="10" width="14" height="20" rx="2" fill="#0e1f36" stroke={Colors.blue} strokeWidth="1.5" opacity={readOp} />
-          <Path d="M 23 20 L 31 20 M 28 17 L 31 20 L 28 23" stroke={Colors.blue} strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          {/* Left half (write) — Protocol purple. Opacity distinguishes
+              active-side from idle-side; the mode badge names it. */}
+          <Rect x="6" y="10" width="14" height="20" rx="2" fill="#0e1f36" stroke="#8B5CF6" strokeWidth="1.5" opacity={writeOp} />
+          <Path d="M 13 14 L 13 22 M 10 19 L 13 22 L 16 19" stroke="#8B5CF6" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+          {/* Right half (read) — Protocol purple. */}
+          <Rect x="20" y="10" width="14" height="20" rx="2" fill="#0e1f36" stroke="#8B5CF6" strokeWidth="1.5" opacity={readOp} />
+          <Path d="M 23 20 L 31 20 M 28 17 L 31 20 L 28 23" stroke="#8B5CF6" strokeWidth="1.2" fill="none" strokeLinecap="round" />
           {/* Center divider */}
           <Line x1="20" y1="10" x2="20" y2="30" stroke="#8B5CF6" strokeWidth="1" strokeOpacity="0.5" />
           {/* Stored value badge */}
           <Circle cx="20" cy="34" r="4" fill="#060e1a" stroke="#8B5CF6" strokeWidth="1" />
           <SvgText x="20" y="36.5" fill="#8B5CF6" fontSize="6" fontFamily="monospace" textAnchor="middle">{valStr}</SvgText>
           {/* Mode badge */}
-          <SvgText x="20" y="8" fill={isWrite ? Colors.amber : Colors.blue} fontSize="5" fontFamily="monospace" textAnchor="middle">{isWrite ? 'WRITE' : 'READ'}</SvgText>
+          <SvgText x="20" y="8" fill="#8B5CF6" fontSize="5" fontFamily="monospace" textAnchor="middle">{isWrite ? 'WRITE' : 'READ'}</SvgText>
         </Svg>
       );
     }
