@@ -27,6 +27,27 @@ import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
 const { width: W } = Dimensions.get('window');
 
+// Map each piece id to the color the player sees during gameplay so
+// the Codex hero/grid icons line up with the in-game pieces instead
+// of falling through to PieceIcon's copper default.
+function getCodexPieceColor(pieceId: string): string {
+  switch (pieceId) {
+    case 'source':
+      return '#F0B429'; // amber
+    case 'terminal':
+      return '#00C48C'; // green
+    case 'configNode':
+    case 'scanner':
+    case 'transmitter':
+    case 'inverter':
+    case 'counter':
+    case 'latch':
+      return '#8B5CF6'; // Protocol purple
+    default:
+      return '#4a9eff'; // Physics blue
+  }
+}
+
 // ─── Data ──────────────────────────────────────────────────────────────────────
 
 type PieceType = 'Physics' | 'Protocol';
@@ -320,7 +341,7 @@ function EntryGridCard({
     return (
       <View style={cs.gridCard}>
         <View style={cs.gridCardRedacted}>
-          <PieceIcon type={entry.id} size={36} />
+          <PieceIcon type={entry.id} size={36} color={getCodexPieceColor(entry.id)} />
           <Text style={cs.gridCardClassified}>CLASSIFIED</Text>
         </View>
       </View>
@@ -335,7 +356,7 @@ function EntryGridCard({
         end={{ x: 0, y: 1 }}
       />
       <View style={cs.gridCardInner}>
-        <PieceIcon type={entry.id} size={38} />
+        <PieceIcon type={entry.id} size={38} color={getCodexPieceColor(entry.id)} />
         <Text style={cs.gridCardName}>{entry.name}</Text>
         <View
           style={[
@@ -467,7 +488,7 @@ function DetailView({
               { backgroundColor: accent.bg, borderColor: accent.border },
             ]}
           >
-            <PieceIcon type={entry.id} size={32} />
+            <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />
           </View>
           <Text style={cs.detailName}>{entry.name.toUpperCase()}</Text>
           <View

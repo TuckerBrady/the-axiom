@@ -12,6 +12,28 @@ import { PieceIcon } from './PieceIcon';
 import PieceSimulation from './PieceSimulation';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 
+// Map each piece id to the color the player sees during gameplay so
+// the Codex hero icon lines up with the in-game piece instead of
+// falling through to PieceIcon's copper default. Mirrors the helper
+// in CodexScreen.tsx.
+function getCodexPieceColor(pieceId: string): string {
+  switch (pieceId) {
+    case 'source':
+      return '#F0B429'; // amber
+    case 'terminal':
+      return '#00C48C'; // green
+    case 'configNode':
+    case 'scanner':
+    case 'transmitter':
+    case 'inverter':
+    case 'counter':
+    case 'latch':
+      return '#8B5CF6'; // Protocol purple
+    default:
+      return '#4a9eff'; // Physics blue
+  }
+}
+
 // ─── Local PieceEntry type (mirrors CodexScreen) ───────────────────────────
 
 export type CodexPieceType = 'Physics' | 'Protocol';
@@ -145,7 +167,7 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }
         {/* Hero */}
         <View style={st.hero}>
           <View style={[st.iconBox, { backgroundColor: accent.bg, borderColor: accent.border }]}>
-            <PieceIcon type={entry.id} size={32} />
+            <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />
           </View>
           <Text style={st.heroName}>{entry.name.toUpperCase()}</Text>
           <View style={[st.typeBadge, { backgroundColor: accent.bg, borderColor: accent.border }]}>
