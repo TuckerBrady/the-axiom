@@ -97,7 +97,7 @@ export default function TutorialHUDOverlay({
   const portalW = useRef(new Animated.Value(0)).current;
   const portalH = useRef(new Animated.Value(0)).current;
   const calloutOpacity = useRef(new Animated.Value(0)).current;
-  const glowOpacity = useRef(new Animated.Value(0.25)).current;
+  const glowOpacity = useRef(new Animated.Value(0.45)).current;
   const glowPulse = useRef(new Animated.Value(0)).current;
   const dimOpacity = useRef(new Animated.Value(0)).current;
   const codexTranslate = useRef(new Animated.Value(SCREEN_H)).current;
@@ -322,7 +322,7 @@ export default function TutorialHUDOverlay({
       }),
     ]).start(() => {
       Animated.timing(glowOpacity, {
-        toValue: 0.25,
+        toValue: 0.45,
         duration: 120,
         useNativeDriver: false,
       }).start();
@@ -614,25 +614,29 @@ export default function TutorialHUDOverlay({
         </Animated.View>
       )}
 
-      {/* Portal label (above portal) */}
+      {/* Portal label (above portal). Centered across the full screen
+          width so short labels like "CONFIG NODE" never have to wrap
+          even when the portal is narrow. */}
       {phase !== 'flying' && phase !== 'idle' && portalBox && step.label && (
         <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
             top: portalBox.top - 20,
-            left: portalBox.left,
-            width: portalBox.width,
+            left: 0,
+            right: 0,
             alignItems: 'center',
             opacity: portalOpacity,
             zIndex: 151,
           }}
         >
-          <Text style={st.label}>{step.label}</Text>
+          <Text style={st.label} numberOfLines={1}>{step.label}</Text>
         </Animated.View>
       )}
 
-      {/* Piece glow (steady fill + pulsing outer ring) */}
+      {/* Piece glow (steady fill + inner bright layer + pulsing outer ring).
+          The steady fill casts a shadow so the glow reads as light
+          leaking past the piece icon, not a dim blob behind it. */}
       {showPieceGlow && glowCircle && (
         <>
           <Animated.View
@@ -646,6 +650,24 @@ export default function TutorialHUDOverlay({
               borderRadius: glowCircle.r,
               backgroundColor: glowColor,
               opacity: glowOpacity,
+              shadowColor: glowColor,
+              shadowOffset: { width: 0, height: 0 },
+              shadowOpacity: 0.8,
+              shadowRadius: 12,
+              zIndex: 152,
+            }}
+          />
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: glowCircle.cx - glowCircle.r * 0.6,
+              top: glowCircle.cy - glowCircle.r * 0.6,
+              width: glowCircle.r * 1.2,
+              height: glowCircle.r * 1.2,
+              borderRadius: glowCircle.r * 0.6,
+              backgroundColor: glowColor,
+              opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, 0.35] }),
               zIndex: 152,
             }}
           />
@@ -789,7 +811,11 @@ const st = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0,212,255,0.15)',
     borderRadius: 8,
-    padding: 16,
+    // Extra top padding keeps the message text below the SKIP button
+    // pinned at top:6 right:8.
+    paddingTop: 28,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
     zIndex: 160,
   },
   skipBtn: {
