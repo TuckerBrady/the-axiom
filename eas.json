@@ -24,8 +24,8 @@
     "production": {
       "ios": {
         "appleId": "tuck.al.brady@gmail.com",
-        "ascAppId": "PLACEHOLDER_APP_STORE_ID",
-        "appleTeamId": "PLACEHOLDER_TEAM_ID"
+        "ascAppId": "6763194579",
+        "appleTeamId": "WY5AFT3B87"
       },
       "android": {
         "serviceAccountKeyPath": "./google-services-key.json",
