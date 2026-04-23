@@ -65,46 +65,6 @@ function FlickerText({ text, style }: { text: string; style?: object }) {
   return <Animated.Text style={[animStyle, style]}>{text}</Animated.Text>;
 }
 
-function HudBrackets() {
-  const C = 'rgba(255,59,59,0.28)';
-  return (
-    <>
-      <View
-        pointerEvents="none"
-        style={[s.bracket, {
-          top: 8, left: 8,
-          borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: C,
-          borderTopLeftRadius: 3,
-        }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[s.bracket, {
-          top: 8, right: 8,
-          borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: C,
-          borderTopRightRadius: 3,
-        }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[s.bracket, {
-          bottom: 8, left: 8,
-          borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: C,
-          borderBottomLeftRadius: 3,
-        }]}
-      />
-      <View
-        pointerEvents="none"
-        style={[s.bracket, {
-          bottom: 8, right: 8,
-          borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: C,
-          borderBottomRightRadius: 3,
-        }]}
-      />
-    </>
-  );
-}
-
 function IntegrityBar() {
   const pulse = useRef(new RNAnimated.Value(0.7)).current;
   useEffect(() => {
@@ -222,7 +182,6 @@ export default function DistressScreen({ navigation }: Props) {
   return (
     <Animated.View style={[s.root, screenStyle]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={handlePress} />
-      <HudBrackets />
 
       {/* Top status bar */}
       <View style={s.statusBar} pointerEvents="box-none">

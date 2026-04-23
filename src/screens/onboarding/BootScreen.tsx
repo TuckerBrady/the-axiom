@@ -54,55 +54,6 @@ const BOOT_LINES: BootEntry[] = [
 const BRACKET_SIZE = 20;
 const BRACKET_THICKNESS = 2;
 
-function HudCorners() {
-  const reveal = useSharedValue(0);
-  useEffect(() => {
-    reveal.value = withDelay(200, withTiming(1, { duration: 800 }));
-  }, []);
-  const style = useAnimatedStyle(() => ({ opacity: reveal.value }));
-  const C = 'rgba(255,59,59,0.55)';
-  const corners: Array<{
-    pos: object;
-    h: object;
-    v: object;
-  }> = [
-    // Top-left: H along top, V along left
-    {
-      pos: { top: 8, left: 8 },
-      h: { top: 0, left: 0 },
-      v: { top: 0, left: 0 },
-    },
-    // Top-right: H along top, V along right
-    {
-      pos: { top: 8, right: 8 },
-      h: { top: 0, right: 0 },
-      v: { top: 0, right: 0 },
-    },
-    // Bottom-left: H along bottom, V along left
-    {
-      pos: { bottom: 8, left: 8 },
-      h: { bottom: 0, left: 0 },
-      v: { bottom: 0, left: 0 },
-    },
-    // Bottom-right: H along bottom, V along right
-    {
-      pos: { bottom: 8, right: 8 },
-      h: { bottom: 0, right: 0 },
-      v: { bottom: 0, right: 0 },
-    },
-  ];
-  return (
-    <Animated.View style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
-      {corners.map((c, i) => (
-        <View key={i} style={[s.corner, c.pos]}>
-          <View style={[s.cornerH, c.h, { backgroundColor: C }]} />
-          <View style={[s.cornerV, c.v, { backgroundColor: C }]} />
-        </View>
-      ))}
-    </Animated.View>
-  );
-}
-
 function ScanLine() {
   const y = useSharedValue(0);
   useEffect(() => {
@@ -196,7 +147,6 @@ export default function BootScreen({ navigation }: Props) {
       onPress={() => navigation.navigate('Distress')}
     >
       <ScanLine />
-      <HudCorners />
 
       {/* Top header bar */}
       <Animated.View style={[s.headerBar, headerStyle]}>

@@ -31,18 +31,6 @@ const CARDS = [
   },
 ];
 
-function HudBrackets() {
-  const C = 'rgba(0,212,255,0.28)';
-  return (
-    <>
-      <View pointerEvents="none" style={[s.bracket, { top: 8, left: 8, borderTopWidth: 1.5, borderLeftWidth: 1.5, borderColor: C, borderTopLeftRadius: 3 }]} />
-      <View pointerEvents="none" style={[s.bracket, { top: 8, right: 8, borderTopWidth: 1.5, borderRightWidth: 1.5, borderColor: C, borderTopRightRadius: 3 }]} />
-      <View pointerEvents="none" style={[s.bracket, { bottom: 8, left: 8, borderBottomWidth: 1.5, borderLeftWidth: 1.5, borderColor: C, borderBottomLeftRadius: 3 }]} />
-      <View pointerEvents="none" style={[s.bracket, { bottom: 8, right: 8, borderBottomWidth: 1.5, borderRightWidth: 1.5, borderColor: C, borderBottomRightRadius: 3 }]} />
-    </>
-  );
-}
-
 function OnlinePill({ small }: { small?: boolean }) {
   return (
     <View style={[s.onlinePill, small && s.onlinePillSmall]}>
@@ -122,7 +110,6 @@ export default function IntroductionScreen({ navigation }: Props) {
   return (
     <Animated.View style={[s.root, screenStyle]}>
       <Pressable style={StyleSheet.absoluteFill} onPress={handlePress} />
-      <HudBrackets />
 
       {/* Header */}
       <View style={s.header} pointerEvents="box-none">

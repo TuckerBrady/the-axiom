@@ -286,7 +286,7 @@ export const PieceIcon = React.memo(function PieceIcon({
     case 'conveyor':
       return (
         <Svg width={s} height={s * 0.6} viewBox="0 0 60 36">
-          <Rect x="5" y="10" width="50" height="16" rx="8" fill="#0e1f36" stroke={color ?? Colors.copper} strokeWidth="1.5" />
+          <Rect x="5" y="10" width="50" height="16" rx="8" fill="#0e1f36" stroke={color ?? Colors.blue} strokeWidth="1.5" />
           <AnimatedLine
             x1="10" y1="14" x2="50" y2="14"
             stroke={Colors.copper} strokeWidth="0.8" strokeOpacity="0.4"
@@ -361,7 +361,7 @@ export const PieceIcon = React.memo(function PieceIcon({
           <Svg width={s} height={s} viewBox="0 0 40 40">
             <Path
               d="M 20 6 L 22 10 L 26 10 L 28 14 L 34 16 L 34 20 L 34 24 L 28 26 L 26 30 L 22 30 L 20 34 L 18 30 L 14 30 L 12 26 L 6 24 L 6 20 L 6 16 L 12 14 L 14 10 L 18 10 Z"
-              fill="#0e1f36" stroke={color ?? Colors.copper} strokeWidth="1.5" strokeLinejoin="round"
+              fill="#0e1f36" stroke={color ?? Colors.blue} strokeWidth="1.5" strokeLinejoin="round"
             />
             {/* N/S/E/W tooth nubs */}
             <Rect x="18.5" y="2" width="3" height="4" rx="1" fill={Colors.copper} opacity="0.85" />
