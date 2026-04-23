@@ -40,7 +40,13 @@ export async function runScannerInteraction(
   // Read-operation flow: the Scanner doesn't know the tape value
   // until it reads the tape. The bubble is a read head — it leaves
   // the Scanner carrying "?", acquires the value at the input cell,
-  // then carries the value back for the subsequent write to Trail.
+  // returns with the value, and then disappears at the Scanner.
+  // The engine internally writes to Data Trail; we update the
+  // visual trail silently so the player doesn't mistake Scanner
+  // for a Trail-writer piece (that's Transmitter's role).
+  // cachedTrailCells unused here since the bubble no longer travels
+  // to the trail; reference it to satisfy strict linters.
+  void cachedTrailCells;
 
   // Step 1: Scanner activates.
   flashPiece(ctx, stp.pieceId, color);
@@ -74,13 +80,10 @@ export async function runScannerInteraction(
   );
   await wait(120 * speed);
 
-  // Step 6: Bubble continues from Scanner to the Trail cell (write).
-  const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
-  await animateBubbleTo(
-    ctx, scannerX, scannerY,
-    trailCell.x, trailCell.y,
-    color, display, 300 * speed,
-  );
+  // Step 6: Bubble disappears at Scanner. Trail cell updates
+  // silently — no bubble animation, just the highlight + value
+  // so the player can see the read landed in memory.
+  hideBubble(ctx);
   setHighlight(ctx, `trail-${pulse}`, 'write');
   if (tapeValue !== undefined) {
     ctx.setVisualTrailOverride(prev => {
@@ -92,7 +95,6 @@ export async function runScannerInteraction(
   }
 
   await wait(250 * speed);
-  hideBubble(ctx);
   clearAllHighlights(ctx);
 }
 

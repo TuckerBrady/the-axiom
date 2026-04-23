@@ -1,4 +1,17 @@
-import { triggerPieceAnim } from '../../../src/game/engagement/interactions';
+jest.mock('../../../src/game/engagement/bubbleHelpers', () => {
+  const actual = jest.requireActual('../../../src/game/engagement/bubbleHelpers');
+  return {
+    ...actual,
+    animateBubbleTo: jest.fn(() => Promise.resolve()),
+    startBubbleTrail: jest.fn(),
+    stopBubbleTrail: jest.fn(),
+    hideBubble: jest.fn(),
+    wait: jest.fn(() => Promise.resolve()),
+  };
+});
+
+import { triggerPieceAnim, runScannerInteraction } from '../../../src/game/engagement/interactions';
+import * as bubbleHelpers from '../../../src/game/engagement/bubbleHelpers';
 import type {
   EngagementContext,
   ExecutionStep,
@@ -119,5 +132,55 @@ describe('triggerPieceAnim', () => {
     const { ctx, pieceAnimRef } = buildCtx();
     triggerPieceAnim(ctx, step('conveyor', 'p-1'));
     expect(pieceAnimRef.value.flashing.get('p-1')).toBe('#F0B429');
+  });
+});
+
+describe('runScannerInteraction', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    (bubbleHelpers.animateBubbleTo as jest.Mock).mockClear();
+  });
+
+  function buildScannerCtx(): EngagementContext {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    ctx.cacheRef.current = {
+      board: { x: 0, y: 0 },
+      input: { x: 100, y: 200, w: 20, h: 30 },
+      trail: { x: 100, y: 300, w: 20, h: 30 },
+      output: { x: 100, y: 400, w: 20, h: 30 },
+    };
+    (ctx as unknown as { inputTape: (0 | 1)[] }).inputTape = [1, 0, 1];
+    ctx.bubbleAnimRAFRef = { current: null };
+    return ctx;
+  }
+
+  it('does not animate the bubble to the data trail cell after reading input', async () => {
+    const ctx = buildScannerCtx();
+    await runScannerInteraction(ctx, step('scanner', 'p-s'));
+    const animateCalls = (bubbleHelpers.animateBubbleTo as jest.Mock).mock.calls;
+    // Scanner -> Input tape, then Input tape -> Scanner. Never a third
+    // animation to the trail cell (y = 300).
+    expect(animateCalls).toHaveLength(2);
+    for (const args of animateCalls) {
+      const toY = args[4];
+      expect(toY).not.toBe(300 + 30 / 2);
+    }
+  });
+
+  it('writes the read value into the visual trail override silently', async () => {
+    const ctx = buildScannerCtx();
+    const setVisualTrailOverride = ctx.setVisualTrailOverride as jest.Mock;
+    ctx.currentPulseRef.current = 2;
+    await runScannerInteraction(ctx, step('scanner', 'p-s'));
+    // Functional update applied — simulate with a starting array of nulls.
+    const updater = setVisualTrailOverride.mock.calls.at(-1)?.[0] as
+      | ((prev: (0 | 1 | null)[] | null) => (0 | 1 | null)[] | null)
+      | undefined;
+    expect(typeof updater).toBe('function');
+    const result = updater?.([null, null, null]);
+    expect(result).toEqual([null, null, 1]);
   });
 });
