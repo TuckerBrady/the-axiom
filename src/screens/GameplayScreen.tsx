@@ -511,6 +511,26 @@ export default function GameplayScreen({ navigation }: Props) {
   const playerPieces = pieces.filter(p => !p.isPrePlaced);
   const hasPlacedPieces = playerPieces.length > 0;
 
+  // Precompute per-piece animation props so the render loop doesn't
+  // re-call pieceAnimState.animations.get(piece.id) eight times for
+  // every piece on every render. This + React.memo(PieceIcon) cuts
+  // the beam-animation re-render cost on device.
+  const pieceAnimProps = useMemo(() => {
+    const map = new Map<string, {
+      animType: string | undefined;
+      gateResult: 'pass' | 'block' | null;
+      failColor: string | null;
+    }>();
+    for (const piece of pieces) {
+      map.set(piece.id, {
+        animType: pieceAnimState.animations.get(piece.id),
+        gateResult: pieceAnimState.gates.get(piece.id) ?? null,
+        failColor: pieceAnimState.failColors.get(piece.id) ?? null,
+      });
+    }
+    return map;
+  }, [pieces, pieceAnimState.animations, pieceAnimState.gates, pieceAnimState.failColors]);
+
   const numColumns = level?.gridWidth ?? 8;
   const numRows = level?.gridHeight ?? 7;
   const availW = canvasLayout.w - CANVAS_PAD * 2;
@@ -1496,23 +1516,29 @@ export default function GameplayScreen({ navigation }: Props) {
                   delayLongPress={500}
                 >
                   <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
-                    <PieceIcon
-                      type={piece.type}
-                      size={iconSize}
-                      color={iconColor}
-                      spinning={pieceAnimState.animations.get(piece.id) === 'spinning'}
-                      scanning={pieceAnimState.animations.get(piece.id) === 'scanning'}
-                      transmitting={pieceAnimState.animations.get(piece.id) === 'transmitting'}
-                      rolling={pieceAnimState.animations.get(piece.id) === 'rolling'}
-                      splitting={pieceAnimState.animations.get(piece.id) === 'splitting'}
-                      gating={pieceAnimState.animations.get(piece.id) === 'gating'}
-                      gateResult={pieceAnimState.gates.get(piece.id) ?? null}
-                      locking={pieceAnimState.animations.get(piece.id) === 'locking'}
-                      charging={pieceAnimState.animations.get(piece.id) === 'charging'}
-                      failColor={pieceAnimState.failColors.get(piece.id) ?? null}
-                      configValue={piece.type === 'configNode' ? piece.configValue : undefined}
-                      connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
-                    />
+                    {(() => {
+                      const pap = pieceAnimProps.get(piece.id);
+                      const animType = pap?.animType;
+                      return (
+                        <PieceIcon
+                          type={piece.type}
+                          size={iconSize}
+                          color={iconColor}
+                          spinning={animType === 'spinning'}
+                          scanning={animType === 'scanning'}
+                          transmitting={animType === 'transmitting'}
+                          rolling={animType === 'rolling'}
+                          splitting={animType === 'splitting'}
+                          gating={animType === 'gating'}
+                          gateResult={pap?.gateResult ?? null}
+                          locking={animType === 'locking'}
+                          charging={animType === 'charging'}
+                          failColor={pap?.failColor ?? null}
+                          configValue={piece.type === 'configNode' ? piece.configValue : undefined}
+                          connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
+                        />
+                      );
+                    })()}
                   </View>
                 </Pressable>
               );

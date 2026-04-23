@@ -10,21 +10,21 @@ import {
 import { flashPiece } from './bubbleHelpers';
 import { triggerPieceAnim } from './interactions';
 import {
-  setBeamHeads,
-  setBeamHeadColor,
-  setTrailSegments,
-  setBranchTrails,
   setVoidPulse,
-  updateLitWires,
 } from './stateHelpers';
+
+// BranchSlot identifies where a running path's head/trail should be
+// written in BeamState. `null` = main (non-fork) beam — update `trails`
+// + `heads`. `0` or `1` = fork branch A or B — update
+// `branchTrails[branchSlot]` and `heads[branchSlot]`.
+type BranchSlot = 0 | 1 | null;
+
+type TrailSeg = { points: Pt[]; color: string };
 
 export function runLinearPath(
   ctx: EngagementContext,
   pathSteps: ExecutionStep[],
-  opts: {
-    setHead: (h: Pt | null) => void;
-    setTrail: (s: { points: Pt[]; color: string }[]) => void;
-  },
+  branchSlot: BranchSlot,
   speedMultiplier: number,
 ): Promise<void> {
   return new Promise<void>(resolve => {
@@ -45,13 +45,72 @@ export function runLinearPath(
       Math.max(300, Math.min(1200, 480 * (path.total / refLen))) * speedMultiplier;
     const segColors = pathSteps.map(s => getBeamColor(s.type));
     const hasVoid = pathSteps.some(s => s.type === 'void');
-    opts.setTrail([{ points: [], color: segColors[0] ?? '#8B5CF6' }]);
+
+    // Seed trail with a placeholder empty segment so the beam's color
+    // identity shows before the head moves.
+    applyFrame({
+      trail: [{ points: [], color: segColors[0] ?? '#8B5CF6' }],
+      head: null,
+      headColor: null,
+      newLitWires: null,
+    });
+
     const t0 = performance.now();
     const lit = new Set<number>();
     const flashed = new Set<number>();
     let pauseStart = 0;
     let pauseAccum = 0;
     let pauseEnd = 0;
+
+    function applyFrame(update: {
+      trail: TrailSeg[] | null;
+      head: Pt | null | undefined; // undefined = no change, null = clear
+      headColor: string | null;
+      newLitWires: string[] | null;
+    }): void {
+      ctx.setBeamState(prev => {
+        const next = { ...prev };
+        // Trail routing — main vs branch slot.
+        if (update.trail !== null) {
+          if (branchSlot === null) {
+            next.trails = update.trail;
+          } else {
+            const branchTrails = [prev.branchTrails[0] ?? [], prev.branchTrails[1] ?? []];
+            branchTrails[branchSlot] = update.trail;
+            next.branchTrails = branchTrails;
+          }
+        }
+        // Head routing — branch slot writes to heads[slot]; main writes
+        // the whole heads array.
+        if (update.head !== undefined) {
+          if (branchSlot === null) {
+            next.heads = update.head ? [update.head] : [];
+          } else {
+            const heads = [...prev.heads];
+            // Ensure the slot exists.
+            while (heads.length <= branchSlot) heads.push({ x: 0, y: 0 });
+            if (update.head) {
+              heads[branchSlot] = update.head;
+            } else {
+              // Clearing a branch head — shrink the array by filtering
+              // out just that slot so the other branch's head still
+              // renders.
+              heads.splice(branchSlot, 1);
+            }
+            next.heads = heads;
+          }
+        }
+        if (update.headColor !== null) {
+          next.headColor = update.headColor;
+        }
+        if (update.newLitWires && update.newLitWires.length > 0) {
+          const lw = new Set(prev.litWires);
+          for (const w of update.newLitWires) lw.add(w);
+          next.litWires = lw;
+        }
+        return next;
+      });
+    }
 
     const tick = (): void => {
       const now = performance.now();
@@ -69,7 +128,7 @@ export function runLinearPath(
       const headDist = t * path.total;
       const head = posAlongPath(path, headDist);
 
-      const newSegs: { points: Pt[]; color: string }[] = [];
+      const newSegs: TrailSeg[] = [];
       for (let i = 0; i < path.segs.length; i++) {
         const sg = path.segs[i];
         const color = segColors[i] ?? '#F0B429';
@@ -81,13 +140,14 @@ export function runLinearPath(
           break;
         }
       }
-      opts.setTrail(newSegs);
       const currentColor = hasVoid && rawT > 0.85
         ? '#FF3B3B'
         : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
-      opts.setHead(head);
-      setBeamHeadColor(ctx.setBeamState, currentColor);
 
+      // Collect newly-lit connectors (rising-edge, per wire mid-point)
+      // into an array instead of firing a setter per wire. Most frames
+      // don't light any new wires — this is usually an empty array.
+      const newLitWires: string[] = [];
       for (let i = 0; i < path.segs.length; i++) {
         if (lit.has(i)) continue;
         const mid = path.segs[i].s + path.segs[i].l / 2;
@@ -96,10 +156,21 @@ export function runLinearPath(
           const fromId = pathSteps[i].pieceId;
           const toId = pathSteps[i + 1]?.pieceId;
           if (fromId && toId) {
-            updateLitWires(ctx.setBeamState, prev => { const n = new Set(prev); n.add(`${fromId}_${toId}`); n.add(`${toId}_${fromId}`); return n; });
+            newLitWires.push(`${fromId}_${toId}`);
+            newLitWires.push(`${toId}_${fromId}`);
           }
         }
       }
+
+      // ONE setBeamState per tick — trail, head, headColor, and any
+      // newly lit wires bundled into a single reconciliation.
+      applyFrame({
+        trail: newSegs,
+        head,
+        headColor: currentColor,
+        newLitWires: newLitWires.length > 0 ? newLitWires : null,
+      });
+
       for (let i = 0; i < waypoints.length; i++) {
         if (flashed.has(i)) continue;
         const wpDist = waypointDists[i];
@@ -114,10 +185,8 @@ export function runLinearPath(
               const now2 = performance.now();
               pauseStart = now2;
               pauseEnd = now2 + 1e9;
-              // Safety net: if the interaction promise never settles
-              // (orphan callback, unmount mid-animation), force-resume
-              // the beam after 8s so pauseEnd can never stay stuck
-              // at infinity.
+              // Safety net: force-resume the beam after 8s if the
+              // interaction promise never settles.
               const safetyTimer = setTimeout(() => {
                 if (pauseEnd > performance.now()) {
                   pauseEnd = performance.now();
@@ -148,12 +217,15 @@ export function runLinearPath(
             const p = Math.min(1, e / 320);
             setVoidPulse(ctx.setBeamState, { x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
             if (p < 1) ctx.animFrameRef.current = requestAnimationFrame(voidTick);
-            else { setVoidPulse(ctx.setBeamState, null); opts.setHead(null); opts.setTrail([]); resolve(); }
+            else {
+              setVoidPulse(ctx.setBeamState, null);
+              applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
+              resolve();
+            }
           };
           ctx.animFrameRef.current = requestAnimationFrame(voidTick);
         } else {
-          opts.setHead(null);
-          opts.setTrail([]);
+          applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
           resolve();
         }
       }
@@ -173,10 +245,7 @@ export function runPulse(
     const hasBBranch = pulseSteps.some(s => s.branchId === 'B');
 
     if (forkIdx === -1 || !hasABranch || !hasBBranch) {
-      runLinearPath(ctx, pulseSteps, {
-        setHead: (h) => setBeamHeads(ctx.setBeamState, h ? [h] : []),
-        setTrail: (s) => setTrailSegments(ctx.setBeamState, s),
-      }, speed).then(resolveAll);
+      runLinearPath(ctx, pulseSteps, null, speed).then(resolveAll);
       return;
     }
 
@@ -186,45 +255,19 @@ export function runPulse(
 
     const forkPt = ctx.getPieceCenter(pulseSteps[forkIdx].pieceId);
 
-    runLinearPath(ctx, preForkSteps, {
-      setHead: (h) => setBeamHeads(ctx.setBeamState, h ? [h] : []),
-      setTrail: (s) => setTrailSegments(ctx.setBeamState, s),
-    }, speed).then(() => {
+    runLinearPath(ctx, preForkSteps, null, speed).then(() => {
       if (!forkPt) { resolveAll(); return; }
 
       const splitterStep = pulseSteps[forkIdx];
       const aSteps = [splitterStep, ...branchASteps];
       const bSteps = [splitterStep, ...branchBSteps];
 
-      let headA: Pt | null = null;
-      let headB: Pt | null = null;
-      let trailA: { points: Pt[]; color: string }[] = [];
-      let trailB: { points: Pt[]; color: string }[] = [];
-
-      const syncHeads = (): void => {
-        const heads: Pt[] = [];
-        if (headA) heads.push(headA);
-        if (headB) heads.push(headB);
-        // Single setState call writing both heads + branch trails at
-        // once so Promise.all branch A/B updates share one reconciliation.
-        ctx.setBeamState(prev => ({
-          ...prev,
-          heads,
-          branchTrails: [trailA, trailB],
-        }));
-      };
-
       Promise.all([
-        runLinearPath(ctx, aSteps, {
-          setHead: (h) => { headA = h; syncHeads(); },
-          setTrail: (s) => { trailA = s; syncHeads(); },
-        }, speed),
-        runLinearPath(ctx, bSteps, {
-          setHead: (h) => { headB = h; syncHeads(); },
-          setTrail: (s) => { trailB = s; syncHeads(); },
-        }, speed),
+        runLinearPath(ctx, aSteps, 0, speed),
+        runLinearPath(ctx, bSteps, 1, speed),
       ]).then(() => {
-        // Clear heads, trails, and branch trails in one reconciliation.
+        // Final cleanup — clear heads + main trails + branch trails in
+        // one reconciliation.
         ctx.setBeamState(prev => ({
           ...prev,
           heads: [],

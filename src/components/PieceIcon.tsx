@@ -48,7 +48,11 @@ interface Props {
  * accent treatment that is independent of the `color` prop. The `color` prop
  * still drives the primary stroke for board-level uniformity.
  */
-export function PieceIcon({
+// React.memo prevents per-frame re-renders during beam animation. The
+// props are primitives + strings; default shallow comparison is
+// sufficient. Non-memoized render of this SVG + animation ref setup
+// was one of the biggest JS-thread costs on device.
+export const PieceIcon = React.memo(function PieceIcon({
   type: rawType,
   size = 24,
   color,
@@ -104,7 +108,10 @@ export function PieceIcon({
         toValue: 1,
         duration: 400,
         easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
+        // Safe: gearRot drives only a transform on an Animated.View
+        // (line ~350), never an SVG prop. Native driver moves the
+        // rotation off the JS thread.
+        useNativeDriver: true,
       }).start();
     }
   }, [spinning, gearRot]);
@@ -131,15 +138,22 @@ export function PieceIcon({
     }
   }, [transmitting, txWave]);
 
-  // Conveyor rolling: drive dash offset via setInterval while rolling=true.
+  // Conveyor rolling: drive dash offset via Animated.loop so it syncs
+  // with the native frame rate instead of competing with it via a
+  // 25ms setInterval on the JS thread.
   useEffect(() => {
     if (!rolling) return;
-    let v = 0;
-    const id = setInterval(() => {
-      v = (v + 1.5) % 30;
-      rollDash.setValue(v);
-    }, 25);
-    return () => clearInterval(id);
+    rollDash.setValue(0);
+    const loop = Animated.loop(
+      Animated.timing(rollDash, {
+        toValue: 30,
+        duration: 500,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
   }, [rolling, rollDash]);
 
   // Splitter junction pulse: scale 1→1.4→1, repeat twice.
@@ -657,7 +671,7 @@ export function PieceIcon({
         </Svg>
       );
   }
-}
+});
 
 // Avoid unused warnings for AnimatedG (not currently used but kept for future).
 void AnimatedG;
