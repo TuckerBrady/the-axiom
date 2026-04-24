@@ -2,7 +2,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type {
   BeamState,
   PieceAnimState,
-  BubbleAnimState,
   ChargeState,
   Pt,
   VoidPulseState,
@@ -95,22 +94,6 @@ export function setLockedPieces(
   locked: Set<string>,
 ): void {
   setter(prev => ({ ...prev, locked }));
-}
-
-// ── Bubble state helpers ──
-
-export function setValueBubble(
-  setter: Dispatch<SetStateAction<BubbleAnimState>>,
-  bubble: BubbleAnimState['bubble'],
-): void {
-  setter(prev => ({ ...prev, bubble }));
-}
-
-export function setBubbleTrail(
-  setter: Dispatch<SetStateAction<BubbleAnimState>>,
-  trail: BubbleAnimState['trail'],
-): void {
-  setter(prev => ({ ...prev, trail }));
 }
 
 // ── Charge state helpers ──

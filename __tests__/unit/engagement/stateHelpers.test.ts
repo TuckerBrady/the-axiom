@@ -11,21 +11,17 @@ import {
   updateGateResults,
   updateFailColors,
   setLockedPieces,
-  setValueBubble,
-  setBubbleTrail,
   setChargePos,
   setChargeProgress,
 } from '../../../src/game/engagement/stateHelpers';
 import type {
   BeamState,
   PieceAnimState,
-  BubbleAnimState,
   ChargeState,
 } from '../../../src/game/engagement/types';
 import {
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  BUBBLE_INITIAL,
   CHARGE_INITIAL,
 } from '../../../src/game/engagement/types';
 
@@ -191,28 +187,6 @@ describe('piece anim state helpers', () => {
     expect(state.value.locked.has('a')).toBe(true);
     expect(state.value.locked.has('b')).toBe(true);
     expect(state.value.flashing.get('x')).toBe('#abc');
-  });
-});
-
-describe('bubble state helpers', () => {
-  it('setValueBubble replaces bubble and preserves trail', () => {
-    const { state, setter } = makeState<BubbleAnimState>({
-      ...BUBBLE_INITIAL,
-      trail: [{ x: 1, y: 1, opacity: 0.5, size: 10 }],
-    });
-    setValueBubble(setter, { screenX: 1, screenY: 2, color: '#00ff00', value: '1' });
-    expect(state.value.bubble).toEqual({ screenX: 1, screenY: 2, color: '#00ff00', value: '1' });
-    expect(state.value.trail).toHaveLength(1);
-  });
-
-  it('setBubbleTrail replaces trail and preserves bubble', () => {
-    const { state, setter } = makeState<BubbleAnimState>({
-      bubble: { screenX: 0, screenY: 0, color: '#fff', value: '?' },
-      trail: [],
-    });
-    setBubbleTrail(setter, [{ x: 1, y: 1, opacity: 1, size: 20 }]);
-    expect(state.value.trail).toHaveLength(1);
-    expect(state.value.bubble?.value).toBe('?');
   });
 });
 

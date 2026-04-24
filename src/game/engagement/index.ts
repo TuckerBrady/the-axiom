@@ -8,11 +8,6 @@ export {
 } from './constants';
 export {
   flashPiece,
-  startBubbleTrail,
-  stopBubbleTrail,
-  animateBubbleTo,
-  showBubbleAt,
-  hideBubble,
   setHighlight,
   clearAllHighlights,
   wait,
@@ -39,8 +34,6 @@ export type {
   SignalPath,
   AnimMapEntry,
   TapeHighlight,
-  ValueBubbleState,
-  BubbleTrailItem,
   VoidPulseState,
   LockRing,
   SignalPhase,
@@ -48,7 +41,8 @@ export type {
   MeasurementCache,
   BeamState,
   PieceAnimState,
-  BubbleAnimState,
+  SpotlightBeam,
+  SpotlightState,
   ChargeState,
   ExecutionStep,
   PlacedPiece,
@@ -57,7 +51,7 @@ export type {
 export {
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  BUBBLE_INITIAL,
+  SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
 } from './types';
 export * as stateHelpers from './stateHelpers';

@@ -21,21 +21,6 @@ export type AnimMapEntry = { tag: string; duration: number };
 
 export type TapeHighlight = 'read' | 'write' | 'gate-pass' | 'gate-block';
 
-export type ValueBubbleState = {
-  screenX: number;
-  screenY: number;
-  color: string;
-  value: string;
-  size?: number;
-} | null;
-
-export type BubbleTrailItem = {
-  x: number;
-  y: number;
-  opacity: number;
-  size: number;
-};
-
 export type VoidPulseState = {
   x: number;
   y: number;
@@ -101,12 +86,21 @@ export const PIECE_ANIM_INITIAL: PieceAnimState = {
   locked: new Set(),
 };
 
-export interface BubbleAnimState {
-  bubble: ValueBubbleState;
-  trail: BubbleTrailItem[];
+export interface SpotlightBeam {
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  color: string;
+  value: string;
+  opacity: number;
 }
 
-export const BUBBLE_INITIAL: BubbleAnimState = { bubble: null, trail: [] };
+export interface SpotlightState {
+  beam: SpotlightBeam | null;
+}
+
+export const SPOTLIGHT_INITIAL: SpotlightState = { beam: null };
 
 export interface ChargeState {
   pos: Pt | null;
@@ -123,7 +117,7 @@ export interface EngagementContext {
 
   setBeamState: Dispatch<SetStateAction<BeamState>>;
   setPieceAnimState: Dispatch<SetStateAction<PieceAnimState>>;
-  setBubbleAnimState: Dispatch<SetStateAction<BubbleAnimState>>;
+  setSpotlightState: Dispatch<SetStateAction<SpotlightState>>;
   setChargeState: Dispatch<SetStateAction<ChargeState>>;
 
   setLockRings: (rings: LockRing[]) => void;
@@ -135,10 +129,6 @@ export interface EngagementContext {
 
   animFrameRef: MutableRefObject<number | null>;
   flashTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
-  valueBubblePosRef: MutableRefObject<{ x: number; y: number } | null>;
-  bubbleHistoryRef: MutableRefObject<Array<{ x: number; y: number }>>;
-  bubbleTrailRAFRef: MutableRefObject<number | null>;
-  bubbleAnimRAFRef: MutableRefObject<number | null>;
 
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;

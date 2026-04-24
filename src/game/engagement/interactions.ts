@@ -2,15 +2,8 @@ import type { EngagementContext, ExecutionStep } from './types';
 import { useGameStore } from '../../store/gameStore';
 import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
 import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
-import {
-  flashPiece,
-  startBubbleTrail,
-  animateBubbleTo,
-  showBubbleAt,
-  hideBubble,
-  setHighlight,
-  wait,
-} from './bubbleHelpers';
+import { flashPiece, setHighlight, wait } from './bubbleHelpers';
+import { showSpotlight, updateSpotlightValue, hideSpotlight } from './spotlightHelpers';
 import {
   updateActiveAnimations,
   updateGateResults,
@@ -31,58 +24,28 @@ export async function runScannerInteraction(
   const cachedBoardPos = ctx.cacheRef.current.board;
   const cachedInputCells = ctx.cacheRef.current.input;
   const cachedTrailCells = ctx.cacheRef.current.trail;
+  void cachedTrailCells;
+
   const scannerX = cachedBoardPos.x + pc.x;
   const scannerY = cachedBoardPos.y + pc.y;
   const tapeValue = ctx.inputTape?.[pulse];
   const display = tapeValue === undefined ? '?' : String(tapeValue);
 
-  // Read-operation flow: the Scanner doesn't know the tape value
-  // until it reads the tape. The bubble is a read head — it leaves
-  // the Scanner carrying "?", acquires the value at the input cell,
-  // returns with the value, and then disappears at the Scanner.
-  // The engine internally writes to Data Trail; we update the
-  // visual trail silently so the player doesn't mistake Scanner
-  // for a Trail-writer piece (that's Transmitter's role).
-  // cachedTrailCells unused here since the bubble no longer travels
-  // to the trail; reference it to satisfy strict linters.
-  void cachedTrailCells;
+  const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
 
-  // Step 1: Scanner activates.
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
 
-  // Step 2: Read head dispatched — bubble starts EMPTY (no label).
-  // The Scanner does not know the value until it reads the tape.
-  showBubbleAt(ctx, scannerX, scannerY, color, '');
-  startBubbleTrail(ctx);
-  await wait(100 * speed);
+  showSpotlight(ctx, scannerX, scannerY, inputCell.x, inputCell.y, color, '');
+  await wait(250 * speed);
 
-  // Step 3: Bubble travels to IN tape cell, still empty.
-  const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
-  await animateBubbleTo(
-    ctx, scannerX, scannerY,
-    inputCell.x, inputCell.y,
-    color, '', 300 * speed,
-  );
-
-  // Step 4: Bubble acquires the tape value. Highlight the IN cell
-  // as 'read' only at this moment.
   setHighlight(ctx, `in-${pulse}`, 'read');
-  showBubbleAt(ctx, inputCell.x, inputCell.y, color, display);
-  await wait(200 * speed);
+  updateSpotlightValue(ctx, display);
+  await wait(300 * speed);
 
-  // Step 5: Bubble returns to the Scanner with the value.
-  await animateBubbleTo(
-    ctx, inputCell.x, inputCell.y,
-    scannerX, scannerY,
-    color, display, 240 * speed,
-  );
-  await wait(120 * speed);
+  hideSpotlight(ctx);
+  await wait(80 * speed);
 
-  // Step 6: Bubble disappears at Scanner. Trail cell updates
-  // silently — no bubble animation, just the highlight + value
-  // so the player can see the read landed in memory.
-  hideBubble(ctx);
   setHighlight(ctx, `trail-${pulse}`, 'write');
   if (tapeValue !== undefined) {
     ctx.setVisualTrailOverride(prev => {
@@ -94,9 +57,8 @@ export async function runScannerInteraction(
   }
 
   await wait(250 * speed);
-  // Clear only the transient input-read highlight. The trail-write
-  // highlight persists so the player sees which trail cells received
-  // values across all pulses.
+  // Clear only the transient input-read highlight. Trail-write stays
+  // so accumulated state persists across pulses (Prompt 76).
   ctx.setTapeCellHighlights(prev => {
     const m = new Map(prev);
     m.delete(`in-${pulse}`);
@@ -122,30 +84,23 @@ export async function runConfigNodeInteraction(
   const nodeX = cachedBoardPos.x + pc.x;
   const nodeY = cachedBoardPos.y + pc.y;
 
-  // Direct store access: needs current-frame data trail values that
-  // cannot be pre-cached (trail mutates during engine execution).
   const trailCells = useGameStore.getState().machineState.dataTrail.cells;
   const trailValue = trailCells.length > 0 && pulse < trailCells.length
     ? trailCells[pulse]
     : null;
   const display = trailValue === null ? '?' : String(trailValue);
 
+  const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
+
   setHighlight(ctx, `trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
   await wait(150 * speed);
 
-  const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
-  showBubbleAt(ctx, trailCell.x, trailCell.y, color, display);
-  startBubbleTrail(ctx);
-  await wait(100 * speed);
-
-  await animateBubbleTo(ctx, trailCell.x, trailCell.y, nodeX, nodeY, color, display, 300 * speed);
+  showSpotlight(ctx, nodeX, nodeY, trailCell.x, trailCell.y, color, display);
   flashPiece(ctx, stp.pieceId, color);
   await wait((pass ? 350 : 450) * speed);
 
-  hideBubble(ctx);
-  // No blanket clear — the trail-${pulse} gate-pass/gate-block
-  // highlight persists so the player sees which cells were gated
-  // across all pulses.
+  hideSpotlight(ctx);
+  // Trail gate highlight persists across pulses (Prompt 76).
 }
 
 export async function runTransmitterInteraction(
@@ -164,22 +119,16 @@ export async function runTransmitterInteraction(
   const cachedOutputCells = ctx.cacheRef.current.output;
   const transmitterX = cachedBoardPos.x + pc.x;
   const transmitterY = cachedBoardPos.y + pc.y;
-  // Direct store access: needs current-frame output tape value (mutates
-  // as the engine writes).
   const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
   const display = String(written);
 
+  const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);
+
   flashPiece(ctx, stp.pieceId, color);
   setHighlight(ctx, `out-${pulse}`, 'write');
-  showBubbleAt(ctx, transmitterX, transmitterY, color, display);
+  showSpotlight(ctx, transmitterX, transmitterY, outputCell.x, outputCell.y, color, display);
+  await wait(300 * speed);
 
-  const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);
-  await animateBubbleTo(
-    ctx,
-    transmitterX, transmitterY,
-    outputCell.x, outputCell.y,
-    color, display, 250 * speed,
-  );
   ctx.setVisualOutputOverride(prev => {
     if (!prev) return prev;
     const next = [...prev];
@@ -188,7 +137,7 @@ export async function runTransmitterInteraction(
   });
 
   await wait(150 * speed);
-  hideBubble(ctx);
+  hideSpotlight(ctx);
 }
 
 export function triggerPieceAnim(

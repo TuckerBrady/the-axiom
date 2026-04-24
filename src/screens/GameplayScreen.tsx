@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Line, Rect, Path, G, Polyline } from 'react-native-svg';
+import Svg, { Circle, Line, Rect, Path, G, Polyline, Defs, LinearGradient as SvgLinearGradient, Stop, Polygon } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -123,14 +123,14 @@ import {
   handleVoidFailure,
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  BUBBLE_INITIAL,
+  SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
   type Pt,
   type EngagementContext,
   type MeasurementCache,
   type BeamState,
   type PieceAnimState,
-  type BubbleAnimState,
+  type SpotlightState,
   type ChargeState,
 } from '../game/engagement';
 
@@ -306,8 +306,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [beamState, setBeamState] = useState<BeamState>(BEAM_INITIAL);
   // pieceAnimState: flashing, animations, gates, pieceAnimState.failColors, locked
   const [pieceAnimState, setPieceAnimState] = useState<PieceAnimState>(PIECE_ANIM_INITIAL);
-  // bubbleAnimState: bubble, trail
-  const [bubbleAnimState, setBubbleAnimState] = useState<BubbleAnimState>(BUBBLE_INITIAL);
+  const [spotlightState, setSpotlightState] = useState<SpotlightState>(SPOTLIGHT_INITIAL);
   // chargeState: pos, progress
   const [chargeState, setChargeState] = useState<ChargeState>(CHARGE_INITIAL);
 
@@ -330,10 +329,6 @@ export default function GameplayScreen({ navigation }: Props) {
 
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   const animFrameRef = useRef<number | null>(null);
-  const bubbleTrailRAFRef = useRef<number | null>(null);
-  const bubbleAnimRAFRef = useRef<number | null>(null);
-  const bubbleHistoryRef = useRef<Array<{ x: number; y: number }>>([]);
-  const valueBubblePosRef = useRef<{ x: number; y: number } | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Counts pulses that reached Terminal with success during handleEngage.
@@ -426,16 +421,7 @@ export default function GameplayScreen({ navigation }: Props) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
       }
-      if (bubbleTrailRAFRef.current != null) {
-        cancelAnimationFrame(bubbleTrailRAFRef.current);
-        bubbleTrailRAFRef.current = null;
-      }
-      if (bubbleAnimRAFRef.current != null) {
-        cancelAnimationFrame(bubbleAnimRAFRef.current);
-        bubbleAnimRAFRef.current = null;
-      }
-      bubbleHistoryRef.current = [];
-      valueBubblePosRef.current = null;
+      setSpotlightState(SPOTLIGHT_INITIAL);
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
     };
@@ -754,7 +740,7 @@ export default function GameplayScreen({ navigation }: Props) {
       machineStatePieces: machineState.pieces,
       setBeamState,
       setPieceAnimState,
-      setBubbleAnimState,
+      setSpotlightState,
       setChargeState,
       setLockRings,
       setTapeCellHighlights,
@@ -764,10 +750,6 @@ export default function GameplayScreen({ navigation }: Props) {
       currentPulseRef,
       animFrameRef,
       flashTimersRef,
-      valueBubblePosRef,
-      bubbleHistoryRef,
-      bubbleTrailRAFRef,
-      bubbleAnimRAFRef,
       boardGridRef,
       inputTapeCellsRef,
       dataTrailCellsRef,
@@ -1001,17 +983,7 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
     }
-    if (bubbleTrailRAFRef.current != null) {
-      cancelAnimationFrame(bubbleTrailRAFRef.current);
-      bubbleTrailRAFRef.current = null;
-    }
-    if (bubbleAnimRAFRef.current != null) {
-      cancelAnimationFrame(bubbleAnimRAFRef.current);
-      bubbleAnimRAFRef.current = null;
-    }
-    bubbleHistoryRef.current = [];
-    valueBubblePosRef.current = null;
-    setBubbleAnimState(BUBBLE_INITIAL);
+    setSpotlightState(SPOTLIGHT_INITIAL);
     setTapeCellHighlights(new Map());
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
@@ -1780,17 +1752,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(animFrameRef.current);
                   animFrameRef.current = null;
                 }
-                if (bubbleTrailRAFRef.current != null) {
-                  cancelAnimationFrame(bubbleTrailRAFRef.current);
-                  bubbleTrailRAFRef.current = null;
-                }
-                if (bubbleAnimRAFRef.current != null) {
-                  cancelAnimationFrame(bubbleAnimRAFRef.current);
-                  bubbleAnimRAFRef.current = null;
-                }
-                bubbleHistoryRef.current = [];
-                valueBubblePosRef.current = null;
-                setBubbleAnimState(BUBBLE_INITIAL);
+                setSpotlightState(SPOTLIGHT_INITIAL);
                 setTapeCellHighlights(new Map());
                 setVisualTrailOverride(null);
                 setVisualOutputOverride(null);
@@ -2402,67 +2364,60 @@ export default function GameplayScreen({ navigation }: Props) {
         />
       )}
 
-      {/* Ghost trail (fades behind the value bubble) */}
-      {bubbleAnimState.trail.map((ghost, i) => (
-        <View
-          key={`ghost-${i}`}
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: ghost.x - ghost.size / 2,
-            top: ghost.y - ghost.size / 2,
-            width: ghost.size,
-            height: ghost.size,
-            borderRadius: ghost.size / 2,
-            backgroundColor: bubbleAnimState.bubble ? hexToRgba(bubbleAnimState.bubble.color, 0.25) : 'transparent',
-            opacity: ghost.opacity,
-            shadowColor: bubbleAnimState.bubble?.color ?? 'transparent',
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.4,
-            shadowRadius: 16,
-            zIndex: 99,
-          }}
-        />
-      ))}
+      {/* Ghost Spotlight — tapered beam from piece to tape cell */}
+      {spotlightState.beam && (() => {
+        const b = spotlightState.beam;
+        const narrowHalf = 5;
+        const wideHalf = 12;
 
-      {/* Value bubble — shows the read/write value as it travels */}
-      {bubbleAnimState.bubble && (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: bubbleAnimState.bubble.screenX - 11,
-            top: bubbleAnimState.bubble.screenY - 11,
-            width: bubbleAnimState.bubble.size ?? 22,
-            height: bubbleAnimState.bubble.size ?? 22,
-            borderRadius: 11,
-            backgroundColor: hexToRgba(bubbleAnimState.bubble.color, 0.2),
-            borderWidth: 1.5,
-            borderColor: hexToRgba(bubbleAnimState.bubble.color, 0.7),
-            alignItems: 'center',
-            justifyContent: 'center',
-            shadowColor: bubbleAnimState.bubble.color,
-            shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8,
-            shadowRadius: 12,
-            elevation: 8,
-            zIndex: 100,
-          }}
-        >
-          {bubbleAnimState.bubble.value !== '' && (
-            <Text
-              style={{
-                fontSize: bubbleAnimState.bubble.value.length > 1 ? 9 : 11,
-                fontWeight: 'bold',
-                fontFamily: 'monospace',
-                color: bubbleAnimState.bubble.color,
-              }}
-            >
-              {bubbleAnimState.bubble.value}
-            </Text>
-          )}
-        </View>
-      )}
+        const dx = b.toX - b.fromX;
+        const dy = b.toY - b.fromY;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1) return null;
+
+        const px = -dy / len;
+        const py = dx / len;
+
+        const x1 = b.fromX + px * narrowHalf;
+        const y1 = b.fromY + py * narrowHalf;
+        const x2 = b.fromX - px * narrowHalf;
+        const y2 = b.fromY - py * narrowHalf;
+        const x3 = b.toX - px * wideHalf;
+        const y3 = b.toY - py * wideHalf;
+        const x4 = b.toX + px * wideHalf;
+        const y4 = b.toY + py * wideHalf;
+
+        return (
+          <Svg
+            pointerEvents="none"
+            style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 99 }}
+          >
+            <Defs>
+              <SvgLinearGradient id="spotGrad" x1={b.fromX} y1={b.fromY} x2={b.toX} y2={b.toY} gradientUnits="userSpaceOnUse">
+                <Stop offset="0" stopColor={b.color} stopOpacity={0.05 * b.opacity} />
+                <Stop offset="0.4" stopColor={b.color} stopOpacity={0.12 * b.opacity} />
+                <Stop offset="1" stopColor={b.color} stopOpacity={0.25 * b.opacity} />
+              </SvgLinearGradient>
+            </Defs>
+            <Polygon
+              points={`${x1},${y1} ${x4},${y4} ${x3},${y3} ${x2},${y2}`}
+              fill="url(#spotGrad)"
+            />
+            <Line
+              x1={x1} y1={y1} x2={x4} y2={y4}
+              stroke={b.color}
+              strokeWidth={0.8}
+              strokeOpacity={0.35 * b.opacity}
+            />
+            <Line
+              x1={x2} y1={y2} x2={x3} y2={y3}
+              stroke={b.color}
+              strokeWidth={0.8}
+              strokeOpacity={0.35 * b.opacity}
+            />
+          </Svg>
+        );
+      })()}
     </Animated.View>
   );
 }
