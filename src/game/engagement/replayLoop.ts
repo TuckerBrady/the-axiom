@@ -1,6 +1,6 @@
 import type { View } from 'react-native';
 import type { RefObject } from 'react';
-import type { EngagementContext, ExecutionStep, MeasurementCache } from './types';
+import type { EngagementContext, ExecutionStep, MeasurementCache, TapeHighlight } from './types';
 import type { TapeCellContainerMeasure } from '../bubbleMath';
 import { runPulse } from './beamAnimation';
 import { runReplayChargePhase } from './chargePhase';
@@ -56,13 +56,22 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     }));
     ctx.setChargeState({ pos: null, progress: 0 });
     ctx.setLockRings([]);
-    ctx.setTapeCellHighlights(new Map());
+    // Trail highlights wipe per-iteration so each cycle restarts the
+    // in/trail/gate sequence. OUT write highlights are preserved below
+    // so OUT red/green persists across replay cycles (Prompt 78).
+    ctx.setTapeCellHighlights(prev => {
+      const next = new Map<string, TapeHighlight>();
+      for (const [k, v] of prev) {
+        if (k.startsWith('out-')) next.set(k, v);
+      }
+      return next;
+    });
     if (dataTrailCellsLength > 0) {
       ctx.setVisualTrailOverride(new Array(dataTrailCellsLength).fill(null));
     }
-    if (inputTapeLength > 0) {
-      ctx.setVisualOutputOverride(new Array(inputTapeLength).fill(-1));
-    }
+    // visualOutputOverride is intentionally NOT reset here — OUT cells
+    // keep their last-written values across replay cycles so green/red
+    // mismatch styling persists on the completion screen (Prompt 78).
 
     if (sourcePieceId) {
       await runReplayChargePhase(ctx, sourcePieceId);

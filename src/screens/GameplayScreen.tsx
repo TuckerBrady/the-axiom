@@ -1145,9 +1145,13 @@ export default function GameplayScreen({ navigation }: Props) {
                   const written = rawWritten;
                   const expected = level.expectedOutput?.[i];
                   const hasValue = written !== undefined && written !== -1;
-                  const correct = hasValue && expected !== undefined && written === expected;
-                  const wrong = hasValue && expected !== undefined && written !== expected;
-                  const outHighlight = tapeCellHighlights.get(`out-${i}`);
+                  const inRange = expected !== undefined;
+                  const correct = hasValue && inRange && written === expected;
+                  const wrong = hasValue && inRange && written !== expected;
+                  // Beyond-range writes keep the green "write" treatment
+                  // per Prompt 77 (expectedOutput gap is non-blocking).
+                  const beyondRangeWrite = hasValue && !inRange;
+
                   return (
                     <View key={`out-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, { opacity: 0 }]} />
@@ -1156,14 +1160,14 @@ export default function GameplayScreen({ navigation }: Props) {
                         collapsable={false}
                         style={[
                           styles.tapeCell,
-                          (correct || (!wrong && outHighlight === 'write')) && styles.tapeCellCorrect,
+                          (correct || beyondRangeWrite) && styles.tapeCellCorrect,
                           wrong && styles.tapeCellWrong,
                         ]}
                       >
                         <Text
                           style={[
                             styles.tapeCellText,
-                            (correct || (!wrong && outHighlight === 'write')) && styles.tapeCellTextCorrect,
+                            (correct || beyondRangeWrite) && styles.tapeCellTextCorrect,
                             wrong && styles.tapeCellTextWrong,
                           ]}
                         >
@@ -2389,7 +2393,12 @@ export default function GameplayScreen({ navigation }: Props) {
         return (
           <Svg
             pointerEvents="none"
-            style={{ position: 'absolute', left: 0, top: 0, right: 0, bottom: 0, zIndex: 99 }}
+            style={{
+              position: 'absolute',
+              left: 0, top: 0, right: 0, bottom: 0,
+              zIndex: 1000,
+              elevation: 1000,
+            }}
           >
             <Defs>
               <SvgLinearGradient id="spotGrad" x1={b.fromX} y1={b.fromY} x2={b.toX} y2={b.toY} gradientUnits="userSpaceOnUse">

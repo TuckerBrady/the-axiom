@@ -426,3 +426,197 @@ describe('highlight persistence across pulses', () => {
     expect(highlights.has('in-1')).toBe(false);
   });
 });
+
+describe('OUT cell persistence across pulses', () => {
+  // Simulates GameplayScreen's OUT cell styling rule so we can assert
+  // the final red/green decision for each cell after a 4-pulse run.
+  type Styling = 'red' | 'green' | 'none';
+  function classifyOutCell(args: {
+    visualOutputOverride: number[] | null;
+    machineOutputTape: number[] | undefined;
+    expectedOutput: number[] | undefined;
+    i: number;
+  }): Styling {
+    const { visualOutputOverride, machineOutputTape, expectedOutput, i } = args;
+    const rawWritten = visualOutputOverride
+      ? visualOutputOverride[i]
+      : machineOutputTape?.[i];
+    const written = rawWritten;
+    const expected = expectedOutput?.[i];
+    const hasValue = written !== undefined && written !== -1;
+    const inRange = expected !== undefined;
+    const correct = hasValue && inRange && written === expected;
+    const wrong = hasValue && inRange && written !== expected;
+    const beyondRangeWrite = hasValue && !inRange;
+    if (wrong) return 'red';
+    if (correct || beyondRangeWrite) return 'green';
+    return 'none';
+  }
+
+  beforeEach(() => {
+    jest.useRealTimers();
+    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
+    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
+  });
+
+  function build4PulseCtx(): {
+    ctx: EngagementContext;
+    visualOutputOverride: { value: number[] | null };
+    outputTapeMock: number[];
+  } {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    ctx.cacheRef.current = {
+      board: { x: 0, y: 0 },
+      input: { x: 100, y: 200, w: 20, h: 30 },
+      trail: { x: 100, y: 300, w: 20, h: 30 },
+      output: { x: 100, y: 400, w: 20, h: 30 },
+    };
+    (ctx as unknown as { inputTape: (0 | 1)[] }).inputTape = [1, 0, 1, 0];
+
+    // 4-pulse scenario: player's machine writes input-parity to OUT.
+    // expectedOutput = [0, 0, 0, 0]. Pulses 0 and 2 (input=1) mismatch;
+    // pulses 1 and 3 (input=0) match.
+    const outputTapeMock = [1, 0, 1, 0];
+
+    // Override the useGameStore mock for this test block to return our
+    // specific outputTape values so runTransmitterInteraction picks them up.
+    const gameStoreMock = jest.requireMock(
+      '../../../src/store/gameStore',
+    ) as { useGameStore: { getState: jest.Mock } };
+    gameStoreMock.useGameStore.getState.mockReturnValue({
+      machineState: {
+        dataTrail: { cells: [0, 0, 0, 0], headPosition: 0 },
+        outputTape: outputTapeMock,
+      },
+    });
+
+    // Stateful visualOutputOverride starting as [-1]*4.
+    const visualOutputOverride: { value: number[] | null } = {
+      value: [-1, -1, -1, -1],
+    };
+    (ctx as unknown as { setVisualOutputOverride: jest.Mock }).setVisualOutputOverride =
+      jest.fn((arg: unknown) => {
+        if (typeof arg === 'function') {
+          visualOutputOverride.value = (arg as (
+            prev: number[] | null,
+          ) => number[] | null)(visualOutputOverride.value);
+        } else {
+          visualOutputOverride.value = arg as number[] | null;
+        }
+      });
+
+    return { ctx, visualOutputOverride, outputTapeMock };
+  }
+
+  it('keeps red on cells whose written value mismatches expectedOutput across 4 pulses', async () => {
+    const { ctx, visualOutputOverride } = build4PulseCtx();
+    const expectedOutput = [0, 0, 0, 0];
+
+    for (let p = 0; p < 4; p++) {
+      ctx.currentPulseRef.current = p;
+      await runTransmitterInteraction(ctx, step('transmitter', `p-t${p}`));
+    }
+
+    // All four cells received Transmitter writes.
+    expect(visualOutputOverride.value).toEqual([1, 0, 1, 0]);
+
+    // Pulse 0 and 2 wrote 1 into an expected-0 slot → red.
+    // Pulse 1 and 3 wrote 0 into an expected-0 slot → green.
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 0,
+      }),
+    ).toBe('red');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 1,
+      }),
+    ).toBe('green');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 2,
+      }),
+    ).toBe('red');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 3,
+      }),
+    ).toBe('green');
+  });
+
+  it('keeps red on mismatched cells after visualOutputOverride is cleared (completion screen fallback to machineState.outputTape)', async () => {
+    const { ctx, visualOutputOverride } = build4PulseCtx();
+    const expectedOutput = [0, 0, 0, 0];
+
+    for (let p = 0; p < 4; p++) {
+      ctx.currentPulseRef.current = p;
+      await runTransmitterInteraction(ctx, step('transmitter', `p-t${p}`));
+    }
+
+    // Simulate the post-run state where visualOutputOverride is null
+    // and styling falls through to machineState.outputTape.
+    visualOutputOverride.value = null;
+
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 0,
+      }),
+    ).toBe('red');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: visualOutputOverride.value,
+        machineOutputTape: [1, 0, 1, 0],
+        expectedOutput,
+        i: 2,
+      }),
+    ).toBe('red');
+  });
+
+  it('cells beyond expectedOutput.length that received a write render green, not red', () => {
+    const shortExpected = [0, 0, 0]; // length 3
+    const outputTape = [1, 0, 1, 1, 0, 1, 0, 1]; // length 8
+    // Cells 3, 5, 7 hold 1 but expectedOutput[3..7] is undefined.
+    expect(
+      classifyOutCell({
+        visualOutputOverride: outputTape,
+        machineOutputTape: outputTape,
+        expectedOutput: shortExpected,
+        i: 3,
+      }),
+    ).toBe('green');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: outputTape,
+        machineOutputTape: outputTape,
+        expectedOutput: shortExpected,
+        i: 5,
+      }),
+    ).toBe('green');
+    expect(
+      classifyOutCell({
+        visualOutputOverride: outputTape,
+        machineOutputTape: outputTape,
+        expectedOutput: shortExpected,
+        i: 7,
+      }),
+    ).toBe('green');
+  });
+});
