@@ -2391,7 +2391,11 @@ export default function GameplayScreen({ navigation }: Props) {
         const y4 = b.toY + py * wideHalf;
 
         return (
-          <Svg
+          // Wrap in a View — react-native-svg's web implementation does
+          // not forward the `style` prop to the root <svg> DOM element,
+          // so zIndex set on Svg directly is dropped on web. Views on
+          // RNW reliably emit a <div> that participates in stacking.
+          <View
             pointerEvents="none"
             style={{
               position: 'absolute',
@@ -2400,30 +2404,32 @@ export default function GameplayScreen({ navigation }: Props) {
               elevation: 1000,
             }}
           >
-            <Defs>
-              <SvgLinearGradient id="spotGrad" x1={b.fromX} y1={b.fromY} x2={b.toX} y2={b.toY} gradientUnits="userSpaceOnUse">
-                <Stop offset="0" stopColor={b.color} stopOpacity={0.05 * b.opacity} />
-                <Stop offset="0.4" stopColor={b.color} stopOpacity={0.12 * b.opacity} />
-                <Stop offset="1" stopColor={b.color} stopOpacity={0.25 * b.opacity} />
-              </SvgLinearGradient>
-            </Defs>
-            <Polygon
-              points={`${x1},${y1} ${x4},${y4} ${x3},${y3} ${x2},${y2}`}
-              fill="url(#spotGrad)"
-            />
-            <Line
-              x1={x1} y1={y1} x2={x4} y2={y4}
-              stroke={b.color}
-              strokeWidth={0.8}
-              strokeOpacity={0.35 * b.opacity}
-            />
-            <Line
-              x1={x2} y1={y2} x2={x3} y2={y3}
-              stroke={b.color}
-              strokeWidth={0.8}
-              strokeOpacity={0.35 * b.opacity}
-            />
-          </Svg>
+            <Svg style={{ width: '100%', height: '100%' }}>
+              <Defs>
+                <SvgLinearGradient id="spotGrad" x1={b.fromX} y1={b.fromY} x2={b.toX} y2={b.toY} gradientUnits="userSpaceOnUse">
+                  <Stop offset="0" stopColor={b.color} stopOpacity={0.05 * b.opacity} />
+                  <Stop offset="0.4" stopColor={b.color} stopOpacity={0.12 * b.opacity} />
+                  <Stop offset="1" stopColor={b.color} stopOpacity={0.25 * b.opacity} />
+                </SvgLinearGradient>
+              </Defs>
+              <Polygon
+                points={`${x1},${y1} ${x4},${y4} ${x3},${y3} ${x2},${y2}`}
+                fill="url(#spotGrad)"
+              />
+              <Line
+                x1={x1} y1={y1} x2={x4} y2={y4}
+                stroke={b.color}
+                strokeWidth={0.8}
+                strokeOpacity={0.35 * b.opacity}
+              />
+              <Line
+                x1={x2} y1={y2} x2={x3} y2={y3}
+                stroke={b.color}
+                strokeWidth={0.8}
+                strokeOpacity={0.35 * b.opacity}
+              />
+            </Svg>
+          </View>
         );
       })()}
     </Animated.View>

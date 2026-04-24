@@ -507,8 +507,10 @@ export const levelA1_8: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 0, 1],
   // Capstone: Config Node configValue=0 passes the three 0-valued
-  // pulses. The five 1-valued pulses are blocked.
-  expectedOutput: [0, 0, 0],
+  // pulses. The five 1-valued pulses are blocked. expectedOutput covers
+  // all 8 pulses so OUT cells at blocked positions render red on
+  // mismatch (rather than defaulting to the beyond-range green path).
+  expectedOutput: [0, 0, 0, 0, 0, 0, 0, 0],
   requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 11,

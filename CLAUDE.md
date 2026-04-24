@@ -67,6 +67,10 @@ COVERAGE TARGETS: 80% statements, 80% functions, 70% branches,
 them. If a commit drops coverage below thresholds, add tests
 until it passes.
 
+### Build profiles
+- `testflight` — internal TestFlight builds. Dev tools visible in Settings. Used by `/build`.
+- `production` — App Store submission only. Dev tools hidden. Invoke eas-cli manually; do NOT use `/build`.
+
 ---
 
 ## Current State

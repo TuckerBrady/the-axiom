@@ -29,6 +29,7 @@ import {
   REVEAL_BEAT1_PROMPT,
   REVEAL_BEAT2_ACK,
 } from '../../constants/onboardingCopy';
+import { SHOW_DEV_TOOLS } from '../../utils/devFlags';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'CharacterName'>;
@@ -201,7 +202,7 @@ export default function CharacterNameScreen({ navigation }: Props) {
         )}
 
         {/* Dev replay */}
-        {__DEV__ && phase === 'reveal' && (
+        {SHOW_DEV_TOOLS && phase === 'reveal' && (
           <TouchableOpacity style={st.replayBtn} onPress={handleReplay} activeOpacity={0.7}>
             <Text style={st.replayText}>REPLAY</Text>
           </TouchableOpacity>

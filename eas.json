@@ -19,10 +19,27 @@
     },
     "production": {
       "autoIncrement": true
+    },
+    "testflight": {
+      "extends": "production",
+      "env": {
+        "EXPO_PUBLIC_SHOW_DEV_TOOLS": "true"
+      }
     }
   },
   "submit": {
     "production": {
+      "ios": {
+        "appleId": "tuck.al.brady@gmail.com",
+        "ascAppId": "6763194579",
+        "appleTeamId": "WY5AFT3B87"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./google-services-key.json",
+        "track": "internal"
+      }
+    },
+    "testflight": {
       "ios": {
         "appleId": "tuck.al.brady@gmail.com",
         "ascAppId": "6763194579",

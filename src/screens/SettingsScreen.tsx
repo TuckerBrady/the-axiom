@@ -35,6 +35,7 @@ import { useLivesStore } from '../store/livesStore';
 import { ALL_LEVELS } from '../game/levels';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { BUILD_INFO } from '../buildInfo';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
@@ -400,7 +401,7 @@ export default function SettingsScreen({ navigation }: Props) {
           <SectionHeader title="ACCOUNT" delay={550} />
           <View style={styles.settingGroup}>
             <ToggleRow icon={<NotificationIcon size={18} color={Colors.amber} />} label="Push Notifications" value={notificationsEnabled} onChange={setNotificationsEnabled} delay={600} />
-            {__DEV__ && (
+            {SHOW_DEV_TOOLS && (
               <>
                 <View style={styles.divider} />
                 <TapRow
