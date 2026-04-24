@@ -1156,15 +1156,14 @@ export default function GameplayScreen({ navigation }: Props) {
                         collapsable={false}
                         style={[
                           styles.tapeCell,
-                          correct && styles.tapeCellCorrect,
+                          (correct || (!wrong && outHighlight === 'write')) && styles.tapeCellCorrect,
                           wrong && styles.tapeCellWrong,
-                          !correct && !wrong && outHighlight === 'write' && styles.tapeCellHighlightWrite,
                         ]}
                       >
                         <Text
                           style={[
                             styles.tapeCellText,
-                            correct && styles.tapeCellTextCorrect,
+                            (correct || (!wrong && outHighlight === 'write')) && styles.tapeCellTextCorrect,
                             wrong && styles.tapeCellTextWrong,
                           ]}
                         >
