@@ -10,13 +10,30 @@ jest.mock('../../../src/game/engagement/bubbleHelpers', () => {
   };
 });
 
-import { triggerPieceAnim, runScannerInteraction } from '../../../src/game/engagement/interactions';
+jest.mock('../../../src/store/gameStore', () => ({
+  useGameStore: {
+    getState: jest.fn(() => ({
+      machineState: {
+        dataTrail: { cells: [0, 1, 0], headPosition: 0 },
+        outputTape: [-1, -1, -1],
+      },
+    })),
+  },
+}));
+
+import {
+  triggerPieceAnim,
+  runScannerInteraction,
+  runConfigNodeInteraction,
+  runTransmitterInteraction,
+} from '../../../src/game/engagement/interactions';
 import * as bubbleHelpers from '../../../src/game/engagement/bubbleHelpers';
 import type {
   EngagementContext,
   ExecutionStep,
   PieceAnimState,
   BubbleAnimState,
+  TapeHighlight,
 } from '../../../src/game/engagement/types';
 import { PIECE_ANIM_INITIAL, BUBBLE_INITIAL } from '../../../src/game/engagement/types';
 
@@ -182,5 +199,180 @@ describe('runScannerInteraction', () => {
     expect(typeof updater).toBe('function');
     const result = updater?.([null, null, null]);
     expect(result).toEqual([null, null, 1]);
+  });
+
+  it('clears only the in-${pulse} highlight, preserving trail and prior-pulse entries', async () => {
+    const ctx = buildScannerCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    ctx.currentPulseRef.current = 1;
+    await runScannerInteraction(ctx, step('scanner', 'p-s'));
+    // Final call must be a functional updater that deletes `in-1` but
+    // keeps `trail-0`, `trail-1`, `out-0`, etc.
+    const lastCall = setTapeCellHighlights.mock.calls.at(-1)?.[0];
+    expect(typeof lastCall).toBe('function');
+    const priorState = new Map<string, TapeHighlight>([
+      ['in-1', 'read'],
+      ['trail-0', 'gate-pass'],
+      ['trail-1', 'write'],
+      ['out-0', 'write'],
+    ]);
+    const result = (lastCall as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(priorState);
+    expect(result.has('in-1')).toBe(false);
+    expect(result.get('trail-0')).toBe('gate-pass');
+    expect(result.get('trail-1')).toBe('write');
+    expect(result.get('out-0')).toBe('write');
+  });
+});
+
+describe('runConfigNodeInteraction', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    (bubbleHelpers.animateBubbleTo as jest.Mock).mockClear();
+  });
+
+  function buildConfigCtx(): EngagementContext {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    ctx.cacheRef.current = {
+      board: { x: 0, y: 0 },
+      input: { x: 100, y: 200, w: 20, h: 30 },
+      trail: { x: 100, y: 300, w: 20, h: 30 },
+      output: { x: 100, y: 400, w: 20, h: 30 },
+    };
+    ctx.bubbleAnimRAFRef = { current: null };
+    return ctx;
+  }
+
+  it('sets trail-${pulse} to gate-pass for a passing gate and does not blanket-clear', async () => {
+    const ctx = buildConfigCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    ctx.currentPulseRef.current = 2;
+    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', true));
+    const calls = setTapeCellHighlights.mock.calls;
+    // Every call should be a functional updater (setHighlight pattern);
+    // no call should be a bare `new Map()` clear.
+    for (const [arg] of calls) {
+      expect(typeof arg).toBe('function');
+    }
+    // Play the final state forward from an empty map; trail-2 should
+    // end as gate-pass.
+    let state = new Map<string, TapeHighlight>();
+    for (const [arg] of calls) {
+      state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
+    }
+    expect(state.get('trail-2')).toBe('gate-pass');
+  });
+
+  it('sets trail-${pulse} to gate-block for a failing gate', async () => {
+    const ctx = buildConfigCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    ctx.currentPulseRef.current = 0;
+    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', false));
+    let state = new Map<string, TapeHighlight>();
+    for (const [arg] of setTapeCellHighlights.mock.calls) {
+      state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
+    }
+    expect(state.get('trail-0')).toBe('gate-block');
+  });
+});
+
+describe('runTransmitterInteraction', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    (bubbleHelpers.animateBubbleTo as jest.Mock).mockClear();
+  });
+
+  function buildTransmitterCtx(): EngagementContext {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    ctx.cacheRef.current = {
+      board: { x: 0, y: 0 },
+      input: { x: 100, y: 200, w: 20, h: 30 },
+      trail: { x: 100, y: 300, w: 20, h: 30 },
+      output: { x: 100, y: 400, w: 20, h: 30 },
+    };
+    ctx.bubbleAnimRAFRef = { current: null };
+    return ctx;
+  }
+
+  it('sets an out-${pulse} write highlight so the output cell lights up', async () => {
+    const ctx = buildTransmitterCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    ctx.currentPulseRef.current = 1;
+    await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    let state = new Map<string, TapeHighlight>();
+    for (const [arg] of setTapeCellHighlights.mock.calls) {
+      state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
+    }
+    expect(state.get('out-1')).toBe('write');
+  });
+});
+
+describe('highlight persistence across pulses', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+    (bubbleHelpers.animateBubbleTo as jest.Mock).mockClear();
+  });
+
+  function buildMultiPulseCtx(): {
+    ctx: EngagementContext;
+    highlights: Map<string, TapeHighlight>;
+  } {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    ctx.cacheRef.current = {
+      board: { x: 0, y: 0 },
+      input: { x: 100, y: 200, w: 20, h: 30 },
+      trail: { x: 100, y: 300, w: 20, h: 30 },
+      output: { x: 100, y: 400, w: 20, h: 30 },
+    };
+    (ctx as unknown as { inputTape: (0 | 1)[] }).inputTape = [1, 0];
+    ctx.bubbleAnimRAFRef = { current: null };
+
+    const highlights = new Map<string, TapeHighlight>();
+    (ctx as unknown as { setTapeCellHighlights: jest.Mock }).setTapeCellHighlights =
+      jest.fn((arg: unknown) => {
+        if (typeof arg === 'function') {
+          const next = (arg as (
+            prev: Map<string, TapeHighlight>,
+          ) => Map<string, TapeHighlight>)(highlights);
+          highlights.clear();
+          for (const [k, v] of next) highlights.set(k, v);
+        } else {
+          highlights.clear();
+          for (const [k, v] of arg as Map<string, TapeHighlight>) {
+            highlights.set(k, v);
+          }
+        }
+      });
+    return { ctx, highlights };
+  }
+
+  it('accumulates trail and out highlights across Scanner + ConfigNode + Transmitter over two pulses', async () => {
+    const { ctx, highlights } = buildMultiPulseCtx();
+
+    ctx.currentPulseRef.current = 0;
+    await runScannerInteraction(ctx, step('scanner', 'p-s'));
+    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', true));
+    await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+
+    ctx.currentPulseRef.current = 1;
+    await runScannerInteraction(ctx, step('scanner', 'p-s'));
+    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', false));
+    // Transmitter does not fire on a blocked pulse — but out-0 from
+    // pulse 0 must still be present.
+
+    expect(highlights.get('trail-0')).toBe('gate-pass');
+    expect(highlights.get('out-0')).toBe('write');
+    expect(highlights.get('trail-1')).toBe('gate-block');
+    // in-${pulse} highlights cleared by Scanner after each pulse.
+    expect(highlights.has('in-0')).toBe(false);
+    expect(highlights.has('in-1')).toBe(false);
   });
 });

@@ -99,7 +99,10 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
 
     ctx.setVisualTrailOverride(null);
     ctx.setVisualOutputOverride(null);
-    ctx.setTapeCellHighlights(new Map());
+    // tapeCellHighlights intentionally NOT cleared here — highlights
+    // from the final pulse loop persist into the post-run state so
+    // the player sees which cells were touched during execution.
+    // They reset at the top of the next loop iteration (line 59).
 
     if (terminalPieceId) {
       const opc = ctx.getPieceCenter(terminalPieceId);

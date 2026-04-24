@@ -9,7 +9,6 @@ import {
   showBubbleAt,
   hideBubble,
   setHighlight,
-  clearAllHighlights,
   wait,
 } from './bubbleHelpers';
 import {
@@ -95,7 +94,14 @@ export async function runScannerInteraction(
   }
 
   await wait(250 * speed);
-  clearAllHighlights(ctx);
+  // Clear only the transient input-read highlight. The trail-write
+  // highlight persists so the player sees which trail cells received
+  // values across all pulses.
+  ctx.setTapeCellHighlights(prev => {
+    const m = new Map(prev);
+    m.delete(`in-${pulse}`);
+    return m;
+  });
 }
 
 export async function runConfigNodeInteraction(
@@ -137,7 +143,9 @@ export async function runConfigNodeInteraction(
   await wait((pass ? 350 : 450) * speed);
 
   hideBubble(ctx);
-  clearAllHighlights(ctx);
+  // No blanket clear — the trail-${pulse} gate-pass/gate-block
+  // highlight persists so the player sees which cells were gated
+  // across all pulses.
 }
 
 export async function runTransmitterInteraction(
@@ -162,6 +170,7 @@ export async function runTransmitterInteraction(
   const display = String(written);
 
   flashPiece(ctx, stp.pieceId, color);
+  setHighlight(ctx, `out-${pulse}`, 'write');
   showBubbleAt(ctx, transmitterX, transmitterY, color, display);
 
   const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);

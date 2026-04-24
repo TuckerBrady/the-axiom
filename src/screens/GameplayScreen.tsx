@@ -1175,6 +1175,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   const hasValue = written !== undefined && written !== -1;
                   const correct = hasValue && expected !== undefined && written === expected;
                   const wrong = hasValue && expected !== undefined && written !== expected;
+                  const outHighlight = tapeCellHighlights.get(`out-${i}`);
                   return (
                     <View key={`out-${i}`} style={styles.tapeCellWrap}>
                       <View style={[styles.tapeHead, { opacity: 0 }]} />
@@ -1185,6 +1186,7 @@ export default function GameplayScreen({ navigation }: Props) {
                           styles.tapeCell,
                           correct && styles.tapeCellCorrect,
                           wrong && styles.tapeCellWrong,
+                          !correct && !wrong && outHighlight === 'write' && styles.tapeCellHighlightWrite,
                         ]}
                       >
                         <Text
