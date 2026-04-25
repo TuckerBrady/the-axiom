@@ -70,6 +70,7 @@ function buildCtx(): {
       scale: { setValue: jest.fn() },
       opacity: { setValue: jest.fn() },
     },
+    gateOutcomes: { current: new Map() },
     flashTimersRef: { current: [] as ReturnType<typeof setTimeout>[] },
     currentPulseRef: { current: 0 },
     getPieceCenter: jest.fn(() => ({ x: 10, y: 20 })),

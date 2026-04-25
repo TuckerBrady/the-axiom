@@ -37,6 +37,8 @@ export type {
   TapeIndicatorBarState,
   GlowTravelerState,
   ValueTravelRefs,
+  GateOutcome,
+  GateOutcomeMap,
   VoidPulseState,
   LockRing,
   SignalPhase,

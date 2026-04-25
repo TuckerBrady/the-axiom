@@ -94,6 +94,10 @@ export async function runConfigNodeInteraction(
   const speed = getPulseSpeed(pulse);
   const pass = !!stp.success;
   const color = pass ? '#00FF87' : '#FF3B3B';
+
+  // Record gate outcome for OUT tape coloring (84C).
+  ctx.gateOutcomes.current.set(pulse, pass ? 'passed' : 'blocked');
+
   const pc = ctx.getPieceCenter(stp.pieceId);
   if (!pc) {
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
@@ -121,6 +125,20 @@ export async function runConfigNodeInteraction(
   await wait((pass ? 350 : 450) * speed);
 
   hideSpotlight(ctx);
+
+  // On block: slide the OUT bar to this pulse index, flag the OUT
+  // cell, and write the -2 sentinel so rendering shows the middle-dot
+  // blocked placeholder. (Transmitter never fires on a blocked pulse.)
+  if (!pass) {
+    ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
+    setHighlight(ctx, `out-${pulse}`, 'gate-block');
+    ctx.setVisualOutputOverride(prev => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next[pulse] = -2;
+      return next;
+    });
+  }
   // Trail gate highlight persists across pulses (Prompt 76).
 }
 

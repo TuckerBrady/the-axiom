@@ -59,6 +59,7 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     ctx.setLockRings([]);
     ctx.setTapeBarState(TAPE_BAR_INITIAL);
     ctx.setGlowTravelerState(GLOW_TRAVELER_INITIAL);
+    ctx.gateOutcomes.current.clear();
     // Trail highlights wipe per-iteration so each cycle restarts the
     // in/trail/gate sequence. OUT write highlights are preserved below
     // so OUT red/green persists across replay cycles (Prompt 78).

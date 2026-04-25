@@ -140,6 +140,7 @@ import {
   type TapeIndicatorBarState,
   type GlowTravelerState,
   type TapeHighlight,
+  type GateOutcomeMap,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -346,6 +347,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const animFrameRef = useRef<number | null>(null);
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Per-pulse gate outcome: 'passed' or 'blocked'. Drives OUT tape
+  // gate-outcome coloring. Cleared at replay-iteration start and on
+  // cleanup. (Prompt 84C.)
+  const gateOutcomesRef = useRef<GateOutcomeMap>(new Map());
   // Counts pulses that reached Terminal with success during handleEngage.
   // Read by the live pulse counter; reset at the start of each run.
   const terminalSuccessCountRef = useRef(0);
@@ -767,6 +772,7 @@ export default function GameplayScreen({ navigation }: Props) {
         scale: glowTravelerScale,
         opacity: glowTravelerOpacity,
       },
+      gateOutcomes: gateOutcomesRef,
       setVisualTrailOverride,
       setVisualOutputOverride,
       setCurrentPulseIndex,
@@ -842,6 +848,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setTapeBarState(TAPE_BAR_INITIAL);
     resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
     setGlowTravelerState(GLOW_TRAVELER_INITIAL);
+    gateOutcomesRef.current.clear();
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
@@ -1014,6 +1021,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setTapeBarState(TAPE_BAR_INITIAL);
     resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
     setGlowTravelerState(GLOW_TRAVELER_INITIAL);
+    gateOutcomesRef.current.clear();
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
@@ -1253,14 +1261,16 @@ export default function GameplayScreen({ navigation }: Props) {
                     ? visualOutputOverride[i]
                     : machineState.outputTape?.[i];
                   const written = rawWritten;
-                  const expected = level.expectedOutput?.[i];
-                  const hasValue = written !== undefined && written !== -1;
-                  const inRange = expected !== undefined;
-                  const correct = hasValue && inRange && written === expected;
-                  const wrong = hasValue && inRange && written !== expected;
-                  // Beyond-range writes keep the green "write" treatment
-                  // per Prompt 77 (expectedOutput gap is non-blocking).
-                  const beyondRangeWrite = hasValue && !inRange;
+                  // Gate-outcome coloring (Prompt 84C): green when the
+                  // pulse passed through the Config Node, red when it
+                  // was blocked. -2 is the "blocked" sentinel written
+                  // into visualOutputOverride by runConfigNodeInteraction.
+                  const isBlocked = rawWritten === -2;
+                  const hasValue =
+                    written !== undefined && written !== -1 && written !== -2;
+                  const outcome = gateOutcomesRef.current.get(i);
+                  const gatePassed = outcome === 'passed';
+                  const gateBlocked = outcome === 'blocked' || isBlocked;
 
                   return (
                     <View key={`out-${i}`} style={styles.tapeCellWrap}>
@@ -1270,18 +1280,22 @@ export default function GameplayScreen({ navigation }: Props) {
                         collapsable={false}
                         style={[
                           styles.tapeCell,
-                          (correct || beyondRangeWrite) && styles.tapeCellCorrect,
-                          wrong && styles.tapeCellWrong,
+                          gatePassed && styles.tapeCellGatePassed,
+                          gateBlocked && styles.tapeCellGateBlocked,
                         ]}
                       >
                         <Text
                           style={[
                             styles.tapeCellText,
-                            (correct || beyondRangeWrite) && styles.tapeCellTextCorrect,
-                            wrong && styles.tapeCellTextWrong,
+                            gatePassed && styles.tapeCellTextGatePassed,
+                            gateBlocked && styles.tapeCellTextGateBlocked,
                           ]}
                         >
-                          {hasValue ? written : '_'}
+                          {gatePassed && hasValue
+                            ? written
+                            : gateBlocked
+                              ? '\u00B7'
+                              : '_'}
                         </Text>
                       </View>
                     </View>
@@ -1836,6 +1850,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 setTapeBarState(TAPE_BAR_INITIAL);
                 resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
                 setGlowTravelerState(GLOW_TRAVELER_INITIAL);
+                gateOutcomesRef.current.clear();
                 setVisualTrailOverride(null);
                 setVisualOutputOverride(null);
                 setBeamState(prev => ({
@@ -3347,13 +3362,25 @@ const styles = StyleSheet.create({
   tapeCellPast: {
     borderColor: 'rgba(139,92,246,0.3)',
   },
+  // Legacy: retained for non-gate output comparison (Kepler Belt).
   tapeCellCorrect: {
     borderColor: '#00C48C',
     backgroundColor: 'rgba(0,196,140,0.08)',
   },
+  // Legacy: retained for non-gate output comparison (Kepler Belt).
   tapeCellWrong: {
     borderColor: '#FF3B3B',
     backgroundColor: 'rgba(255,59,59,0.08)',
+  },
+  // Gate-outcome styles (Prompt 84C). OUT tape cells use these
+  // instead of the legacy correct/wrong styles on Axiom levels.
+  tapeCellGatePassed: {
+    borderColor: '#00FF87',
+    backgroundColor: 'rgba(0,255,135,0.14)',
+  },
+  tapeCellGateBlocked: {
+    borderColor: '#FF3B3B',
+    backgroundColor: 'rgba(255,59,59,0.14)',
   },
   tapeCellHighlightRead: {
     borderColor: 'rgba(0,229,255,0.9)',
@@ -3383,10 +3410,18 @@ const styles = StyleSheet.create({
   tapeCellTextPast: {
     color: 'rgba(0,229,255,0.4)',
   },
+  // Legacy: retained for non-gate output comparison (Kepler Belt).
   tapeCellTextCorrect: {
     color: Colors.neonYellow,
   },
+  // Legacy: retained for non-gate output comparison (Kepler Belt).
   tapeCellTextWrong: {
+    color: '#FF3B3B',
+  },
+  tapeCellTextGatePassed: {
+    color: '#00FF87',
+  },
+  tapeCellTextGateBlocked: {
     color: '#FF3B3B',
   },
 });

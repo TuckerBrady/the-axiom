@@ -65,6 +65,10 @@ export interface ValueTravelRefs {
   opacity: Animated.Value;
 }
 
+export type GateOutcome = 'passed' | 'blocked';
+
+export type GateOutcomeMap = Map<number, GateOutcome>;
+
 export type VoidPulseState = {
   x: number;
   y: number;
@@ -169,6 +173,7 @@ export interface EngagementContext {
   setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
   setGlowTravelerState: Dispatch<SetStateAction<GlowTravelerState>>;
   valueTravelRefs: ValueTravelRefs;
+  gateOutcomes: MutableRefObject<GateOutcomeMap>;
   setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
   setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
   setCurrentPulseIndex: (i: number) => void;
