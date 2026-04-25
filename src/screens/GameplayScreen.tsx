@@ -28,6 +28,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
+import { Button } from '../components/Button';
 import { PieceIcon } from '../components/PieceIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -1754,31 +1755,20 @@ export default function GameplayScreen({ navigation }: Props) {
         {/* ── Engage Button ── */}
         {!isExecuting && !showResults && !showVoid && !debugMode && (
           <View style={styles.engageRow}>
-            <TouchableOpacity
-              style={styles.resetBtn}
+            <Button
+              variant="secondary"
+              label="RESET"
               onPress={handleReset}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.resetBtnText}>RESET</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+              style={styles.engageRowReset}
+            />
+            <Button
               ref={engageButtonRef}
-              style={[styles.engageBtn, !hasPlacedPieces && styles.engageBtnDisabled]}
+              variant="gradient"
+              label="ENGAGE MACHINE"
               onPress={handleEngage}
-              activeOpacity={0.85}
               disabled={!hasPlacedPieces}
-            >
-              <LinearGradient
-                colors={hasPlacedPieces ? [Colors.copper, Colors.amber] : [Colors.dim, Colors.steel]}
-                style={styles.engageBtnGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                <Text style={[styles.engageBtnText, !hasPlacedPieces && { color: Colors.muted }]}>
-                  ENGAGE MACHINE
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
+              style={styles.engageRowEngage}
+            />
           </View>
         )}
 
@@ -1837,8 +1827,9 @@ export default function GameplayScreen({ navigation }: Props) {
         {/* ── Post-completion CONTINUE (gates Results screen) ── */}
         {showCompletionCard && !showResults && (
           <View style={styles.completionContinueWrap} pointerEvents="box-none">
-            <TouchableOpacity
-              style={[styles.completionCardBtn, { alignSelf: 'center' }]}
+            <Button
+              variant="primary"
+              label="CONTINUE"
               onPress={() => {
                 loopingRef.current = false;
                 if (animFrameRef.current != null) {
@@ -1865,10 +1856,8 @@ export default function GameplayScreen({ navigation }: Props) {
                 setShowCompletionCard(false);
                 setShowResults(true);
               }}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.completionCardBtnText}>CONTINUE</Text>
-            </TouchableOpacity>
+              style={styles.completionContinueBtn}
+            />
           </View>
         )}
 
@@ -2352,36 +2341,29 @@ export default function GameplayScreen({ navigation }: Props) {
                   <Text style={styles.pauseTimerLabel}>ELAPSED</Text>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.pauseResumeBtn}
+                <Button
+                  variant="primary"
+                  label="RESUME"
                   onPress={() => setShowPauseModal(false)}
-                  activeOpacity={0.85}
-                >
-                  <View style={[styles.pauseBtnCornerTL, { borderColor: 'rgba(0,212,255,0.5)' }]} />
-                  <View style={[styles.pauseBtnCornerTR, { borderColor: 'rgba(0,212,255,0.5)' }]} />
-                  <View style={[styles.pauseBtnCornerBL, { borderColor: 'rgba(0,212,255,0.5)' }]} />
-                  <View style={[styles.pauseBtnCornerBR, { borderColor: 'rgba(0,212,255,0.5)' }]} />
-                  <Text style={styles.pauseResumeText}>RESUME</Text>
-                </TouchableOpacity>
+                  style={styles.pauseModalBtn}
+                />
 
-                <TouchableOpacity
-                  style={styles.pauseRestartBtn}
+                <Button
+                  variant="secondary"
+                  label="RESTART LEVEL"
                   onPress={() => {
                     handleReset();
                     setShowPauseModal(false);
                   }}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.pauseRestartText}>RESTART LEVEL</Text>
-                </TouchableOpacity>
+                  style={styles.pauseModalBtn}
+                />
 
-                <TouchableOpacity
-                  style={styles.pauseAbandonBtn}
+                <Button
+                  variant="danger"
+                  label="ABANDON MISSION"
                   onPress={() => setShowAbandonConfirm(true)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.pauseAbandonText}>ABANDON MISSION</Text>
-                </TouchableOpacity>
+                  style={styles.pauseModalBtnLast}
+                />
               </>
             ) : (
               <>
@@ -2649,57 +2631,12 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     marginTop: 4,
   },
-  pauseResumeBtn: {
+  pauseModalBtn: {
     width: '100%',
-    backgroundColor: 'rgba(0,212,255,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.35)',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-    position: 'relative',
-  },
-  pauseResumeText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 12,
-    color: '#00D4FF',
-    letterSpacing: 1.5,
-  },
-  pauseBtnCornerTL: { position: 'absolute', top: 4, left: 4, width: 8, height: 8, borderTopWidth: 1, borderLeftWidth: 1 },
-  pauseBtnCornerTR: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderTopWidth: 1, borderRightWidth: 1 },
-  pauseBtnCornerBL: { position: 'absolute', bottom: 4, left: 4, width: 8, height: 8, borderBottomWidth: 1, borderLeftWidth: 1 },
-  pauseBtnCornerBR: { position: 'absolute', bottom: 4, right: 4, width: 8, height: 8, borderBottomWidth: 1, borderRightWidth: 1 },
-  pauseRestartBtn: {
-    width: '100%',
-    backgroundColor: 'rgba(0,0,0,0)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
     marginBottom: 10,
   },
-  pauseRestartText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.45)',
-    letterSpacing: 1.5,
-  },
-  pauseAbandonBtn: {
+  pauseModalBtnLast: {
     width: '100%',
-    backgroundColor: 'rgba(255,59,59,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,59,59,0.25)',
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  pauseAbandonText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: 'rgba(255,59,59,0.7)',
-    letterSpacing: 1.5,
   },
   pauseAbandonWarn: {
     fontFamily: Fonts.spaceMono,
@@ -2923,30 +2860,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     gap: Spacing.md,
   },
-  resetBtn: {
+  engageRowReset: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: Colors.steel,
-    borderRadius: 12,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
   },
-  resetBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 10, color: Colors.muted, letterSpacing: 1,
-  },
-  engageBtn: {
+  engageRowEngage: {
     flex: 2,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  engageBtnDisabled: { opacity: 0.5 },
-  engageBtnGradient: {
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  engageBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 11, fontWeight: 'bold',
-    letterSpacing: 2, color: Colors.void,
   },
 
   // Overlays
@@ -3026,19 +2944,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(2,5,12,0.88)',
     zIndex: 250,
   },
-  completionCardBtn: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#4a9eff',
-    borderRadius: 4,
-  },
-  completionCardBtnText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 11,
-    color: '#4a9eff',
-    letterSpacing: 2,
+  completionContinueBtn: {
+    alignSelf: 'center',
   },
 
   // Wrong Output Modal
