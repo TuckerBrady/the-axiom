@@ -90,7 +90,56 @@ export default function TutorialHUDOverlay({
   const [targetLayout, setTargetLayout] = useState<Layout | null>(null);
   const [codexVisible, setCodexVisible] = useState(false);
 
+  // ── Lifecycle guards ──
+  // mountedRef is the source of truth for "is this component still
+  // alive?" — guards every setState and animation-completion callback
+  // so callbacks scheduled before unmount never fire on a dead
+  // instance. timersRef tracks every setTimeout (measure retries,
+  // hydration entrance, codex transitions) so they can be cleared on
+  // unmount; otherwise they leak and accumulate across A1-1 → A1-8.
+  // animationsRef tracks Animated.CompositeAnimation handles so any
+  // in-flight loop / spring / timing can be stopped cleanly.
+  // Without this triple guard, every overlay remount between levels
+  // leaks 1-3 timers and a few completion callbacks, which is the
+  // root cause of the A1-8 freeze (Prompt 90).
+  const mountedRef = useRef(true);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const animationsRef = useRef<{ stop: () => void }[]>([]);
+  const trackTimer = useCallback(
+    (id: ReturnType<typeof setTimeout>) => {
+      timersRef.current.push(id);
+      return id;
+    },
+    [],
+  );
+  const trackAnim = useCallback(
+    <T extends { stop: () => void }>(anim: T): T => {
+      animationsRef.current.push(anim);
+      return anim;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+      animationsRef.current.forEach(a => {
+        try { a.stop(); } catch { /* already stopped */ }
+      });
+      animationsRef.current = [];
+    };
+  }, []);
+
   // ── Animated values ──
+  // Opacity-only values use native driver (the JS thread is the
+  // bottleneck during beam execution; native-driver opacity halves
+  // the per-frame bridge traffic for the tutorial chrome). Position
+  // values (orbX/orbY drive `left`/`top`; portalLeft/Top + portalW/H
+  // drive layout) must stay on the JS driver — native driver does
+  // not support `left`/`top`/`width`/`height`.
   const orbX = useRef(new Animated.Value(SCREEN_W - 40)).current;
   const orbY = useRef(new Animated.Value(60)).current;
   const portalOpacity = useRef(new Animated.Value(0)).current;
@@ -112,15 +161,18 @@ export default function TutorialHUDOverlay({
     (async () => {
       try {
         const forceShow = await AsyncStorage.getItem('axiom_tutorial_force_show');
+        if (!mountedRef.current) return;
         if (forceShow === '1') {
           await AsyncStorage.removeItem('axiom_tutorial_force_show');
           await AsyncStorage.removeItem(`axiom_tutorial_complete_${levelId}`);
           await AsyncStorage.removeItem(`axiom_tutorial_skipped_${levelId}`);
           await AsyncStorage.removeItem(`axiom_tutorial_step_${levelId}`);
+          if (!mountedRef.current) return;
           setHydrated(true);
           return;
         }
         const saved = await AsyncStorage.getItem(`axiom_tutorial_step_${levelId}`);
+        if (!mountedRef.current) return;
         if (saved) {
           const idx = parseInt(saved, 10);
           if (!isNaN(idx) && idx >= 0 && idx < steps.length) {
@@ -130,6 +182,7 @@ export default function TutorialHUDOverlay({
       } catch {
         /* ignore */
       }
+      if (!mountedRef.current) return;
       setHydrated(true);
     })();
   }, [levelId, steps.length]);
@@ -143,6 +196,7 @@ export default function TutorialHUDOverlay({
   // ── Measurement ──
   const measureTarget = useCallback((targetRef: string, cb: (layout: Layout | null) => void) => {
     if (targetRef === 'center') {
+      if (!mountedRef.current) return;
       cb({
         x: SCREEN_W / 2 - ORB_SIZE / 2,
         y: SCREEN_H / 2 - ORB_SIZE / 2,
@@ -154,19 +208,24 @@ export default function TutorialHUDOverlay({
     const ref = targetRefs[targetRef];
     const node = ref?.current;
     if (!node) {
+      if (!mountedRef.current) return;
       cb(null);
       return;
     }
 
     let attempt = 0;
     const retry = () => {
+      if (!mountedRef.current) return;
       if (attempt < 3) {
-        setTimeout(tryMeasure, 150);
+        trackTimer(setTimeout(tryMeasure, 150));
       } else {
         cb(null);
       }
     };
     const onResult = (x: number, y: number, width: number, height: number) => {
+      // The native UI thread can fire measure callbacks after the
+      // component unmounts (the bridge is asynchronous). Drop them.
+      if (!mountedRef.current) return;
       if (width < 4 || height < 4) {
         retry();
         return;
@@ -174,6 +233,7 @@ export default function TutorialHUDOverlay({
       cb({ x, y, width, height });
     };
     const tryMeasure = () => {
+      if (!mountedRef.current) return;
       attempt += 1;
       if (Platform.OS === 'web') {
         // On Expo web findNodeHandle / UIManager.measureInWindow are
@@ -203,7 +263,7 @@ export default function TutorialHUDOverlay({
       }
     };
     tryMeasure();
-  }, [targetRefs]);
+  }, [targetRefs, trackTimer]);
 
   // ── Portal geometry helpers ──
   const computePortalBox = useCallback((layout: Layout) => {
@@ -289,7 +349,7 @@ export default function TutorialHUDOverlay({
 
   // ── Fly orb to target ──
   const flyOrbTo = useCallback((cx: number, cy: number, done?: () => void) => {
-    Animated.parallel([
+    const anim = Animated.parallel([
       Animated.spring(orbX, {
         toValue: cx - ORB_SIZE / 2,
         tension: 100,
@@ -302,8 +362,13 @@ export default function TutorialHUDOverlay({
         friction: 12,
         useNativeDriver: false,
       }),
-    ]).start(() => done?.());
-  }, [orbX, orbY]);
+    ]);
+    trackAnim(anim);
+    anim.start(() => {
+      if (!mountedRef.current) return;
+      done?.();
+    });
+  }, [orbX, orbY, trackAnim]);
 
   // ── Animated portal position (for board reveal) ──
   const portalLeft = useRef(new Animated.Value(0)).current;
@@ -314,7 +379,8 @@ export default function TutorialHUDOverlay({
     portalW.setValue(0);
     portalH.setValue(0);
     portalOpacity.setValue(0);
-    Animated.parallel([
+    const anim = Animated.parallel([
+      // portalW/portalH animate width/height — must remain JS driver.
       Animated.timing(portalW, {
         toValue: box.width,
         duration: 180,
@@ -330,22 +396,31 @@ export default function TutorialHUDOverlay({
       Animated.timing(portalOpacity, {
         toValue: 1,
         duration: 180,
-        useNativeDriver: false,
+        useNativeDriver: true,
       }),
-    ]).start(() => {
-      Animated.timing(glowOpacity, {
-        toValue: 0.45,
-        duration: 120,
-        useNativeDriver: false,
-      }).start();
-      Animated.timing(calloutOpacity, {
-        toValue: 1,
-        duration: 120,
-        useNativeDriver: false,
-      }).start();
-      done?.();
+    ]);
+    trackAnim(anim);
+    anim.start(() => {
+      if (!mountedRef.current) return;
+      const tail = Animated.parallel([
+        Animated.timing(glowOpacity, {
+          toValue: 0.45,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+        Animated.timing(calloutOpacity, {
+          toValue: 1,
+          duration: 120,
+          useNativeDriver: true,
+        }),
+      ]);
+      trackAnim(tail);
+      tail.start(() => {
+        if (!mountedRef.current) return;
+        done?.();
+      });
     });
-  }, [portalW, portalH, portalOpacity, glowOpacity, calloutOpacity]);
+  }, [portalW, portalH, portalOpacity, glowOpacity, calloutOpacity, trackAnim]);
 
   // ── Board reveal: expand from orb center to full board ──
   const morphBoardReveal = useCallback((box: { left: number; top: number; width: number; height: number }, done?: () => void) => {
@@ -359,27 +434,42 @@ export default function TutorialHUDOverlay({
     portalOpacity.setValue(0);
 
     const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
-    Animated.parallel([
+    // portalLeft/Top/W/H animate left/top/width/height — JS driver
+    // only. portalOpacity is opacity → native driver.
+    const anim = Animated.parallel([
       Animated.timing(portalLeft, { toValue: box.left, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalTop, { toValue: box.top, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalW, { toValue: box.width, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalH, { toValue: box.height, duration: 400, easing: ease, useNativeDriver: false }),
-      Animated.timing(portalOpacity, { toValue: 1, duration: 400, useNativeDriver: false }),
-    ]).start(() => {
-      Animated.timing(calloutOpacity, { toValue: 1, duration: 120, useNativeDriver: false }).start();
-      done?.();
+      Animated.timing(portalOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]);
+    trackAnim(anim);
+    anim.start(() => {
+      if (!mountedRef.current) return;
+      const tail = Animated.timing(calloutOpacity, {
+        toValue: 1,
+        duration: 120,
+        useNativeDriver: true,
+      });
+      trackAnim(tail);
+      tail.start(() => {
+        if (!mountedRef.current) return;
+        done?.();
+      });
     });
-  }, [portalLeft, portalTop, portalW, portalH, portalOpacity, calloutOpacity]);
+  }, [portalLeft, portalTop, portalW, portalH, portalOpacity, calloutOpacity, orbX, orbY, trackAnim]);
 
   // ── Advance to the current step's target ──
   const runStep = useCallback((idx: number) => {
     const s = steps[idx];
     if (!s) return;
+    if (!mountedRef.current) return;
     resetVisualState();
     setTargetLayout(null);
     setPhase('flying');
 
     measureTarget(s.targetRef, (layout) => {
+      if (!mountedRef.current) return;
       if (!layout) {
         // Fallback: treat as center so something still shows
         const fallback: Layout = {
@@ -390,6 +480,7 @@ export default function TutorialHUDOverlay({
         };
         setTargetLayout(fallback);
         flyOrbTo(SCREEN_W / 2, SCREEN_H / 2, () => {
+          if (!mountedRef.current) return;
           setPhase('arrived');
         });
         return;
@@ -400,6 +491,7 @@ export default function TutorialHUDOverlay({
       const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
       const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
       flyOrbTo(centerX, centerY, () => {
+        if (!mountedRef.current) return;
         setPhase('arrived');
         if (box) {
           if (s.targetRef === 'boardGrid') {
@@ -409,15 +501,17 @@ export default function TutorialHUDOverlay({
           }
         } else {
           // Center step: no portal. Just fade callout in.
-          Animated.timing(calloutOpacity, {
+          const tail = Animated.timing(calloutOpacity, {
             toValue: 1,
             duration: 200,
-            useNativeDriver: false,
-          }).start();
+            useNativeDriver: true,
+          });
+          trackAnim(tail);
+          tail.start();
         }
       });
     });
-  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity]);
+  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, trackAnim]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
@@ -429,19 +523,23 @@ export default function TutorialHUDOverlay({
   useEffect(() => {
     if (!hydrated) return;
     if (didStartRef.current) return;
-    Animated.timing(dimOpacity, {
+    const dim = Animated.timing(dimOpacity, {
       toValue: 1,
       duration: 400,
-      useNativeDriver: false,
-    }).start();
+      useNativeDriver: true,
+    });
+    trackAnim(dim);
+    dim.start();
     // Short delay so GameplayScreen's layout settles before first measure
     const t = setTimeout(() => {
+      if (!mountedRef.current) return;
       if (didStartRef.current) return;
       didStartRef.current = true;
       runStep(currentStepIndex);
     }, 400);
+    trackTimer(t);
     return () => clearTimeout(t);
-  }, [hydrated, currentStepIndex, runStep, dimOpacity]);
+  }, [hydrated, currentStepIndex, runStep, dimOpacity, trackAnim, trackTimer]);
 
   // ── Glow pulse loop ──
   const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
@@ -454,46 +552,65 @@ export default function TutorialHUDOverlay({
           toValue: 1,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
         Animated.timing(glowPulse, {
           toValue: 0,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]),
     );
+    trackAnim(loop);
     loop.start();
     return () => loop.stop();
-  }, [showPieceGlow, glowPulse]);
+  }, [showPieceGlow, glowPulse, trackAnim]);
 
   // ── Codex slide ──
   useEffect(() => {
     if (codexVisible) {
-      Animated.timing(codexTranslate, {
+      // codexTranslate drives a transform: translateY which the
+      // native driver supports.
+      const slide = Animated.timing(codexTranslate, {
         toValue: 0,
         duration: 200,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
-        useNativeDriver: false,
-      }).start();
+        useNativeDriver: true,
+      });
+      trackAnim(slide);
+      slide.start();
     } else {
       codexTranslate.setValue(SCREEN_H);
     }
-  }, [codexVisible, codexTranslate]);
+  }, [codexVisible, codexTranslate, trackAnim]);
 
   // ── Exit animation ──
   const exitOverlay = useCallback((after: () => void) => {
+    if (!mountedRef.current) {
+      after();
+      return;
+    }
     setPhase('complete');
-    Animated.timing(exitOpacity, {
+    const anim = Animated.timing(exitOpacity, {
       toValue: 0,
       duration: 250,
-      useNativeDriver: false,
-    }).start(() => after());
-  }, [exitOpacity]);
+      useNativeDriver: true,
+    });
+    trackAnim(anim);
+    anim.start(() => {
+      // `after` is the parent's onComplete/onSkip callback. The parent
+      // setting `tutorialComplete` causes us to unmount, so this can
+      // legitimately fire during teardown — invoke `after` regardless
+      // of mountedRef so the parent flag flips, but skip our own
+      // setState afterwards.
+      after();
+    });
+  }, [exitOpacity, trackAnim]);
 
   // ── Step controls ──
   const advanceStep = useCallback(() => {
+    if (!mountedRef.current) return;
     if (currentStepIndex >= totalSteps - 1) {
       AsyncStorage.setItem(`axiom_tutorial_complete_${levelId}`, '1').catch(() => {});
       AsyncStorage.removeItem(`axiom_tutorial_step_${levelId}`).catch(() => {});
@@ -520,16 +637,19 @@ export default function TutorialHUDOverlay({
   }, [levelId, onSkip, exitOverlay]);
 
   const handleCodexUnderstood = useCallback(() => {
-    Animated.timing(codexTranslate, {
+    const anim = Animated.timing(codexTranslate, {
       toValue: SCREEN_H,
       duration: 200,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: false,
-    }).start(() => {
+      useNativeDriver: true,
+    });
+    trackAnim(anim);
+    anim.start(() => {
+      if (!mountedRef.current) return;
       setCodexVisible(false);
       advanceStep();
     });
-  }, [codexTranslate, advanceStep]);
+  }, [codexTranslate, advanceStep, trackAnim]);
 
   // Tap anywhere to advance (or open codex for codex steps)
   const handleTapAnywhere = useCallback(() => {

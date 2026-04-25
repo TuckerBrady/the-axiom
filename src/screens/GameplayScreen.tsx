@@ -271,6 +271,35 @@ export default function GameplayScreen({ navigation }: Props) {
   const traySplitterRef = useRef<View>(null);
   const traScannerRef = useRef<View>(null);
   const trayTransmitterRef = useRef<View>(null);
+
+  // Memoized targetRefs object passed to TutorialHUDOverlay. Without
+  // this, the inline object literal in JSX produced a fresh identity
+  // on every parent re-render, which invalidated the overlay's
+  // measureTarget useCallback (deps: [targetRefs]) and cascaded
+  // through every downstream callback / useEffect every render.
+  // Across A1-1 → A1-8 that thrash compounded into the freeze
+  // reported on TestFlight (Prompt 90). Refs themselves are stable,
+  // so the deps array is empty.
+  const tutorialTargetRefs = useMemo(
+    () => ({
+      sourceNode: sourceNodeRef,
+      outputNode: outputNodeRef,
+      boardGrid: boardGridRef,
+      engageButton: engageButtonRef,
+      trayConveyor: trayConveyorRef,
+      trayGear: trayGearRef,
+      trayConfigNode: trayConfigNodeRef,
+      traySplitter: traySplitterRef,
+      trayScanner: traScannerRef,
+      trayTransmitter: trayTransmitterRef,
+      boardScanner: boardScannerRef,
+      inputTapeRow: inputTapeRowRef,
+      outputTapeRow: outputTapeRowRef,
+      dataTrailRow: dataTrailRowRef,
+    }),
+    [],
+  );
+
   const [tutorialComplete, setTutorialComplete] = useState(false);
   const [tutorialSkipped, setTutorialSkipped] = useState(false);
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
@@ -365,6 +394,23 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Derived (all hooks must be above the early return) ──
   const level = currentLevel;
+
+  // Memoized A1-1 spotlight cells fed to TutorialHUDOverlay. The
+  // inline `.filter(...).map(...)` expression at the JSX site
+  // allocated a new array every parent render even when the overlay
+  // was unmounted; combined with the new targetRefs identity below,
+  // it churned the overlay's effect graph on every run-loop tick.
+  const tutorialSpotlightCells = useMemo(
+    () =>
+      level?.prePlacedPieces
+        .filter(p => p.type === 'source' || p.type === 'terminal')
+        .map(p => ({
+          col: p.gridX,
+          row: p.gridY,
+          color: p.type === 'source' ? '#8B5CF6' : '#00C48C',
+        })) ?? [],
+    [level?.prePlacedPieces],
+  );
 
   // ── Daily challenge one-attempt enforcement ──
   const isDailyChallenge = level?.sector === 'daily';
@@ -2392,29 +2438,8 @@ export default function GameplayScreen({ navigation }: Props) {
         <TutorialHUDOverlay
           steps={level!.tutorialSteps!}
           levelId={level!.id}
-          targetRefs={{
-            sourceNode: sourceNodeRef,
-            outputNode: outputNodeRef,
-            boardGrid: boardGridRef,
-            engageButton: engageButtonRef,
-            trayConveyor: trayConveyorRef,
-            trayGear: trayGearRef,
-            trayConfigNode: trayConfigNodeRef,
-            traySplitter: traySplitterRef,
-            trayScanner: traScannerRef,
-            trayTransmitter: trayTransmitterRef,
-            boardScanner: boardScannerRef,
-            inputTapeRow: inputTapeRowRef,
-            outputTapeRow: outputTapeRowRef,
-            dataTrailRow: dataTrailRowRef,
-          }}
-          spotlightCells={level!.prePlacedPieces
-            .filter(p => p.type === 'source' || p.type === 'terminal')
-            .map(p => ({
-              col: p.gridX,
-              row: p.gridY,
-              color: p.type === 'source' ? '#8B5CF6' : '#00C48C',
-            }))}
+          targetRefs={tutorialTargetRefs}
+          spotlightCells={tutorialSpotlightCells}
           spotlightCellSize={CELL_SIZE}
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}
