@@ -24,6 +24,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import EngineerIcon from '../components/icons/EngineerIcon';
 import { WireToggle } from '../components/WireToggle';
 import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
+import { Button } from '../components/Button';
 import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
 import {
   NotificationIcon,
@@ -344,9 +345,7 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
             <DisciplineLabel />
           </View>
-          <TouchableOpacity style={styles.editBtn} activeOpacity={0.75}>
-            <Text style={styles.editBtnText}>EDIT</Text>
-          </TouchableOpacity>
+          <Button variant="secondary" label="EDIT" onPress={() => {}} style={styles.editBtn} />
         </Animated.View>
 
         {/* Rank progression */}
@@ -822,14 +821,9 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5, marginTop: 2,
   },
   editBtn: {
-    borderWidth: 1,
-    borderColor: Colors.steel,
-    borderRadius: 8,
+    minHeight: 32,
+    paddingVertical: 4,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 5,
-  },
-  editBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 9, color: Colors.muted, letterSpacing: 1,
   },
   rankSection: {
     marginHorizontal: Spacing.lg,

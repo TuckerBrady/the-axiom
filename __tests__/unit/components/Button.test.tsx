@@ -195,3 +195,140 @@ describe('GameplayScreen button migration', () => {
     expect(screenSource).not.toMatch(/^\s+completionCardBtnText:/m);
   });
 });
+
+describe('Prompt 86B — remaining screen button migrations', () => {
+  const read = (p: string) =>
+    fs.readFileSync(path.resolve(__dirname, '../../..', p), 'utf8');
+
+  describe('LoginScreen', () => {
+    const src = read('src/screens/onboarding/LoginScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/\.\.\/components\/Button'/);
+    });
+    it('renders BEGIN as a primary Button', () => {
+      expect(src).toMatch(/variant="primary"[\s\S]*?label="BEGIN"/);
+    });
+    it('drops the deprecated beginBtn StyleSheet text style', () => {
+      expect(src).not.toMatch(/^\s+beginBtnText:/m);
+    });
+  });
+
+  describe('MissionDossierScreen', () => {
+    const src = read('src/screens/MissionDossierScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    });
+    it('renders LAUNCH MISSION as a gradient Button when active', () => {
+      expect(src).toMatch(/variant="gradient"[\s\S]*?label="LAUNCH MISSION"/);
+    });
+    it('renders REPLAY as a secondary Button when completed', () => {
+      expect(src).toMatch(/variant="secondary"[\s\S]*?label="REPLAY"/);
+    });
+    it('renders LOCKED as a disabled Button when locked', () => {
+      expect(src).toMatch(/label="LOCKED"[\s\S]*?disabled/);
+    });
+    it('drops the deprecated launchBtn StyleSheet entries', () => {
+      expect(src).not.toMatch(/^\s+launchBtn:/m);
+      expect(src).not.toMatch(/^\s+launchBtnGrad:/m);
+      expect(src).not.toMatch(/^\s+launchBtnText:/m);
+    });
+  });
+
+  describe('CharacterNameScreen', () => {
+    const src = read('src/screens/onboarding/CharacterNameScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/\.\.\/components\/Button'/);
+    });
+    it('renders CONFIRM as a primary Button gated by name input', () => {
+      expect(src).toMatch(/variant="primary"[\s\S]*?label="CONFIRM"/);
+      expect(src).toMatch(/disabled=\{!nameInput\.trim\(\)\}/);
+    });
+    it('drops the deprecated confirmBtn StyleSheet entries', () => {
+      expect(src).not.toMatch(/^\s+confirmBtn:/m);
+      expect(src).not.toMatch(/^\s+confirmBtnText:/m);
+    });
+  });
+
+  describe('DailyChallengeDossierScreen', () => {
+    const src = read('src/screens/DailyChallengeDossierScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    });
+    it('renders ACCEPT MISSION as a gradient Button (label preserved)', () => {
+      expect(src).toMatch(/variant="gradient"[\s\S]*?label="ACCEPT MISSION"/);
+    });
+    it('drops the deprecated acceptBtn StyleSheet entries', () => {
+      expect(src).not.toMatch(/^\s+acceptBtn:/m);
+      expect(src).not.toMatch(/^\s+acceptGradient:/m);
+      expect(src).not.toMatch(/^\s+acceptText:/m);
+    });
+  });
+
+  describe('DailyRewardScreen', () => {
+    const src = read('src/screens/DailyRewardScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    });
+    it('renders COLLECT as a gradient Button', () => {
+      expect(src).toMatch(/variant="gradient"[\s\S]*?label="COLLECT"/);
+    });
+    it('drops the deprecated collectBtn text/gradient styles', () => {
+      expect(src).not.toMatch(/^\s+collectGradient:/m);
+      expect(src).not.toMatch(/^\s+collectText:/m);
+    });
+  });
+
+  describe('SettingsScreen', () => {
+    const src = read('src/screens/SettingsScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    });
+    it('renders EDIT as a secondary Button', () => {
+      expect(src).toMatch(/variant="secondary"[\s\S]*?label="EDIT"/);
+    });
+    it('drops the deprecated editBtn text style', () => {
+      expect(src).not.toMatch(/^\s+editBtnText:/m);
+    });
+  });
+
+  describe('StoreScreen', () => {
+    const src = read('src/screens/StoreScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    });
+    it('renders the purchase Button as a gradient with dynamic price/deficit label', () => {
+      expect(src).toMatch(/variant="gradient"[\s\S]*?label=\{canAfford \?[\s\S]*?\}/);
+      expect(src).toMatch(/disabled=\{!canAfford\}/);
+    });
+    it('renders COMING SOON as a disabled secondary Button', () => {
+      expect(src).toMatch(/variant="secondary"[\s\S]*?label="COMING SOON"[\s\S]*?disabled/);
+    });
+    it('drops the deprecated puBtn / ccBtn text + gradient styles', () => {
+      expect(src).not.toMatch(/^\s+puBtnGradient:/m);
+      expect(src).not.toMatch(/^\s+puBtnText:/m);
+      expect(src).not.toMatch(/^\s+puBtnTextDim:/m);
+      expect(src).not.toMatch(/^\s+puBtnDisabled:/m);
+      expect(src).not.toMatch(/^\s+ccBtnInner:/m);
+      expect(src).not.toMatch(/^\s+ccBtnText:/m);
+    });
+  });
+
+  describe('PieceSandboxScreen (dev)', () => {
+    const src = read('src/screens/dev/PieceSandboxScreen.tsx');
+    it('imports the shared Button component', () => {
+      expect(src).toMatch(/from '\.\.\/\.\.\/components\/Button'/);
+    });
+    it('renders RESET as a secondary Button', () => {
+      expect(src).toMatch(/variant="secondary"[\s\S]*?label="RESET"/);
+    });
+    it('renders ENGAGE MACHINE as a primary Button (label preserved)', () => {
+      expect(src).toMatch(/variant="primary"[\s\S]*?label="ENGAGE MACHINE"/);
+    });
+    it('drops the deprecated resetBtn / engageBtn StyleSheet entries', () => {
+      expect(src).not.toMatch(/^\s+resetBtn:/m);
+      expect(src).not.toMatch(/^\s+resetText:/m);
+      expect(src).not.toMatch(/^\s+engageBtn:/m);
+      expect(src).not.toMatch(/^\s+engageText:/m);
+    });
+  });
+});

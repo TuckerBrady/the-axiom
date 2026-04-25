@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,9 +11,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AxiomShip from '../../components/hub/AxiomShip';
+import { Button } from '../../components/Button';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
-import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
+import { Colors, Fonts, Spacing } from '../../theme/tokens';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -85,13 +86,12 @@ export default function LoginScreen({ navigation }: Props) {
 
       {/* Single CTA */}
       <Animated.View style={[s.ctaSection, contentStyle]}>
-        <TouchableOpacity
-          style={s.beginBtn}
+        <Button
+          variant="primary"
+          label="BEGIN"
           onPress={() => completeOnboarding(navigation)}
-          activeOpacity={0.85}
-        >
-          <Text style={s.beginBtnText}>BEGIN</Text>
-        </TouchableOpacity>
+          style={s.beginBtn}
+        />
       </Animated.View>
     </Animated.View>
   );
@@ -128,19 +128,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   beginBtn: {
-    backgroundColor: 'rgba(245,158,11,0.08)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(245,158,11,0.45)',
-    borderRadius: 10,
-    paddingVertical: Spacing.md + 2,
     paddingHorizontal: 48,
-    alignItems: 'center',
-  },
-  beginBtnText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: Colors.amber,
-    letterSpacing: 4,
   },
 });

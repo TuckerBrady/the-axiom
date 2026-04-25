@@ -15,6 +15,7 @@ import type { PlacedPiece, PieceType, ExecutionStep } from '../../game/types';
 import { getDefaultPorts, autoConnectPhysicsPieces, executeMachine, getPieceCategory } from '../../game/engine';
 import { computeSplitterMagnets } from '../../store/gameStore';
 import { PieceIcon } from '../../components/PieceIcon';
+import { Button } from '../../components/Button';
 import { Colors, Fonts } from '../../theme/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -386,12 +387,8 @@ export default function PieceSandboxScreen() {
 
       {/* Actions */}
       <View style={st.actions}>
-        <TouchableOpacity style={st.resetBtn} onPress={handleReset} activeOpacity={0.7}>
-          <Text style={st.resetText}>RESET</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={st.engageBtn} onPress={handleEngage} activeOpacity={0.7}>
-          <Text style={st.engageText}>ENGAGE MACHINE</Text>
-        </TouchableOpacity>
+        <Button variant="secondary" label="RESET" onPress={handleReset} />
+        <Button variant="primary" label="ENGAGE MACHINE" onPress={handleEngage} />
       </View>
     </SafeAreaView>
   );
@@ -417,8 +414,4 @@ const st = StyleSheet.create({
   trayBadge: { width: 12, height: 12, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   trayBadgeText: { fontFamily: Fonts.spaceMono, fontSize: 7, color: '#FFFFFF' },
   actions: { flexDirection: 'row', gap: 12, paddingHorizontal: 16, paddingVertical: 10, justifyContent: 'center' },
-  resetBtn: { paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: Colors.muted, borderRadius: 4 },
-  resetText: { fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted, letterSpacing: 2 },
-  engageBtn: { paddingHorizontal: 20, paddingVertical: 10, borderWidth: 1, borderColor: Colors.amber, borderRadius: 4, backgroundColor: 'rgba(240,180,41,0.06)' },
-  engageText: { fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.amber, letterSpacing: 2 },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
@@ -13,12 +12,12 @@ import Animated, {
   withTiming,
   withDelay,
   withSpring,
-  withSequence,
   FadeIn,
 } from 'react-native-reanimated';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import CogsAvatar from '../components/CogsAvatar';
+import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
 
@@ -217,20 +216,12 @@ export default function DailyRewardScreen({ navigation }: Props) {
         </Animated.View>
 
         {/* Collect button */}
-        <TouchableOpacity
-          style={s.collectBtn}
+        <Button
+          variant="gradient"
+          label="COLLECT"
           onPress={handleCollect}
-          activeOpacity={0.85}
-        >
-          <LinearGradient
-            colors={[Colors.copper, Colors.amber]}
-            style={s.collectGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <Text style={s.collectText}>COLLECT</Text>
-          </LinearGradient>
-        </TouchableOpacity>
+          style={s.collectBtn}
+        />
       </View>
     </Animated.View>
   );
@@ -347,19 +338,6 @@ const s = StyleSheet.create({
   },
   collectBtn: {
     width: '100%',
-    borderRadius: 14,
-    overflow: 'hidden',
     marginTop: Spacing.md,
-  },
-  collectGradient: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  collectText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.md,
-    fontWeight: 'bold',
-    color: Colors.void,
-    letterSpacing: 3,
   },
 });

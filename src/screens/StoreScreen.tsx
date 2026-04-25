@@ -21,6 +21,7 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
+import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
 
@@ -227,26 +228,13 @@ export default function StoreScreen({ navigation }: Props) {
                     <Text style={st.puName}>{item.name}</Text>
                     <Text style={st.puDesc}>{item.description}</Text>
                   </View>
-                  <TouchableOpacity
-                    style={[st.puBtn, !canAfford && st.puBtnDisabled]}
-                    onPress={() => canAfford && handleBuy(item)}
-                    activeOpacity={canAfford ? 0.8 : 1}
-                  >
-                    {canAfford ? (
-                      <LinearGradient
-                        colors={[Colors.copper, Colors.amber]}
-                        style={st.puBtnGradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 0 }}
-                      >
-                        <Text style={st.puBtnText}>{item.price} CR</Text>
-                      </LinearGradient>
-                    ) : (
-                      <View style={st.puBtnGradient}>
-                        <Text style={st.puBtnTextDim}>Need {deficit} CR</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                  <Button
+                    variant="gradient"
+                    label={canAfford ? `${item.price} CR` : `Need ${deficit} CR`}
+                    onPress={() => handleBuy(item)}
+                    disabled={!canAfford}
+                    style={st.puBtn}
+                  />
                 </View>
               </Animated.View>
             );
@@ -276,11 +264,13 @@ export default function StoreScreen({ navigation }: Props) {
                 <CircuitsIcon size={28} />
                 <Text style={st.ccAmount}>{pack.amount}</Text>
                 <Text style={st.ccLabel}>CREDITS</Text>
-                <TouchableOpacity style={st.ccBtn} activeOpacity={0.85}>
-                  <View style={st.ccBtnInner}>
-                    <Text style={st.ccBtnText}>COMING SOON</Text>
-                  </View>
-                </TouchableOpacity>
+                <Button
+                  variant="secondary"
+                  label="COMING SOON"
+                  onPress={() => {}}
+                  disabled
+                  style={st.ccBtn}
+                />
               </Animated.View>
             ))}
           </View>
@@ -406,28 +396,10 @@ const st = StyleSheet.create({
     fontFamily: Fonts.exo2, fontSize: 11, color: Colors.muted,
   },
   puBtn: {
-    borderRadius: 8,
-    overflow: 'hidden',
-    minWidth: 64,
-  },
-  puBtnDisabled: {
-    opacity: 0.7,
-  },
-  puBtnGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    gap: 3,
-  },
-  puBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 12, fontWeight: 'bold',
-    color: Colors.void, letterSpacing: 1,
-  },
-  puBtnTextDim: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.muted,
-    letterSpacing: 0.5,
+    minWidth: 96,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    minHeight: 40,
   },
 
   // Circuit cards
@@ -474,17 +446,5 @@ const st = StyleSheet.create({
   },
   ccBtn: {
     width: '100%',
-    borderRadius: 8,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
-  },
-  ccBtnInner: {
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-  },
-  ccBtnText: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim,
-    letterSpacing: 1,
   },
 });

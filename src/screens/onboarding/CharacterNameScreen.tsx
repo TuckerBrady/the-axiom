@@ -23,6 +23,7 @@ import Animated, {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../../components/CogsAvatar';
+import { Button } from '../../components/Button';
 import { usePlayerStore } from '../../store/playerStore';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 import {
@@ -240,14 +241,12 @@ export default function CharacterNameScreen({ navigation }: Props) {
                 returnKeyType="done"
                 onSubmitEditing={handleConfirm}
               />
-              <TouchableOpacity
-                style={[st.confirmBtn, !nameInput.trim() && st.confirmBtnDisabled]}
+              <Button
+                variant="primary"
+                label="CONFIRM"
                 onPress={handleConfirm}
-                activeOpacity={nameInput.trim() ? 0.85 : 1}
                 disabled={!nameInput.trim()}
-              >
-                <Text style={[st.confirmBtnText, !nameInput.trim() && { color: 'rgba(0,212,255,0.3)' }]}>CONFIRM</Text>
-              </TouchableOpacity>
+              />
             </Animated.View>
           )}
 
@@ -310,9 +309,6 @@ const st = StyleSheet.create({
 
   inputSection: { width: '100%', gap: Spacing.md },
   nameInput: { backgroundColor: 'rgba(0,212,255,0.04)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.2)', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 14, fontFamily: Fonts.exo2, fontSize: 18, color: '#E8F4FF', textAlign: 'center' },
-  confirmBtn: { backgroundColor: 'rgba(0,212,255,0.08)', borderWidth: 1, borderColor: 'rgba(0,212,255,0.45)', borderRadius: 8, paddingVertical: Spacing.md, alignItems: 'center' },
-  confirmBtnDisabled: { borderColor: 'rgba(0,212,255,0.12)' },
-  confirmBtnText: { fontFamily: Fonts.spaceMono, fontSize: 12, fontWeight: 'bold', color: '#00D4FF', letterSpacing: 2 },
 
   loggingWrap: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   loggingText: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.sm, color: Colors.blue, letterSpacing: 3 },

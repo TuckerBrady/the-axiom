@@ -4,21 +4,19 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Animated,
   Easing,
   Dimensions,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Path, Circle, Line, Rect } from 'react-native-svg';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import { BackButton } from '../components/BackButton';
+import { Button } from '../components/Button';
 import CogsAvatar, { CogsState } from '../components/CogsAvatar';
-import PadlockIcon from '../components/icons/PadlockIcon';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
@@ -188,33 +186,13 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
 
         {/* ── Bottom pinned launch button ── */}
         <View style={st.bottomBar}>
-          <TouchableOpacity
-            style={[st.launchBtn, (!isActive && !isCompleted) && st.launchBtnDim]}
-            onPress={(isActive || isCompleted) ? handleLaunch : undefined}
-            activeOpacity={(isActive || isCompleted) ? 0.8 : 1}
-          >
-            <LinearGradient
-              colors={isActive
-                ? [Colors.copper, Colors.amber]
-                : isCompleted
-                ? [Colors.steel, Colors.navy]
-                : ['rgba(58,80,112,0.4)', 'rgba(10,22,40,0.6)']}
-              style={st.launchBtnGrad}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              {isActive ? (
-                <Text style={st.launchBtnText}>LAUNCH MISSION</Text>
-              ) : isCompleted ? (
-                <Text style={[st.launchBtnText, { color: Colors.muted }]}>REPLAY</Text>
-              ) : (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <PadlockIcon size={14} color={Colors.dim} />
-                  <Text style={[st.launchBtnText, { color: Colors.dim }]}>LOCKED</Text>
-                </View>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+          {isActive ? (
+            <Button variant="gradient" label="LAUNCH MISSION" onPress={handleLaunch} />
+          ) : isCompleted ? (
+            <Button variant="secondary" label="REPLAY" onPress={handleLaunch} />
+          ) : (
+            <Button variant="secondary" label="LOCKED" onPress={() => {}} disabled />
+          )}
         </View>
       </SafeAreaView>
     </View>
@@ -357,21 +335,5 @@ const st = StyleSheet.create({
     paddingBottom: Spacing.md,
     borderTopWidth: 1,
     borderTopColor: 'rgba(74,158,255,0.08)',
-  },
-  launchBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  launchBtnDim: { opacity: 0.5 },
-  launchBtnGrad: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  launchBtnText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-    color: Colors.void,
-    letterSpacing: 2,
   },
 });

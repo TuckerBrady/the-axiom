@@ -7,11 +7,11 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
+import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useChallengeStore } from '../store/challengeStore';
@@ -125,16 +125,7 @@ export default function DailyChallengeDossierScreen({ navigation }: Props) {
 
         {/* Bottom buttons */}
         <View style={st.bottomBar}>
-          <TouchableOpacity style={st.acceptBtn} onPress={handleAccept} activeOpacity={0.85}>
-            <LinearGradient
-              colors={[Colors.copper, Colors.amber]}
-              style={st.acceptGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-            >
-              <Text style={st.acceptText}>ACCEPT MISSION</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          <Button variant="gradient" label="ACCEPT MISSION" onPress={handleAccept} />
           <TouchableOpacity style={st.declineBtn} onPress={handleDecline} activeOpacity={0.7}>
             <Text style={st.declineText}>DECLINE</Text>
           </TouchableOpacity>
@@ -303,21 +294,6 @@ const st = StyleSheet.create({
     gap: Spacing.sm,
     borderTopWidth: 1,
     borderTopColor: 'rgba(200,121,65,0.1)',
-  },
-  acceptBtn: {
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  acceptGradient: {
-    paddingVertical: Spacing.lg,
-    alignItems: 'center',
-  },
-  acceptText: {
-    fontFamily: Fonts.orbitron,
-    fontSize: FontSizes.sm,
-    fontWeight: 'bold',
-    color: Colors.void,
-    letterSpacing: 2,
   },
   declineBtn: {
     paddingVertical: Spacing.sm,
