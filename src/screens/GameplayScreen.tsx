@@ -126,6 +126,7 @@ import {
   PIECE_ANIM_INITIAL,
   SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
+  TAPE_BAR_INITIAL,
   type Pt,
   type EngagementContext,
   type MeasurementCache,
@@ -133,6 +134,7 @@ import {
   type PieceAnimState,
   type SpotlightState,
   type ChargeState,
+  type TapeIndicatorBarState,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -317,6 +319,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const [tapeCellHighlights, setTapeCellHighlights] = useState<
     Map<string, 'read' | 'write' | 'gate-pass' | 'gate-block'>
   >(new Map());
+  const [tapeBarState, setTapeBarState] = useState<TapeIndicatorBarState>(TAPE_BAR_INITIAL);
   // Visual override for the Data Trail and Output Tape during beam phase.
   // machineState holds the post-engage values, but we want cells to pop in
   // as their writes animate. When null, rendering falls through to
@@ -745,6 +748,7 @@ export default function GameplayScreen({ navigation }: Props) {
       setChargeState,
       setLockRings,
       setTapeCellHighlights,
+      setTapeBarState,
       setVisualTrailOverride,
       setVisualOutputOverride,
       setCurrentPulseIndex,
@@ -817,6 +821,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
     setTapeCellHighlights(new Map());
+    setTapeBarState(TAPE_BAR_INITIAL);
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
@@ -986,6 +991,7 @@ export default function GameplayScreen({ navigation }: Props) {
     }
     setSpotlightState(SPOTLIGHT_INITIAL);
     setTapeCellHighlights(new Map());
+    setTapeBarState(TAPE_BAR_INITIAL);
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
@@ -1091,6 +1097,21 @@ export default function GameplayScreen({ navigation }: Props) {
           <View collapsable={false} style={styles.tapeSection}>
             <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
+              {tapeBarState.inIndex !== null && (
+                <Animated.View
+                  style={[
+                    styles.tapeIndicatorBar,
+                    {
+                      backgroundColor: Colors.tapeInBar,
+                      transform: [{ translateX: tapeBarState.inIndex * (24 + 3) }],
+                      shadowColor: Colors.tapeInBar,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 12,
+                    },
+                  ]}
+                />
+              )}
               <View style={styles.tapeCells}>
                 {level.inputTape.map((bit, i) => {
                   const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
@@ -1134,11 +1155,75 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
+            {/* Data Trail strip (inside tape section for tape levels) */}
+            {level.dataTrail.cells.length > 0 && (
+              <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
+                <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
+                {tapeBarState.trailIndex !== null && (
+                  <Animated.View
+                    style={[
+                      styles.tapeIndicatorBar,
+                      {
+                        backgroundColor: Colors.tapeTrailBar,
+                        transform: [{ translateX: tapeBarState.trailIndex * (24 + 3) }],
+                        shadowColor: Colors.tapeTrailBar,
+                        shadowOffset: { width: 0, height: 0 },
+                        shadowOpacity: 0.6,
+                        shadowRadius: 12,
+                      },
+                    ]}
+                  />
+                )}
+                <View style={styles.tapeCells}>
+                  {machineState.dataTrail.cells.map((rawCell, i) => {
+                    const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
+                    const isHead = i === machineState.dataTrail.headPosition;
+                    const highlight = tapeCellHighlights.get(`trail-${i}`);
+                    return (
+                      <View key={`trail-${i}`} style={styles.tapeCellWrap}>
+                        <View style={[styles.tapeHead, { opacity: 0 }]} />
+                        <View
+                          ref={i === 0 ? dataTrailCellsRef : undefined}
+                          collapsable={false}
+                          style={[
+                            styles.tapeCell,
+                            isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
+                            highlight === 'read' && styles.tapeCellHighlightRead,
+                            highlight === 'write' && styles.tapeCellHighlightWrite,
+                            highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
+                            highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
+                          ]}
+                        >
+                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
+                            {cell === null ? '\u00B7' : cell}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
             {/* OUT tape only renders when the level has a Transmitter (introduced A1-7) */}
             {(level.availablePieces.includes('transmitter') ||
               level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
             <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
               <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
+              {tapeBarState.outIndex !== null && (
+                <Animated.View
+                  style={[
+                    styles.tapeIndicatorBar,
+                    {
+                      backgroundColor: Colors.tapeOutBar,
+                      transform: [{ translateX: tapeBarState.outIndex * (24 + 3) }],
+                      shadowColor: Colors.tapeOutBar,
+                      shadowOffset: { width: 0, height: 0 },
+                      shadowOpacity: 0.6,
+                      shadowRadius: 12,
+                    },
+                  ]}
+                />
+              )}
               <View style={styles.tapeCells}>
                 {level.inputTape.map((_, i) => {
                   const rawWritten = visualOutputOverride
@@ -1181,40 +1266,6 @@ export default function GameplayScreen({ navigation }: Props) {
                 })}
               </View>
             </View>
-            )}
-            {/* Data Trail strip (inside tape section for tape levels) */}
-            {level.dataTrail.cells.length > 0 && (
-              <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
-                <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-                <View style={styles.tapeCells}>
-                  {machineState.dataTrail.cells.map((rawCell, i) => {
-                    const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
-                    const isHead = i === machineState.dataTrail.headPosition;
-                    const highlight = tapeCellHighlights.get(`trail-${i}`);
-                    return (
-                      <View key={`trail-${i}`} style={styles.tapeCellWrap}>
-                        <View style={[styles.tapeHead, { opacity: 0 }]} />
-                        <View
-                          ref={i === 0 ? dataTrailCellsRef : undefined}
-                          collapsable={false}
-                          style={[
-                            styles.tapeCell,
-                            isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
-                            highlight === 'read' && styles.tapeCellHighlightRead,
-                            highlight === 'write' && styles.tapeCellHighlightWrite,
-                            highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
-                            highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
-                          ]}
-                        >
-                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
-                            {cell === null ? '\u00B7' : cell}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
             )}
             {level.requiredTerminalCount && level.requiredTerminalCount > 1 &&
              !isExecuting && !showResults && !showVoid && !showWrongOutput && !showInsufficientPulses && (
@@ -1759,6 +1810,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 }
                 setSpotlightState(SPOTLIGHT_INITIAL);
                 setTapeCellHighlights(new Map());
+                setTapeBarState(TAPE_BAR_INITIAL);
                 setVisualTrailOverride(null);
                 setVisualOutputOverride(null);
                 setBeamState(prev => ({
@@ -3177,6 +3229,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  tapeIndicatorBar: {
+    position: 'absolute',
+    top: -2,
+    left: 42 + 8,  // tapeLabel width (42) + tapeRow gap (8)
+    width: 24,      // matches cell width
+    height: 6,
+    borderRadius: 3,
   },
   tapeLabel: {
     fontFamily: Fonts.spaceMono,

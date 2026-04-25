@@ -18,8 +18,10 @@ import type {
   BeamState,
   PieceAnimState,
   ChargeState,
+  TapeIndicatorBarState,
 } from '../../../src/game/engagement/types';
 import {
+  TAPE_BAR_INITIAL,
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
   CHARGE_INITIAL,
@@ -203,5 +205,19 @@ describe('charge state helpers', () => {
     setChargeProgress(setter, 0.75);
     expect(state.value.progress).toBe(0.75);
     expect(state.value.pos).toEqual({ x: 5, y: 5 });
+  });
+});
+
+describe('TapeIndicatorBarState export', () => {
+  it('TAPE_BAR_INITIAL is exported with the correct shape', () => {
+    const state: TapeIndicatorBarState = TAPE_BAR_INITIAL;
+    expect(state).toEqual({ inIndex: null, trailIndex: null, outIndex: null });
+  });
+
+  it('TapeIndicatorBarState type accepts numeric and null indices', () => {
+    const filled: TapeIndicatorBarState = { inIndex: 0, trailIndex: 5, outIndex: 7 };
+    const empty: TapeIndicatorBarState = { inIndex: null, trailIndex: null, outIndex: null };
+    expect(filled.inIndex).toBe(0);
+    expect(empty.outIndex).toBeNull();
   });
 });

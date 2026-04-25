@@ -67,6 +67,7 @@ function buildCtx(): {
   const ctx = {
     setPieceAnimState,
     setSpotlightState: jest.fn(),
+    setTapeBarState: jest.fn(),
     flashTimersRef,
     currentPulseRef: { current: 0 },
     getPieceCenter: jest.fn(() => null),

@@ -25,6 +25,13 @@ export const Colors = {
   neonCyan: '#00E5FF',
   neonGreen: '#00FF87',
   neonYellow: '#FFE000',
+  // Y2K Indicator Bar palette
+  tapeInBar: '#BFFF3F',       // Neon Green (N64 Funtastic)
+  tapeTrailBar: '#A97FDB',    // Atomic Purple (Game Boy Color)
+  tapeOutBar: '#FF7D3F',      // Fire Orange (iMac Tangerine)
+  // Gate-outcome colors
+  gatePass: '#00FF87',        // Pulse passed through gate
+  gateBlock: '#FF3B3B',       // Pulse blocked by gate
 }
 
 export const Fonts = {

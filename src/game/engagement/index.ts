@@ -34,6 +34,7 @@ export type {
   SignalPath,
   AnimMapEntry,
   TapeHighlight,
+  TapeIndicatorBarState,
   VoidPulseState,
   LockRing,
   SignalPhase,
@@ -53,5 +54,6 @@ export {
   PIECE_ANIM_INITIAL,
   SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
+  TAPE_BAR_INITIAL,
 } from './types';
 export * as stateHelpers from './stateHelpers';

@@ -21,6 +21,18 @@ export type AnimMapEntry = { tag: string; duration: number };
 
 export type TapeHighlight = 'read' | 'write' | 'gate-pass' | 'gate-block';
 
+export type TapeIndicatorBarState = {
+  inIndex: number | null;      // active cell index for IN tape bar
+  trailIndex: number | null;   // active cell index for TRAIL tape bar
+  outIndex: number | null;     // active cell index for OUT tape bar
+};
+
+export const TAPE_BAR_INITIAL: TapeIndicatorBarState = {
+  inIndex: null,
+  trailIndex: null,
+  outIndex: null,
+};
+
 export type VoidPulseState = {
   x: number;
   y: number;
@@ -122,6 +134,7 @@ export interface EngagementContext {
 
   setLockRings: (rings: LockRing[]) => void;
   setTapeCellHighlights: Dispatch<SetStateAction<Map<string, TapeHighlight>>>;
+  setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
   setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
   setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
   setCurrentPulseIndex: (i: number) => void;

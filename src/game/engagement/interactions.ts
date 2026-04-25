@@ -40,6 +40,7 @@ export async function runScannerInteraction(
   await wait(250 * speed);
 
   setHighlight(ctx, `in-${pulse}`, 'read');
+  ctx.setTapeBarState(prev => ({ ...prev, inIndex: pulse }));
   updateSpotlightValue(ctx, display);
   await wait(300 * speed);
 
@@ -47,6 +48,7 @@ export async function runScannerInteraction(
   await wait(80 * speed);
 
   setHighlight(ctx, `trail-${pulse}`, 'write');
+  ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
   if (tapeValue !== undefined) {
     ctx.setVisualTrailOverride(prev => {
       if (!prev) return prev;
@@ -93,6 +95,7 @@ export async function runConfigNodeInteraction(
   const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
 
   setHighlight(ctx, `trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
+  ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
   await wait(150 * speed);
 
   showSpotlight(ctx, nodeX, nodeY, trailCell.x, trailCell.y, color, display);
@@ -126,6 +129,7 @@ export async function runTransmitterInteraction(
 
   flashPiece(ctx, stp.pieceId, color);
   setHighlight(ctx, `out-${pulse}`, 'write');
+  ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
   showSpotlight(ctx, transmitterX, transmitterY, outputCell.x, outputCell.y, color, display);
   await wait(300 * speed);
 
