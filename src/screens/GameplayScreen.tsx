@@ -7,6 +7,7 @@ import {
   Dimensions,
   ScrollView,
   Pressable,
+  Animated as RNAnimated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -127,6 +128,8 @@ import {
   SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
   TAPE_BAR_INITIAL,
+  GLOW_TRAVELER_INITIAL,
+  resetGlowTraveler,
   type Pt,
   type EngagementContext,
   type MeasurementCache,
@@ -135,6 +138,8 @@ import {
   type SpotlightState,
   type ChargeState,
   type TapeIndicatorBarState,
+  type GlowTravelerState,
+  type TapeHighlight,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -317,9 +322,15 @@ export default function GameplayScreen({ navigation }: Props) {
   // so they remain on their own.
   const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
   const [tapeCellHighlights, setTapeCellHighlights] = useState<
-    Map<string, 'read' | 'write' | 'gate-pass' | 'gate-block'>
+    Map<string, TapeHighlight>
   >(new Map());
   const [tapeBarState, setTapeBarState] = useState<TapeIndicatorBarState>(TAPE_BAR_INITIAL);
+  const [glowTravelerState, setGlowTravelerState] = useState<GlowTravelerState>(GLOW_TRAVELER_INITIAL);
+  // Native-driveable Animated.Values for the glow traveler (transform + opacity).
+  const glowTravelerX = useRef(new RNAnimated.Value(0)).current;
+  const glowTravelerY = useRef(new RNAnimated.Value(0)).current;
+  const glowTravelerScale = useRef(new RNAnimated.Value(1)).current;
+  const glowTravelerOpacity = useRef(new RNAnimated.Value(0)).current;
   // Visual override for the Data Trail and Output Tape during beam phase.
   // machineState holds the post-engage values, but we want cells to pop in
   // as their writes animate. When null, rendering falls through to
@@ -749,6 +760,13 @@ export default function GameplayScreen({ navigation }: Props) {
       setLockRings,
       setTapeCellHighlights,
       setTapeBarState,
+      setGlowTravelerState,
+      valueTravelRefs: {
+        x: glowTravelerX,
+        y: glowTravelerY,
+        scale: glowTravelerScale,
+        opacity: glowTravelerOpacity,
+      },
       setVisualTrailOverride,
       setVisualOutputOverride,
       setCurrentPulseIndex,
@@ -822,6 +840,8 @@ export default function GameplayScreen({ navigation }: Props) {
     setVisualOutputOverride(null);
     setTapeCellHighlights(new Map());
     setTapeBarState(TAPE_BAR_INITIAL);
+    resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
+    setGlowTravelerState(GLOW_TRAVELER_INITIAL);
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
@@ -992,6 +1012,8 @@ export default function GameplayScreen({ navigation }: Props) {
     setSpotlightState(SPOTLIGHT_INITIAL);
     setTapeCellHighlights(new Map());
     setTapeBarState(TAPE_BAR_INITIAL);
+    resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
+    setGlowTravelerState(GLOW_TRAVELER_INITIAL);
     setVisualTrailOverride(null);
     setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
@@ -1138,6 +1160,7 @@ export default function GameplayScreen({ navigation }: Props) {
                           highlight === 'write' && styles.tapeCellHighlightWrite,
                           highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
                           highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
+                          highlight === 'departing' && styles.tapeCellHighlightDeparting,
                         ]}
                       >
                         <Text
@@ -1811,6 +1834,8 @@ export default function GameplayScreen({ navigation }: Props) {
                 setSpotlightState(SPOTLIGHT_INITIAL);
                 setTapeCellHighlights(new Map());
                 setTapeBarState(TAPE_BAR_INITIAL);
+                resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
+                setGlowTravelerState(GLOW_TRAVELER_INITIAL);
                 setVisualTrailOverride(null);
                 setVisualOutputOverride(null);
                 setBeamState(prev => ({
@@ -2490,6 +2515,27 @@ export default function GameplayScreen({ navigation }: Props) {
           </View>
         );
       })()}
+
+      {/* Glow Traveler — single reusable element. Stays mounted; opacity
+          drives visibility, transforms drive position. */}
+      <RNAnimated.View
+        pointerEvents="none"
+        style={[
+          styles.glowTraveler,
+          {
+            opacity: glowTravelerOpacity,
+            transform: [
+              { translateX: glowTravelerX },
+              { translateY: glowTravelerY },
+              { scale: glowTravelerScale },
+            ],
+          },
+        ]}
+      >
+        <Text style={styles.glowTravelerText}>
+          {glowTravelerState.value}
+        </Text>
+      </RNAnimated.View>
     </Animated.View>
     </GameplayErrorBoundary>
   );
@@ -3237,6 +3283,32 @@ const styles = StyleSheet.create({
     width: 24,      // matches cell width
     height: 6,
     borderRadius: 3,
+  },
+  tapeCellHighlightDeparting: {
+    opacity: 0.3,
+    borderColor: 'rgba(0,229,255,0.2)',
+  },
+  glowTraveler: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 3,
+    borderWidth: 1.5,
+    borderColor: '#00E5FF',
+    backgroundColor: 'rgba(0,229,255,0.22)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
+    elevation: 8,
+  },
+  glowTravelerText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: '#00E5FF',
+    fontWeight: 'bold',
   },
   tapeLabel: {
     fontFamily: Fonts.spaceMono,

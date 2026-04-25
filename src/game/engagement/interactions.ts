@@ -4,6 +4,7 @@ import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
 import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
 import { flashPiece, setHighlight, wait } from './bubbleHelpers';
 import { showSpotlight, updateSpotlightValue, hideSpotlight } from './spotlightHelpers';
+import { runValueTravel } from './valueTravelAnimation';
 import {
   updateActiveAnimations,
   updateGateResults,
@@ -24,7 +25,6 @@ export async function runScannerInteraction(
   const cachedBoardPos = ctx.cacheRef.current.board;
   const cachedInputCells = ctx.cacheRef.current.input;
   const cachedTrailCells = ctx.cacheRef.current.trail;
-  void cachedTrailCells;
 
   const scannerX = cachedBoardPos.x + pc.x;
   const scannerY = cachedBoardPos.y + pc.y;
@@ -47,6 +47,24 @@ export async function runScannerInteraction(
   hideSpotlight(ctx);
   await wait(80 * speed);
 
+  // Mark IN cell as 'departing' for the lift-off; cleared at end of
+  // the function alongside the existing read-highlight clear.
+  setHighlight(ctx, `in-${pulse}`, 'departing');
+
+  // Three-phase value travel: lift-off → arc → impact (~1.6s total).
+  // Glow traveler is positioned by its top-left corner; cell positions
+  // from the cache are centers, so subtract half-width/height (12).
+  const trailCellPos = getTapeCellPosFromCache(cachedTrailCells, pulse);
+  await runValueTravel(
+    ctx,
+    ctx.valueTravelRefs,
+    inputCell.x - 12,
+    inputCell.y - 12,
+    trailCellPos.x - 12,
+    trailCellPos.y - 12,
+    display,
+  );
+
   setHighlight(ctx, `trail-${pulse}`, 'write');
   ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
   if (tapeValue !== undefined) {
@@ -59,7 +77,7 @@ export async function runScannerInteraction(
   }
 
   await wait(250 * speed);
-  // Clear only the transient input-read highlight. Trail-write stays
+  // Clear the IN highlight (currently 'departing'). Trail-write stays
   // so accumulated state persists across pulses (Prompt 76).
   ctx.setTapeCellHighlights(prev => {
     const m = new Map(prev);

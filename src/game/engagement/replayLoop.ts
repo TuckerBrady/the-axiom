@@ -1,7 +1,7 @@
 import type { View } from 'react-native';
 import type { RefObject } from 'react';
 import type { EngagementContext, ExecutionStep, MeasurementCache, TapeHighlight } from './types';
-import { TAPE_BAR_INITIAL } from './types';
+import { TAPE_BAR_INITIAL, GLOW_TRAVELER_INITIAL } from './types';
 import type { TapeCellContainerMeasure } from '../bubbleMath';
 import { runPulse } from './beamAnimation';
 import { runReplayChargePhase } from './chargePhase';
@@ -58,6 +58,7 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     ctx.setChargeState({ pos: null, progress: 0 });
     ctx.setLockRings([]);
     ctx.setTapeBarState(TAPE_BAR_INITIAL);
+    ctx.setGlowTravelerState(GLOW_TRAVELER_INITIAL);
     // Trail highlights wipe per-iteration so each cycle restarts the
     // in/trail/gate sequence. OUT write highlights are preserved below
     // so OUT red/green persists across replay cycles (Prompt 78).

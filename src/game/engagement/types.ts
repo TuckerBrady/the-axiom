@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
-import type { View } from 'react-native';
+import type { Animated, View } from 'react-native';
 import type { ExecutionStep, PlacedPiece, PieceType } from '../types';
 import type { TapeCellContainerMeasure } from '../bubbleMath';
 
@@ -19,7 +19,12 @@ export type SignalPath = { segs: Segment[]; total: number };
 
 export type AnimMapEntry = { tag: string; duration: number };
 
-export type TapeHighlight = 'read' | 'write' | 'gate-pass' | 'gate-block';
+export type TapeHighlight =
+  | 'read'
+  | 'write'
+  | 'gate-pass'
+  | 'gate-block'
+  | 'departing';
 
 export type TapeIndicatorBarState = {
   inIndex: number | null;      // active cell index for IN tape bar
@@ -32,6 +37,33 @@ export const TAPE_BAR_INITIAL: TapeIndicatorBarState = {
   trailIndex: null,
   outIndex: null,
 };
+
+export type GlowTravelerState = {
+  visible: boolean;
+  value: string;
+  fromX: number;
+  fromY: number;
+  toX: number;
+  toY: number;
+  phase: 'idle' | 'liftoff' | 'travel' | 'impact';
+};
+
+export const GLOW_TRAVELER_INITIAL: GlowTravelerState = {
+  visible: false,
+  value: '',
+  fromX: 0,
+  fromY: 0,
+  toX: 0,
+  toY: 0,
+  phase: 'idle',
+};
+
+export interface ValueTravelRefs {
+  x: Animated.Value;
+  y: Animated.Value;
+  scale: Animated.Value;
+  opacity: Animated.Value;
+}
 
 export type VoidPulseState = {
   x: number;
@@ -135,6 +167,8 @@ export interface EngagementContext {
   setLockRings: (rings: LockRing[]) => void;
   setTapeCellHighlights: Dispatch<SetStateAction<Map<string, TapeHighlight>>>;
   setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
+  setGlowTravelerState: Dispatch<SetStateAction<GlowTravelerState>>;
+  valueTravelRefs: ValueTravelRefs;
   setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
   setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
   setCurrentPulseIndex: (i: number) => void;

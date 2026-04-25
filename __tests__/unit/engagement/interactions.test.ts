@@ -12,6 +12,11 @@ jest.mock('../../../src/game/engagement/spotlightHelpers', () => ({
   hideSpotlight: jest.fn(),
 }));
 
+jest.mock('../../../src/game/engagement/valueTravelAnimation', () => ({
+  runValueTravel: jest.fn(() => Promise.resolve()),
+  resetGlowTraveler: jest.fn(),
+}));
+
 jest.mock('../../../src/store/gameStore', () => ({
   useGameStore: {
     getState: jest.fn(() => ({
@@ -68,6 +73,13 @@ function buildCtx(): {
     setPieceAnimState,
     setSpotlightState: jest.fn(),
     setTapeBarState: jest.fn(),
+    setGlowTravelerState: jest.fn(),
+    valueTravelRefs: {
+      x: { setValue: jest.fn() },
+      y: { setValue: jest.fn() },
+      scale: { setValue: jest.fn() },
+      opacity: { setValue: jest.fn() },
+    },
     flashTimersRef,
     currentPulseRef: { current: 0 },
     getPieceCenter: jest.fn(() => null),

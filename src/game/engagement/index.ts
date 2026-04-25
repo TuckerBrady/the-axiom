@@ -35,6 +35,8 @@ export type {
   AnimMapEntry,
   TapeHighlight,
   TapeIndicatorBarState,
+  GlowTravelerState,
+  ValueTravelRefs,
   VoidPulseState,
   LockRing,
   SignalPhase,
@@ -55,5 +57,7 @@ export {
   SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
   TAPE_BAR_INITIAL,
+  GLOW_TRAVELER_INITIAL,
 } from './types';
+export { runValueTravel, resetGlowTraveler } from './valueTravelAnimation';
 export * as stateHelpers from './stateHelpers';
