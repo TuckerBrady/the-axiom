@@ -394,10 +394,16 @@ export default function TutorialHUDOverlay({
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       }),
+      // portalOpacity animates the same Animated.View as portalW /
+      // portalH (lines ~751, 779). Mixing native + JS drivers on a
+      // single node throws "Attempting to run JS driven animation on
+      // animated node that has been moved to native earlier" — the
+      // Build 5 codex-collection crash (Prompt 93, Fix 1). Keep
+      // portalOpacity on the JS driver to match the size animations.
       Animated.timing(portalOpacity, {
         toValue: 1,
         duration: 180,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]);
     trackAnim(anim);
@@ -439,13 +445,15 @@ export default function TutorialHUDOverlay({
 
     const ease = Easing.bezier(0.25, 0.1, 0.25, 1);
     // portalLeft/Top/W/H animate left/top/width/height — JS driver
-    // only. portalOpacity is opacity → native driver.
+    // only. portalOpacity rides the same Animated.View, so it must
+    // also stay on the JS driver to avoid the "node moved to native"
+    // crash (Prompt 93, Fix 1).
     const anim = Animated.parallel([
       Animated.timing(portalLeft, { toValue: box.left, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalTop, { toValue: box.top, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalW, { toValue: box.width, duration: 400, easing: ease, useNativeDriver: false }),
       Animated.timing(portalH, { toValue: box.height, duration: 400, easing: ease, useNativeDriver: false }),
-      Animated.timing(portalOpacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(portalOpacity, { toValue: 1, duration: 400, useNativeDriver: false }),
     ]);
     trackAnim(anim);
     anim.start(() => {

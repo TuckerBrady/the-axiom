@@ -108,21 +108,37 @@ describe('TutorialHUDOverlay lifecycle cleanup (Prompt 90)', () => {
       expect(pulse?.[0]).not.toMatch(/useNativeDriver:\s*false/);
     });
 
-    it('runs the dim / callout / portal-opacity / exit-opacity timings on the native driver', () => {
+    it('runs the dim / callout / exit-opacity / codex timings on the native driver', () => {
       // Sample-check each animation block by name. We assert that the
       // timing block immediately following the value identifier opts
-      // into the native driver. (portalW / portalH stay JS-driver
-      // because they animate width/height — that is correct.)
+      // into the native driver. (portalW / portalH / portalOpacity
+      // stay JS-driver — see the next test. Prompt 93 moved
+      // portalOpacity OFF the native driver because mixing drivers
+      // on the portal Animated.View crashes RN.)
       expect(overlaySource).toMatch(/Animated\.timing\(dimOpacity[\s\S]*?useNativeDriver:\s*true/);
       expect(overlaySource).toMatch(/Animated\.timing\(calloutOpacity,[\s\S]*?useNativeDriver:\s*true/);
-      expect(overlaySource).toMatch(/Animated\.timing\(portalOpacity,[\s\S]*?useNativeDriver:\s*true/);
       expect(overlaySource).toMatch(/Animated\.timing\(exitOpacity,[\s\S]*?useNativeDriver:\s*true/);
       expect(overlaySource).toMatch(/Animated\.timing\(codexTranslate,[\s\S]*?useNativeDriver:\s*true/);
     });
 
-    it('keeps portalW / portalH on the JS driver (width/height cannot use native driver)', () => {
+    it('keeps portalW / portalH / portalOpacity on the JS driver (Prompt 93 — same-node driver consistency)', () => {
+      // RN crashes if a single Animated.View has both native and JS
+      // driven animations attached to it. The portal node carries
+      // portalW (width), portalH (height), and portalOpacity. width
+      // + height are not native-supported, so all three must run on
+      // the JS driver.
       expect(overlaySource).toMatch(/Animated\.timing\(portalW,[\s\S]*?useNativeDriver:\s*false/);
       expect(overlaySource).toMatch(/Animated\.timing\(portalH,[\s\S]*?useNativeDriver:\s*false/);
+      expect(overlaySource).toMatch(/Animated\.timing\(portalOpacity,[^}]*useNativeDriver:\s*false/);
+      // No portalOpacity timing should opt into the native driver.
+      // (Pin to the timing block's `{}` so the wildcard doesn't
+      // leak into a sibling Animated.timing.)
+      expect(overlaySource).not.toMatch(/Animated\.timing\(portalOpacity,[^}]*useNativeDriver:\s*true/);
+    });
+
+    it('Prompt 93 — portalLeft / portalTop also stay on the JS driver (same node)', () => {
+      expect(overlaySource).toMatch(/Animated\.timing\(portalLeft,[\s\S]*?useNativeDriver:\s*false/);
+      expect(overlaySource).toMatch(/Animated\.timing\(portalTop,[\s\S]*?useNativeDriver:\s*false/);
     });
   });
 });

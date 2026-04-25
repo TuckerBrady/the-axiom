@@ -126,16 +126,23 @@ export default function BootScreen({ navigation }: Props) {
 
   const headerStyle = useAnimatedStyle(() => ({ opacity: headerOpacity.value }));
 
-  // Blinking cursor
+  // Blinking cursor — held invisible (initial value 0) until the
+  // last boot line ("Tap anywhere to receive.") has rendered at
+  // delay 5600. The 5800ms wait gives that line a tiny lead-in
+  // before the cursor starts blinking, so the terminal doesn't read
+  // as "ready for input" while still printing (Prompt 93, Fix 2).
   const cursorOpacity = useSharedValue(0);
   useEffect(() => {
-    cursorOpacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 500 }),
-        withTiming(0, { duration: 500 }),
+    cursorOpacity.value = withDelay(
+      5800,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 500 }),
+          withTiming(0, { duration: 500 }),
+        ),
+        -1,
+        false,
       ),
-      -1,
-      false,
     );
   }, []);
   const cursorStyle = useAnimatedStyle(() => ({ opacity: cursorOpacity.value }));
