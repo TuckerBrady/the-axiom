@@ -117,7 +117,12 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
     if (levelDef) {
       setLevel(levelDef);
     }
-    navigation.navigate('Gameplay');
+    // Use replace (not navigate) so each level launch forces a fresh
+    // GameplayScreen mount. With navigate, native-stack pops back to
+    // the existing Gameplay instance whenever one is still in the
+    // stack, causing timers, animation refs, and loopingRef state
+    // to accumulate across levels.
+    navigation.replace('Gameplay');
   };
 
   return (

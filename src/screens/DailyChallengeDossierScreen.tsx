@@ -46,7 +46,9 @@ export default function DailyChallengeDossierScreen({ navigation }: Props) {
   const handleAccept = async () => {
     await markAttempted();
     setLevel(currentChallenge.level);
-    navigation.navigate('Gameplay');
+    // replace (not navigate) — see MissionDossierScreen.handleLaunch
+    // for the rationale. Forces a fresh GameplayScreen mount.
+    navigation.replace('Gameplay');
   };
 
   const handleDecline = async () => {

@@ -491,8 +491,18 @@ export default function GameplayScreen({ navigation }: Props) {
       }
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
+      loopingRef.current = false;
     };
   }, []);
+
+  // ── Reset replay-loop flag on level change. Belt-and-suspenders:
+  // launch screens use navigation.replace to force a fresh mount, but
+  // if any code path ever leaves the Gameplay component mounted across
+  // a level transition, this guarantees the post-completion replay
+  // loop flag does not leak from one level into the next.
+  useEffect(() => {
+    loopingRef.current = false;
+  }, [level?.id]);
 
   // ── Pause modal stops/resumes timer ──
   useEffect(() => {
