@@ -143,6 +143,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
       }
       await new Promise(resolve => setTimeout(resolve, 1200));
       setShowCompletionScene(false);
+      useProgressionStore.getState().setActiveSector('2');
       navigation.navigate('Tabs' as never);
       return true;
     }

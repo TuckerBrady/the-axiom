@@ -201,8 +201,9 @@ export default function HubScreen({ navigation }: Props) {
               }}
             />
 
-            {/* Blue COGS card — bounty (hidden if no active bounty) */}
-            {hasBounty && currentChallenge && (
+            {/* Blue COGS card — bounty (hidden if no active bounty,
+                also gated until all 8 Axiom levels are complete). */}
+            {hasBounty && currentChallenge && axiomCompleted >= AXIOM_TOTAL_LEVELS && (
               <CogsHubCard
                 color="BLUE"
                 role="BOUNTY TRANSMISSION"
