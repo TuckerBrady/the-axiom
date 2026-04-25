@@ -134,22 +134,6 @@ export const PIECE_ANIM_INITIAL: PieceAnimState = {
   locked: new Set(),
 };
 
-export interface SpotlightBeam {
-  fromX: number;
-  fromY: number;
-  toX: number;
-  toY: number;
-  color: string;
-  value: string;
-  opacity: number;
-}
-
-export interface SpotlightState {
-  beam: SpotlightBeam | null;
-}
-
-export const SPOTLIGHT_INITIAL: SpotlightState = { beam: null };
-
 export interface ChargeState {
   pos: Pt | null;
   progress: number;
@@ -165,7 +149,6 @@ export interface EngagementContext {
 
   setBeamState: Dispatch<SetStateAction<BeamState>>;
   setPieceAnimState: Dispatch<SetStateAction<PieceAnimState>>;
-  setSpotlightState: Dispatch<SetStateAction<SpotlightState>>;
   setChargeState: Dispatch<SetStateAction<ChargeState>>;
 
   setLockRings: (rings: LockRing[]) => void;

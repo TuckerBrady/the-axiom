@@ -6,12 +6,6 @@ jest.mock('../../../src/game/engagement/bubbleHelpers', () => {
   };
 });
 
-jest.mock('../../../src/game/engagement/spotlightHelpers', () => ({
-  showSpotlight: jest.fn(),
-  updateSpotlightValue: jest.fn(),
-  hideSpotlight: jest.fn(),
-}));
-
 jest.mock('../../../src/game/engagement/valueTravelAnimation', () => ({
   runValueTravel: jest.fn(() => Promise.resolve()),
   resetGlowTraveler: jest.fn(),
@@ -56,7 +50,6 @@ function buildCtx(): {
 
   const ctx = {
     setPieceAnimState: jest.fn(),
-    setSpotlightState: jest.fn(),
     setTapeBarState: jest.fn((arg: unknown) => {
       if (typeof arg === 'function') {
         const next = (arg as (p: Record<string, number | null>) => Record<string, number | null>)(

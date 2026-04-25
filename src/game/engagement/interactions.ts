@@ -3,7 +3,6 @@ import { useGameStore } from '../../store/gameStore';
 import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
 import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
 import { flashPiece, setHighlight, wait } from './bubbleHelpers';
-import { showSpotlight, updateSpotlightValue, hideSpotlight } from './spotlightHelpers';
 import { runValueTravel } from './valueTravelAnimation';
 import {
   updateActiveAnimations,
@@ -22,12 +21,9 @@ export async function runScannerInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const cachedBoardPos = ctx.cacheRef.current.board;
   const cachedInputCells = ctx.cacheRef.current.input;
   const cachedTrailCells = ctx.cacheRef.current.trail;
 
-  const scannerX = cachedBoardPos.x + pc.x;
-  const scannerY = cachedBoardPos.y + pc.y;
   const tapeValue = ctx.inputTape?.[pulse];
   const display = tapeValue === undefined ? '?' : String(tapeValue);
 
@@ -36,15 +32,12 @@ export async function runScannerInteraction(
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
 
-  showSpotlight(ctx, scannerX, scannerY, inputCell.x, inputCell.y, color, '');
   await wait(250 * speed);
 
   setHighlight(ctx, `in-${pulse}`, 'read');
   ctx.setTapeBarState(prev => ({ ...prev, inIndex: pulse }));
-  updateSpotlightValue(ctx, display);
   await wait(300 * speed);
 
-  hideSpotlight(ctx);
   await wait(80 * speed);
 
   // Mark IN cell as 'departing' for the lift-off; cleared at end of
@@ -103,28 +96,13 @@ export async function runConfigNodeInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const cachedBoardPos = ctx.cacheRef.current.board;
-  const cachedTrailCells = ctx.cacheRef.current.trail;
-  const nodeX = cachedBoardPos.x + pc.x;
-  const nodeY = cachedBoardPos.y + pc.y;
-
-  const trailCells = useGameStore.getState().machineState.dataTrail.cells;
-  const trailValue = trailCells.length > 0 && pulse < trailCells.length
-    ? trailCells[pulse]
-    : null;
-  const display = trailValue === null ? '?' : String(trailValue);
-
-  const trailCell = getTapeCellPosFromCache(cachedTrailCells, pulse);
 
   setHighlight(ctx, `trail-${pulse}`, pass ? 'gate-pass' : 'gate-block');
   ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
   await wait(150 * speed);
 
-  showSpotlight(ctx, nodeX, nodeY, trailCell.x, trailCell.y, color, display);
   flashPiece(ctx, stp.pieceId, color);
   await wait((pass ? 350 : 450) * speed);
-
-  hideSpotlight(ctx);
 
   // On block: slide the OUT bar to this pulse index, flag the OUT
   // cell, and write the -2 sentinel so rendering shows the middle-dot
@@ -154,19 +132,11 @@ export async function runTransmitterInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const cachedBoardPos = ctx.cacheRef.current.board;
-  const cachedOutputCells = ctx.cacheRef.current.output;
-  const transmitterX = cachedBoardPos.x + pc.x;
-  const transmitterY = cachedBoardPos.y + pc.y;
   const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
-  const display = String(written);
-
-  const outputCell = getTapeCellPosFromCache(cachedOutputCells, pulse);
 
   flashPiece(ctx, stp.pieceId, color);
   setHighlight(ctx, `out-${pulse}`, 'write');
   ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
-  showSpotlight(ctx, transmitterX, transmitterY, outputCell.x, outputCell.y, color, display);
   await wait(300 * speed);
 
   ctx.setVisualOutputOverride(prev => {
@@ -177,7 +147,6 @@ export async function runTransmitterInteraction(
   });
 
   await wait(150 * speed);
-  hideSpotlight(ctx);
 }
 
 export function triggerPieceAnim(

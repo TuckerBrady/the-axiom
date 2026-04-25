@@ -46,8 +46,6 @@ export type {
   MeasurementCache,
   BeamState,
   PieceAnimState,
-  SpotlightBeam,
-  SpotlightState,
   ChargeState,
   ExecutionStep,
   PlacedPiece,
@@ -56,7 +54,6 @@ export type {
 export {
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
   TAPE_BAR_INITIAL,
   GLOW_TRAVELER_INITIAL,

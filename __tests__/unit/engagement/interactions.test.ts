@@ -6,12 +6,6 @@ jest.mock('../../../src/game/engagement/bubbleHelpers', () => {
   };
 });
 
-jest.mock('../../../src/game/engagement/spotlightHelpers', () => ({
-  showSpotlight: jest.fn(),
-  updateSpotlightValue: jest.fn(),
-  hideSpotlight: jest.fn(),
-}));
-
 jest.mock('../../../src/game/engagement/valueTravelAnimation', () => ({
   runValueTravel: jest.fn(() => Promise.resolve()),
   resetGlowTraveler: jest.fn(),
@@ -34,7 +28,6 @@ import {
   runConfigNodeInteraction,
   runTransmitterInteraction,
 } from '../../../src/game/engagement/interactions';
-import * as spotlightHelpers from '../../../src/game/engagement/spotlightHelpers';
 import type {
   EngagementContext,
   ExecutionStep,
@@ -71,7 +64,6 @@ function buildCtx(): {
 
   const ctx = {
     setPieceAnimState,
-    setSpotlightState: jest.fn(),
     setTapeBarState: jest.fn(),
     setGlowTravelerState: jest.fn(),
     valueTravelRefs: {
@@ -167,9 +159,6 @@ describe('triggerPieceAnim', () => {
 describe('runScannerInteraction', () => {
   beforeEach(() => {
     jest.useRealTimers();
-    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
-    (spotlightHelpers.updateSpotlightValue as jest.Mock).mockClear();
-    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
   });
 
   function buildScannerCtx(): EngagementContext {
@@ -186,41 +175,6 @@ describe('runScannerInteraction', () => {
     (ctx as unknown as { inputTape: (0 | 1)[] }).inputTape = [1, 0, 1];
     return ctx;
   }
-
-  it('projects the spotlight from the Scanner to the Input tape cell', async () => {
-    const ctx = buildScannerCtx();
-    await runScannerInteraction(ctx, step('scanner', 'p-s'));
-    const calls = (spotlightHelpers.showSpotlight as jest.Mock).mock.calls;
-    expect(calls).toHaveLength(1);
-    const [, fromX, fromY, toX, toY] = calls[0];
-    // Scanner center = board(0,0) + piece(10,20) = (10, 20)
-    expect(fromX).toBe(10);
-    expect(fromY).toBe(20);
-    // Input cell center — first cell at cached.x + cached.w/2, cached.y + cached.h/2
-    expect(toX).toBe(100 + 20 / 2);
-    expect(toY).toBe(200 + 30 / 2);
-  });
-
-  it('calls updateSpotlightValue with the tape value after the read', async () => {
-    const ctx = buildScannerCtx();
-    ctx.currentPulseRef.current = 0;
-    await runScannerInteraction(ctx, step('scanner', 'p-s'));
-    // inputTape[0] = 1 → display '1'
-    expect(spotlightHelpers.updateSpotlightValue).toHaveBeenCalledWith(
-      expect.anything(),
-      '1',
-    );
-  });
-
-  it('hides the spotlight before writing the trail value', async () => {
-    const ctx = buildScannerCtx();
-    const setVisualTrailOverride = ctx.setVisualTrailOverride as jest.Mock;
-    await runScannerInteraction(ctx, step('scanner', 'p-s'));
-    const hideOrder = (spotlightHelpers.hideSpotlight as jest.Mock).mock
-      .invocationCallOrder[0];
-    const trailWriteOrder = setVisualTrailOverride.mock.invocationCallOrder[0];
-    expect(hideOrder).toBeLessThan(trailWriteOrder);
-  });
 
   it('writes the read value into the visual trail override silently', async () => {
     const ctx = buildScannerCtx();
@@ -259,8 +213,6 @@ describe('runScannerInteraction', () => {
 describe('runConfigNodeInteraction', () => {
   beforeEach(() => {
     jest.useRealTimers();
-    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
-    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
   });
 
   function buildConfigCtx(): EngagementContext {
@@ -276,28 +228,6 @@ describe('runConfigNodeInteraction', () => {
     };
     return ctx;
   }
-
-  it('projects the spotlight in green from Config Node to Trail cell on pass', async () => {
-    const ctx = buildConfigCtx();
-    ctx.currentPulseRef.current = 2;
-    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', true));
-    const calls = (spotlightHelpers.showSpotlight as jest.Mock).mock.calls;
-    expect(calls).toHaveLength(1);
-    const [, fromX, fromY, toX, toY, color] = calls[0];
-    expect(fromX).toBe(10);
-    expect(fromY).toBe(20);
-    // Trail cell at pulse=2 (w=20, gap=3): x = 100 + 2*(20+3) + 10 = 156
-    expect(toX).toBe(100 + 2 * (20 + 3) + 20 / 2);
-    expect(toY).toBe(300 + 30 / 2);
-    expect(color).toBe('#00FF87');
-  });
-
-  it('projects the spotlight in red on block', async () => {
-    const ctx = buildConfigCtx();
-    await runConfigNodeInteraction(ctx, step('configNode', 'p-c', false));
-    const [, , , , , color] = (spotlightHelpers.showSpotlight as jest.Mock).mock.calls[0];
-    expect(color).toBe('#FF3B3B');
-  });
 
   it('sets trail-${pulse} to gate-pass for a passing gate and does not blanket-clear', async () => {
     const ctx = buildConfigCtx();
@@ -331,8 +261,6 @@ describe('runConfigNodeInteraction', () => {
 describe('runTransmitterInteraction', () => {
   beforeEach(() => {
     jest.useRealTimers();
-    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
-    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
   });
 
   function buildTransmitterCtx(): EngagementContext {
@@ -348,23 +276,6 @@ describe('runTransmitterInteraction', () => {
     };
     return ctx;
   }
-
-  it('projects the amber spotlight from Transmitter to Output cell with the written value', async () => {
-    const ctx = buildTransmitterCtx();
-    ctx.currentPulseRef.current = 1;
-    await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
-    const calls = (spotlightHelpers.showSpotlight as jest.Mock).mock.calls;
-    expect(calls).toHaveLength(1);
-    const [, fromX, fromY, toX, toY, color, value] = calls[0];
-    expect(fromX).toBe(10);
-    expect(fromY).toBe(20);
-    // Output cell at pulse=1 (w=20, gap=3): x = 100 + 1*(20+3) + 10 = 133
-    expect(toX).toBe(100 + 1 * (20 + 3) + 20 / 2);
-    expect(toY).toBe(400 + 30 / 2);
-    expect(color).toMatch(/^#/);
-    // outputTape[1] is -1 per mock (nullish-coalesce only fires on undefined).
-    expect(value).toBe('-1');
-  });
 
   it('sets an out-${pulse} write highlight so the output cell lights up', async () => {
     const ctx = buildTransmitterCtx();
@@ -382,8 +293,6 @@ describe('runTransmitterInteraction', () => {
 describe('highlight persistence across pulses', () => {
   beforeEach(() => {
     jest.useRealTimers();
-    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
-    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
   });
 
   function buildMultiPulseCtx(): {
@@ -469,8 +378,6 @@ describe('OUT cell persistence across pulses', () => {
 
   beforeEach(() => {
     jest.useRealTimers();
-    (spotlightHelpers.showSpotlight as jest.Mock).mockClear();
-    (spotlightHelpers.hideSpotlight as jest.Mock).mockClear();
   });
 
   function build4PulseCtx(): {

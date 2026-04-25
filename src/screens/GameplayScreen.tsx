@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Line, Rect, Path, G, Polyline, Defs, LinearGradient as SvgLinearGradient, Stop, Polygon } from 'react-native-svg';
+import Svg, { Circle, Line, Rect, Path, G, Polyline } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -126,7 +126,6 @@ import {
   handleVoidFailure,
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  SPOTLIGHT_INITIAL,
   CHARGE_INITIAL,
   TAPE_BAR_INITIAL,
   GLOW_TRAVELER_INITIAL,
@@ -136,7 +135,6 @@ import {
   type MeasurementCache,
   type BeamState,
   type PieceAnimState,
-  type SpotlightState,
   type ChargeState,
   type TapeIndicatorBarState,
   type GlowTravelerState,
@@ -316,7 +314,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const [beamState, setBeamState] = useState<BeamState>(BEAM_INITIAL);
   // pieceAnimState: flashing, animations, gates, pieceAnimState.failColors, locked
   const [pieceAnimState, setPieceAnimState] = useState<PieceAnimState>(PIECE_ANIM_INITIAL);
-  const [spotlightState, setSpotlightState] = useState<SpotlightState>(SPOTLIGHT_INITIAL);
   // chargeState: pos, progress
   const [chargeState, setChargeState] = useState<ChargeState>(CHARGE_INITIAL);
 
@@ -442,7 +439,6 @@ export default function GameplayScreen({ navigation }: Props) {
         cancelAnimationFrame(animFrameRef.current);
         animFrameRef.current = null;
       }
-      setSpotlightState(SPOTLIGHT_INITIAL);
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
     };
@@ -761,7 +757,6 @@ export default function GameplayScreen({ navigation }: Props) {
       machineStatePieces: machineState.pieces,
       setBeamState,
       setPieceAnimState,
-      setSpotlightState,
       setChargeState,
       setLockRings,
       setTapeCellHighlights,
@@ -1017,7 +1012,6 @@ export default function GameplayScreen({ navigation }: Props) {
       cancelAnimationFrame(animFrameRef.current);
       animFrameRef.current = null;
     }
-    setSpotlightState(SPOTLIGHT_INITIAL);
     setTapeCellHighlights(new Map());
     setTapeBarState(TAPE_BAR_INITIAL);
     resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
@@ -1836,7 +1830,6 @@ export default function GameplayScreen({ navigation }: Props) {
                   cancelAnimationFrame(animFrameRef.current);
                   animFrameRef.current = null;
                 }
-                setSpotlightState(SPOTLIGHT_INITIAL);
                 setTapeCellHighlights(new Map());
                 setTapeBarState(TAPE_BAR_INITIAL);
                 resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
@@ -2446,72 +2439,6 @@ export default function GameplayScreen({ navigation }: Props) {
           onSkip={() => setTutorialSkipped(true)}
         />
       )}
-
-      {/* Ghost Spotlight — tapered beam from piece to tape cell */}
-      {spotlightState.beam && (() => {
-        const b = spotlightState.beam;
-        const narrowHalf = 5;
-        const wideHalf = 12;
-
-        const dx = b.toX - b.fromX;
-        const dy = b.toY - b.fromY;
-        const len = Math.sqrt(dx * dx + dy * dy);
-        if (len < 1) return null;
-
-        const px = -dy / len;
-        const py = dx / len;
-
-        const x1 = b.fromX + px * narrowHalf;
-        const y1 = b.fromY + py * narrowHalf;
-        const x2 = b.fromX - px * narrowHalf;
-        const y2 = b.fromY - py * narrowHalf;
-        const x3 = b.toX - px * wideHalf;
-        const y3 = b.toY - py * wideHalf;
-        const x4 = b.toX + px * wideHalf;
-        const y4 = b.toY + py * wideHalf;
-
-        return (
-          // Wrap in a View — react-native-svg's web implementation does
-          // not forward the `style` prop to the root <svg> DOM element,
-          // so zIndex set on Svg directly is dropped on web. Views on
-          // RNW reliably emit a <div> that participates in stacking.
-          <View
-            pointerEvents="none"
-            style={{
-              position: 'absolute',
-              left: 0, top: 0, right: 0, bottom: 0,
-              zIndex: 1000,
-              elevation: 1000,
-            }}
-          >
-            <Svg style={{ width: '100%', height: '100%' }}>
-              <Defs>
-                <SvgLinearGradient id="spotGrad" x1={b.fromX} y1={b.fromY} x2={b.toX} y2={b.toY} gradientUnits="userSpaceOnUse">
-                  <Stop offset="0" stopColor={b.color} stopOpacity={0.05 * b.opacity} />
-                  <Stop offset="0.4" stopColor={b.color} stopOpacity={0.12 * b.opacity} />
-                  <Stop offset="1" stopColor={b.color} stopOpacity={0.25 * b.opacity} />
-                </SvgLinearGradient>
-              </Defs>
-              <Polygon
-                points={`${x1},${y1} ${x4},${y4} ${x3},${y3} ${x2},${y2}`}
-                fill="url(#spotGrad)"
-              />
-              <Line
-                x1={x1} y1={y1} x2={x4} y2={y4}
-                stroke={b.color}
-                strokeWidth={0.8}
-                strokeOpacity={0.35 * b.opacity}
-              />
-              <Line
-                x1={x2} y1={y2} x2={x3} y2={y3}
-                stroke={b.color}
-                strokeWidth={0.8}
-                strokeOpacity={0.35 * b.opacity}
-              />
-            </Svg>
-          </View>
-        );
-      })()}
 
       {/* Glow Traveler — single reusable element. Stays mounted; opacity
           drives visibility, transforms drive position. */}
