@@ -38,6 +38,7 @@ import { calculateScore, getCOGSScoreComment, getTutorialCOGSComment } from '../
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
+import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
@@ -376,15 +377,15 @@ export default function GameplayScreen({ navigation }: Props) {
 
   useEffect(() => { blownCellsRef.current = blownCells; }, [blownCells]);
 
-  // ── Tutorial hints setup (suppress on replay) ──
-  const isReplay = level ? isLevelDone(level.id) : false;
+  // ── Tutorial hints setup (suppress when level has been beaten before) ──
+  const isLevelPreviouslyCompleted = level ? isLevelDone(level.id) : false;
   const isAxiomLevel = level?.sector === 'axiom';
 
   // ── Tutorial active derivation (matches overlay render gate) ──
   const tutorialIsActive =
     !tutorialComplete &&
     !tutorialSkipped &&
-    !isReplay &&
+    !isLevelPreviouslyCompleted &&
     level?.sector === 'axiom' &&
     (level?.tutorialSteps?.length ?? 0) > 0;
 
@@ -435,7 +436,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── HUD tutorial overlay hydration ──
   useEffect(() => {
-    if (!level || !isAxiomLevel || isReplay) return;
+    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted) return;
     if (!level.tutorialSteps || level.tutorialSteps.length === 0) return;
     (async () => {
       const done = await AsyncStorage.getItem(`axiom_tutorial_complete_${level.id}`);
@@ -443,10 +444,10 @@ export default function GameplayScreen({ navigation }: Props) {
       if (done) setTutorialComplete(true);
       if (skipped) setTutorialSkipped(true);
     })();
-  }, [level?.id, isAxiomLevel, isReplay]);
+  }, [level?.id, isAxiomLevel, isLevelPreviouslyCompleted]);
 
   useEffect(() => {
-    if (!level || !isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted || !level.tutorialHints) return;
     if ((level.tutorialSteps?.length ?? 0) > 0) return;
     (async () => {
       const onMountHints: { key: string; text: string }[] = [];
@@ -463,7 +464,7 @@ export default function GameplayScreen({ navigation }: Props) {
   }, [level?.id]);
 
   const triggerHints = useCallback(async (trigger: string) => {
-    if (!level || !isAxiomLevel || isReplay || !level.tutorialHints) return;
+    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted || !level.tutorialHints) return;
     if (hintTriggered.current.has(trigger)) return;
     hintTriggered.current.add(trigger);
     const hints: { key: string; text: string }[] = [];
@@ -478,7 +479,7 @@ export default function GameplayScreen({ navigation }: Props) {
     } else {
       setHintQueue(prev => [...prev, ...hints]);
     }
-  }, [level, isAxiomLevel, isReplay, currentHint]);
+  }, [level, isAxiomLevel, isLevelPreviouslyCompleted, currentHint]);
 
   const dismissHint = useCallback(() => {
     setCurrentHint(null);
@@ -1050,6 +1051,7 @@ export default function GameplayScreen({ navigation }: Props) {
   }
 
   return (
+    <GameplayErrorBoundary onReset={handleReset}>
     <Animated.View style={[styles.root, screenStyle]}>
       <StarField seed={7} />
 
@@ -2333,8 +2335,12 @@ export default function GameplayScreen({ navigation }: Props) {
       )}
 
       {/* ── HUD Tutorial Overlay ── */}
-      {!tutorialComplete && !tutorialSkipped && !isReplay &&
-        level?.sector === 'axiom' && (level?.tutorialSteps?.length ?? 0) > 0 && (
+      {/* Gated on !isExecuting so measure() calls don't race beam-animation
+          setState updates during the run (Prompt 83). The overlay
+          remounts at its persisted step once the run resolves. */}
+      {!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted &&
+        !isExecuting && level?.sector === 'axiom' &&
+        (level?.tutorialSteps?.length ?? 0) > 0 && (
         <TutorialHUDOverlay
           steps={level!.tutorialSteps!}
           levelId={level!.id}
@@ -2433,6 +2439,7 @@ export default function GameplayScreen({ navigation }: Props) {
         );
       })()}
     </Animated.View>
+    </GameplayErrorBoundary>
   );
 }
 
