@@ -2135,9 +2135,12 @@ export default function GameplayScreen({ navigation }: Props) {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
                 <CogsAvatar size="small" state="damaged" />
-                {/* COGS line — approved by Tucker 2026-04-19 */}
+                {/* COGS line — base copy approved by Tucker 2026-04-19;
+                    Prompt 92 Fix 1 makes the count dynamic so the
+                    line stays accurate on levels where the required
+                    count is not 3. */}
                 <Text style={styles.wrongOutputCogsText}>
-                  {"\""}Three pulses were required. The machine delivered fewer. The configuration was not aligned with the input.{"\""}
+                  {`"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
                 </Text>
               </View>
               <TouchableOpacity

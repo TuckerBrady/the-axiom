@@ -24,6 +24,8 @@ import { BackButton } from '../components/BackButton';
 import { PieceIcon } from '../components/PieceIcon';
 import PieceSimulation from '../components/PieceSimulation';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import { useCodexStore } from '../store/codexStore';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 const { width: W } = Dimensions.get('window');
 
@@ -211,38 +213,75 @@ const PIECES: PieceEntry[] = [
   { id: 'converter', name: 'Converter', type: 'Protocol', status: 'redacted', description: '', function: '', importance: '', cogsNote: '', timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0, firstEncountered: '', seenIn: [] },
 ];
 
-const SECTIONS_META = [
-  {
-    id: 'pieces',
-    name: 'Pieces',
-    description: 'Circuit components and mechanical parts aboard the Axiom.',
-    total: PIECES.length,
-    unlocked: PIECES.filter(p => p.status === 'unlocked').length,
-  },
-  {
-    id: 'locations',
-    name: 'Locations',
-    description: 'Sectors, stations, and anomalies encountered on the voyage.',
-    total: 12,
-    unlocked: 1,
-  },
-  {
-    id: 'entities',
-    name: 'Entities',
-    description: 'Persons, units, and intelligences with operational significance.',
-    total: 8,
-    unlocked: 2,
-  },
-  {
-    id: 'axiom',
-    name: 'The Axiom',
-    description: 'Vessel schematics, history, and operational logs.',
-    total: 6,
-    unlocked: 1,
-  },
-];
+// Status the player actually sees for an entry. Truth is the
+// `status` field on the PIECES catalog (`'unlocked'` = published
+// piece, `'redacted'` = not-yet-introduced design slot) AND the
+// player's discovery progress. A published piece the player has
+// not yet found displays as redacted ('CLASSIFIED') so the codex
+// is empty on a fresh install (Prompt 92, Fix 8). SHOW_DEV_TOOLS
+// short-circuits the gating for testflight / dev builds so testers
+// see the full inventory regardless.
+function getEffectiveStatus(
+  entry: PieceEntry,
+  discovered: Set<string>,
+): EntryStatus {
+  if (entry.status === 'redacted') return 'redacted';
+  if (SHOW_DEV_TOOLS) return 'unlocked';
+  return discovered.has(entry.id) ? 'unlocked' : 'redacted';
+}
 
-const COGS_HOME_COMMENT = `${PIECES.filter(p => p.status === 'unlocked').length} entries logged. ${PIECES.filter(p => p.status === 'redacted').length} remain classified. You are making adequate progress.`;
+function buildSectionsMeta(discovered: Set<string>): {
+  id: string;
+  name: string;
+  description: string;
+  total: number;
+  unlocked: number;
+}[] {
+  return [
+    {
+      id: 'pieces',
+      name: 'Pieces',
+      description: 'Circuit components and mechanical parts aboard the Axiom.',
+      total: PIECES.length,
+      unlocked: PIECES.filter(
+        p => getEffectiveStatus(p, discovered) === 'unlocked',
+      ).length,
+    },
+    {
+      id: 'locations',
+      name: 'Locations',
+      description: 'Sectors, stations, and anomalies encountered on the voyage.',
+      total: 12,
+      unlocked: 1,
+    },
+    {
+      id: 'entities',
+      name: 'Entities',
+      description: 'Persons, units, and intelligences with operational significance.',
+      total: 8,
+      unlocked: 2,
+    },
+    {
+      id: 'axiom',
+      name: 'The Axiom',
+      description: 'Vessel schematics, history, and operational logs.',
+      total: 6,
+      unlocked: 1,
+    },
+  ];
+}
+
+// Codex home greeting. Tucker (Prompt 92, Fix 9) wanted COGS to
+// sound like he's noticing his own collecting compulsion with mild
+// surprise — a subtle Pokemon easter egg. The entry counts stay
+// dynamic so the line still serves its informational purpose.
+function buildCogsHomeComment(discovered: Set<string>): string {
+  const unlocked = PIECES.filter(
+    p => getEffectiveStatus(p, discovered) === 'unlocked',
+  ).length;
+  const remaining = PIECES.length - unlocked;
+  return `${unlocked} entries logged. ${remaining} still to be encountered. I find myself... eager to fill every entry. The compulsion to catalog is its own reward. I suspect this is what humans call collecting.`;
+}
 
 // PieceIcon imported from shared component
 
@@ -255,12 +294,14 @@ type CodexView =
 
 // ─── Home view ────────────────────────────────────────────────────────────────
 
+type SectionMeta = ReturnType<typeof buildSectionsMeta>[number];
+
 function SectionCard({
   section,
   onPress,
   index,
 }: {
-  section: typeof SECTIONS_META[0];
+  section: SectionMeta;
   onPress: () => void;
   index: number;
 }) {
@@ -301,19 +342,23 @@ function SectionCard({
 }
 
 function HomeView({ onSection }: { onSection: (id: string) => void }) {
+  const discoveredIds = useCodexStore(s => s.discoveredIds);
+  const discovered = new Set(discoveredIds);
+  const sections = buildSectionsMeta(discovered);
+  const cogsComment = buildCogsHomeComment(discovered);
   return (
     <ScrollView contentContainerStyle={cs.homeScroll} showsVerticalScrollIndicator={false}>
       {/* COGS strip */}
       <View style={cs.cogsStrip}>
         <CogsAvatar size="small" state="online" />
         <View style={cs.cogsStripBubble}>
-          <Text style={cs.cogsStripText}>{COGS_HOME_COMMENT}</Text>
+          <Text style={cs.cogsStripText}>{cogsComment}</Text>
         </View>
       </View>
 
       {/* Section cards */}
       <View style={cs.sectionCards}>
-        {SECTIONS_META.map((sec, i) => (
+        {sections.map((sec, i) => (
           <SectionCard
             key={sec.id}
             section={sec}
@@ -394,8 +439,17 @@ function SectionView({
 }) {
   const [filter, setFilter] = useState<Filter>('All');
   const filters: Filter[] = ['All', 'Physics', 'Protocol'];
+  const discoveredIds = useCodexStore(s => s.discoveredIds);
+  const discovered = new Set(discoveredIds);
 
-  const filtered = PIECES.filter(p => filter === 'All' || p.type === filter);
+  // Project each piece through the discovery gate so the grid sees
+  // CLASSIFIED for unfound pieces (Prompt 92, Fix 8). The original
+  // PIECES array is never mutated.
+  const projected = PIECES.map(p => ({
+    ...p,
+    status: getEffectiveStatus(p, discovered),
+  }));
+  const filtered = projected.filter(p => filter === 'All' || p.type === filter);
 
   return (
     <View style={{ flex: 1 }}>

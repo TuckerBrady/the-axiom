@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep } from '../game/types';
 import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry } from './CodexDetailView';
+import { useCodexStore } from '../store/codexStore';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -404,7 +405,10 @@ export default function TutorialHUDOverlay({
       if (!mountedRef.current) return;
       const tail = Animated.parallel([
         Animated.timing(glowOpacity, {
-          toValue: 0.45,
+          // Brighter steady glow to match the COGS orb's intensity
+          // (Prompt 92, Fix 6). Was 0.45 — too dim to read as
+          // "highlighted" against the dark void background.
+          toValue: 0.85,
           duration: 120,
           useNativeDriver: true,
         }),
@@ -542,10 +546,16 @@ export default function TutorialHUDOverlay({
   }, [hydrated, currentStepIndex, runStep, dimOpacity, trackAnim, trackTimer]);
 
   // ── Glow pulse loop ──
+  // Oscillates between 0.7 and 1.0 (was 0..1) so the rings stay
+  // visibly bright — close to the COGS orb's intensity — and only
+  // breathe in the top portion of the existing interpolation curves
+  // (Prompt 92, Fix 6). Each ring's outputRange is preserved; this
+  // change just narrows the input the rings sample from to the
+  // bright end of their gradient.
   const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
   useEffect(() => {
     if (!showPieceGlow) return;
-    glowPulse.setValue(0);
+    glowPulse.setValue(0.7);
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(glowPulse, {
@@ -555,7 +565,7 @@ export default function TutorialHUDOverlay({
           useNativeDriver: true,
         }),
         Animated.timing(glowPulse, {
-          toValue: 0,
+          toValue: 0.7,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
           useNativeDriver: true,
@@ -624,6 +634,12 @@ export default function TutorialHUDOverlay({
 
   const handlePrimary = useCallback(() => {
     if (phase === 'arrived' && step?.codexEntryId) {
+      // Mark the piece discovered the moment the codex view opens —
+      // before the player even reads it. The Codex screen uses this
+      // to gate which entries display unlocked vs CLASSIFIED for
+      // non-dev builds (Prompt 92, Fix 8). Discovery is monotonic:
+      // re-marking is a no-op.
+      useCodexStore.getState().markDiscovered(step.codexEntryId);
       setCodexVisible(true);
       setPhase('codex');
       return;

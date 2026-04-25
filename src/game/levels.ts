@@ -86,11 +86,20 @@ export const levelA1_1: LevelDefinition = {
       message: 'Input port, output port. Bridge them. Signal follows whatever path you build — you don\'t aim pieces, the path aims them.',
     },
     {
-      id: 'codex-intro',
-      label: 'CODEX',
-      targetRef: 'center',
-      eyeState: 'blue',
-      message: 'The Codex is my personal record of everything I have encountered. Pieces, places, systems. You can access it at any time. Gotta catch \'em all. That is a personal policy.',
+      id: 'source-collect',
+      label: 'INPUT PORT',
+      targetRef: 'sourceNode',
+      eyeState: 'amber',
+      message: 'Input port. The origin of every signal. I am beginning a record. This is the first entry.',
+      codexEntryId: 'source',
+    },
+    {
+      id: 'terminal-collect',
+      label: 'OUTPUT PORT',
+      targetRef: 'outputNode',
+      eyeState: 'amber',
+      message: 'Output port. Where the signal is meant to arrive. Two entries. Gotta catch \'em all. That is a personal policy.',
+      codexEntryId: 'terminal',
     },
     {
       id: 'conveyor-collect',
@@ -244,6 +253,14 @@ export const levelA1_4: LevelDefinition = {
   dataTrail: { cells: [], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 5,
+  // TODO (Prompt 92, Fix 7) — Tucker reports COGS calls for two
+  // direction changes here ("we begin teaching the soul of the
+  // game"), but the engine currently only enforces reach_output, so
+  // a one-bend or zero-bend path still passes if it reaches the
+  // terminal. Add a `min_direction_changes` objective type, count
+  // Gear-driven turns in the executed signal path at lock, and
+  // fail the run if count < 2. Out of scope for Prompt 92 (touches
+  // engine + scoring + objective types). Tracked as a follow-up.
   systemRepaired: 'Propulsion Core',
   budget: 20,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
@@ -322,13 +339,15 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'blue',
       message: 'This is the input tape. Each cell is a bit value fed into the machine one pulse at a time. The machine fires once per bit. Left to right.',
     },
-    {
-      id: 'output-tape-intro',
-      label: 'OUTPUT TAPE',
-      targetRef: 'outputTapeRow',
-      eyeState: 'blue',
-      message: 'This is the output tape. Empty now. The machine writes here as it runs. When all pulses complete, this is the answer.',
-    },
+    // The output-tape-intro step that previously lived here was
+    // removed (Prompt 92, Fix 5). A1-5 has no Transmitter, so the
+    // OUT tape row is gated off in GameplayScreen and the
+    // outputTapeRow ref points at a non-rendered View. The tutorial
+    // overlay's measureTarget then fell back to screen center, so
+    // COGS flew to mid-board, sat there with text describing a tape
+    // the player couldn't see, and required a tap to advance. The
+    // OUT tape's introduction belongs on its first appearance
+    // (A1-7 introduces the Transmitter and the OUT row).
     {
       id: 'data-trail-intro',
       label: 'DATA TRAIL',

@@ -30,6 +30,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useChallengeStore } from '../store/challengeStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { useSettingsStore } from '../store/settingsStore';
+import { useCodexStore } from '../store/codexStore';
 
 export type RootStackParamList = {
   // Onboarding
@@ -96,6 +97,7 @@ export default function RootNavigator() {
     usePlayerStore.getState().hydrate();
     useProgressionStore.getState().hydrate();
     useSettingsStore.getState().hydrate();
+    useCodexStore.getState().hydrate();
     useChallengeStore.getState().loadOrGenerateChallenge();
   }, []);
 
