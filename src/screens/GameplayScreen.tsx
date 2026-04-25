@@ -1911,15 +1911,15 @@ export default function GameplayScreen({ navigation }: Props) {
                 </Text>
               </View>
               <View style={styles.resultsActions}>
-                <TouchableOpacity
-                  style={styles.resultsSecondaryBtn}
+                <Button
+                  variant="secondary"
+                  label="REPLAY"
                   onPress={handleReset}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.resultsSecondaryText}>REPLAY</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.resultsPrimaryBtn}
+                  style={{ flex: 1 }}
+                />
+                <Button
+                  variant="gradient"
+                  label="CONTINUE"
                   onPress={async () => {
                     // A1-3 discipline acknowledgment (first time only)
                     if (level.id === 'A1-3' && firstTimeBonus && discipline) {
@@ -1933,17 +1933,8 @@ export default function GameplayScreen({ navigation }: Props) {
                     }
                     navigation.navigate('LevelSelect');
                   }}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={[Colors.copper, Colors.amber]}
-                    style={styles.resultsPrimaryGradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                  >
-                    <Text style={styles.resultsPrimaryText}>CONTINUE</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+                  style={{ flex: 2 }}
+                />
               </View>
             </View>
           </Animated.View>
@@ -2242,8 +2233,9 @@ export default function GameplayScreen({ navigation }: Props) {
                   {'"'}You are out of lives. I could tell you to wait. But there is an alternative.{'"'}
                 </Text>
               </View>
-              <TouchableOpacity
-                style={[styles.resultsPrimaryBtn, { width: '100%', marginBottom: Spacing.sm }]}
+              <Button
+                variant="gradient"
+                label={livesCredits >= 30 ? 'REFILL LIVES · 30 CR' : `NEED ${30 - livesCredits} MORE CR`}
                 onPress={() => {
                   const ok = refillLives();
                   if (ok) {
@@ -2251,29 +2243,18 @@ export default function GameplayScreen({ navigation }: Props) {
                     handleReset();
                   }
                 }}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={livesCredits >= 30 ? [Colors.circuit, '#7c5fcf'] : [Colors.dim, Colors.steel]}
-                  style={styles.resultsPrimaryGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                >
-                  <Text style={styles.resultsPrimaryText}>
-                    {livesCredits >= 30 ? 'REFILL LIVES · 30 CR' : `NEED ${30 - livesCredits} MORE CR`}
-                  </Text>
-                </LinearGradient>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.resultsSecondaryBtn, { width: '100%' }]}
+                disabled={livesCredits < 30}
+                style={{ width: '100%', marginBottom: Spacing.sm }}
+              />
+              <Button
+                variant="secondary"
+                label="MAYBE LATER"
                 onPress={() => {
                   setShowOutOfLives(false);
                   navigation.goBack();
                 }}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.resultsSecondaryText}>MAYBE LATER</Text>
-              </TouchableOpacity>
+                style={{ width: '100%' }}
+              />
             </View>
           </Animated.View>
         )}
@@ -2977,31 +2958,6 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     width: '100%',
   },
-  resultsSecondaryBtn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: Colors.steel,
-    borderRadius: 12,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  resultsSecondaryText: {
-    fontFamily: Fonts.orbitron, fontSize: 10, color: Colors.muted, letterSpacing: 1,
-  },
-  resultsPrimaryBtn: {
-    flex: 2,
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  resultsPrimaryGradient: {
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-  },
-  resultsPrimaryText: {
-    fontFamily: Fonts.orbitron, fontSize: 11, fontWeight: 'bold',
-    letterSpacing: 2, color: Colors.void,
-  },
-
   // Void state
   voidTitle: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.display, fontWeight: 'bold',

@@ -194,6 +194,34 @@ describe('GameplayScreen button migration', () => {
     expect(screenSource).not.toMatch(/^\s+completionCardBtn:/m);
     expect(screenSource).not.toMatch(/^\s+completionCardBtnText:/m);
   });
+
+  describe('Prompt 89 — results + out-of-lives button migrations', () => {
+    it('renders results-screen REPLAY as a secondary Button', () => {
+      expect(screenSource).toMatch(/variant="secondary"[\s\S]*?label="REPLAY"/);
+    });
+
+    it('renders results-screen CONTINUE as a gradient Button preserving navigation', () => {
+      expect(screenSource).toMatch(/variant="gradient"[\s\S]*?label="CONTINUE"/);
+      expect(screenSource).toMatch(/navigation\.navigate\('LevelSelect'\)/);
+    });
+
+    it('renders out-of-lives REFILL/NEED CR as a gradient Button gated by livesCredits', () => {
+      expect(screenSource).toMatch(/variant="gradient"[\s\S]*?label=\{livesCredits >= 30 \? 'REFILL LIVES · 30 CR'/);
+      expect(screenSource).toMatch(/disabled=\{livesCredits < 30\}/);
+    });
+
+    it('renders out-of-lives MAYBE LATER as a secondary Button (label preserved)', () => {
+      expect(screenSource).toMatch(/variant="secondary"[\s\S]*?label="MAYBE LATER"/);
+    });
+
+    it('drops the deprecated resultsSecondaryBtn / resultsPrimaryBtn StyleSheet entries', () => {
+      expect(screenSource).not.toMatch(/^\s+resultsSecondaryBtn:/m);
+      expect(screenSource).not.toMatch(/^\s+resultsSecondaryText:/m);
+      expect(screenSource).not.toMatch(/^\s+resultsPrimaryBtn:/m);
+      expect(screenSource).not.toMatch(/^\s+resultsPrimaryGradient:/m);
+      expect(screenSource).not.toMatch(/^\s+resultsPrimaryText:/m);
+    });
+  });
 });
 
 describe('Prompt 86B — remaining screen button migrations', () => {

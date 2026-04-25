@@ -230,7 +230,10 @@ export default function TutorialHUDOverlay({
 
   // ── Callout position ──
   const CALLOUT_W = Math.min(CALLOUT_MAX_W, SCREEN_W - CALLOUT_SIDE_PAD * 2);
-  const CALLOUT_H_EST = 188;
+  const CALLOUT_H_EST_DEFAULT = 188;
+  const CALLOUT_H_EST_LONG = 240;
+  const isLongMessage = (step?.message?.length ?? 0) > 200;
+  const CALLOUT_H_EST = isLongMessage ? CALLOUT_H_EST_LONG : CALLOUT_H_EST_DEFAULT;
 
   const calloutPos = useMemo((): { top: number; left: number } | null => {
     if (!targetLayout) return null;
@@ -253,8 +256,17 @@ export default function TutorialHUDOverlay({
     const portalCenterY = portalBox.top + portalBox.height / 2;
 
     if (portalCenterY < midY) {
-      // Target in top half → callout below portal
-      let top = portalBottom + CALLOUT_GAP;
+      // Target in top half → callout below portal by default. If
+      // placing it below would push the bottom past 85% of screen
+      // height (long-message overflow), flip above the portal.
+      const belowTop = portalBottom + CALLOUT_GAP;
+      const belowBottom = belowTop + CALLOUT_H_EST;
+      if (belowBottom > SCREEN_H * 0.85) {
+        let top = portalTop - CALLOUT_GAP - CALLOUT_H_EST;
+        if (top < 80) top = 80;
+        return { top, left };
+      }
+      let top = belowTop;
       const maxTop = SCREEN_H - NAV_HEIGHT - CALLOUT_H_EST - 8;
       if (top > maxTop) top = maxTop;
       return { top, left };
@@ -264,7 +276,7 @@ export default function TutorialHUDOverlay({
       if (top < 80) top = 80;
       return { top, left };
     }
-  }, [targetLayout, portalBox, step, CALLOUT_W]);
+  }, [targetLayout, portalBox, step, CALLOUT_W, CALLOUT_H_EST]);
 
   // ── Synchronous reset (between steps) ──
   const resetVisualState = useCallback(() => {
@@ -554,18 +566,20 @@ export default function TutorialHUDOverlay({
 
   const renderMessage = () => {
     const text = step.message;
+    const isLong = text.length > 200;
+    const messageStyle = isLong ? [st.message, st.longMessage] : st.message;
     const blueWords = step.highlightWords ?? [];
     const amberWords = step.highlightAmberWords ?? [];
     const all = [
       ...amberWords.map(w => ({ word: w, color: '#F0B429' })),
       ...blueWords.map(w => ({ word: w, color: '#00D4FF' })),
     ];
-    if (all.length === 0) return <Text style={st.message}>{text}</Text>;
+    if (all.length === 0) return <Text style={messageStyle}>{text}</Text>;
     const escaped = all.map(h => h.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
     const re = new RegExp(`(${escaped.join('|')})`, 'g');
     const parts = text.split(re);
     return (
-      <Text style={st.message}>
+      <Text style={messageStyle}>
         {parts.map((part, i) => {
           const hit = all.find(h => h.word === part);
           if (hit) return <Text key={i} style={{ color: hit.color, fontWeight: '600' }}>{part}</Text>;
@@ -622,7 +636,7 @@ export default function TutorialHUDOverlay({
           pointerEvents="none"
           style={{
             position: 'absolute',
-            top: portalBox.top - 20,
+            top: portalBox.top - 24,
             left: 0,
             right: 0,
             alignItems: 'center',
@@ -801,7 +815,7 @@ const st = StyleSheet.create({
   },
   label: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: 13,
     color: '#F0B429',
     letterSpacing: 2,
   },
@@ -837,5 +851,9 @@ const st = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#FFFFFF',
+  },
+  longMessage: {
+    fontSize: 13,
+    lineHeight: 19,
   },
 });
