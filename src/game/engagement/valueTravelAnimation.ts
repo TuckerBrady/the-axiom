@@ -6,6 +6,12 @@ const CINEMATIC_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 /**
  * Three-phase value-travel animation: lift-off, arc-travel, impact.
  * Uses useNativeDriver: true for all animations (translateX/Y, scale, opacity).
+ *
+ * `onArrive` fires the moment Phase 2 (arc travel) completes — the
+ * glow has visually landed on the TRAIL cell. Callers should use this
+ * to trigger the trail cell's "accept" highlight so the visual handoff
+ * is synchronous with the landing rather than gapped behind a 700ms
+ * post-impact wait (Prompt 91, Fix 6).
  */
 export function runValueTravel(
   ctx: EngagementContext,
@@ -15,6 +21,7 @@ export function runValueTravel(
   toX: number,
   toY: number,
   value: string,
+  onArrive?: () => void,
 ): Promise<void> {
   return new Promise(resolve => {
     refs.x.setValue(fromX);
@@ -52,7 +59,9 @@ export function runValueTravel(
     ]).start(() => {
       ctx.setGlowTravelerState(prev => ({ ...prev, phase: 'travel' }));
 
-      // Phase 2: Arc travel (0.6s)
+      // Phase 2: Arc travel (0.6s) — lands at exactly (toX, toY),
+      // which is the TRAIL cell's center per
+      // getTapeCellPosFromCache(...) - 12 from the call site.
       Animated.parallel([
         Animated.timing(refs.x, {
           toValue: toX,
@@ -75,19 +84,28 @@ export function runValueTravel(
       ]).start(() => {
         ctx.setGlowTravelerState(prev => ({ ...prev, phase: 'impact' }));
 
-        // Phase 3: Impact (0.7s) — snap glow off, show impact ripple.
-        // The 0.7s persistence is the visual settling of the
-        // tapeCellHighlightWrite style on the TRAIL cell.
-        refs.opacity.setValue(0);
-        ctx.setGlowTravelerState(prev => ({
-          ...prev,
-          visible: false,
-          phase: 'idle',
-        }));
+        // Phase 3: Impact — fire onArrive synchronously so the
+        // TRAIL cell's "accept" highlight starts WHILE the glow is
+        // still visible on the cell, then fade the glow over 250ms
+        // so the handoff is continuous (Prompt 91, Fix 6).
+        // Previously: the opacity snapped to 0 immediately and a
+        // 700ms gap separated the vanish from the trail flash —
+        // visually it looked like the value evaporated mid-air.
+        onArrive?.();
 
-        setTimeout(() => {
+        Animated.timing(refs.opacity, {
+          toValue: 0,
+          duration: 250,
+          easing: CINEMATIC_EASING,
+          useNativeDriver: true,
+        }).start(() => {
+          ctx.setGlowTravelerState(prev => ({
+            ...prev,
+            visible: false,
+            phase: 'idle',
+          }));
           resolve();
-        }, 700);
+        });
       });
     });
   });

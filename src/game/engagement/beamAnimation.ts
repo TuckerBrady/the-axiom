@@ -1,3 +1,4 @@
+import { Animated } from 'react-native';
 import type { EngagementContext, ExecutionStep, Pt } from './types';
 import { getPulseSpeed, computeWaypointDists } from '../bubbleMath';
 import {
@@ -12,6 +13,30 @@ import { triggerPieceAnim } from './interactions';
 import {
   setVoidPulse,
 } from './stateHelpers';
+
+// Beam-dim level while a tape piece is processing (Prompt 91, Fix 5).
+// 0.3 reads as "energy is over there now, not in the wire" without
+// being so dim that the beam looks broken. Transition is 200ms each
+// way per the prompt.
+const BEAM_DIM_OPACITY = 0.3;
+const BEAM_BRIGHT_OPACITY = 1;
+const BEAM_DIM_DURATION_MS = 200;
+
+function dimBeam(ctx: EngagementContext): void {
+  Animated.timing(ctx.beamOpacity, {
+    toValue: BEAM_DIM_OPACITY,
+    duration: BEAM_DIM_DURATION_MS,
+    useNativeDriver: true,
+  }).start();
+}
+
+function brightenBeam(ctx: EngagementContext): void {
+  Animated.timing(ctx.beamOpacity, {
+    toValue: BEAM_BRIGHT_OPACITY,
+    duration: BEAM_DIM_DURATION_MS,
+    useNativeDriver: true,
+  }).start();
+}
 
 // BranchSlot identifies where a running path's head/trail should be
 // written in BeamState. `null` = main (non-fork) beam — update `trails`
@@ -182,6 +207,53 @@ export function runLinearPath(
           else {
             const isTapePiece = !!TAPE_PIECE_COLORS[stp.type];
             if (isTapePiece) {
+              // Snap the beam head + trail to the piece center
+              // (Prompt 91, Fix 4). Without this, the head visibly
+              // freezes a frame past the waypoint — easeOut3 + the
+              // RAF granularity put it at the piece's far edge by
+              // the time we cross the wpDist threshold. Re-apply
+              // the trail truncated to wpDist and pin the head to
+              // waypoints[i] so the visual stop is centered.
+              const wp = waypoints[i];
+              const truncSegs: TrailSeg[] = [];
+              for (let j = 0; j < path.segs.length; j++) {
+                const sg = path.segs[j];
+                const color = segColors[j] ?? '#F0B429';
+                if (wpDist >= sg.e) {
+                  truncSegs.push({
+                    points: [
+                      { x: sg.x0, y: sg.y0 },
+                      { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy },
+                    ],
+                    color,
+                  });
+                } else if (wpDist > sg.s) {
+                  const tt = sg.l > 0 ? (wpDist - sg.s) / sg.l : 0;
+                  truncSegs.push({
+                    points: [
+                      { x: sg.x0, y: sg.y0 },
+                      { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt },
+                    ],
+                    color,
+                  });
+                  break;
+                }
+              }
+              const snapColor =
+                truncSegs.length > 0
+                  ? truncSegs[truncSegs.length - 1].color
+                  : segColors[i] ?? '#F0B429';
+              applyFrame({
+                trail: truncSegs,
+                head: wp,
+                headColor: snapColor,
+                newLitWires: null,
+              });
+
+              // Dim the beam while the tape piece processes
+              // (Prompt 91, Fix 5). brighten on settle.
+              dimBeam(ctx);
+
               const now2 = performance.now();
               pauseStart = now2;
               pauseEnd = now2 + 1e9;
@@ -190,15 +262,18 @@ export function runLinearPath(
               const safetyTimer = setTimeout(() => {
                 if (pauseEnd > performance.now()) {
                   pauseEnd = performance.now();
+                  brightenBeam(ctx);
                 }
               }, 8000);
               ctx.flashTimersRef.current.push(safetyTimer);
               triggerPieceAnim(ctx, stp).then(() => {
                 clearTimeout(safetyTimer);
                 pauseEnd = performance.now();
+                brightenBeam(ctx);
               }).catch(() => {
                 clearTimeout(safetyTimer);
                 pauseEnd = performance.now();
+                brightenBeam(ctx);
               });
             } else {
               triggerPieceAnim(ctx, stp);

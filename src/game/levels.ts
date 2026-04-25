@@ -431,9 +431,8 @@ export const levelA1_7: LevelDefinition = {
   prePlacedPieces: [
     prePlaced('source', 2, 2),
     prePlaced('terminal', 8, 5),
-    prePlaced('scanner', 4, 2),
   ],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'transmitter', 'configNode', 'configNode'],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'scanner', 'transmitter', 'configNode', 'configNode'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1],
   // Config Node configValue=1 passes the five 1-valued pulses
@@ -442,7 +441,7 @@ export const levelA1_7: LevelDefinition = {
   expectedOutput: [1, 1, 1, 1, 1],
   requiredTerminalCount: 5,
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 7,
+  optimalPieces: 8,
   systemRepaired: 'Weapons Lock',
   budget: 40,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],

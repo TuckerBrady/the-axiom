@@ -165,6 +165,13 @@ export interface EngagementContext {
   animFrameRef: MutableRefObject<number | null>;
   flashTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
 
+  // Beam opacity (Animated.Value, 0–1). Drives the SVG beam group's
+  // opacity so the beam can DIM while a tape piece is processing
+  // (Scanner read, Config Node gate check, Transmitter write) and
+  // BRIGHTEN back to 1 when ready to advance — the "Rube Goldberg
+  // energy flow" feel from Prompt 91, Fix 5.
+  beamOpacity: Animated.Value;
+
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;
   dataTrailCellsRef: RefObject<View | null>;

@@ -99,7 +99,20 @@ describe('valueTravelAnimation source contract', () => {
     expect(animationSource).toMatch(/Easing\.bezier\(0\.4, 0, 0\.2, 1\)/);
   });
 
-  it('impact phase waits 700ms before resolving', () => {
-    expect(animationSource).toMatch(/setTimeout\(\s*\(\)\s*=>\s*\{\s*resolve\(\);?\s*\},\s*700\s*\)/);
+  it('impact phase fades opacity over 250ms before resolving (Prompt 91, Fix 6)', () => {
+    // The instant `refs.opacity.setValue(0)` + 700ms wait was
+    // replaced by a smooth Animated.timing fade so the IN→TRAIL
+    // handoff is visually continuous.
+    expect(animationSource).toMatch(
+      /Animated\.timing\(refs\.opacity[\s\S]*?toValue:\s*0[\s\S]*?duration:\s*250/,
+    );
+    expect(animationSource).not.toMatch(
+      /setTimeout\(\s*\(\)\s*=>\s*\{\s*resolve\(\);?\s*\},\s*700\s*\)/,
+    );
+  });
+
+  it('accepts an onArrive callback fired at Phase 2 completion (Prompt 91, Fix 6)', () => {
+    expect(animationSource).toMatch(/onArrive\?:\s*\(\)\s*=>\s*void/);
+    expect(animationSource).toMatch(/onArrive\?\.\(\);/);
   });
 });

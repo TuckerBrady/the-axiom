@@ -7,7 +7,15 @@ jest.mock('../../../src/game/engagement/bubbleHelpers', () => {
 });
 
 jest.mock('../../../src/game/engagement/valueTravelAnimation', () => ({
-  runValueTravel: jest.fn(() => Promise.resolve()),
+  // Invoke the onArrive callback synchronously to mirror production
+  // behavior post-Prompt 91 Fix 6.
+  runValueTravel: jest.fn(
+    (..._args: unknown[]) => {
+      const onArrive = _args[7] as (() => void) | undefined;
+      onArrive?.();
+      return Promise.resolve();
+    },
+  ),
   resetGlowTraveler: jest.fn(),
 }));
 

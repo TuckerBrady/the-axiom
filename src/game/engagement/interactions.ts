@@ -44,9 +44,13 @@ export async function runScannerInteraction(
   // the function alongside the existing read-highlight clear.
   setHighlight(ctx, `in-${pulse}`, 'departing');
 
-  // Three-phase value travel: lift-off → arc → impact (~1.6s total).
-  // Glow traveler is positioned by its top-left corner; cell positions
-  // from the cache are centers, so subtract half-width/height (12).
+  // Three-phase value travel: lift-off → arc → impact (~1.15s total
+  // after Prompt 91, Fix 6 — was ~1.6s). Glow traveler is positioned
+  // by its top-left corner; cell positions from the cache are
+  // centers, so subtract half-width/height (12).
+  // The TRAIL "accept" highlight + visual override fire via the
+  // onArrive callback so the handoff is synchronous with the
+  // landing, not gapped behind the impact fade-out.
   const trailCellPos = getTapeCellPosFromCache(cachedTrailCells, pulse);
   await runValueTravel(
     ctx,
@@ -56,18 +60,19 @@ export async function runScannerInteraction(
     trailCellPos.x - 12,
     trailCellPos.y - 12,
     display,
+    () => {
+      setHighlight(ctx, `trail-${pulse}`, 'write');
+      ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
+      if (tapeValue !== undefined) {
+        ctx.setVisualTrailOverride(prev => {
+          if (!prev) return prev;
+          const next = [...prev];
+          next[pulse] = tapeValue;
+          return next;
+        });
+      }
+    },
   );
-
-  setHighlight(ctx, `trail-${pulse}`, 'write');
-  ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
-  if (tapeValue !== undefined) {
-    ctx.setVisualTrailOverride(prev => {
-      if (!prev) return prev;
-      const next = [...prev];
-      next[pulse] = tapeValue;
-      return next;
-    });
-  }
 
   await wait(250 * speed);
   // Clear the IN highlight (currently 'departing'). Trail-write stays

@@ -359,6 +359,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const glowTravelerY = useRef(new RNAnimated.Value(0)).current;
   const glowTravelerScale = useRef(new RNAnimated.Value(1)).current;
   const glowTravelerOpacity = useRef(new RNAnimated.Value(0)).current;
+  // Drives the beam SVG group's opacity. Dims to 0.3 while a tape
+  // piece is processing, brightens back to 1 when ready to advance —
+  // the "Rube Goldberg energy flow" feel from Prompt 91, Fix 5.
+  const beamOpacity = useRef(new RNAnimated.Value(1)).current;
   // Visual override for the Data Trail and Output Tape during beam phase.
   // machineState holds the post-engage values, but we want cells to pop in
   // as their writes animate. When null, rendering falls through to
@@ -746,6 +750,10 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     triggerHints('onEngage');
+    // Reset beam dim back to fully bright at the start of every run so
+    // a previous level's mid-pause dim state never carries over
+    // (Prompt 91, Fix 5).
+    beamOpacity.setValue(1);
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
     timerRunning.current = false;
     lockedRef.current = true;
@@ -821,6 +829,7 @@ export default function GameplayScreen({ navigation }: Props) {
       currentPulseRef,
       animFrameRef,
       flashTimersRef,
+      beamOpacity,
       boardGridRef,
       inputTapeCellsRef,
       dataTrailCellsRef,
@@ -1202,7 +1211,8 @@ export default function GameplayScreen({ navigation }: Props) {
                         collapsable={false}
                         style={[
                           styles.tapeCell,
-                          isActive && styles.tapeCellActive,
+                          styles.tapeCellIn,
+                          isActive && styles.tapeCellInActive,
                           isPast && styles.tapeCellPast,
                           isFuture && { opacity: 0.55 },
                           highlight === 'read' && styles.tapeCellHighlightRead,
@@ -1215,8 +1225,9 @@ export default function GameplayScreen({ navigation }: Props) {
                         <Text
                           style={[
                             styles.tapeCellText,
-                            isActive && styles.tapeCellTextActive,
-                            isPast && styles.tapeCellTextPast,
+                            styles.tapeCellTextIn,
+                            isActive && styles.tapeCellTextInActive,
+                            isPast && styles.tapeCellTextInPast,
                           ]}
                         >
                           {bit}
@@ -1496,10 +1507,18 @@ export default function GameplayScreen({ navigation }: Props) {
             </Svg>
 
             {/* Signal beam overlay — wrapped in View so pointerEvents
-                component prop reliably passes touches through on iOS. */}
+                component prop reliably passes touches through on iOS.
+                The inner RNAnimated.View carries `beamOpacity` so the
+                beam can dim during tape-piece processing (Prompt 91,
+                Fix 5). useNativeDriver: true is supported because we
+                only animate opacity. */}
             <View
               pointerEvents="none"
               style={[StyleSheet.absoluteFill, { zIndex: 20 }]}
+            >
+            <RNAnimated.View
+              style={[StyleSheet.absoluteFill, { opacity: beamOpacity }]}
+              pointerEvents="none"
             >
             <Svg
               width={gridW}
@@ -1574,6 +1593,7 @@ export default function GameplayScreen({ navigation }: Props) {
                 />
               ))}
             </Svg>
+            </RNAnimated.View>
             </View>
 
             {/* Pieces */}
@@ -3113,6 +3133,13 @@ const styles = StyleSheet.create({
     width: 24,      // matches cell width
     height: 6,
     borderRadius: 3,
+    // The bar must render ABOVE the cell wraps (which include the
+    // purple `tapeHead` strip on the IN tape's active/pre-beam cell).
+    // Without an explicit zIndex, the in-flow `tapeCells` container
+    // stacks over this absolute sibling and the purple head pokes
+    // through the green IN bar (Prompt 91, Fix 2).
+    zIndex: 2,
+    elevation: 2,
   },
   tapeCellHighlightDeparting: {
     opacity: 0.3,
@@ -3238,5 +3265,27 @@ const styles = StyleSheet.create({
   },
   tapeCellTextGateBlocked: {
     color: '#FF3B3B',
+  },
+  // IN-tape-specific palette (Prompt 91, Fix 1). Tucker moved the
+  // green/yellow color treatment from the TRAIL tape to the IN tape;
+  // these overrides apply on top of the shared tapeCell / tapeCellText
+  // styles. The hex matches Colors.tapeInBar (#BFFF3F).
+  tapeCellIn: {
+    // Idle IN cell still uses the dark base background; the active
+    // override below paints the neon-green tint.
+  },
+  tapeCellInActive: {
+    borderColor: '#BFFF3F',
+    backgroundColor: 'rgba(191,255,63,0.14)',
+  },
+  tapeCellTextIn: {
+    color: '#BFFF3F',
+  },
+  tapeCellTextInActive: {
+    color: '#BFFF3F',
+    fontWeight: 'bold' as const,
+  },
+  tapeCellTextInPast: {
+    color: 'rgba(191,255,63,0.4)',
   },
 });
