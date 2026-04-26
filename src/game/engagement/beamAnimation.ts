@@ -97,6 +97,22 @@ export function runLinearPath(
     let pauseStart = 0;
     let pauseAccum = 0;
     let pauseEnd = 0;
+    // Number of tape-piece interactions whose pause is still in
+    // flight. Multiple tape pieces can flash on a single tick
+    // (easeOut3 + RAF granularity packs early waypoints into ~80 ms
+    // on a full-speed pulse, and on Splitter pre-fork paths several
+    // tape pieces can clear the same wpDist threshold). Pre-Prompt 98
+    // the pause was released as soon as ANY one promise resolved,
+    // collapsing pauseEnd while the second tape animation was still
+    // running — the bookkeeping then raced and `rawT` went
+    // catastrophically negative.
+    //
+    // Closure-scoped (per `runLinearPath` invocation) NOT module-
+    // scoped: each Splitter branch runs its own `runLinearPath`
+    // with its own pauseStart / pauseEnd / pauseAccum, so the
+    // counter must follow the same scoping. A module-scoped
+    // counter would let branch A's tape pause leak into branch B.
+    let inFlightTapePauses = 0;
 
     function applyFrame(update: {
       trail: TrailSeg[] | null;
@@ -155,7 +171,19 @@ export function runLinearPath(
         return;
       }
       if (pauseEnd > 0) {
-        pauseAccum += (pauseEnd - pauseStart);
+        // Guard against pauseStart having been zeroed by an
+        // out-of-order tape promise resolution (Prompt 98, Fix 1).
+        // If pauseStart is 0 and pauseEnd is non-zero, the difference
+        // would equal the entire app uptime — that lands in
+        // pauseAccum and rawT goes catastrophically negative,
+        // freezing the tick loop. Skipping accumulation when the
+        // start is missing is correct: the only way to have
+        // pauseEnd > 0 with pauseStart === 0 is if the bookkeeping
+        // already raced; the safest thing is not to compound the
+        // damage.
+        if (pauseStart > 0) {
+          pauseAccum += (pauseEnd - pauseStart);
+        }
         pauseEnd = 0;
         pauseStart = 0;
       }
@@ -262,33 +290,54 @@ export function runLinearPath(
               });
 
               // Dim the beam while the tape piece processes
-              // (Prompt 91, Fix 5). brighten on settle.
+              // (Prompt 91, Fix 5). brighten only when the LAST
+              // in-flight pause settles (counter 1→0 below).
               dimBeam(ctx);
 
               const now2 = performance.now();
-              pauseStart = now2;
-              pauseEnd = now2 + 1e9;
+              if (inFlightTapePauses === 0) {
+                // First tape pause in this batch — anchor the
+                // pauseStart / pauseEnd window. Subsequent pauses
+                // queued in the same tick join the existing window
+                // instead of overwriting pauseStart, which would
+                // shrink the accumulated pause duration relative to
+                // wall time.
+                pauseStart = now2;
+                pauseEnd = now2 + 1e9;
+              }
+              inFlightTapePauses++;
+              // Per-pause resolver flag (Prompt 98, Fix 3). Both the
+              // promise settle path and the 8 s safety timer race to
+              // close out this pause; `resolved` ensures the counter
+              // decrements exactly once and the safety timer can't
+              // double-decrement after the promise has already
+              // settled.
+              const tapeResolver = { resolved: false };
+              const settleTapePause = (): void => {
+                if (tapeResolver.resolved) return;
+                tapeResolver.resolved = true;
+                inFlightTapePauses--;
+                if (inFlightTapePauses === 0) {
+                  pauseEnd = performance.now();
+                  brightenBeam(ctx);
+                }
+              };
               // Safety net: force-resume the beam after 8s if the
               // interaction promise never settles. Routed through
               // safetyTimersRef (Prompt 95, Fix 7) so the per-pulse
               // flash-timer sweep (Prompt 94) can't clear an
               // in-flight safety timer mid-pause.
-              const safetyTimer = setTimeout(() => {
-                if (pauseEnd > performance.now()) {
-                  pauseEnd = performance.now();
-                  brightenBeam(ctx);
-                }
-              }, 8000);
+              const safetyTimer = setTimeout(settleTapePause, 8000);
               ctx.safetyTimersRef.current.push(safetyTimer);
-              triggerPieceAnim(ctx, stp).then(() => {
-                clearTimeout(safetyTimer);
-                pauseEnd = performance.now();
-                brightenBeam(ctx);
-              }).catch(() => {
-                clearTimeout(safetyTimer);
-                pauseEnd = performance.now();
-                brightenBeam(ctx);
-              });
+              triggerPieceAnim(ctx, stp)
+                .then(() => {
+                  clearTimeout(safetyTimer);
+                  settleTapePause();
+                })
+                .catch(() => {
+                  clearTimeout(safetyTimer);
+                  settleTapePause();
+                });
             } else {
               triggerPieceAnim(ctx, stp);
             }

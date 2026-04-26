@@ -94,13 +94,27 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(beamSrc).toMatch(/Animated\.timing\(ctx\.beamOpacity[\s\S]*?useNativeDriver:\s*true/);
     });
 
-    it('calls dimBeam when entering the tape pause and brightenBeam on settle / safety / catch', () => {
+    it('calls dimBeam when entering the tape pause and brightenBeam on settle (via settleTapePause)', () => {
       // dimBeam fires alongside pauseEnd assignment.
       expect(beamSrc).toMatch(/dimBeam\(ctx\);/);
-      // brightenBeam appears at three callsites: triggerPieceAnim
-      // settle, the safety timer, and the catch handler.
-      const brightens = beamSrc.match(/brightenBeam\(ctx\)/g) ?? [];
-      expect(brightens.length).toBeGreaterThanOrEqual(3);
+      // After Prompt 98 the three settle paths (.then / .catch /
+      // safety timer) all route through settleTapePause, which
+      // calls brightenBeam exactly once when the in-flight counter
+      // reaches zero. The original "≥ 3 brightenBeam callsites"
+      // assertion no longer holds — that's a deliberate
+      // architectural improvement (one settle helper instead of
+      // three duplicated bodies). Pin the new shape: brightenBeam
+      // is called inside the counter-zero branch of settleTapePause.
+      expect(beamSrc).toMatch(
+        /if \(inFlightTapePauses === 0\) \{\s*pauseEnd = performance\.now\(\);\s*brightenBeam\(ctx\);/,
+      );
+      // And confirm all three settle paths are wired to
+      // settleTapePause (Prompt 98 Fix 3 — already pinned in
+      // prompt98Fixes.test, restated here for clarity at this
+      // attribution boundary).
+      expect(beamSrc).toMatch(/setTimeout\(settleTapePause, 8000\)/);
+      expect(beamSrc).toMatch(/\.then\([^)]*\) => \{\s*clearTimeout\(safetyTimer\);\s*settleTapePause\(\);/);
+      expect(beamSrc).toMatch(/\.catch\([^)]*\) => \{\s*clearTimeout\(safetyTimer\);\s*settleTapePause\(\);/);
     });
 
     it('exposes beamOpacity on the EngagementContext interface', () => {
