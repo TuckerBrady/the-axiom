@@ -290,7 +290,19 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   }
 
   const visited = new Set<string>();
-  const queue: { id: string; entrySide?: PortSide }[] = [{ id: source.id }];
+  // Prompt 100 — BFS queue entries carry a `signalValue`, the bit
+  // value being propagated along the path. Pieces that transform the
+  // signal (Inverter flip, Latch READ override) update the outbound
+  // value before enqueuing neighbors. Pieces that consume the signal
+  // (Transmitter write) read it as-is. This is the source of truth
+  // per TRANSMITTER_WRITE_CONTRACT clauses 3.1 / 3.3 — the Transmitter
+  // writes the carried signal value, not the raw input-tape value.
+  // Seed value comes from the input tape (clause 3.2: passthrough
+  // matches input). When inputTape is undefined (legacy levels with
+  // no tape), default to 0 so downstream typing stays clean.
+  const queue: { id: string; entrySide?: PortSide; signalValue: number }[] = [
+    { id: source.id, signalValue: tapeValue ?? 0 },
+  ];
 
   const trail = {
     cells: [...dataTrail.cells],
@@ -298,7 +310,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   };
 
   while (queue.length > 0 && steps.length < MAX_STEPS) {
-    const { id: currentId, entrySide } = queue.shift()!;
+    const { id: currentId, entrySide, signalValue } = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
@@ -311,6 +323,15 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
       timestamp: stepTime++,
       success: true,
     };
+
+    // Default outbound signal: passthrough. Pieces that transform the
+    // signal (Inverter, Latch READ) overwrite this before the neighbor
+    // enqueue at the bottom of the loop. Splitter / Conveyor / Gear /
+    // Bridge / Merger / Scanner / Transmitter / Config Node leave it
+    // alone — they do not transform the signal value (Scanner writes
+    // to the trail; Transmitter writes the signal out; Config Node
+    // gates without mutating).
+    let outboundSignalValue: number = signalValue;
 
     switch (piece.type) {
       case 'source':
@@ -368,11 +389,18 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         break;
 
       case 'transmitter':
-        if (state.inputTape !== undefined && state.outputTape !== undefined) {
-          // Write the current pulse value to outputTape[pulseIndex].
-          state.outputTape[pulseIndex] = tapeValue ?? 0;
-          step.message = `Wrote outputTape[${pulseIndex}] = ${tapeValue ?? 0}`;
+        if (state.outputTape !== undefined) {
+          // TRANSMITTER_WRITE_CONTRACT 3.1, 3.3, 4.1: write the
+          // carried signal value (post-Inverter / post-Latch READ
+          // transformations) to outputTape[pulseIndex]. Pre-Prompt-100
+          // this wrote `tapeValue ?? 0` (the raw input tape value),
+          // which silently dropped any upstream Inverter flip.
+          const value = signalValue as 0 | 1;
+          state.outputTape[pulseIndex] = value;
+          step.message = `Wrote outputTape[${pulseIndex}] = ${value}`;
         } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
+          // Legacy non-tape path for older level shapes that have a
+          // trail but no outputTape. Behavior preserved verbatim.
           trail.cells[trail.headPosition] = 1;
           step.message = `Transmitted value to cell ${trail.headPosition}`;
         } else {
@@ -389,12 +417,15 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         break;
 
       case 'inverter': {
-        if (tapeValue !== undefined) {
-          const inverted = 1 - tapeValue;
-          step.message = `Inverted ${tapeValue} -> ${inverted}`;
-        } else {
-          step.message = 'Inverter: passing signal unchanged (no tape)';
-        }
+        // TRANSMITTER_WRITE_CONTRACT 3.3: Inverter operates on the
+        // carried signal value, not the raw input tape. An upstream
+        // chain like [Source -> Inverter -> Inverter -> Transmitter]
+        // must compose correctly (1 -> 0 -> 1), which only works if
+        // each Inverter reads the signal value from its predecessor.
+        const inbound = signalValue;
+        const inverted = (1 - inbound) as 0 | 1;
+        outboundSignalValue = inverted;
+        step.message = `Inverted ${inbound} -> ${inverted}`;
         break;
       }
 
@@ -417,7 +448,11 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
       case 'latch': {
         const mode = piece.latchMode ?? 'write';
         if (mode === 'write') {
-          piece.storedValue = tapeValue ?? 0;
+          // Latch WRITE captures the carried signal value, mirroring
+          // the same source-of-truth shift Inverter and Transmitter use
+          // (TRANSMITTER_WRITE_CONTRACT 3.3). Pre-Prompt-100 this read
+          // tapeValue directly — same correctness gap as Transmitter.
+          piece.storedValue = signalValue as 0 | 1;
           step.message = `Latch WRITE — stored ${piece.storedValue}`;
         } else {
           if (piece.storedValue == null) {
@@ -426,6 +461,10 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
             steps.push(step);
             continue;
           }
+          // Latch READ overrides the outbound signal with the stored
+          // value so downstream pieces see the read value, not the
+          // value carried into the latch.
+          outboundSignalValue = piece.storedValue;
           step.message = `Latch READ — output stored value ${piece.storedValue}`;
         }
         break;
@@ -443,6 +482,12 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
     // Follow directional output ports to find next pieces.
     // Pass entrySide so protocol pieces enforce straight-through routing.
+    // Pass outboundSignalValue so transformations (Inverter flip,
+    // Latch READ override) propagate to downstream pieces. For a
+    // Splitter, every branch inherits the SAME outbound value — the
+    // Splitter does not re-derive the signal per branch, it duplicates
+    // it. Do not "optimize" by mutating outboundSignalValue per
+    // neighbor; that would break dataflow semantics.
     const neighbors = getDirectionalNeighbors(piece, pieces, entrySide);
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor.id)) {
@@ -454,7 +499,11 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         else if (dx === -1) neighborEntrySide = 'right';
         else if (dy === 1) neighborEntrySide = 'top';
         else neighborEntrySide = 'bottom';
-        queue.push({ id: neighbor.id, entrySide: neighborEntrySide });
+        queue.push({
+          id: neighbor.id,
+          entrySide: neighborEntrySide,
+          signalValue: outboundSignalValue,
+        });
       }
     }
   }
