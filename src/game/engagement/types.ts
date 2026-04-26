@@ -162,7 +162,14 @@ export interface EngagementContext {
   setCurrentPulseIndex: (i: number) => void;
   currentPulseRef: MutableRefObject<number>;
 
-  animFrameRef: MutableRefObject<number | null>;
+  // Map of in-flight requestAnimationFrame IDs, keyed by branch slot
+  // (Prompt 94, Fix 2). `null` = the main, non-fork beam (also used
+  // by charge/lock phases which don't branch). `0` / `1` = the two
+  // branches a Splitter spawns. Before the Map, both Splitter
+  // branches wrote their RAF id to the same field — only the second
+  // assignment survived, leaving the first branch's frame
+  // untrackable. Cleanup walks the Map and cancels each non-null id.
+  animFrameRef: MutableRefObject<Map<number | null, number | null>>;
   flashTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
 
   // Beam opacity (Animated.Value, 0–1). Drives the SVG beam group's
@@ -171,6 +178,12 @@ export interface EngagementContext {
   // BRIGHTEN back to 1 when ready to advance — the "Rube Goldberg
   // energy flow" feel from Prompt 91, Fix 5.
   beamOpacity: Animated.Value;
+
+  // Tracks the most recent dim/brighten Animated.timing on
+  // beamOpacity so the next call can `.stop()` it before starting
+  // a new one (Prompt 94, Fix 3). Without this, rapid dim → brighten
+  // sequences fire overlapping animations that fight each other.
+  beamOpacityAnim?: Animated.CompositeAnimation;
 
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;

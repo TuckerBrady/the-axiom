@@ -11,11 +11,15 @@ function buildCtx(center: Pt | null): {
   ctx: EngagementContext;
   chargeRef: { value: ChargeState };
   beamRef: { value: BeamState };
-  animFrameRef: { current: number | null };
+  animFrameRef: { current: Map<number | null, number | null> };
 } {
   const chargeRef = { value: { ...CHARGE_INITIAL } };
   const beamRef = { value: { ...BEAM_INITIAL, litWires: new Set<string>() } };
-  const animFrameRef: { current: number | null } = { current: null };
+  // Per-slot RAF id Map (Prompt 94, Fix 2). chargePhase always uses
+  // the main slot (key `null`).
+  const animFrameRef: { current: Map<number | null, number | null> } = {
+    current: new Map(),
+  };
 
   const setChargeState = jest.fn(arg => {
     if (typeof arg === 'function') chargeRef.value = arg(chargeRef.value);

@@ -19,12 +19,13 @@ export async function runChargePhase(
       const ct = Math.min(1, (performance.now() - chargeStart) / 280);
       setChargeProgressField(ctx.setChargeState, ct);
       if (ct < 1) {
-        ctx.animFrameRef.current = requestAnimationFrame(tick);
+        ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
       } else {
+        ctx.animFrameRef.current.delete(null);
         res();
       }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
   });
   setChargePosField(ctx.setChargeState, null);
 }
@@ -42,13 +43,21 @@ export async function runReplayChargePhase(
   const cs = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {
-      if (!ctx.loopingRef.current) { res(); return; }
+      if (!ctx.loopingRef.current) {
+        ctx.animFrameRef.current.delete(null);
+        res();
+        return;
+      }
       const ct = Math.min(1, (performance.now() - cs) / 280);
       setChargeProgressField(ctx.setChargeState, ct);
-      if (ct < 1) { ctx.animFrameRef.current = requestAnimationFrame(tick); }
-      else { res(); }
+      if (ct < 1) {
+        ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
+      } else {
+        ctx.animFrameRef.current.delete(null);
+        res();
+      }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
   });
   setChargePosField(ctx.setChargeState, null);
 }

@@ -375,7 +375,13 @@ export default function GameplayScreen({ navigation }: Props) {
   >(null);
 
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
-  const animFrameRef = useRef<number | null>(null);
+  // Per-slot RAF id Map (Prompt 94, Fix 2). Key `null` = main beam +
+  // charge/lock; keys `0` / `1` = Splitter branches. Pre-Fix 2 this
+  // was a single `number | null`, which let Splitter branches
+  // overwrite each other's frame id.
+  const animFrameRef = useRef<Map<number | null, number | null>>(
+    new Map(),
+  );
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Per-pulse gate outcome: 'passed' or 'blocked'. Drives OUT tape
@@ -485,10 +491,13 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Cleanup beam animation on unmount ──
   useEffect(() => {
     return () => {
-      if (animFrameRef.current != null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
+      // Walk the per-slot RAF Map and cancel every in-flight frame
+      // (Prompt 94, Fix 2). Pre-Fix 2 the ref held a single id and
+      // we missed any frame the second Splitter branch had written.
+      animFrameRef.current.forEach(id => {
+        if (id != null) cancelAnimationFrame(id);
+      });
+      animFrameRef.current.clear();
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
       loopingRef.current = false;
@@ -593,6 +602,16 @@ export default function GameplayScreen({ navigation }: Props) {
     }
     return map;
   }, [pieces, pieceAnimState.animations, pieceAnimState.gates, pieceAnimState.failColors]);
+
+  // O(1) piece-id lookup for the wire render block (Prompt 94, Fix 4).
+  // Pre-fix that block called `pieces.find(...)` twice per wire on
+  // every render — O(n*w). On a complex level (~20 pieces, ~8
+  // wires) that is ~144 linear scans per frame. Building the Map
+  // once per render replaces it with one O(n) setup + O(1) lookups.
+  const pieceById = useMemo(
+    () => new Map(pieces.map(p => [p.id, p])),
+    [pieces],
+  );
 
   const numColumns = level?.gridWidth ?? 8;
   const numRows = level?.gridHeight ?? 7;
@@ -888,6 +907,14 @@ export default function GameplayScreen({ navigation }: Props) {
     for (let p = 0; p < pulses.length; p++) {
       currentPulseRef.current = p;
       setCurrentPulseIndex(p);
+      // Per-pulse flash-timer sweep (Prompt 94, Fix 1). flashPiece /
+      // triggerPieceAnim / the tape-pause safety timer all push
+      // setTimeout handles into flashTimersRef during a pulse.
+      // Without this sweep the array grows unbounded across the run
+      // — on long puzzles that pile of orphaned timers compounds
+      // into the per-pulse lag Tucker reported.
+      flashTimersRef.current.forEach(t => clearTimeout(t));
+      flashTimersRef.current = [];
       await engageRunPulse(ctx, pulses[p]);
 
       const pulseReachedTerminal = pulses[p].some(
@@ -1072,11 +1099,13 @@ export default function GameplayScreen({ navigation }: Props) {
     loopingRef.current = false;
     setShowResults(false);
     setShowVoid(false);
-    // Cancel beam animation and clear all visual signal state
-    if (animFrameRef.current != null) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
+    // Cancel beam animation and clear all visual signal state.
+    // Walks the per-slot RAF Map (Prompt 94, Fix 2) so Splitter
+    // branches can't leave orphaned frames after a reset.
+    animFrameRef.current.forEach(id => {
+      if (id != null) cancelAnimationFrame(id);
+    });
+    animFrameRef.current.clear();
     setTapeCellHighlights(new Map());
     setTapeBarState(TAPE_BAR_INITIAL);
     resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
@@ -1480,8 +1509,8 @@ export default function GameplayScreen({ navigation }: Props) {
 
               {/* Wires — only on Axiom tutorial levels */}
               {wires.map(wire => {
-                const fromPiece = pieces.find(p => p.id === wire.fromPieceId);
-                const toPiece = pieces.find(p => p.id === wire.toPieceId);
+                const fromPiece = pieceById.get(wire.fromPieceId);
+                const toPiece = pieceById.get(wire.toPieceId);
                 if (!fromPiece || !toPiece) return null;
 
                 const fx = fromPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
@@ -1902,10 +1931,11 @@ export default function GameplayScreen({ navigation }: Props) {
               label="CONTINUE"
               onPress={() => {
                 loopingRef.current = false;
-                if (animFrameRef.current != null) {
-                  cancelAnimationFrame(animFrameRef.current);
-                  animFrameRef.current = null;
-                }
+                // Per-slot RAF cleanup (Prompt 94, Fix 2).
+                animFrameRef.current.forEach(id => {
+                  if (id != null) cancelAnimationFrame(id);
+                });
+                animFrameRef.current.clear();
                 setTapeCellHighlights(new Map());
                 setTapeBarState(TAPE_BAR_INITIAL);
                 resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });

@@ -6,6 +6,11 @@ import {
   updateLitWires,
 } from './stateHelpers';
 
+// Lock / wrong-output / replay-lock all run on the main beam slot
+// (`null`) — these phases never branch. Routed through the
+// per-slot RAF Map (Prompt 94, Fix 2) so the cleanup walk doesn't
+// miss in-flight frames if a Splitter run is interleaved.
+
 export async function runLockPhase(
   ctx: EngagementContext,
   outputCenter: Pt,
@@ -25,13 +30,14 @@ export async function runLockPhase(
       }
       ctx.setLockRings(ringsState);
       if (elapsed < 320) {
-        ctx.animFrameRef.current = requestAnimationFrame(tick);
+        ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
       } else {
+        ctx.animFrameRef.current.delete(null);
         ctx.setLockRings([]);
         res();
       }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
   });
   setLockedPieces(ctx.setPieceAnimState, new Set(ctx.machineStatePieces.map(p => p.id)));
   updateLitWires(ctx.setBeamState, prev => {
@@ -63,13 +69,14 @@ export async function runWrongOutputRings(
       }
       if (ringsState[0]) setVoidPulse(ctx.setBeamState, { x: ringsState[0].x, y: ringsState[0].y, r: ringsState[0].r, opacity: ringsState[0].opacity });
       if (elapsed < 320) {
-        ctx.animFrameRef.current = requestAnimationFrame(tick);
+        ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
       } else {
+        ctx.animFrameRef.current.delete(null);
         setVoidPulse(ctx.setBeamState, null);
         res();
       }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
   });
 }
 
@@ -82,7 +89,12 @@ export async function runReplayLockPhase(
   const rs = performance.now();
   await new Promise<void>(res => {
     const tick = (): void => {
-      if (!ctx.loopingRef.current) { ctx.setLockRings([]); res(); return; }
+      if (!ctx.loopingRef.current) {
+        ctx.animFrameRef.current.delete(null);
+        ctx.setLockRings([]);
+        res();
+        return;
+      }
       const el = performance.now() - rs;
       const rings: LockRing[] = [];
       for (let ri = 0; ri < 2; ri++) {
@@ -93,9 +105,14 @@ export async function runReplayLockPhase(
         }
       }
       ctx.setLockRings(rings);
-      if (el < 320) { ctx.animFrameRef.current = requestAnimationFrame(tick); }
-      else { ctx.setLockRings([]); res(); }
+      if (el < 320) {
+        ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
+      } else {
+        ctx.animFrameRef.current.delete(null);
+        ctx.setLockRings([]);
+        res();
+      }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(null, requestAnimationFrame(tick));
   });
 }

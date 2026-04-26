@@ -22,20 +22,31 @@ const BEAM_DIM_OPACITY = 0.3;
 const BEAM_BRIGHT_OPACITY = 1;
 const BEAM_DIM_DURATION_MS = 200;
 
+// dim/brighten share the same Animated.Value (ctx.beamOpacity).
+// If the beam dims and then brightens (or the inverse) inside the
+// 200ms transition window, the second timing's `.start()` doesn't
+// implicitly cancel the first — they overlap, fight, and the value
+// follows the last writer rather than smoothly inverting (Prompt 94,
+// Fix 3). ctx.beamOpacityAnim caches the current handle so each
+// caller can `.stop()` it before queuing the next.
 function dimBeam(ctx: EngagementContext): void {
-  Animated.timing(ctx.beamOpacity, {
+  ctx.beamOpacityAnim?.stop();
+  ctx.beamOpacityAnim = Animated.timing(ctx.beamOpacity, {
     toValue: BEAM_DIM_OPACITY,
     duration: BEAM_DIM_DURATION_MS,
     useNativeDriver: true,
-  }).start();
+  });
+  ctx.beamOpacityAnim.start();
 }
 
 function brightenBeam(ctx: EngagementContext): void {
-  Animated.timing(ctx.beamOpacity, {
+  ctx.beamOpacityAnim?.stop();
+  ctx.beamOpacityAnim = Animated.timing(ctx.beamOpacity, {
     toValue: BEAM_BRIGHT_OPACITY,
     duration: BEAM_DIM_DURATION_MS,
     useNativeDriver: true,
-  }).start();
+  });
+  ctx.beamOpacityAnim.start();
 }
 
 // BranchSlot identifies where a running path's head/trail should be
@@ -140,7 +151,7 @@ export function runLinearPath(
     const tick = (): void => {
       const now = performance.now();
       if (pauseEnd > 0 && now < pauseEnd) {
-        ctx.animFrameRef.current = requestAnimationFrame(tick);
+        ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(tick));
         return;
       }
       if (pauseEnd > 0) {
@@ -282,8 +293,12 @@ export function runLinearPath(
         }
       }
       if (rawT < 1) {
-        ctx.animFrameRef.current = requestAnimationFrame(tick);
+        ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(tick));
       } else {
+        // Final frame for this slot — clear the entry so cleanup
+        // doesn't try to cancel an id whose callback already
+        // resolved.
+        ctx.animFrameRef.current.delete(branchSlot);
         if (hasVoid) {
           const blocker = waypoints[waypoints.length - 1];
           const ps = performance.now();
@@ -291,21 +306,22 @@ export function runLinearPath(
             const e = performance.now() - ps;
             const p = Math.min(1, e / 320);
             setVoidPulse(ctx.setBeamState, { x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
-            if (p < 1) ctx.animFrameRef.current = requestAnimationFrame(voidTick);
+            if (p < 1) ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(voidTick));
             else {
+              ctx.animFrameRef.current.delete(branchSlot);
               setVoidPulse(ctx.setBeamState, null);
               applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
               resolve();
             }
           };
-          ctx.animFrameRef.current = requestAnimationFrame(voidTick);
+          ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(voidTick));
         } else {
           applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
           resolve();
         }
       }
     };
-    ctx.animFrameRef.current = requestAnimationFrame(tick);
+    ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(tick));
   });
 }
 
