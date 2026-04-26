@@ -931,6 +931,17 @@ export default function GameplayScreen({ navigation }: Props) {
       // into the per-pulse lag Tucker reported.
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
+      // Cancelling the timers also kills the deferred cleanup that
+      // would have removed entries from flashing / animations / gates.
+      // Reset those Maps explicitly here so the terminal-piece purple
+      // flash clears and PieceIcon re-triggers piece animations on
+      // pulses 2+ (mirrors replayLoop.ts:52-57).
+      setPieceAnimState(prev => ({
+        ...prev,
+        flashing: new Map(),
+        animations: new Map(),
+        gates: new Map(),
+      }));
       await engageRunPulse(ctx, pulses[p]);
 
       const pulseReachedTerminal = pulses[p].some(
