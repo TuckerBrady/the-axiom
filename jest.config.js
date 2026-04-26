@@ -9,6 +9,7 @@ module.exports = {
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
       moduleNameMapper: {
         '@react-native-async-storage/async-storage': '<rootDir>/__tests__/__mocks__/async-storage.ts',
+        '^react-native$': '<rootDir>/__tests__/__mocks__/react-native.ts',
       },
       globals: {
         __DEV__: false,

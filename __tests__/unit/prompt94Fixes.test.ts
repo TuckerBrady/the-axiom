@@ -57,15 +57,19 @@ describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
       expect(sets.length).toBeGreaterThanOrEqual(4);
     });
 
-    it('chargePhase / lockPhase use the main-beam slot (key null)', () => {
+    it('chargePhase / lockPhase no longer manage RAF (Prompt 99A — native driver owns the frame loop)', () => {
+      // Pre-99A this guard pinned chargePhase + lockPhase to the main
+      // beam slot (key null) of the per-slot RAF Map. After 99A's
+      // migration to useNativeDriver: true, the JS thread no longer
+      // schedules per-frame callbacks for these phases — the native
+      // driver owns the timing loop. The guard now inverts: the files
+      // must contain ZERO requestAnimationFrame references.
+      expect(chargeSrc).not.toMatch(/requestAnimationFrame/);
+      expect(lockSrc).not.toMatch(/requestAnimationFrame/);
+      // The pre-99A bare-assignment pattern is also still forbidden
+      // (was the original bug Prompt 94 Fix 2 caught).
       expect(chargeSrc).not.toMatch(/ctx\.animFrameRef\.current\s*=\s*requestAnimationFrame/);
       expect(lockSrc).not.toMatch(/ctx\.animFrameRef\.current\s*=\s*requestAnimationFrame/);
-      expect(chargeSrc).toMatch(
-        /ctx\.animFrameRef\.current\.set\(null,\s*requestAnimationFrame\(/,
-      );
-      expect(lockSrc).toMatch(
-        /ctx\.animFrameRef\.current\.set\(null,\s*requestAnimationFrame\(/,
-      );
     });
 
     it('GameplayScreen cleanup blocks walk the Map and call cancelAnimationFrame on each id', () => {

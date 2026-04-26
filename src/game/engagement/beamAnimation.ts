@@ -29,7 +29,11 @@ const BEAM_DIM_DURATION_MS = 200;
 // follows the last writer rather than smoothly inverting (Prompt 94,
 // Fix 3). ctx.beamOpacityAnim caches the current handle so each
 // caller can `.stop()` it before queuing the next.
-function dimBeam(ctx: EngagementContext): void {
+// Exported for the beamPerformance [2.1.1] test surface (Prompt 99A).
+// Behavior is unchanged from the pre-99A internal version — this just
+// promotes the helpers to module exports so the SE test can invoke
+// them directly to verify useNativeDriver: true is set.
+export function dimBeam(ctx: EngagementContext): void {
   ctx.beamOpacityAnim?.stop();
   ctx.beamOpacityAnim = Animated.timing(ctx.beamOpacity, {
     toValue: BEAM_DIM_OPACITY,
@@ -39,7 +43,7 @@ function dimBeam(ctx: EngagementContext): void {
   ctx.beamOpacityAnim.start();
 }
 
-function brightenBeam(ctx: EngagementContext): void {
+export function brightenBeam(ctx: EngagementContext): void {
   ctx.beamOpacityAnim?.stop();
   ctx.beamOpacityAnim = Animated.timing(ctx.beamOpacity, {
     toValue: BEAM_BRIGHT_OPACITY,

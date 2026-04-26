@@ -151,7 +151,11 @@ export interface EngagementContext {
   setPieceAnimState: Dispatch<SetStateAction<PieceAnimState>>;
   setChargeState: Dispatch<SetStateAction<ChargeState>>;
 
-  setLockRings: (rings: LockRing[]) => void;
+  // Lock ring center (Prompt 99A). Replaces the per-tick `lockRings`
+  // array setter. Mounted when the lock phase begins, cleared on
+  // completion. Ring expansion (radius + opacity) is driven on the
+  // native thread via `lockRingProgressAnim`.
+  setLockRingCenter: Dispatch<SetStateAction<Pt | null>>;
   setTapeCellHighlights: Dispatch<SetStateAction<Map<string, TapeHighlight>>>;
   setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
   setGlowTravelerState: Dispatch<SetStateAction<GlowTravelerState>>;
@@ -199,6 +203,27 @@ export interface EngagementContext {
   // a new one (Prompt 94, Fix 3). Without this, rapid dim → brighten
   // sequences fire overlapping animations that fight each other.
   beamOpacityAnim?: Animated.CompositeAnimation;
+
+  // Charge phase progress (Prompt 99A). 0 → 1 over 280ms, driven by
+  // useNativeDriver: true so the source piece's expanding rings render
+  // off the JS thread. Replaces the per-RAF setChargeProgress stream.
+  // PERFORMANCE_CONTRACT 2.1.3, 3.2.1, 3.2.2, 5.4.2.
+  chargeProgressAnim: Animated.Value;
+  chargeAnim: Animated.CompositeAnimation | null;
+
+  // Lock phase progress (Prompt 99A). 0 → 1 over 320ms. Drives both
+  // lock rings via interpolation in the render layer (the second ring
+  // offsets by 100ms via interpolate inputRange). Replaces the per-RAF
+  // setLockRings stream. PERFORMANCE_CONTRACT 2.1.4, 3.3.1, 3.3.2, 5.4.2.
+  lockRingProgressAnim: Animated.Value;
+  lockAnim: Animated.CompositeAnimation | null;
+
+  // Pre-allocated for Prompt 99C's void burst migration. Shape mirrors
+  // lockRingProgressAnim (0 → 1 over the burst duration). Owned here
+  // so the value survives across pulses per PERFORMANCE_CONTRACT
+  // 5.4.2 and replay iterations per 7.3.3.
+  voidPulseRingProgressAnim: Animated.Value;
+  voidPulseAnim: Animated.CompositeAnimation | null;
 
   boardGridRef: RefObject<View | null>;
   inputTapeCellsRef: RefObject<View | null>;

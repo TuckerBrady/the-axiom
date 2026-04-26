@@ -12,6 +12,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Line, Rect, Path, G, Polyline } from 'react-native-svg';
+// AnimatedCircle (Prompt 99A) — used by the lock ring + charge ring
+// renderers below. Driven by Animated.Values on EngagementContext
+// with useNativeDriver: true.
+const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -346,9 +350,11 @@ export default function GameplayScreen({ navigation }: Props) {
   // chargeState: pos, progress
   const [chargeState, setChargeState] = useState<ChargeState>(CHARGE_INITIAL);
 
-  // Lock rings fire twice (start/end of lock phase), not at RAF rate,
-  // so they remain on their own.
-  const [lockRings, setLockRings] = useState<{ x: number; y: number; r: number; opacity: number }[]>([]);
+  // Lock ring anchor (Prompt 99A). Replaces the per-tick lockRings
+  // array. Mounted at lock-phase start, cleared at lock-phase end.
+  // Ring radius/opacity are interpolated from lockRingProgressAnim
+  // on the native thread.
+  const [lockRingCenter, setLockRingCenter] = useState<{ x: number; y: number } | null>(null);
   const [tapeCellHighlights, setTapeCellHighlights] = useState<
     Map<string, TapeHighlight>
   >(new Map());
@@ -363,6 +369,16 @@ export default function GameplayScreen({ navigation }: Props) {
   // piece is processing, brightens back to 1 when ready to advance —
   // the "Rube Goldberg energy flow" feel from Prompt 91, Fix 5.
   const beamOpacity = useRef(new RNAnimated.Value(1)).current;
+  // Prompt 99A — phase progress Animated.Values. Allocated once and
+  // reused across pulses (PERFORMANCE_CONTRACT 5.4.2). Driven on the
+  // native thread (useNativeDriver: true) so charge/lock/void burst
+  // animations don't burn JS-thread cycles. The chargeAnim / lockAnim
+  // / voidPulseAnim handles are stored on the EngagementContext via
+  // assignment so the next phase invocation can `.stop()` an in-flight
+  // animation cleanly (mirrors the existing beamOpacityAnim pattern).
+  const chargeProgressAnim = useRef(new RNAnimated.Value(0)).current;
+  const lockRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
+  const voidPulseRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
   // Visual override for the Data Trail and Output Tape during beam phase.
   // machineState holds the post-engage values, but we want cells to pop in
   // as their writes animate. When null, rendering falls through to
@@ -856,7 +872,7 @@ export default function GameplayScreen({ navigation }: Props) {
       setBeamState,
       setPieceAnimState,
       setChargeState,
-      setLockRings,
+      setLockRingCenter,
       setTapeCellHighlights,
       setTapeBarState,
       setGlowTravelerState,
@@ -875,6 +891,12 @@ export default function GameplayScreen({ navigation }: Props) {
       flashTimersRef,
       safetyTimersRef,
       beamOpacity,
+      chargeProgressAnim,
+      chargeAnim: null,
+      lockRingProgressAnim,
+      lockAnim: null,
+      voidPulseRingProgressAnim,
+      voidPulseAnim: null,
       boardGridRef,
       inputTapeCellsRef,
       dataTrailCellsRef,
@@ -1147,7 +1169,10 @@ export default function GameplayScreen({ navigation }: Props) {
     setBeamState(BEAM_INITIAL);
     setPieceAnimState(PIECE_ANIM_INITIAL);
     setChargeState(CHARGE_INITIAL);
-    setLockRings([]);
+    setLockRingCenter(null);
+    chargeProgressAnim.setValue(0);
+    lockRingProgressAnim.setValue(0);
+    voidPulseRingProgressAnim.setValue(0);
     setCurrentPulseIndex(0);
     setShowInsufficientPulses(false);
     setPulseResultData(null);
@@ -1595,17 +1620,21 @@ export default function GameplayScreen({ navigation }: Props) {
             >
               {beamState.phase === 'charge' && chargeState.pos && (
                 <>
-                  <Circle
+                  {/* Prompt 99A — chargeProgressAnim drives ring radius
+                      and opacity natively. The ring values match the
+                      pre-99A formulas (r = 6 + p*18 / 2 + p*26;
+                      opacity = 0.8 * (1-p) / 0.5 * (1-p)). */}
+                  <AnimatedCircle
                     cx={chargeState.pos.x} cy={chargeState.pos.y}
-                    r={6 + chargeState.progress * 18}
+                    r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 24] }) as unknown as number}
                     fill="none" stroke="#8B5CF6" strokeWidth={2}
-                    opacity={0.8 * (1 - chargeState.progress)}
+                    opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }) as unknown as number}
                   />
-                  <Circle
+                  <AnimatedCircle
                     cx={chargeState.pos.x} cy={chargeState.pos.y}
-                    r={2 + chargeState.progress * 26}
+                    r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [2, 28] }) as unknown as number}
                     fill="none" stroke="#8B5CF6" strokeWidth={1.5}
-                    opacity={0.5 * (1 - chargeState.progress)}
+                    opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }) as unknown as number}
                   />
                 </>
               )}
@@ -1652,14 +1681,42 @@ export default function GameplayScreen({ navigation }: Props) {
                   fill="none" opacity={beamState.voidPulse.opacity}
                 />
               )}
-              {lockRings.map((ring, i) => (
-                <Circle
-                  key={`lockring-${i}`}
-                  cx={ring.x} cy={ring.y} r={ring.r}
-                  stroke="#00C48C" strokeWidth={2.5}
-                  fill="none" opacity={ring.opacity}
-                />
-              ))}
+              {/* Prompt 99A — lock rings driven by lockRingProgressAnim
+                  on the native thread. Two rings, the second offset by
+                  100ms within a 320ms total animation. The second ring
+                  encodes its 100ms delay as a flat-then-rising
+                  inputRange (output stays at 6 / opacity 0 until
+                  progress reaches 100/320 = 0.3125, then rises). Total
+                  visible window for each ring is 200ms (200/320 =
+                  0.625 progress span). */}
+              {lockRingCenter && (
+                <>
+                  <AnimatedCircle
+                    cx={lockRingCenter.x} cy={lockRingCenter.y}
+                    r={lockRingProgressAnim.interpolate({
+                      inputRange: [0, 0.625, 1],
+                      outputRange: [6, 42, 42],
+                    }) as unknown as number}
+                    stroke="#00C48C" strokeWidth={2.5} fill="none"
+                    opacity={lockRingProgressAnim.interpolate({
+                      inputRange: [0, 0.625, 1],
+                      outputRange: [0.95, 0, 0],
+                    }) as unknown as number}
+                  />
+                  <AnimatedCircle
+                    cx={lockRingCenter.x} cy={lockRingCenter.y}
+                    r={lockRingProgressAnim.interpolate({
+                      inputRange: [0, 0.3125, 0.9375, 1],
+                      outputRange: [6, 6, 42, 42],
+                    }) as unknown as number}
+                    stroke="#00C48C" strokeWidth={2.5} fill="none"
+                    opacity={lockRingProgressAnim.interpolate({
+                      inputRange: [0, 0.3125, 0.9375, 1],
+                      outputRange: [0, 0.95, 0, 0],
+                    }) as unknown as number}
+                  />
+                </>
+              )}
             </Svg>
             </RNAnimated.View>
             </View>
@@ -1979,7 +2036,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   branchTrails: [],
                   phase: 'idle',
                 }));
-                setLockRings([]);
+                setLockRingCenter(null);
                 setChargeState(prev => ({ ...prev, pos: null }));
                 setShowCompletionCard(false);
                 setShowResults(true);
