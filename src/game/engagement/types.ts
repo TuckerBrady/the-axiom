@@ -170,7 +170,22 @@ export interface EngagementContext {
   // assignment survived, leaving the first branch's frame
   // untrackable. Cleanup walks the Map and cancels each non-null id.
   animFrameRef: MutableRefObject<Map<number | null, number | null>>;
+
+  // flashTimersRef collects piece-flash setTimeout handles
+  // (`flashing.delete` after 180 ms) so the per-pulse sweep in
+  // GameplayScreen.handleEngage can clear them between pulses
+  // (Prompt 94, Fix 1). Push only deferred-cleanup-style timers
+  // here.
   flashTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
+
+  // safetyTimersRef is a SEPARATE bucket for tape-interaction safety
+  // timers — the 8 s "force-resume" net inside runLinearPath that
+  // catches a hung triggerPieceAnim promise. These straddle pulse
+  // boundaries (a tape interaction can complete on pulse N+1 after
+  // its pulse-N safety timer was queued), so the per-pulse sweep
+  // must not clear them. Cleared instead on full reset / unmount
+  // (Prompt 95, Fix 7).
+  safetyTimersRef: MutableRefObject<ReturnType<typeof setTimeout>[]>;
 
   // Beam opacity (Animated.Value, 0–1). Drives the SVG beam group's
   // opacity so the beam can DIM while a tape piece is processing

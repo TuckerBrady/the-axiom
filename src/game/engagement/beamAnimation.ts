@@ -269,14 +269,17 @@ export function runLinearPath(
               pauseStart = now2;
               pauseEnd = now2 + 1e9;
               // Safety net: force-resume the beam after 8s if the
-              // interaction promise never settles.
+              // interaction promise never settles. Routed through
+              // safetyTimersRef (Prompt 95, Fix 7) so the per-pulse
+              // flash-timer sweep (Prompt 94) can't clear an
+              // in-flight safety timer mid-pause.
               const safetyTimer = setTimeout(() => {
                 if (pauseEnd > performance.now()) {
                   pauseEnd = performance.now();
                   brightenBeam(ctx);
                 }
               }, 8000);
-              ctx.flashTimersRef.current.push(safetyTimer);
+              ctx.safetyTimersRef.current.push(safetyTimer);
               triggerPieceAnim(ctx, stp).then(() => {
                 clearTimeout(safetyTimer);
                 pauseEnd = performance.now();

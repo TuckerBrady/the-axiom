@@ -384,6 +384,12 @@ export default function GameplayScreen({ navigation }: Props) {
   );
   const loopingRef = useRef(false);
   const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // Tape-interaction safety timers (Prompt 95, Fix 7). Held in a
+  // separate bucket from flashTimersRef so the per-pulse sweep
+  // (Prompt 94, Fix 1) doesn't accidentally clear an in-flight
+  // 8 s "force-resume" timer that straddles a pulse boundary.
+  // Cleared on full unmount / handleReset / completion CONTINUE.
+  const safetyTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   // Per-pulse gate outcome: 'passed' or 'blocked'. Drives OUT tape
   // gate-outcome coloring. Cleared at replay-iteration start and on
   // cleanup. (Prompt 84C.)
@@ -500,6 +506,8 @@ export default function GameplayScreen({ navigation }: Props) {
       animFrameRef.current.clear();
       flashTimersRef.current.forEach(t => clearTimeout(t));
       flashTimersRef.current = [];
+      safetyTimersRef.current.forEach(t => clearTimeout(t));
+      safetyTimersRef.current = [];
       loopingRef.current = false;
     };
   }, []);
@@ -580,7 +588,14 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Dynamic board sizing (from available canvas space) ──
   const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
   const { pieces, wires } = machineState;
-  const playerPieces = pieces.filter(p => !p.isPrePlaced);
+  // Memoize player-placed pieces so the array identity is stable
+  // across beam-tick re-renders (Prompt 95, Fix 8.2). Without this,
+  // every setBeamState produced a fresh array, invalidating any
+  // downstream consumer that depends on it for memo equality.
+  const playerPieces = useMemo(
+    () => pieces.filter(p => !p.isPrePlaced),
+    [pieces],
+  );
   const hasPlacedPieces = playerPieces.length > 0;
 
   // Precompute per-piece animation props so the render loop doesn't
@@ -858,6 +873,7 @@ export default function GameplayScreen({ navigation }: Props) {
       currentPulseRef,
       animFrameRef,
       flashTimersRef,
+      safetyTimersRef,
       beamOpacity,
       boardGridRef,
       inputTapeCellsRef,
@@ -1115,6 +1131,8 @@ export default function GameplayScreen({ navigation }: Props) {
     setVisualOutputOverride(null);
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
+    safetyTimersRef.current.forEach(t => clearTimeout(t));
+    safetyTimersRef.current = [];
     setBeamState(BEAM_INITIAL);
     setPieceAnimState(PIECE_ANIM_INITIAL);
     setChargeState(CHARGE_INITIAL);

@@ -70,7 +70,13 @@ interface Props {
   seed?: number;
 }
 
-export default function StarField({ seed = 0 }: Props) {
+// React.memo so StarField is not reconciled on every parent render
+// (Prompt 95, Fix 6). The component's only prop is `seed`, and the
+// star configs are already memoized via useMemo, but the parent
+// GameplayScreen calls `setBeamState` ~60 Hz during a pulse — each
+// of those re-renders would otherwise diff this entire 20-Star
+// subtree even though nothing about it has changed.
+function StarFieldComponent({ seed = 0 }: Props) {
   const stars = React.useMemo(() => buildStars(seed), [seed]);
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -80,3 +86,5 @@ export default function StarField({ seed = 0 }: Props) {
     </View>
   );
 }
+
+export default React.memo(StarFieldComponent);
