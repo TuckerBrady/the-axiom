@@ -8,6 +8,14 @@ module.exports = defineConfig([
     ignores: ['dist/*', 'coverage/*', '__tests__/*', '.expo/*'],
   },
   {
+    settings: {
+      'import/resolver': {
+        typescript: {},
+        node: { extensions: ['.js', '.jsx', '.ts', '.tsx'] },
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx,js,jsx}'],
     rules: {
       'react-hooks/exhaustive-deps': 'off',
