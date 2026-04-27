@@ -88,26 +88,37 @@ describe('Fix 2 — gate-pass highlight uses blue, not green', () => {
 });
 
 // ─── Fix 3 — OUT Tape Premature Green Styling ───────────────────────────────
+//
+// The original Prompt 104 Fix 3 expressed `(gatePassed && hasValue)` inline
+// in the style and text predicates. Prompt 106 Fix 1 hoisted that pair into
+// a derived `styleAsPassed` variable so it could share the predicate with
+// the new red-styling rule (hasValue=true && gateBlocked=true must be
+// neutral, not red). The CONTRACT — green styling requires that the
+// Transmitter actually wrote — is preserved.
 
-describe('Fix 3 — OUT cell green styling gated on hasValue', () => {
-  it('tapeCellGatePassed style requires BOTH gatePassed AND hasValue', () => {
-    // Config Node pass alone (gatePassed=true, hasValue=false) must not
-    // color the OUT cell green — that looked like "data printed at
-    // Config Node step" before the Transmitter actually wrote.
+describe('Fix 3 — OUT cell green styling gated on hasValue (preserved through Prompt 106)', () => {
+  it('green styling derives from gatePassed AND cellHasWrittenValue', () => {
     expect(tapeCellSrc).toMatch(
-      /\(gatePassed && hasValue\) && styles\.tapeCellGatePassed/,
+      /styleAsPassed = !!gatePassed && cellHasWrittenValue/,
+    );
+    expect(tapeCellSrc).toMatch(
+      /styleAsPassed && styles\.tapeCellGatePassed/,
     );
   });
 
-  it('tapeCellTextGatePassed also requires hasValue', () => {
+  it('green text styling uses the same derived predicate', () => {
     expect(tapeCellSrc).toMatch(
-      /\(gatePassed && hasValue\) && styles\.tapeCellTextGatePassed/,
+      /styleAsPassed && styles\.tapeCellTextGatePassed/,
     );
   });
 
-  it('the display text logic is unchanged: gatePassed && hasValue ? written', () => {
+  it('display predicate is hasValue alone (Prompt 106 supersede)', () => {
+    // The pre-Prompt-106 ternary `gatePassed && hasValue ? written : ...`
+    // hid the value when the gate blocked downstream. Prompt 106 widened
+    // the predicate to `cellHasWrittenValue ? written : ...` so an
+    // upstream Transmitter write survives a downstream block.
     expect(tapeCellSrc).toMatch(
-      /gatePassed && hasValue[\s\S]*?\? written[\s\S]*?: gateBlocked[\s\S]*?\? '·'[\s\S]*?: '_'/,
+      /cellHasWrittenValue \? written : gateBlocked \? '·' : '_'/,
     );
   });
 

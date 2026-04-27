@@ -202,7 +202,12 @@ describe('GameplayScreen button migration', () => {
 
     it('renders results-screen CONTINUE as a gradient Button preserving navigation', () => {
       expect(screenSource).toMatch(/variant="gradient"[\s\S]*?label="CONTINUE"/);
-      expect(screenSource).toMatch(/navigation\.navigate\('LevelSelect'\)/);
+      // Prompt 106 Fix 2 swapped the bare `navigate('LevelSelect')` for a
+      // stack-resetting `navigation.reset(...)` so any Gameplay instance
+      // pushed via HubScreen's `navigate` flow can't linger underneath.
+      expect(screenSource).toMatch(
+        /navigation\.reset\(\{\s*index: 1,\s*routes: \[\{ name: 'Tabs' \}, \{ name: 'LevelSelect' \}\]/,
+      );
     });
 
     it('renders out-of-lives REFILL/NEED CR as a gradient Button gated by livesCredits', () => {

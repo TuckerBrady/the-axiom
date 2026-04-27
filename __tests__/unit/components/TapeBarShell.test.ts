@@ -63,12 +63,18 @@ describe('TapeCell — per-cell memo barrier', () => {
     // OUT branch is the fallthrough.
   });
 
-  it('OUT branch renders middle-dot for blocked, value for passed, underscore otherwise', () => {
-    // Match the conditional whether the literal char or the escape
-    // is in the source — both encode U+00B7.
-    const out = cellSrc.match(
-      /gatePassed && hasValue[\s\S]*?\? written[\s\S]*?: gateBlocked[\s\S]*?\?[\s\S]*?: '_'/,
+  it('OUT branch displays the written value whenever hasValue is true (Prompt 106 Fix 1)', () => {
+    // After Prompt 106 Fix 1 the display predicate is hasValue, not
+    // gatePassed && hasValue. A Transmitter upstream writes before a
+    // downstream Config Node evaluates — when the gate then blocks,
+    // the OUT cell must keep showing the number that was written.
+    expect(cellSrc).toMatch(
+      /cellHasWrittenValue \? written : gateBlocked \? '·' : '_'/,
     );
-    expect(out).not.toBeNull();
+    // The old ternary (which dropped the value to '·' on a downstream
+    // block) must not survive the refactor.
+    expect(cellSrc).not.toMatch(
+      /gatePassed && hasValue\s*\n?\s*\?\s*written\s*\n?\s*:\s*gateBlocked\s*\n?\s*\?\s*'·'/,
+    );
   });
 });

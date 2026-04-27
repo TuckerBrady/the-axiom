@@ -179,6 +179,17 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
   }
   // OUT tape
   const { gatePassed, gateBlocked, hasValue, written } = props;
+  // Display rule (Prompt 106, Fix 1): if the Transmitter wrote a value
+  // (hasValue=true), always display the number. gatePassed/gateBlocked
+  // affect the cell's STYLING (border + background), not whether the
+  // value is shown. A Transmitter upstream of a Config Node writes
+  // before the gate evaluates — the value is on the tape regardless of
+  // whether the downstream gate later blocks. Pre-Prompt-106 the
+  // ternary fell through to '·' when hasValue=true && gateBlocked=true,
+  // hiding the written value entirely.
+  const cellHasWrittenValue = !!hasValue;
+  const styleAsPassed = !!gatePassed && cellHasWrittenValue;
+  const styleAsBlocked = !!gateBlocked && !cellHasWrittenValue;
   return (
     <View style={styles.tapeCellWrap}>
       <View style={[styles.tapeHead, { opacity: 0 }]} />
@@ -187,28 +198,19 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         collapsable={false}
         style={[
           styles.tapeCell,
-          // Green styling only when the Transmitter has physically
-          // written a value. Config Node pass alone (gatePassed=true,
-          // hasValue=false) must not color the cell green — that
-          // looked like "data printed at Config Node step" to the
-          // player and is the root cause of Fix 3 (Prompt 104).
-          (gatePassed && hasValue) && styles.tapeCellGatePassed,
-          gateBlocked && styles.tapeCellGateBlocked,
+          styleAsPassed && styles.tapeCellGatePassed,
+          styleAsBlocked && styles.tapeCellGateBlocked,
         ]}
       >
         {overlay}
         <Text
           style={[
             styles.tapeCellText,
-            (gatePassed && hasValue) && styles.tapeCellTextGatePassed,
-            gateBlocked && styles.tapeCellTextGateBlocked,
+            styleAsPassed && styles.tapeCellTextGatePassed,
+            styleAsBlocked && styles.tapeCellTextGateBlocked,
           ]}
         >
-          {gatePassed && hasValue
-            ? written
-            : gateBlocked
-              ? '·'
-              : '_'}
+          {cellHasWrittenValue ? written : gateBlocked ? '·' : '_'}
         </Text>
       </View>
     </View>

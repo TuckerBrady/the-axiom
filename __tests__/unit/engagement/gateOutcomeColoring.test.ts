@@ -183,24 +183,34 @@ describe('GateOutcomeMap', () => {
 });
 
 describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBarShell in Prompt 99B)', () => {
-  it('applies tapeCellGatePassed only when BOTH gatePassed and hasValue (Prompt 104 Fix 3)', () => {
+  it('green styling requires hasValue (Prompt 104 Fix 3 — preserved through Prompt 106)', () => {
     // The green cell style must only appear when the Transmitter has
-    // physically written a value. gatePassed alone (from Config Node
-    // evaluation) must not color the OUT cell green — that looked like
-    // "data printed at Config Node step" to the player.
+    // physically written a value. A bare `gatePassed && styles.tapeCellGatePassed`
+    // would color the cell green at the Config Node step, which looks
+    // like "data printed at the gate" to the player.
     expect(tapeCellSource).toMatch(
-      /\(gatePassed && hasValue\) && styles\.tapeCellGatePassed/,
+      /styleAsPassed = !!gatePassed && cellHasWrittenValue/,
+    );
+    expect(tapeCellSource).toMatch(
+      /styleAsPassed && styles\.tapeCellGatePassed/,
     );
     expect(tapeCellSource).not.toMatch(
       /(?<!\()gatePassed && styles\.tapeCellGatePassed/,
     );
   });
 
-  it('applies tapeCellGateBlocked when blocked (outcome map OR -2 sentinel)', () => {
+  it('red blocked styling only applies when no value was written (Prompt 106 Fix 1)', () => {
+    // When the Transmitter wrote the value upstream and a Config Node
+    // blocked downstream, the cell must show the value with neutral
+    // styling — not red. Red blocked styling is reserved for cells
+    // where the Transmitter never reached.
     expect(tapeCellSource).toMatch(
-      /gateBlocked && styles\.tapeCellGateBlocked/,
+      /styleAsBlocked = !!gateBlocked && !cellHasWrittenValue/,
     );
-    // The OUT-cell derivation logic now lives in TapeBarShell.tsx —
+    expect(tapeCellSource).toMatch(
+      /styleAsBlocked && styles\.tapeCellGateBlocked/,
+    );
+    // The OUT-cell derivation logic still lives in TapeBarShell.tsx —
     // it computes gateBlocked / isBlocked before passing per-cell
     // props down to TapeCell.
     expect(tapeBarShellSource).toMatch(
@@ -209,11 +219,18 @@ describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBa
     expect(tapeBarShellSource).toMatch(/const isBlocked = rawWritten === -2;/);
   });
 
-  it('renders middle-dot for blocked cells and value for passed cells', () => {
-    // The render conditional lives in TapeCell.tsx OUT branch.
-    // gatePassed && hasValue ? written : gateBlocked ? '·' : '_'
+  it('always shows the written value when hasValue is true (Prompt 106 Fix 1)', () => {
+    // The display predicate is hasValue alone. A downstream block does
+    // not erase the value the Transmitter already wrote upstream.
     expect(tapeCellSource).toMatch(
-      /gatePassed && hasValue[\s\S]*?\? written[\s\S]*?: gateBlocked[\s\S]*?\? '·'[\s\S]*?: '_'/,
+      /cellHasWrittenValue \? written : gateBlocked \? '·' : '_'/,
+    );
+    // The pre-Prompt-106 ternary (`gatePassed && hasValue ? written : gateBlocked ? '·' : '_'`)
+    // would fall through to '·' on hasValue=true && gateBlocked=true,
+    // hiding a value that was already on the tape. Make sure no future
+    // refactor reintroduces it.
+    expect(tapeCellSource).not.toMatch(
+      /gatePassed && hasValue\s*\n?\s*\?\s*written/,
     );
   });
 

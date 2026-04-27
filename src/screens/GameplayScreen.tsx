@@ -17,6 +17,7 @@ import Animated, {
   FadeInUp,
 } from 'react-native-reanimated';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
@@ -541,6 +542,33 @@ export default function GameplayScreen({ navigation }: Props) {
     };
   }, []);
 
+  // ── Cleanup beam animation on blur (Prompt 106, Fix 2) ──
+  // Native-stack screens that get a new screen pushed on top STAY
+  // mounted (the previous screen renders behind the new one). Without
+  // this, an HubScreen → Gameplay → navigate('LevelSelect') flow
+  // (HubScreen still uses navigate, not replace, by design) leaves
+  // the prior Gameplay instance mounted with its RAF loops and
+  // tape-interaction setTimeouts still pumping. Repeating that loop a
+  // few times stacks several Gameplay instances and produces the
+  // mid-sector lag Tucker reported. Running the same cleanup on blur
+  // as on unmount ensures background instances stop burning frames.
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        animFrameRef.current.forEach(id => {
+          if (id != null) cancelAnimationFrame(id);
+        });
+        animFrameRef.current.clear();
+        flashTimersRef.current.forEach(t => clearTimeout(t));
+        flashTimersRef.current = [];
+        safetyTimersRef.current.forEach(t => clearTimeout(t));
+        safetyTimersRef.current = [];
+        gateOutcomesRef.current.clear();
+        loopingRef.current = false;
+      };
+    }, []),
+  );
+
   // ── Reset replay-loop flag on level change. Belt-and-suspenders:
   // launch screens use navigation.replace to force a fresh mount, but
   // if any code path ever leaves the Gameplay component mounted across
@@ -971,10 +999,14 @@ export default function GameplayScreen({ navigation }: Props) {
     cacheRef.current = { board: { x: 0, y: 0 }, input: null, trail: null, output: null };
 
     // Initialize progressive-reveal overrides for trail and output cells.
-    // During beam animation these show empty until a Scanner / Transmitter
-    // visually writes them; at lock they fall through to machineState.
+    // During beam animation, cells that begin null show empty until a
+    // Scanner visually writes them. Cells with pre-existing values from
+    // the level definition (e.g., A1-3's seeded trail [0]) stay visible
+    // — those values aren't written during the run, so wiping them to
+    // null on engage made them disappear and rendered as '·' for the
+    // entire beam phase (Prompt 106, Fix 3).
     if (level.dataTrail.cells.length > 0) {
-      setVisualTrailOverride(level.dataTrail.cells.map(() => null));
+      setVisualTrailOverride([...level.dataTrail.cells]);
     }
     if (level.inputTape && level.inputTape.length > 0) {
       setVisualOutputOverride(level.inputTape.map(() => -1));
@@ -1743,7 +1775,16 @@ export default function GameplayScreen({ navigation }: Props) {
                         return;
                       }
                     }
-                    navigation.navigate('LevelSelect');
+                    // Reset to a clean stack so any leaked Gameplay
+                    // instances are unmounted (Prompt 106, Fix 2). The
+                    // plain `navigate('LevelSelect')` pushed if not
+                    // already in stack, leaving the prior Gameplay
+                    // mounted underneath when the player came in via
+                    // HubScreen's `navigate('Gameplay')` flow.
+                    navigation.reset({
+                      index: 1,
+                      routes: [{ name: 'Tabs' }, { name: 'LevelSelect' }],
+                    });
                   }}
                   style={{ flex: 2 }}
                 />
@@ -2080,7 +2121,14 @@ export default function GameplayScreen({ navigation }: Props) {
         <TouchableOpacity
           style={styles.completionScene}
           activeOpacity={1}
-          onPress={() => { setShowDisciplineCard(false); navigation.navigate('LevelSelect'); }}
+          onPress={() => {
+            setShowDisciplineCard(false);
+            // Same stack-reset as the Continue button above (Prompt 106).
+            navigation.reset({
+              index: 1,
+              routes: [{ name: 'Tabs' }, { name: 'LevelSelect' }],
+            });
+          }}
         >
           <View style={styles.completionInner}>
             <CogsAvatar size="large" state="online" />
