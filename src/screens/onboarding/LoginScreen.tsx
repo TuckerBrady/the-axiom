@@ -53,14 +53,17 @@ const completeOnboarding = async (nav: Props['navigation']) => {
 
 export default function LoginScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(0);
+  const taglineReveal = useSharedValue(0);
   const contentReveal = useSharedValue(0);
 
   useEffect(() => {
     screenOpacity.value = withTiming(1, { duration: 400 });
-    contentReveal.value = withDelay(200, withTiming(1, { duration: 600 }));
+    taglineReveal.value = withDelay(300, withTiming(1, { duration: 600 }));
+    contentReveal.value = withDelay(900, withTiming(1, { duration: 600 }));
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
+  const taglineStyle = useAnimatedStyle(() => ({ opacity: taglineReveal.value }));
   const contentStyle = useAnimatedStyle(() => ({
     opacity: contentReveal.value,
     transform: [{ translateY: (1 - contentReveal.value) * 16 }],
@@ -82,6 +85,7 @@ export default function LoginScreen({ navigation }: Props) {
       {/* Title */}
       <View style={s.titleSection}>
         <Text style={s.title}>THE AXIOM</Text>
+        <Animated.Text style={[s.tagline, taglineStyle]}>not all damage is structural</Animated.Text>
       </View>
 
       {/* Single CTA */}
@@ -122,6 +126,12 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: '#E8F4FF',
     letterSpacing: 4,
+  },
+  tagline: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: 'rgba(232,244,255,0.42)',
+    letterSpacing: 2,
   },
   ctaSection: {
     paddingHorizontal: Spacing.lg,
