@@ -17,6 +17,7 @@ import type { TutorialStep } from '../game/types';
 import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
+import { COGS_EYE_COLORS } from '../constants/cogsEyeColors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -181,10 +182,15 @@ function TutorialHUDOverlayComponent({
   const dimOpacity = useRef(new Animated.Value(0)).current;
   const codexTranslate = useRef(new Animated.Value(SCREEN_H)).current;
   const exitOpacity = useRef(new Animated.Value(1)).current;
+  // Drives orb color: 0 = eyeColor, 1 = COGS green. JS driver required
+  // because Animated color interpolation is not supported on the native
+  // driver. Animates in when a codex entry is collected, out on dismiss.
+  const orbCollectAnim = useRef(new Animated.Value(0)).current;
 
   const step = steps[currentStepIndex];
   const totalSteps = steps.length;
   const eyeColor = eyeStateColor(step?.eyeState);
+  const isCodexStep = !!(step?.codexEntryId);
 
   // ── Hydration ──
   useEffect(() => {
@@ -380,7 +386,8 @@ function TutorialHUDOverlayComponent({
     portalH.setValue(0);
     calloutOpacity.setValue(0);
     glowOpacity.setValue(0);
-  }, [portalOpacity, portalW, portalH, calloutOpacity, glowOpacity]);
+    orbCollectAnim.setValue(0);
+  }, [portalOpacity, portalW, portalH, calloutOpacity, glowOpacity, orbCollectAnim]);
 
   // ── Fly orb to target ──
   const flyOrbTo = useCallback((cx: number, cy: number, done?: () => void) => {
@@ -699,12 +706,21 @@ function TutorialHUDOverlayComponent({
       // Normal: mark discovered and open the codex view for this step.
       // Discovery is monotonic — re-marking is a no-op (Prompt 92, Fix 8).
       useCodexStore.getState().markDiscovered(step.codexEntryId);
+      // Orb transitions to green during the collection sequence.
+      const colorIn = Animated.timing(orbCollectAnim, {
+        toValue: 1,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      });
+      trackAnim(colorIn);
+      colorIn.start();
       setCodexVisible(true);
       setPhase('codex');
       return;
     }
     advanceStep();
-  }, [phase, step, levelId, advanceStep]);
+  }, [phase, step, levelId, advanceStep, orbCollectAnim, trackAnim]);
 
   const handleSkip = useCallback(() => {
     AsyncStorage.setItem(`axiom_tutorial_skipped_${levelId}`, '1').catch(() => {});
@@ -712,20 +728,29 @@ function TutorialHUDOverlayComponent({
   }, [levelId, onSkip, exitOverlay]);
 
   const handleCodexUnderstood = useCallback(() => {
-    const anim = Animated.timing(codexTranslate, {
+    const slideOut = Animated.timing(codexTranslate, {
       toValue: SCREEN_H,
       duration: 200,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
       useNativeDriver: true,
     });
-    trackAnim(anim);
-    anim.start(() => {
+    trackAnim(slideOut);
+    slideOut.start(() => {
       if (!mountedRef.current) return;
+      // Orb transitions back to its step eyeColor after the codex dismisses.
+      const colorOut = Animated.timing(orbCollectAnim, {
+        toValue: 0,
+        duration: 300,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      });
+      trackAnim(colorOut);
+      colorOut.start();
       setCodexAlsoCollected([]);
       setCodexVisible(false);
       advanceStep();
     });
-  }, [codexTranslate, advanceStep, trackAnim]);
+  }, [codexTranslate, advanceStep, trackAnim, orbCollectAnim]);
 
   // Tap anywhere to advance (or open codex for codex steps)
   const handleTapAnywhere = useCallback(() => {
@@ -758,7 +783,9 @@ function TutorialHUDOverlayComponent({
     const r = Math.min(targetLayout.width, targetLayout.height) * 0.4;
     glowCircle = { cx, cy, r };
   }
-  const glowColor = step && PORT_TARGETS.has(step.targetRef) ? '#8B5CF6' : eyeColor;
+  // Codex steps always use amber portal border + purple circle (universal collection standard).
+  // Non-codex port targets (sourceNode/outputNode) keep purple. Others use eyeColor.
+  const glowColor = (isCodexStep || (step && PORT_TARGETS.has(step.targetRef))) ? '#8B5CF6' : eyeColor;
 
   const renderMessage = () => {
     const text = step.message;
@@ -810,7 +837,7 @@ function TutorialHUDOverlayComponent({
             height: portalH,
             opacity: portalOpacity,
             borderWidth: 1.5,
-            borderColor: eyeColor,
+            borderColor: isCodexStep ? '#F0B429' : eyeColor,
             borderRadius: 10,
             backgroundColor: 'rgba(0,0,0,0.3)',
             zIndex: 150,
@@ -958,7 +985,10 @@ function TutorialHUDOverlayComponent({
             height: ORB_SIZE,
             borderRadius: ORB_SIZE / 2,
             borderWidth: 1.5,
-            borderColor: eyeColor,
+            borderColor: orbCollectAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [eyeColor, COGS_EYE_COLORS.GREEN.solid],
+            }),
             alignItems: 'center',
             justifyContent: 'center',
             shadowColor: eyeColor,
@@ -968,12 +998,15 @@ function TutorialHUDOverlayComponent({
             zIndex: 200,
           }}
         >
-          <View
+          <Animated.View
             style={{
               width: 8,
               height: 8,
               borderRadius: 4,
-              backgroundColor: eyeColor,
+              backgroundColor: orbCollectAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [eyeColor, COGS_EYE_COLORS.GREEN.solid],
+              }),
             }}
           />
         </Animated.View>

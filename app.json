@@ -4,7 +4,7 @@
     "slug": "the-axiom",
     "version": "0.9.265",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/icon.png",
     "scheme": "theaxiom",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
