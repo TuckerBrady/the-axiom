@@ -121,8 +121,14 @@ describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
     });
 
     it('the wire render block calls pieceById.get(...) instead of pieces.find(...)', () => {
-      const wireBlock = screenSrc.match(
-        /\{\/\* Wires —[\s\S]*?wires\.map\(wire =>[\s\S]*?\}\)\}/,
+      // Prompt 99B — wire rendering moved to WireOverlay.tsx; the
+      // pieceById.get pattern lives there now.
+      const wireOverlaySrc = fs.readFileSync(
+        path.resolve(__dirname, '../../src/components/gameplay/WireOverlay.tsx'),
+        'utf8',
+      );
+      const wireBlock = wireOverlaySrc.match(
+        /wires\.map\(wire =>[\s\S]*?\}\)\}/,
       );
       expect(wireBlock).not.toBeNull();
       expect(wireBlock?.[0]).toMatch(

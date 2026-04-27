@@ -16,33 +16,40 @@ const beamSrc = read('src/game/engagement/beamAnimation.ts');
 const valueTravelSrc = read('src/game/engagement/valueTravelAnimation.ts');
 const interactionsSrc = read('src/game/engagement/interactions.ts');
 const typesSrc = read('src/game/engagement/types.ts');
+// Prompt 99B — tape rendering and the beam overlay were extracted
+// into dedicated memoized components; the source-contract tests
+// follow.
+const tapeCellSrc = read('src/components/gameplay/TapeCell.tsx');
+const tapeBarShellSrc = read('src/components/gameplay/TapeBarShell.tsx');
+const beamOverlaySrc = read('src/components/gameplay/BeamOverlay.tsx');
 
 describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () => {
   describe('Fix 1 — IN tape green/yellow palette', () => {
-    it('declares dedicated IN-tape cell + text styles', () => {
-      expect(screenSrc).toMatch(/tapeCellIn:\s*\{/);
-      expect(screenSrc).toMatch(/tapeCellInActive:\s*\{[\s\S]*?borderColor:\s*'#BFFF3F'[\s\S]*?backgroundColor:\s*'rgba\(191,255,63,0\.14\)'/);
-      expect(screenSrc).toMatch(/tapeCellTextIn:\s*\{[\s\S]*?color:\s*'#BFFF3F'/);
+    it('declares dedicated IN-tape cell + text styles (extracted to TapeCell.tsx in Prompt 99B)', () => {
+      expect(tapeCellSrc).toMatch(/tapeCellIn:\s*\{/);
+      expect(tapeCellSrc).toMatch(/tapeCellInActive:\s*\{[\s\S]*?borderColor:\s*'#BFFF3F'[\s\S]*?backgroundColor:\s*'rgba\(191,255,63,0\.14\)'/);
+      expect(tapeCellSrc).toMatch(/tapeCellTextIn:\s*\{[\s\S]*?color:\s*'#BFFF3F'/);
     });
 
     it('applies the IN-specific styles in the IN tape rendering block (not TRAIL)', () => {
-      // The IN render block uses styles.tapeCellIn / tapeCellTextIn.
-      expect(screenSrc).toMatch(/styles\.tapeCellIn,\s*\n[\s\S]*?isActive && styles\.tapeCellInActive/);
-      expect(screenSrc).toMatch(/styles\.tapeCellTextIn,\s*\n[\s\S]*?isActive && styles\.tapeCellTextInActive/);
+      // The IN render block in TapeCell.tsx uses styles.tapeCellIn / tapeCellTextIn.
+      expect(tapeCellSrc).toMatch(/styles\.tapeCellIn,\s*\n[\s\S]*?isActive && styles\.tapeCellInActive/);
+      expect(tapeCellSrc).toMatch(/styles\.tapeCellTextIn,\s*\n[\s\S]*?isActive && styles\.tapeCellTextInActive/);
     });
 
     it('does NOT change TRAIL or OUT tape colors', () => {
-      // TRAIL still uses Colors.neonGreen for its inline text style.
-      expect(screenSrc).toMatch(/styles\.tapeCellText, \{ color: Colors\.neonGreen \}/);
-      // OUT keeps the gate-passed / gate-blocked styles.
-      expect(screenSrc).toMatch(/tapeCellGatePassed:\s*\{[\s\S]*?borderColor:\s*'#00FF87'/);
-      expect(screenSrc).toMatch(/tapeCellGateBlocked:\s*\{[\s\S]*?borderColor:\s*'#FF3B3B'/);
+      // TRAIL still uses Colors.neonGreen for its inline text style (in TapeCell.tsx).
+      expect(tapeCellSrc).toMatch(/styles\.tapeCellText, \{ color: Colors\.neonGreen \}/);
+      // OUT keeps the gate-passed / gate-blocked styles (in TapeCell.tsx).
+      expect(tapeCellSrc).toMatch(/tapeCellGatePassed:\s*\{[\s\S]*?borderColor:\s*'#00FF87'/);
+      expect(tapeCellSrc).toMatch(/tapeCellGateBlocked:\s*\{[\s\S]*?borderColor:\s*'#FF3B3B'/);
     });
   });
 
   describe('Fix 2 — Indicator bar stacks above the cell wraps', () => {
     it('sets zIndex + elevation on the tapeIndicatorBar so the purple tapeHead does not poke through', () => {
-      const bar = screenSrc.match(/tapeIndicatorBar:\s*\{[\s\S]*?\},/);
+      // The tapeIndicatorBar style moved to TapeBarShell.tsx (Prompt 99B).
+      const bar = tapeBarShellSrc.match(/tapeIndicatorBar:\s*\{[\s\S]*?\},/);
       expect(bar).not.toBeNull();
       expect(bar?.[0]).toMatch(/zIndex:\s*2/);
       expect(bar?.[0]).toMatch(/elevation:\s*2/);
@@ -121,13 +128,18 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(typesSrc).toMatch(/beamOpacity:\s*Animated\.Value/);
     });
 
-    it('GameplayScreen creates beamOpacity and wraps the beam SVG in an animated opacity layer', () => {
+    it('GameplayScreen creates beamOpacity and BeamOverlay wraps the beam SVG in an animated opacity layer', () => {
+      // beamOpacity is still allocated in GameplayScreen and passed
+      // down to the extracted BeamOverlay (Prompt 99B).
       expect(screenSrc).toMatch(/const beamOpacity = useRef\(new RNAnimated\.Value\(1\)\)\.current/);
-      expect(screenSrc).toMatch(/<RNAnimated\.View[\s\S]*?opacity:\s*beamOpacity[\s\S]*?<Svg/);
+      // The animated opacity wrapper now lives in BeamOverlay.tsx.
+      expect(beamOverlaySrc).toMatch(/<RNAnimated\.View[\s\S]*?opacity:\s*beamOpacity[\s\S]*?<Svg/);
       // handleEngage resets to 1 at the start of each run.
       expect(screenSrc).toMatch(/beamOpacity\.setValue\(1\)/);
       // The animated layer is closed before the outer wrapper closes.
-      expect(screenSrc).toMatch(/<\/Svg>\s*\n\s*<\/RNAnimated\.View>/);
+      expect(beamOverlaySrc).toMatch(/<\/Svg>\s*\n\s*<\/RNAnimated\.View>/);
+      // GameplayScreen passes beamOpacity through to BeamOverlay.
+      expect(screenSrc).toMatch(/<BeamOverlay[\s\S]*?beamOpacity=\{beamOpacity\}/);
     });
   });
 

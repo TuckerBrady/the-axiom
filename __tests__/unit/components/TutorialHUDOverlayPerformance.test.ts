@@ -167,8 +167,10 @@ describe('GameplayScreen — memoized tutorial props (Prompt 90)', () => {
     expect(screenSource).toMatch(/targetRefs=\{tutorialTargetRefs\}/);
     expect(screenSource).toMatch(/spotlightCells=\{tutorialSpotlightCells\}/);
     // The inline filter/map at the call site must be gone.
+    // Prompt 99B added an isBeamActive prop after onSkip; loosen the
+    // tail match to accept any subsequent props before the closing />.
     const overlayBlock = screenSource.match(
-      /<TutorialHUDOverlay[\s\S]*?onSkip=\{[^}]+\}\s*\/>/,
+      /<TutorialHUDOverlay[\s\S]*?onSkip=\{[^}]+\}[\s\S]*?\/>/,
     );
     expect(overlayBlock).not.toBeNull();
     expect(overlayBlock?.[0]).not.toMatch(/\.filter\(p => p\.type/);

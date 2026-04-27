@@ -35,6 +35,15 @@ const gameplayScreenSource = fs.readFileSync(
   path.resolve(__dirname, '../../../src/screens/GameplayScreen.tsx'),
   'utf8',
 );
+// Prompt 99B — OUT tape rendering moved to TapeCell.tsx.
+const tapeCellSource = fs.readFileSync(
+  path.resolve(__dirname, '../../../src/components/gameplay/TapeCell.tsx'),
+  'utf8',
+);
+const tapeBarShellSource = fs.readFileSync(
+  path.resolve(__dirname, '../../../src/components/gameplay/TapeBarShell.tsx'),
+  'utf8',
+);
 
 function buildCtx(): {
   ctx: EngagementContext;
@@ -173,31 +182,36 @@ describe('GateOutcomeMap', () => {
   });
 });
 
-describe('GameplayScreen OUT tape rendering — source contract', () => {
+describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBarShell in Prompt 99B)', () => {
   it('applies tapeCellGatePassed when the gate outcome is passed', () => {
-    expect(gameplayScreenSource).toMatch(
+    expect(tapeCellSource).toMatch(
       /gatePassed && styles\.tapeCellGatePassed/,
     );
   });
 
   it('applies tapeCellGateBlocked when blocked (outcome map OR -2 sentinel)', () => {
-    expect(gameplayScreenSource).toMatch(
+    expect(tapeCellSource).toMatch(
       /gateBlocked && styles\.tapeCellGateBlocked/,
     );
-    expect(gameplayScreenSource).toMatch(
+    // The OUT-cell derivation logic now lives in TapeBarShell.tsx —
+    // it computes gateBlocked / isBlocked before passing per-cell
+    // props down to TapeCell.
+    expect(tapeBarShellSource).toMatch(
       /const gateBlocked = outcome === 'blocked' \|\| isBlocked;/,
     );
-    expect(gameplayScreenSource).toMatch(/const isBlocked = rawWritten === -2;/);
+    expect(tapeBarShellSource).toMatch(/const isBlocked = rawWritten === -2;/);
   });
 
   it('renders middle-dot for blocked cells and value for passed cells', () => {
-    // The conditional expression: gatePassed && hasValue ? written : gateBlocked ? '·' : '_'
-    expect(gameplayScreenSource).toMatch(
-      /gatePassed && hasValue[\s\S]*?\? written[\s\S]*?: gateBlocked[\s\S]*?\? '\\u00B7'[\s\S]*?: '_'/,
+    // The render conditional lives in TapeCell.tsx OUT branch.
+    // gatePassed && hasValue ? written : gateBlocked ? '·' : '_'
+    expect(tapeCellSource).toMatch(
+      /gatePassed && hasValue[\s\S]*?\? written[\s\S]*?: gateBlocked[\s\S]*?\? '·'[\s\S]*?: '_'/,
     );
   });
 
   it('keeps the legacy tapeCellCorrect / tapeCellWrong styles for Kepler reuse', () => {
+    // Legacy styles intentionally retained in GameplayScreen.tsx.
     expect(gameplayScreenSource).toMatch(/tapeCellCorrect: \{/);
     expect(gameplayScreenSource).toMatch(/tapeCellWrong: \{/);
     expect(gameplayScreenSource).toMatch(
@@ -206,7 +220,7 @@ describe('GameplayScreen OUT tape rendering — source contract', () => {
   });
 
   it('hasValue excludes both -1 (empty) and -2 (blocked) sentinels', () => {
-    expect(gameplayScreenSource).toMatch(
+    expect(tapeBarShellSource).toMatch(
       /written !== undefined && written !== -1 && written !== -2/,
     );
   });

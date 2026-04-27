@@ -5,26 +5,14 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  ScrollView,
-  Pressable,
   Animated as RNAnimated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Circle, Line, Rect, Path, G, Polyline } from 'react-native-svg';
-// AnimatedCircle (Prompt 99A) — used by the lock ring + charge ring
-// renderers below. Driven by Animated.Values on EngagementContext
-// with useNativeDriver: true.
-const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
+import Svg, { Circle, Line, Rect, Path, G } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withTiming,
-  withDelay,
-  withRepeat,
-  withSequence,
-  Easing,
-  runOnJS,
   FadeIn,
   FadeInUp,
 } from 'react-native-reanimated';
@@ -33,23 +21,26 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import { Button } from '../components/Button';
-import { PieceIcon } from '../components/PieceIcon';
+import HUDChrome from '../components/gameplay/HUDChrome';
+import TapeBarShell from '../components/gameplay/TapeBarShell';
+import BoardGrid from '../components/gameplay/BoardGrid';
+import WireOverlay from '../components/gameplay/WireOverlay';
+import BeamOverlay from '../components/gameplay/BeamOverlay';
+import PieceTray from '../components/gameplay/PieceTray';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
-import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
+import { usePlayerStore } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
-import { calculateScore, getCOGSScoreComment, getTutorialCOGSComment } from '../game/scoring';
 import type { ScoreResult } from '../game/scoring';
 import { TutorialHint } from '../components/TutorialHint';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PieceType, PlacedPiece, ExecutionStep, TutorialHint as TutorialHintType, ScoringCategory, PortSide } from '../game/types';
+import type { PieceType, PlacedPiece, ExecutionStep, ScoringCategory, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
 import { getOutputPorts, getInputPorts } from '../game/engine';
-import { AXIOM_LEVELS } from '../game/levels';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -300,6 +291,20 @@ export default function GameplayScreen({ navigation }: Props) {
       inputTapeRow: inputTapeRowRef,
       outputTapeRow: outputTapeRowRef,
       dataTrailRow: dataTrailRowRef,
+    }),
+    [],
+  );
+
+  // Memoized PieceTray refs object (Prompt 99B). Stable identity so
+  // PieceTray's React.memo barrier holds across parent re-renders.
+  const tutorialTrayRefs = useMemo(
+    () => ({
+      trayConveyor: trayConveyorRef,
+      trayGear: trayGearRef,
+      trayConfigNode: trayConfigNodeRef,
+      traySplitter: traySplitterRef,
+      trayScanner: traScannerRef,
+      trayTransmitter: trayTransmitterRef,
     }),
     [],
   );
@@ -679,6 +684,28 @@ export default function GameplayScreen({ navigation }: Props) {
     });
   }, [availablePiecesList]);
 
+  // Per-piece cost lookup for the tray (axiom levels are free).
+  const trayCosts = useMemo(() => {
+    const map: Partial<Record<PieceType, number>> = {};
+    for (const pt of trayPieceTypes) {
+      map[pt] = isAxiomLevel ? 0 : getPieceCost(pt, discipline);
+    }
+    return map;
+  }, [trayPieceTypes, isAxiomLevel, discipline]);
+
+  // Per-piece affordability lookup. Reads from useEconomyStore
+  // imperatively to match the prior inline behavior.
+  const trayAffordable = useMemo(() => {
+    const map: Partial<Record<PieceType, boolean>> = {};
+    const econ = useEconomyStore.getState();
+    const purse = econ.levelBudget - econ.levelSpent + econ.credits;
+    for (const pt of trayPieceTypes) {
+      const cost = trayCosts[pt] ?? 0;
+      map[pt] = cost === 0 || purse >= cost;
+    }
+    return map;
+  }, [trayPieceTypes, trayCosts, credits, levelSpent]);
+
   // ── Auto-orientation: face away from Source if adjacent ──
   const getAutoRotation = useCallback((gridX: number, gridY: number): number => {
     const source = pieces.find(p => p.type === 'source');
@@ -728,8 +755,10 @@ export default function GameplayScreen({ navigation }: Props) {
   }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation]);
 
   // ── Piece tap handler ──
-  const handlePieceTap = useCallback((piece: PlacedPiece) => {
+  const handlePieceTap = useCallback((pieceId: string) => {
     if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
+    const piece = machineState.pieces.find(p => p.id === pieceId);
+    if (!piece) return;
     if (piece.isPrePlaced) return;
 
     // Type-specific tap actions
@@ -744,14 +773,21 @@ export default function GameplayScreen({ navigation }: Props) {
       updatePiece(piece.id, { latchMode: nextMode });
     }
     // All other piece types: no tap action
-  }, [isExecuting, showResults, showVoid, rotatePiece, updatePiece]);
+  }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, rotatePiece, updatePiece]);
 
   // ── Long press returns piece to tray (no ghost/held state) ──
-  const handlePieceLongPress = useCallback((piece: PlacedPiece) => {
-    if (piece.isPrePlaced) return;
+  const handlePieceLongPress = useCallback((pieceId: string) => {
     if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
+    const piece = machineState.pieces.find(p => p.id === pieceId);
+    if (!piece) return;
+    if (piece.isPrePlaced) return;
     deletePiece(piece.id);
-  }, [isExecuting, showResults, showVoid, deletePiece]);
+  }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, deletePiece]);
+
+  // ── Pause modal opener (stable ref so HUDChrome memo holds) ──
+  const handlePauseOpen = useCallback(() => {
+    setShowPauseModal(true);
+  }, []);
 
   // ── Helper: get piece center in canvas coords ──
   const getPieceCenter = useCallback((pieceId: string) => {
@@ -1236,265 +1272,55 @@ export default function GameplayScreen({ navigation }: Props) {
 
       <SafeAreaView style={styles.safeArea}>
         {/* ── Top Bar ── */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.pauseBtn}
-            activeOpacity={0.7}
-            onPress={() => setShowPauseModal(true)}
-          >
-            <View style={styles.pauseBar} />
-            <View style={styles.pauseBar} />
-          </TouchableOpacity>
-          <View style={styles.topBarCenter}>
-            <Text style={styles.sectorTag}>{level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}</Text>
-            <Text style={styles.levelTag}>{level.id}</Text>
-            <Text style={styles.levelName}>{level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}</Text>
-            {!showResults && !showVoid && !tutorialIsActive && (
-              <Text style={styles.timerText}>{formatMMSS(elapsedSeconds)}</Text>
-            )}
-            {level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam' && (
-              <Text style={styles.pulseCounterText}>
-                PULSE {Math.min(currentPulseIndex + 1, level.inputTape.length)} / {level.inputTape.length}
-                {level.requiredTerminalCount && level.requiredTerminalCount > 1
-                  ? ` — REACHED: ${terminalSuccessCountRef.current} / ${level.requiredTerminalCount}`
-                  : ''}
-              </Text>
-            )}
-          </View>
-          {/* Spacer to balance pause button width for centering */}
-          <View style={{ width: 36 }} />
-        </View>
+        <HUDChrome
+          sectorBadge={level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}
+          levelId={level.id}
+          levelTitle={level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}
+          timerText={!showResults && !showVoid && !tutorialIsActive ? formatMMSS(elapsedSeconds) : null}
+          pulseCounterText={
+            level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam'
+              ? `PULSE ${Math.min(currentPulseIndex + 1, level.inputTape.length)} / ${level.inputTape.length}${
+                  level.requiredTerminalCount && level.requiredTerminalCount > 1
+                    ? ` — REACHED: ${terminalSuccessCountRef.current} / ${level.requiredTerminalCount}`
+                    : ''
+                }`
+              : null
+          }
+          onPause={handlePauseOpen}
+        />
 
         {/* ── Turing Tape Display ── */}
-        {level.inputTape && level.inputTape.length > 0 && (
-          <View collapsable={false} style={styles.tapeSection}>
-            <View ref={inputTapeRowRef} collapsable={false} style={styles.tapeRow}>
-              <Text style={styles.tapeLabel} numberOfLines={1}>IN</Text>
-              {tapeBarState.inIndex !== null && (
-                <Animated.View
-                  style={[
-                    styles.tapeIndicatorBar,
-                    {
-                      backgroundColor: Colors.tapeInBar,
-                      transform: [{ translateX: tapeBarState.inIndex * (24 + 3) }],
-                      shadowColor: Colors.tapeInBar,
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 12,
-                    },
-                  ]}
-                />
-              )}
-              <View style={styles.tapeCells}>
-                {level.inputTape.map((bit, i) => {
-                  const isActive = beamState.phase === 'beam' && i === currentPulseIndex;
-                  const isPast = beamState.phase === 'beam' && i < currentPulseIndex;
-                  const isFuture = beamState.phase === 'beam' && i > currentPulseIndex;
-                  // Pre-beam "next" marker — cell 0 gets the head
-                  // indicator while the machine is idle / charging so
-                  // the player knows which cell fires first.
-                  const isPreBeamNext =
-                    (beamState.phase === 'idle' || beamState.phase === 'charge') && i === 0;
-                  const highlight = tapeCellHighlights.get(`in-${i}`);
-                  return (
-                    <View key={`in-${i}`} style={styles.tapeCellWrap}>
-                      <View style={[styles.tapeHead, !(isActive || isPreBeamNext) && { opacity: 0 }]} />
-                      <View
-                        ref={i === 0 ? inputTapeCellsRef : undefined}
-                        collapsable={false}
-                        style={[
-                          styles.tapeCell,
-                          styles.tapeCellIn,
-                          isActive && styles.tapeCellInActive,
-                          isPast && styles.tapeCellPast,
-                          isFuture && { opacity: 0.55 },
-                          highlight === 'read' && styles.tapeCellHighlightRead,
-                          highlight === 'write' && styles.tapeCellHighlightWrite,
-                          highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
-                          highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
-                          highlight === 'departing' && styles.tapeCellHighlightDeparting,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.tapeCellText,
-                            styles.tapeCellTextIn,
-                            isActive && styles.tapeCellTextInActive,
-                            isPast && styles.tapeCellTextInPast,
-                          ]}
-                        >
-                          {bit}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-            {/* Data Trail strip (inside tape section for tape levels) */}
-            {level.dataTrail.cells.length > 0 && (
-              <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
-                <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-                {tapeBarState.trailIndex !== null && (
-                  <Animated.View
-                    style={[
-                      styles.tapeIndicatorBar,
-                      {
-                        backgroundColor: Colors.tapeTrailBar,
-                        transform: [{ translateX: tapeBarState.trailIndex * (24 + 3) }],
-                        shadowColor: Colors.tapeTrailBar,
-                        shadowOffset: { width: 0, height: 0 },
-                        shadowOpacity: 0.6,
-                        shadowRadius: 12,
-                      },
-                    ]}
-                  />
-                )}
-                <View style={styles.tapeCells}>
-                  {machineState.dataTrail.cells.map((rawCell, i) => {
-                    const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
-                    const isHead = i === machineState.dataTrail.headPosition;
-                    const highlight = tapeCellHighlights.get(`trail-${i}`);
-                    return (
-                      <View key={`trail-${i}`} style={styles.tapeCellWrap}>
-                        <View style={[styles.tapeHead, { opacity: 0 }]} />
-                        <View
-                          ref={i === 0 ? dataTrailCellsRef : undefined}
-                          collapsable={false}
-                          style={[
-                            styles.tapeCell,
-                            isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
-                            highlight === 'read' && styles.tapeCellHighlightRead,
-                            highlight === 'write' && styles.tapeCellHighlightWrite,
-                            highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
-                            highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
-                          ]}
-                        >
-                          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
-                            {cell === null ? '\u00B7' : cell}
-                          </Text>
-                        </View>
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            )}
-            {/* OUT tape only renders when the level has a Transmitter (introduced A1-7) */}
-            {(level.availablePieces.includes('transmitter') ||
-              level.prePlacedPieces.some(p => p.type === 'transmitter')) && (
-            <View ref={outputTapeRowRef} collapsable={false} style={styles.tapeRow}>
-              <Text style={styles.tapeLabel} numberOfLines={1}>OUT</Text>
-              {tapeBarState.outIndex !== null && (
-                <Animated.View
-                  style={[
-                    styles.tapeIndicatorBar,
-                    {
-                      backgroundColor: Colors.tapeOutBar,
-                      transform: [{ translateX: tapeBarState.outIndex * (24 + 3) }],
-                      shadowColor: Colors.tapeOutBar,
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: 0.6,
-                      shadowRadius: 12,
-                    },
-                  ]}
-                />
-              )}
-              <View style={styles.tapeCells}>
-                {level.inputTape.map((_, i) => {
-                  const rawWritten = visualOutputOverride
-                    ? visualOutputOverride[i]
-                    : machineState.outputTape?.[i];
-                  const written = rawWritten;
-                  // Gate-outcome coloring (Prompt 84C): green when the
-                  // pulse passed through the Config Node, red when it
-                  // was blocked. -2 is the "blocked" sentinel written
-                  // into visualOutputOverride by runConfigNodeInteraction.
-                  const isBlocked = rawWritten === -2;
-                  const hasValue =
-                    written !== undefined && written !== -1 && written !== -2;
-                  const outcome = gateOutcomesRef.current.get(i);
-                  const gatePassed = outcome === 'passed';
-                  const gateBlocked = outcome === 'blocked' || isBlocked;
-
-                  return (
-                    <View key={`out-${i}`} style={styles.tapeCellWrap}>
-                      <View style={[styles.tapeHead, { opacity: 0 }]} />
-                      <View
-                        ref={i === 0 ? outputTapeCellsRef : undefined}
-                        collapsable={false}
-                        style={[
-                          styles.tapeCell,
-                          gatePassed && styles.tapeCellGatePassed,
-                          gateBlocked && styles.tapeCellGateBlocked,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.tapeCellText,
-                            gatePassed && styles.tapeCellTextGatePassed,
-                            gateBlocked && styles.tapeCellTextGateBlocked,
-                          ]}
-                        >
-                          {gatePassed && hasValue
-                            ? written
-                            : gateBlocked
-                              ? '\u00B7'
-                              : '_'}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-            )}
-            {level.requiredTerminalCount && level.requiredTerminalCount > 1 &&
-             !isExecuting && !showResults && !showVoid && !showWrongOutput && !showInsufficientPulses && (
-              <View style={styles.pulseTargetRow}>
-                <Text style={styles.pulseTargetText}>
-                  TARGET: {level.requiredTerminalCount} OF {level.inputTape?.length ?? '?'} PULSES MUST REACH TERMINAL
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* ── Trail-only display (non-tape levels with Data Trail, e.g. A1-3) ── */}
-        {!level.inputTape && level.dataTrail.cells.length > 0 && (
-          <View collapsable={false} style={styles.tapeSection}>
-            <View ref={dataTrailRowRef} collapsable={false} style={styles.tapeRow}>
-              <Text style={styles.tapeLabel} numberOfLines={1}>TRAIL</Text>
-              <View style={styles.tapeCells}>
-                {machineState.dataTrail.cells.map((rawCell, i) => {
-                  const cell = visualTrailOverride ? visualTrailOverride[i] : rawCell;
-                  const isHead = i === machineState.dataTrail.headPosition;
-                  const highlight = tapeCellHighlights.get(`trail-${i}`);
-                  return (
-                    <View key={`trail-${i}`} style={styles.tapeCellWrap}>
-                      <View style={[styles.tapeHead, { opacity: 0 }]} />
-                      <View
-                        ref={i === 0 ? dataTrailCellsRef : undefined}
-                        collapsable={false}
-                        style={[
-                          styles.tapeCell,
-                          isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
-                          highlight === 'read' && styles.tapeCellHighlightRead,
-                          highlight === 'write' && styles.tapeCellHighlightWrite,
-                          highlight === 'gate-pass' && styles.tapeCellHighlightGatePass,
-                          highlight === 'gate-block' && styles.tapeCellHighlightGateBlock,
-                        ]}
-                      >
-                        <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, cell === null && { opacity: 0.2 }]}>
-                          {cell === null ? '\u00B7' : cell}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
+        {((level.inputTape && level.inputTape.length > 0) ||
+          level.dataTrail.cells.length > 0) && (
+          <TapeBarShell
+            inputTape={level.inputTape}
+            trailCells={machineState.dataTrail.cells}
+            trailHeadPosition={machineState.dataTrail.headPosition}
+            outputTape={machineState.outputTape}
+            expectedOutput={level.expectedOutput}
+            hasOutTape={
+              level.availablePieces.includes('transmitter') ||
+              level.prePlacedPieces.some(p => p.type === 'transmitter')
+            }
+            visualTrailOverride={visualTrailOverride}
+            visualOutputOverride={visualOutputOverride}
+            tapeCellHighlights={tapeCellHighlights}
+            tapeBarState={tapeBarState}
+            gateOutcomesByIndex={gateOutcomesRef.current}
+            beamPhase={beamState.phase}
+            currentPulseIndex={currentPulseIndex}
+            inputTapeRowRef={inputTapeRowRef}
+            outputTapeRowRef={outputTapeRowRef}
+            dataTrailRowRef={dataTrailRowRef}
+            inputTapeCellsRef={inputTapeCellsRef}
+            dataTrailCellsRef={dataTrailCellsRef}
+            outputTapeCellsRef={outputTapeCellsRef}
+            requiredTerminalCount={level.requiredTerminalCount}
+            showPulseTarget={
+              !isExecuting && !showResults && !showVoid &&
+              !showWrongOutput && !showInsufficientPulses
+            }
+          />
         )}
 
         {/* ── Game Canvas (flex fills remaining space) ── */}
@@ -1510,7 +1336,7 @@ export default function GameplayScreen({ navigation }: Props) {
           }}
         >
           <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
-            {/* Dot grid */}
+            {/* Dot grid + blown-cell scars (static across beam animation) */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
                 Array.from({ length: numColumns + 1 }, (_, x) => (
@@ -1560,242 +1386,50 @@ export default function GameplayScreen({ navigation }: Props) {
                   </G>
                 );
               })}
-
-              {/* Wires — only on Axiom tutorial levels */}
-              {wires.map(wire => {
-                const fromPiece = pieceById.get(wire.fromPieceId);
-                const toPiece = pieceById.get(wire.toPieceId);
-                if (!fromPiece || !toPiece) return null;
-
-                const fx = fromPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
-                const fy = fromPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
-                const tx = toPiece.gridX * CELL_SIZE + CELL_SIZE / 2;
-                const ty = toPiece.gridY * CELL_SIZE + CELL_SIZE / 2;
-
-                const isProtocol = fromPiece.category === 'protocol' || toPiece.category === 'protocol';
-                const wireColor = isProtocol ? Colors.amber : Colors.blue;
-                const wireSW = Math.max(2, CELL_SIZE / 18);
-                const dashOn = Math.round(CELL_SIZE / 5);
-                const dashOff = Math.round(CELL_SIZE / 8);
-
-                const wireKey = `${wire.fromPieceId}_${wire.toPieceId}`;
-                const isLit = beamState.litWires.has(wireKey);
-                const isLocked = beamState.phase === 'lock' && pieceAnimState.locked.size > 0;
-                const strokeC = isLocked ? '#00C48C' : isLit ? getBeamColor(toPiece.type) : wireColor;
-                const strokeOp = isLocked ? 0.45 : isLit ? 0.85 : 0.5;
-                const sw = isLit || isLocked ? wireSW * 1.6 : wireSW;
-
-                return (
-                  <Line
-                    key={wire.id}
-                    x1={fx} y1={fy} x2={tx} y2={ty}
-                    stroke={strokeC}
-                    strokeWidth={sw}
-                    strokeDasharray={isLit || isLocked ? undefined : `${dashOn},${dashOff}`}
-                    strokeOpacity={strokeOp}
-                    strokeLinecap="round"
-                  />
-                );
-              })}
             </Svg>
 
-            {/* Signal beam overlay — wrapped in View so pointerEvents
-                component prop reliably passes touches through on iOS.
-                The inner RNAnimated.View carries `beamOpacity` so the
-                beam can dim during tape-piece processing (Prompt 91,
-                Fix 5). useNativeDriver: true is supported because we
-                only animate opacity. */}
-            <View
-              pointerEvents="none"
-              style={[StyleSheet.absoluteFill, { zIndex: 20 }]}
-            >
-            <RNAnimated.View
-              style={[StyleSheet.absoluteFill, { opacity: beamOpacity }]}
-              pointerEvents="none"
-            >
-            <Svg
-              width={gridW}
-              height={gridH}
-              style={StyleSheet.absoluteFill}
-            >
-              {beamState.phase === 'charge' && chargeState.pos && (
-                <>
-                  {/* Prompt 99A — chargeProgressAnim drives ring radius
-                      and opacity natively. The ring values match the
-                      pre-99A formulas (r = 6 + p*18 / 2 + p*26;
-                      opacity = 0.8 * (1-p) / 0.5 * (1-p)). */}
-                  <AnimatedCircle
-                    cx={chargeState.pos.x} cy={chargeState.pos.y}
-                    r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 24] }) as unknown as number}
-                    fill="none" stroke="#8B5CF6" strokeWidth={2}
-                    opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }) as unknown as number}
-                  />
-                  <AnimatedCircle
-                    cx={chargeState.pos.x} cy={chargeState.pos.y}
-                    r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [2, 28] }) as unknown as number}
-                    fill="none" stroke="#8B5CF6" strokeWidth={1.5}
-                    opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }) as unknown as number}
-                  />
-                </>
-              )}
-              {/* Pre-fork trail segments */}
-              {beamState.trails.map((seg, i) => (
-                seg.points.length > 1 ? (
-                  <Polyline
-                    key={`seg-${i}`}
-                    points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
-                    fill="none"
-                    stroke={seg.color}
-                    strokeWidth={i === beamState.trails.length - 1 ? 2.5 : 2}
-                    strokeLinecap="round"
-                    opacity={i === beamState.trails.length - 1 ? 0.72 : 0.45}
-                  />
-                ) : null
-              ))}
-              {/* Fork branch trail segments */}
-              {beamState.branchTrails.map((branch, bi) =>
-                branch.map((seg, si) => (
-                  seg.points.length > 1 ? (
-                    <Polyline
-                      key={`br-${bi}-${si}`}
-                      points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
-                      fill="none"
-                      stroke={seg.color}
-                      strokeWidth={si === branch.length - 1 ? 2.5 : 2}
-                      strokeLinecap="round"
-                      opacity={si === branch.length - 1 ? 0.72 : 0.45}
-                    />
-                  ) : null
-                )),
-              )}
-              {beamState.heads.map((bh, bi) => (
-                <G key={`bh-${bi}`}>
-                  <Circle cx={bh.x} cy={bh.y} r={11} fill={beamState.headColor} opacity={0.25} />
-                  <Circle cx={bh.x} cy={bh.y} r={3.5} fill="white" opacity={0.95} />
-                </G>
-              ))}
-              {beamState.voidPulse && (
-                <Circle
-                  cx={beamState.voidPulse.x} cy={beamState.voidPulse.y} r={beamState.voidPulse.r}
-                  stroke="#FF3B3B" strokeWidth={2.5}
-                  fill="none" opacity={beamState.voidPulse.opacity}
-                />
-              )}
-              {/* Prompt 99A — lock rings driven by lockRingProgressAnim
-                  on the native thread. Two rings, the second offset by
-                  100ms within a 320ms total animation. The second ring
-                  encodes its 100ms delay as a flat-then-rising
-                  inputRange (output stays at 6 / opacity 0 until
-                  progress reaches 100/320 = 0.3125, then rises). Total
-                  visible window for each ring is 200ms (200/320 =
-                  0.625 progress span). */}
-              {lockRingCenter && (
-                <>
-                  <AnimatedCircle
-                    cx={lockRingCenter.x} cy={lockRingCenter.y}
-                    r={lockRingProgressAnim.interpolate({
-                      inputRange: [0, 0.625, 1],
-                      outputRange: [6, 42, 42],
-                    }) as unknown as number}
-                    stroke="#00C48C" strokeWidth={2.5} fill="none"
-                    opacity={lockRingProgressAnim.interpolate({
-                      inputRange: [0, 0.625, 1],
-                      outputRange: [0.95, 0, 0],
-                    }) as unknown as number}
-                  />
-                  <AnimatedCircle
-                    cx={lockRingCenter.x} cy={lockRingCenter.y}
-                    r={lockRingProgressAnim.interpolate({
-                      inputRange: [0, 0.3125, 0.9375, 1],
-                      outputRange: [6, 6, 42, 42],
-                    }) as unknown as number}
-                    stroke="#00C48C" strokeWidth={2.5} fill="none"
-                    opacity={lockRingProgressAnim.interpolate({
-                      inputRange: [0, 0.3125, 0.9375, 1],
-                      outputRange: [0, 0.95, 0, 0],
-                    }) as unknown as number}
-                  />
-                </>
-              )}
-            </Svg>
-            </RNAnimated.View>
-            </View>
+            {/* Wire layer — sibling Svg so lit-wire updates do not
+                cascade through the dot grid or piece layers
+                (PERFORMANCE_CONTRACT 4.3.1, 4.3.2). */}
+            <WireOverlay
+              wires={wires}
+              litWires={beamState.litWires}
+              pieceById={pieceById}
+              cellSize={CELL_SIZE}
+              gridW={gridW}
+              gridH={gridH}
+              isLocked={beamState.phase === 'lock' && pieceAnimState.locked.size > 0}
+            />
 
-            {/* Pieces */}
-            {pieces.map(piece => {
-              const isPrePlaced = piece.isPrePlaced;
-              const isSource = piece.type === 'source';
-              const isOutput = piece.type === 'terminal';
-              const isPrePlacedScanner = isPrePlaced && piece.type === 'scanner';
-              const pieceSize = CELL_SIZE - 4;
-              const offset = (CELL_SIZE - pieceSize) / 2;
-              const cellPx = piece.gridX * CELL_SIZE + offset;
-              const cellPy = piece.gridY * CELL_SIZE + offset;
-              const iconSize = (CELL_SIZE - 4) * 0.60;
-              const iconColor = isSource ? '#F0B429' : isOutput ? '#00C48C' : getPieceColor(piece.type);
-              const flashColorP = pieceAnimState.flashing.get(piece.id);
-              const isLocked = pieceAnimState.locked.has(piece.id);
-              const borderColorP = flashColorP ? flashColorP
-                : isLocked ? '#00C48C'
-                : undefined;
-              const borderWidthP = flashColorP || isLocked ? 2 : 0;
-              const shadowC = flashColorP ?? (isLocked ? '#00C48C' : undefined);
+            {/* Signal beam overlay (extracted Prompt 99B). Sibling of
+                board grid + wire overlay; setBeamState re-renders only
+                this subtree (clause 4.4.1, 4.4.2). */}
+            <BeamOverlay
+              beamState={beamState}
+              chargeState={chargeState}
+              lockRingCenter={lockRingCenter}
+              chargeProgressAnim={chargeProgressAnim}
+              lockRingProgressAnim={lockRingProgressAnim}
+              beamOpacity={beamOpacity}
+              gridW={gridW}
+              gridH={gridH}
+            />
 
-              return (
-                <Pressable
-                  key={piece.id}
-                  ref={isSource ? sourceNodeRef : isOutput ? outputNodeRef : isPrePlacedScanner ? boardScannerRef : undefined}
-                  style={[
-                    styles.piece,
-                    {
-                      left: cellPx,
-                      top: cellPy,
-                      width: pieceSize,
-                      height: pieceSize,
-                      borderWidth: borderWidthP,
-                      borderColor: borderColorP,
-                      backgroundColor: 'transparent',
-                      opacity: 1,
-                      transform: [{ scale: 1 }],
-                      zIndex: 0,
-                      shadowColor: shadowC,
-                      shadowOffset: { width: 0, height: 0 },
-                      shadowOpacity: shadowC ? (flashColorP ? 0.5 : 0.3) : 0,
-                      shadowRadius: flashColorP ? 16 : isLocked ? 8 : 0,
-                    },
-                  ]}
-                  onPress={() => handlePieceTap(piece)}
-                  onLongPress={() => handlePieceLongPress(piece)}
-                  delayLongPress={500}
-                >
-                  <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
-                    {(() => {
-                      const pap = pieceAnimProps.get(piece.id);
-                      const animType = pap?.animType;
-                      return (
-                        <PieceIcon
-                          type={piece.type}
-                          size={iconSize}
-                          color={iconColor}
-                          spinning={animType === 'spinning'}
-                          scanning={animType === 'scanning'}
-                          transmitting={animType === 'transmitting'}
-                          rolling={animType === 'rolling'}
-                          splitting={animType === 'splitting'}
-                          gating={animType === 'gating'}
-                          gateResult={pap?.gateResult ?? null}
-                          locking={animType === 'locking'}
-                          charging={animType === 'charging'}
-                          failColor={pap?.failColor ?? null}
-                          configValue={piece.type === 'configNode' ? piece.configValue : undefined}
-                          connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
-                        />
-                      );
-                    })()}
-                  </View>
-                </Pressable>
-              );
-            })}
+            {/* Pieces — per-piece prop isolation lives in BoardPiece
+                so PieceIcon's React.memo barrier holds across beam
+                ticks (clause 4.2.2). */}
+            <BoardGrid
+              pieces={pieces}
+              pieceAnimProps={pieceAnimProps}
+              flashingMap={pieceAnimState.flashing}
+              lockedSet={pieceAnimState.locked}
+              cellSize={CELL_SIZE}
+              sourceNodeRef={sourceNodeRef}
+              outputNodeRef={outputNodeRef}
+              boardScannerRef={boardScannerRef}
+              onPieceTap={handlePieceTap}
+              onPieceLongPress={handlePieceLongPress}
+            />
 
             {/* Ghost cells — copper valid hints on Axiom, invisible taps elsewhere */}
             {selectedPieceFromTray &&
@@ -1850,56 +1484,15 @@ export default function GameplayScreen({ navigation }: Props) {
 
         {/* ── Parts Tray ── */}
         {!isExecuting && !showResults && !showVoid && !debugMode && (
-          <View style={styles.partsTray}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.partsTrayInner}>
-              {trayPieceTypes.map(pt => {
-                const count = availableCounts[pt] || 0;
-                const isActive = selectedPieceFromTray === pt;
-                const color = getPieceColor(pt);
-                const cost = isAxiomLevel ? 0 : getPieceCost(pt, discipline);
-                const canAfford = cost === 0 || (useEconomyStore.getState().levelBudget - useEconomyStore.getState().levelSpent + useEconomyStore.getState().credits) >= cost;
-                const measureRef =
-                  pt === 'conveyor' ? trayConveyorRef
-                  : pt === 'gear' ? trayGearRef
-                  : pt === 'configNode' ? trayConfigNodeRef
-                  : pt === 'splitter' ? traySplitterRef
-                  : pt === 'scanner' ? traScannerRef
-                  : pt === 'transmitter' ? trayTransmitterRef
-                  : undefined;
-                return (
-                  // Wrap TouchableOpacity in a non-collapsable View so the
-                  // tutorial overlay's .measure() call returns the actual
-                  // tray-piece bounds. TouchableOpacity refs are unreliable
-                  // for measure() across platforms; a wrapping View with
-                  // collapsable={false} forces the native view to exist.
-                  <View key={pt} ref={measureRef} collapsable={false}>
-                  <TouchableOpacity
-                    style={[
-                      styles.trayItem,
-                      isActive && { borderColor: color, backgroundColor: `${color}15` },
-                    ]}
-                    onPress={() => {
-                      selectFromTray(isActive ? null : pt);
-                    }}
-                    activeOpacity={0.7}
-                    disabled={count <= 0}
-                    accessibilityLabel={`${PIECE_LABELS[pt]}, ${count} available`}
-                  >
-                    <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
-                      <PieceIcon type={pt} size={22} color={color} />
-                    </View>
-                    <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
-                      <Text style={styles.trayBadgeText}>{count}</Text>
-                    </View>
-                    {cost > 0 && (
-                      <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
-                    )}
-                  </TouchableOpacity>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
+          <PieceTray
+            trayPieceTypes={trayPieceTypes}
+            availableCounts={availableCounts}
+            selectedPieceFromTray={selectedPieceFromTray}
+            costs={trayCosts}
+            affordable={trayAffordable}
+            refs={tutorialTrayRefs}
+            onPickup={selectFromTray}
+          />
         )}
 
         {/* ── Tutorial Hint ── */}
@@ -2592,6 +2185,7 @@ export default function GameplayScreen({ navigation }: Props) {
           spotlightCellSize={CELL_SIZE}
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}
+          isBeamActive={beamState.phase !== 'idle'}
         />
       )}
 

@@ -49,6 +49,12 @@ interface Props {
   onSkip: () => void;
   spotlightCells?: SpotlightCell[];
   spotlightCellSize?: number;
+  // Prompt 99B — when true, suspend the 120/150ms measureInWindow
+  // retry chains. Tutorial measurement work must not race the JS
+  // thread during a beam tick (PERFORMANCE_CONTRACT 6.2.1). Defaults
+  // to false so existing call sites keep their current behavior;
+  // GameplayScreen passes `beamState.phase !== 'idle'`.
+  isBeamActive?: boolean;
 }
 
 // Targets that are section-level (no individual piece glow)
@@ -75,7 +81,7 @@ function eyeStateColor(eye?: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function TutorialHUDOverlay({
+function TutorialHUDOverlayComponent({
   steps,
   levelId,
   targetRefs,
@@ -83,6 +89,7 @@ export default function TutorialHUDOverlay({
   onSkip,
   spotlightCells,
   spotlightCellSize,
+  isBeamActive = false,
 }: Props) {
   // ── State ──
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -106,6 +113,26 @@ export default function TutorialHUDOverlay({
   const mountedRef = useRef(true);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const animationsRef = useRef<{ stop: () => void }[]>([]);
+
+  // Prompt 99B — track isBeamActive in a ref so measure callbacks
+  // don't recreate when the beam phase flips. PERFORMANCE_CONTRACT
+  // 6.2.1 forbids measureInWindow during the beam tick loop.
+  const isBeamActiveRef = useRef(isBeamActive);
+  useEffect(() => {
+    const wasActive = isBeamActiveRef.current;
+    isBeamActiveRef.current = isBeamActive;
+    // When the beam settles back to idle, retrigger one delayed
+    // measure to pick up any layout shift that happened during the
+    // run (PERFORMANCE_CONTRACT 6.2.2).
+    if (wasActive && !isBeamActive) {
+      const t = setTimeout(() => {
+        if (!mountedRef.current) return;
+        // Force a re-measure by nudging the layout-driven effect.
+        setTargetLayout(prev => prev);
+      }, 120);
+      timersRef.current.push(t);
+    }
+  }, [isBeamActive]);
   const trackTimer = useCallback(
     (id: ReturnType<typeof setTimeout>) => {
       timersRef.current.push(id);
@@ -235,6 +262,11 @@ export default function TutorialHUDOverlay({
     };
     const tryMeasure = () => {
       if (!mountedRef.current) return;
+      // Prompt 99B — bail out while the beam is animating so
+      // measureInWindow does not race the JS thread
+      // (PERFORMANCE_CONTRACT 6.2.1). The post-beam useEffect above
+      // re-triggers a measure when isBeamActive flips back to false.
+      if (isBeamActiveRef.current) return;
       attempt += 1;
       if (Platform.OS === 'web') {
         // On Expo web findNodeHandle / UIManager.measureInWindow are
@@ -1001,3 +1033,9 @@ const st = StyleSheet.create({
     lineHeight: 19,
   },
 });
+
+// React.memo wrapper (Prompt 99B). The overlay re-renders only when
+// the active step, the targetRefs identity, or the isBeamActive flag
+// changes. Default shallow comparison covers all current props since
+// targetRefs is memoized at the GameplayScreen call site.
+export default React.memo(TutorialHUDOverlayComponent);
