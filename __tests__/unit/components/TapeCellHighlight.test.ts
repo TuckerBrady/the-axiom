@@ -44,7 +44,10 @@ describe('TapeCell — native-driven highlight overlay (Prompt 99C, Fix 3)', () 
     // Palette carried forward from the deleted style classes.
     expect(cellSrc).toMatch(/case 'read':[\s\S]*?bg:\s*'rgba\(0,229,255,0\.18\)'/);
     expect(cellSrc).toMatch(/case 'write':[\s\S]*?bg:\s*'rgba\(0,229,255,0\.22\)'/);
-    expect(cellSrc).toMatch(/case 'gate-pass':[\s\S]*?bg:\s*'rgba\(0,255,135,0\.18\)'/);
+    // gate-pass uses trail primary blue (#00D4FF = rgba(0,212,255,...))
+    // so the match highlight does not clash with neonGreen trail text
+    // (Prompt 104, Fix 2).
+    expect(cellSrc).toMatch(/case 'gate-pass':[\s\S]*?bg:\s*'rgba\(0,212,255,0\.18\)'/);
     expect(cellSrc).toMatch(/case 'gate-block':[\s\S]*?bg:\s*'rgba\(255,59,59,0\.18\)'/);
     expect(cellSrc).toMatch(/case 'departing':/);
   });

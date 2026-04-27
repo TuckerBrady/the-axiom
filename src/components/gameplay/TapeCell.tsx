@@ -57,7 +57,11 @@ function colorsForHighlight(h: TapeHighlight): { bg: string; border: string } {
     case 'write':
       return { bg: 'rgba(0,229,255,0.22)', border: 'rgba(0,229,255,0.9)' };
     case 'gate-pass':
-      return { bg: 'rgba(0,255,135,0.18)', border: 'rgba(0,255,135,0.9)' };
+      // Trail cells use neonGreen (#00FF87) for text and head styling.
+      // Green-on-green (previous rgba(0,255,135,...)) was unreadable.
+      // Use trail primary blue (#00D4FF) so the match highlight is
+      // visually distinct from both the trail state and the amber beam.
+      return { bg: 'rgba(0,212,255,0.18)', border: 'rgba(0,212,255,0.9)' };
     case 'gate-block':
       return { bg: 'rgba(255,59,59,0.18)', border: 'rgba(255,59,59,0.9)' };
     case 'departing':
@@ -183,7 +187,12 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         collapsable={false}
         style={[
           styles.tapeCell,
-          gatePassed && styles.tapeCellGatePassed,
+          // Green styling only when the Transmitter has physically
+          // written a value. Config Node pass alone (gatePassed=true,
+          // hasValue=false) must not color the cell green — that
+          // looked like "data printed at Config Node step" to the
+          // player and is the root cause of Fix 3 (Prompt 104).
+          (gatePassed && hasValue) && styles.tapeCellGatePassed,
           gateBlocked && styles.tapeCellGateBlocked,
         ]}
       >
@@ -191,7 +200,7 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         <Text
           style={[
             styles.tapeCellText,
-            gatePassed && styles.tapeCellTextGatePassed,
+            (gatePassed && hasValue) && styles.tapeCellTextGatePassed,
             gateBlocked && styles.tapeCellTextGateBlocked,
           ]}
         >

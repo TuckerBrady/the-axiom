@@ -42,12 +42,15 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     if (!ctx.loopingRef.current) break;
 
     // Reset beam / piece-anim state in single setState calls per
-    // compound group, instead of one per field.
+    // compound group, instead of one per field. litWires cleared so
+    // each replay cycle starts with un-lit wires (mirrors the per-
+    // pulse reset in handleEngage).
     ctx.setBeamState(prev => ({
       ...prev,
       heads: [],
       trails: [],
       branchTrails: [],
+      litWires: new Set(),
     }));
     ctx.setPieceAnimState(prev => ({
       ...prev,
@@ -102,6 +105,8 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
       if (!ctx.loopingRef.current) break;
       ctx.currentPulseRef.current = lp;
       ctx.setCurrentPulseIndex(lp);
+      // Per-pulse litWires reset mirrors handleEngage (Fix 1).
+      ctx.setBeamState(prev => ({ ...prev, litWires: new Set() }));
       await runPulse(ctx, pulses[lp]);
       if (!ctx.loopingRef.current) break;
       if (lp < pulses.length - 1) {

@@ -183,9 +183,16 @@ describe('GateOutcomeMap', () => {
 });
 
 describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBarShell in Prompt 99B)', () => {
-  it('applies tapeCellGatePassed when the gate outcome is passed', () => {
+  it('applies tapeCellGatePassed only when BOTH gatePassed and hasValue (Prompt 104 Fix 3)', () => {
+    // The green cell style must only appear when the Transmitter has
+    // physically written a value. gatePassed alone (from Config Node
+    // evaluation) must not color the OUT cell green — that looked like
+    // "data printed at Config Node step" to the player.
     expect(tapeCellSource).toMatch(
-      /gatePassed && styles\.tapeCellGatePassed/,
+      /\(gatePassed && hasValue\) && styles\.tapeCellGatePassed/,
+    );
+    expect(tapeCellSource).not.toMatch(
+      /(?<!\()gatePassed && styles\.tapeCellGatePassed/,
     );
   });
 

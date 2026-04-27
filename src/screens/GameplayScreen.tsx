@@ -115,7 +115,6 @@ import {
   runPulse as engageRunPulse,
   runLockPhase,
   runWrongOutputRings,
-  runReplayLoop,
   handleSuccess,
   handleWrongOutput,
   handleVoidFailure,
@@ -869,6 +868,10 @@ export default function GameplayScreen({ navigation }: Props) {
     // a previous level's mid-pause dim state never carries over
     // (Prompt 91, Fix 5).
     beamOpacity.setValue(1);
+    // Cancel any in-flight 8s safety timers from the previous run
+    // before starting fresh (Prompt 104, Fix 4A).
+    safetyTimersRef.current.forEach(t => clearTimeout(t));
+    safetyTimersRef.current = [];
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
     timerRunning.current = false;
     lockedRef.current = true;
@@ -1022,6 +1025,10 @@ export default function GameplayScreen({ navigation }: Props) {
         animations: new Map(),
         gates: new Map(),
       }));
+      // Reset wire glow state so each pulse starts with un-lit wires.
+      // Without this, wires lit during pulse N stay lit on pulse N+1
+      // and the beam becomes invisible against already-lit segments.
+      setBeamState(prev => ({ ...prev, litWires: new Set() }));
       await engageRunPulse(ctx, pulses[p]);
 
       const pulseReachedTerminal = pulses[p].some(
@@ -1167,20 +1174,14 @@ export default function GameplayScreen({ navigation }: Props) {
       });
       if (routed) return;
 
-      // Post-completion beam replay loop — visual only, no re-scoring.
-      setBeamState(prev => ({ ...prev, phase: 'lock' }));
-      loopingRef.current = true;
-      const terminalPieceId = machineState.pieces.find(pc => pc.type === 'terminal')?.id ?? null;
-      void runReplayLoop({
-        ctx,
-        pulses,
-        sourcePieceId: sourcePiece?.id ?? null,
-        terminalPieceId,
-        dataTrailCellsLength: level.dataTrail.cells.length,
-        inputTapeLength: level.inputTape?.length ?? 0,
-        getBoardScreenPos,
-        measureTapeContainer,
-      });
+      // Beam animation stops here. The board remains in the static
+      // locked success state from the lock phase (all pieces green,
+      // all wires lit, phase: 'idle'). The full replay loop was
+      // removed because it stacked RAF frames and timer callbacks
+      // that accumulated if the player waited before tapping CONTINUE
+      // — the root cause of the progressive lag on A1-7/A1-8 when
+      // playing sequentially (Prompt 104, Fix 4B).
+      // Player taps CONTINUE to proceed to the results screen.
     } else {
       await handleVoidFailure({
         steps,
