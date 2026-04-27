@@ -189,7 +189,7 @@ export const PieceIcon = React.memo(function PieceIcon({
     ]).start();
   }, [gating, gatePulse]);
 
-  // Output port lock sequence — drives 3 expanding rings over 400ms.
+  // Terminal lock sequence — drives 3 expanding rings over 400ms.
   useEffect(() => {
     if (!locking) return;
     lockProgress.setValue(0);
@@ -201,7 +201,7 @@ export const PieceIcon = React.memo(function PieceIcon({
     }).start();
   }, [locking, lockProgress]);
 
-  // Input port charge sequence — drives 2 expanding rings over 280ms.
+  // Source charge sequence — drives 2 expanding rings over 280ms.
   useEffect(() => {
     if (!charging) return;
     chargeProgress.setValue(0);

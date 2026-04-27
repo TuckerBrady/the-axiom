@@ -26,7 +26,7 @@ communicate how it works and does not feel good to use.
 
 - Input: omnidirectional. Signal enters center node from
   whatever piece is connected. Splitter auto-orients its back
-  toward incoming signal source (same auto-orient as Input Port
+  toward incoming signal source (same auto-orient as Source
   adjacency)
 - Outputs: three remaining sides (left, front, right relative
   to back). Magnets auto-connect to first two adjacent pieces

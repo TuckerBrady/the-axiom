@@ -93,8 +93,8 @@ executes.
   piece — engine, icon, animations, Codex entry, tutorial, gameplay
   integration, COGS voice sign-off. No piece ships without it.
 - Sprint 17B: Piece interaction animation system. Every piece animates
-  when the beam passes through. PieceIcon props: charging (inputPort,
-  280ms), locking (outputPort, 400ms), rolling (conveyor, 180ms),
+  when the beam passes through. PieceIcon props: charging (Source,
+  280ms), locking (Terminal, 400ms), rolling (conveyor, 180ms),
   spinning (gear, 400ms), splitting (splitter, 160ms), scanning
   (scanner, 200ms), gating + gateResult (configNode, 240ms),
   transmitting (transmitter, 150ms). Failure states: void beam death
@@ -118,6 +118,9 @@ executes.
   11 files: 'source' → 'inputPort', 'output' → 'outputPort'
   everywhere in engine, types, levels, stores, screens, and
   components. Codex IDs, names, and field simulations all updated.
+  (Subsequently — Prompt 101 — display names renamed to Source /
+  Terminal app-wide while piece type ids remained 'source' /
+  'terminal'.)
 - Sprint 16B: Segmented beam color system. Purple for source/output
   (data layer), amber for Physics pieces (conveyor/gear/splitter), blue
   for Protocol pieces (scanner/configNode/transmitter), green for lock,
@@ -191,8 +194,8 @@ executes.
 - Level Select connectors: energized (blue, full opacity) on completed path; dim on locked/active path. Animated ball travels only on energized connectors. No ball rendered when player is on level 1 (nothing completed yet).
 - Game board: BOARD_SIZE = SCREEN_WIDTH - 24, always square. CELL_SIZE = BOARD_SIZE / numColumns. Board is centered. All sizing is dynamic -- no hardcoded pixel values.
 - Placed pieces on board: no container box or border. Only held/selected pieces (from tray, not yet placed) show the rounded square border.
-- Source node visual: amber #F0B429, no container box. Fixed infrastructure -- visually distinct from player pieces.
-- Output node visual: green #00C48C, no container box. Fixed infrastructure -- visually distinct from player pieces.
+- Source visual: amber #F0B429, no container box. Fixed infrastructure -- visually distinct from player pieces.
+- Terminal visual: green #00C48C, no container box. Fixed infrastructure -- visually distinct from player pieces.
 - Conveyor directional indicator: input circle (signal enters) = amber #F0B429. Output circle (signal exits) = green #00C48C. Body rect and arrow = blue #00D4FF. Direction is legible at all 4 rotation states.
 - PieceIcon extracted to src/components/PieceIcon.tsx. Single source of truth used by both CodexScreen and GameplayScreen. Codex icon designs are canonical. Do not create local PieceIcon implementations in individual screens.
 - Codex detail view redesigned: hero (icon + name + type badge) -> first encountered -> field simulation -> C.O.G.S NOTES (teaching mode, single merged section). Stats row removed. Seen in missions section removed.
@@ -924,7 +927,7 @@ litWires). Every piece icon now has distinctive secondary
 accents that survive the board's primary color override.
 
 ## Sprint 17 — Tape system, piece animations, new pieces (commit 15b68cc)
-17A: Source/Output renamed to Input Port / Output Port across 11
+17A: Source/Output renamed to Input Port / Output Port across 11 (later renamed to Source / Terminal display names — Prompt 101)
 files. Turing tape system added — levels can declare inputTape and
 expectedOutput; engine runs N pulses threading pulseIndex through
 Scanner / Transmitter / Config Node. Tape UI rendered above the

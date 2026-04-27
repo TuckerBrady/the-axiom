@@ -78,7 +78,7 @@ export async function runLockPhase(
   await new Promise(r => setTimeout(r, 160));
 }
 
-// Wrong-output ring expansion at the Output Port. Native-driven via
+// Wrong-output ring expansion at the Terminal. Native-driven via
 // voidBurstCenter + voidPulseRingProgressAnim (Prompt 99C, Fix 2) —
 // matches the in-pulse void burst in beamAnimation.ts so both red
 // rings expand the same way through BeamOverlay's AnimatedCircle.

@@ -93,7 +93,7 @@ retrofit per Level Design Framework.
 ## Architecture — Three Layers
 
 Every machine operates on three layers simultaneously:
-1. Signal Path (Physics pieces) — physical route from Input Port to Output Port
+1. Signal Path (Physics pieces) — physical route from Source to Terminal
 2. Data Trail (Protocol pieces) — persistent working memory, read/write operations
 3. Tape System — input tape feeds values, output tape records answers
 
@@ -161,7 +161,7 @@ No emojis in commit messages. Ever.
 - Piece interaction animations: per-piece props on PieceIcon — locked
 - PieceIcon is single source of truth for all piece rendering — locked
 - Dynamic board sizing: BOARD_SIZE = SCREEN_WIDTH - 24, CELL_SIZE = BOARD_SIZE / numColumns — locked
-- Source node = Input Port, Output node = Output Port — locked
+- Source = origin of signal (formerly Input Port), Terminal = destination of signal (formerly Output Port) — locked
 - Wire rendering (dashed connection lines): all sectors — locked
 - Placement highlights (orange valid-cell indicators): Axiom sector only — locked
 
@@ -175,7 +175,7 @@ No emojis in commit messages. Ever.
 - Long press on placed piece: returns piece directly to tray. No ghost/held state.
 - Only Conveyor rotates on tap (plumber model). Config Node tap cycles configValue. Latch tap toggles latchMode. All other pieces: no tap action.
 - Config Node always Protocol purple (#8B5CF6). configValue (0/1) cycles on tap. No CONFIGURATION header in gameplay.
-- Auto-orientation: only Input Port triggers it, no other piece
+- Auto-orientation: only Source triggers it, no other piece
 - Tutorial orb measurement: uses 120ms delayed measure() for boardGrid/engageButton/tray refs
 - useNativeDriver: false for all piece animations
 - Config Node Codex ID: use `configNode` not `config_node`

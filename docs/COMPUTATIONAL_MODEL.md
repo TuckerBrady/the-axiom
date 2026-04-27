@@ -10,8 +10,8 @@ layers simultaneously.
 
 ### Layer 1 — The Signal Path
 
-The physical route the signal travels from Input Port to Output
-Port. Built by the Engineer using Physics pieces.
+The physical route the signal travels from Source to Terminal.
+Built by the Engineer using Physics pieces.
 
 Physics pieces live here: Conveyor, Gear, Splitter, Merger,
 Bridge, Relay, Threshold Relay, Amplifier, Junction, Sequencer.
