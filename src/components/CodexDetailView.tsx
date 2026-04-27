@@ -114,9 +114,10 @@ interface Props {
   entry: PieceEntry;
   onUnderstood: () => void;
   entryNumber?: number;
+  alsoCollected?: PieceEntry[];
 }
 
-export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }: Props) {
+export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, alsoCollected }: Props) {
   const reveal = useSharedValue(0);
   const loggedSlide = useSharedValue(-40);
 
@@ -185,6 +186,21 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1 }
           <Text style={st.firstEncLabel}>FIRST ENCOUNTERED</Text>
           <Text style={st.firstEncValue}>{entry.firstEncountered}</Text>
         </View>
+
+        {/* Also catalogued (batch collection — A1-1 only) */}
+        {alsoCollected && alsoCollected.length > 0 && (
+          <View style={st.alsoSection}>
+            <Text style={st.alsoLabel}>ALSO CATALOGUED</Text>
+            <View style={st.alsoRow}>
+              {alsoCollected.map(e => (
+                <View key={e.id} style={st.alsoChip}>
+                  <PieceIcon type={e.id} size={16} color={getCodexPieceColor(e.id)} />
+                  <Text style={st.alsoChipText}>{e.name.toUpperCase()}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         {/* Field simulation */}
         <PieceSimulation pieceType={entry.id} />
@@ -343,6 +359,38 @@ const st = StyleSheet.create({
     fontFamily: Fonts.spaceMono,
     fontSize: 9,
     color: Colors.starWhite,
+  },
+  alsoSection: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.lg,
+    backgroundColor: 'rgba(240,180,41,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(240,180,41,0.18)',
+    borderRadius: 10,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  alsoLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.amber,
+    letterSpacing: 1.5,
+  },
+  alsoRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  alsoChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  alsoChipText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: Colors.muted,
+    letterSpacing: 1,
   },
   cogsCardWrap: {
     paddingHorizontal: Spacing.lg,

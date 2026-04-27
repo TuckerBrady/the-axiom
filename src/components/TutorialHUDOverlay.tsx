@@ -15,7 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep } from '../game/types';
 import { Colors, Fonts } from '../theme/tokens';
-import CodexDetailView, { getCodexEntry } from './CodexDetailView';
+import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -97,6 +97,8 @@ function TutorialHUDOverlayComponent({
   const [hydrated, setHydrated] = useState(false);
   const [targetLayout, setTargetLayout] = useState<Layout | null>(null);
   const [codexVisible, setCodexVisible] = useState(false);
+  // A1-1 batch: secondary entries catalogued silently alongside the main codex view
+  const [codexAlsoCollected, setCodexAlsoCollected] = useState<PieceEntry[]>([]);
 
   // ── Lifecycle guards ──
   // mountedRef is the source of truth for "is this component still
@@ -674,18 +676,35 @@ function TutorialHUDOverlayComponent({
 
   const handlePrimary = useCallback(() => {
     if (phase === 'arrived' && step?.codexEntryId) {
-      // Mark the piece discovered the moment the codex view opens —
-      // before the player even reads it. The Codex screen uses this
-      // to gate which entries display unlocked vs CLASSIFIED for
-      // non-dev builds (Prompt 92, Fix 8). Discovery is monotonic:
-      // re-marking is a no-op.
+      // A1-1 batch: source + terminal are catalogued silently; conveyor
+      // shows one combined view for all three pieces together.
+      if (levelId === 'A1-1' && (step.codexEntryId === 'source' || step.codexEntryId === 'terminal')) {
+        useCodexStore.getState().markDiscovered(step.codexEntryId);
+        advanceStep();
+        return;
+      }
+      if (levelId === 'A1-1' && step.codexEntryId === 'conveyor') {
+        useCodexStore.getState().markDiscovered('source');
+        useCodexStore.getState().markDiscovered('terminal');
+        useCodexStore.getState().markDiscovered('conveyor');
+        const srcEntry = getCodexEntry('source');
+        const trmEntry = getCodexEntry('terminal');
+        setCodexAlsoCollected(
+          [srcEntry, trmEntry].filter((e): e is PieceEntry => e !== null),
+        );
+        setCodexVisible(true);
+        setPhase('codex');
+        return;
+      }
+      // Normal: mark discovered and open the codex view for this step.
+      // Discovery is monotonic — re-marking is a no-op (Prompt 92, Fix 8).
       useCodexStore.getState().markDiscovered(step.codexEntryId);
       setCodexVisible(true);
       setPhase('codex');
       return;
     }
     advanceStep();
-  }, [phase, step, advanceStep]);
+  }, [phase, step, levelId, advanceStep]);
 
   const handleSkip = useCallback(() => {
     AsyncStorage.setItem(`axiom_tutorial_skipped_${levelId}`, '1').catch(() => {});
@@ -702,6 +721,7 @@ function TutorialHUDOverlayComponent({
     trackAnim(anim);
     anim.start(() => {
       if (!mountedRef.current) return;
+      setCodexAlsoCollected([]);
       setCodexVisible(false);
       advanceStep();
     });
@@ -968,7 +988,11 @@ function TutorialHUDOverlayComponent({
             { transform: [{ translateY: codexTranslate }], zIndex: 250, backgroundColor: Colors.void, elevation: 250 },
           ]}
         >
-          <CodexDetailView entry={codexEntry} onUnderstood={handleCodexUnderstood} />
+          <CodexDetailView
+            entry={codexEntry}
+            onUnderstood={handleCodexUnderstood}
+            alsoCollected={codexAlsoCollected.length > 0 ? codexAlsoCollected : undefined}
+          />
         </Animated.View>
       )}
 
