@@ -304,6 +304,12 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
       prevValue = value;
       setT(value);
     });
+    // useNativeDriver: false is required because addListener above
+    // bridges this value to React state every frame for SVG render —
+    // listeners are unavailable on native-driven values. The codex
+    // preview never mounts during gameplay, so this animation does
+    // not contend for JS frames during a beam tick (Bucket C, audited
+    // 99C, Fix 6).
     const loop = RNAnimated.loop(
       RNAnimated.timing(animVal, {
         toValue: 1,

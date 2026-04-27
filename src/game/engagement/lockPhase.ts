@@ -2,7 +2,6 @@ import { Animated } from 'react-native';
 import type { EngagementContext, Pt } from './types';
 import {
   setSignalPhase,
-  setVoidPulse,
   setLockedPieces,
   updateLitWires,
 } from './stateHelpers';
@@ -15,6 +14,16 @@ import {
 // directly through interpolations on r/opacity (with a 100ms offset
 // for the second ring expressed via interpolate inputRange), so the
 // JS thread no longer fires setState on every RAF tick.
+//
+// Prompt 99C, Fix 2 — runWrongOutputRings now drives the
+// red-ring burst through voidBurstCenter + voidPulseRingProgressAnim
+// (the same native pattern as the in-pulse void burst in
+// beamAnimation.ts). The pre-99C codepath wrote the ring's static r
+// + opacity into beamState.voidPulse at start and cleared it at end,
+// which left the render layer pinned to the start values for the
+// full 320ms — the intended expansion never animated. Reading
+// voidPulseRingProgressAnim from BeamOverlay brings the wrong-output
+// burst in line with the void-blocker burst.
 //
 // Allowed setState calls per phase (PERFORMANCE_CONTRACT 3.3.1):
 //   1. setLockRingCenter(...) at start  — mounts ring visual.
@@ -69,23 +78,16 @@ export async function runLockPhase(
   await new Promise(r => setTimeout(r, 160));
 }
 
-// Wrong-output ring expansion at the Output Port. Uses the same
-// native-driven progress pattern as runLockPhase. The existing
-// renderer reads beamState.voidPulse for color/position; we set it
-// once at start (with full r/opacity sentinels) and clear it once at
-// the end. The actual r/opacity interpolation will move into the
-// renderer in 99C — for 99A the migration just removes the per-tick
-// setState stream so no FPS is burned during the burst.
+// Wrong-output ring expansion at the Output Port. Native-driven via
+// voidBurstCenter + voidPulseRingProgressAnim (Prompt 99C, Fix 2) —
+// matches the in-pulse void burst in beamAnimation.ts so both red
+// rings expand the same way through BeamOverlay's AnimatedCircle.
+// Two setState calls total (mount + unmount), no per-RAF stream.
 export async function runWrongOutputRings(
   ctx: EngagementContext,
   outputCenter: Pt,
 ): Promise<void> {
-  setVoidPulse(ctx.setBeamState, {
-    x: outputCenter.x,
-    y: outputCenter.y,
-    r: 6,
-    opacity: 0.95,
-  });
+  ctx.setVoidBurstCenter({ x: outputCenter.x, y: outputCenter.y });
 
   ctx.voidPulseAnim?.stop();
   ctx.voidPulseRingProgressAnim.setValue(0);
@@ -101,7 +103,7 @@ export async function runWrongOutputRings(
     });
   });
 
-  setVoidPulse(ctx.setBeamState, null);
+  ctx.setVoidBurstCenter(null);
 }
 
 // Replay-loop variant — bails if looping stops mid-animation. The

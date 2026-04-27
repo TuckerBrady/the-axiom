@@ -21,7 +21,6 @@ function getPieceColor(type: PieceType): string {
 interface Props {
   pieces: PlacedPiece[];
   pieceAnimProps: Map<string, PieceAnimProps>;
-  flashingMap: Map<string, string>;
   lockedSet: Set<string>;
   cellSize: number;
   sourceNodeRef?: React.Ref<View>;
@@ -40,7 +39,6 @@ interface Props {
 function BoardGridComponent({
   pieces,
   pieceAnimProps,
-  flashingMap,
   lockedSet,
   cellSize,
   sourceNodeRef,
@@ -73,7 +71,6 @@ function BoardGridComponent({
             key={piece.id}
             piece={piece}
             animProps={pieceAnimProps.get(piece.id)}
-            flashColor={flashingMap.get(piece.id)}
             isLocked={lockedSet.has(piece.id)}
             cellSize={cellSize}
             iconColor={iconColor}

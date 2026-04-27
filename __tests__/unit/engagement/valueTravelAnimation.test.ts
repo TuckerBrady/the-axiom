@@ -82,17 +82,23 @@ describe('valueTravelAnimation source contract', () => {
     expect(nativeDriverCount).toBeGreaterThanOrEqual(6);
   });
 
-  it('phases transition liftoff → travel → impact → idle', () => {
-    // The initial setGlowTravelerState call carries phase: 'liftoff'.
+  it('phases transition liftoff → idle (intermediate phase setStates removed in Prompt 99C, Fix 4)', () => {
+    // Pre-99C the function fired four setGlowTravelerState calls
+    // (liftoff → travel → impact → idle). The render layer only ever
+    // read `value` from that state, so the intermediate `travel` and
+    // `impact` setStates were trimmed to satisfy
+    // PERFORMANCE_CONTRACT 3.5.1 (≤2 setState calls per tape
+    // interaction). Two phase strings remain in source: 'liftoff'
+    // (start) and 'idle' (end).
     expect(animationSource).toMatch(/phase: 'liftoff'/);
-    // Travel transition after the lift-off start() callback.
-    expect(animationSource).toMatch(/phase: 'travel'/);
-    // Impact transition after the travel start() callback.
-    expect(animationSource).toMatch(/phase: 'impact'/);
-    // Final reset to idle with visible=false.
+    expect(animationSource).not.toMatch(/phase: 'travel'/);
+    expect(animationSource).not.toMatch(/phase: 'impact'/);
     expect(animationSource).toMatch(
       /visible: false,\s*phase: 'idle'/,
     );
+    // Exactly 2 setGlowTravelerState calls in the function body.
+    const setterCount = (animationSource.match(/setGlowTravelerState\(/g) ?? []).length;
+    expect(setterCount).toBe(2);
   });
 
   it('uses cinematic easing bezier(0.4, 0, 0.2, 1)', () => {

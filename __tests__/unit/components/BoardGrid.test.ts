@@ -18,10 +18,9 @@ describe('BoardGrid — wraps the per-piece map', () => {
     expect(gridSrc).toMatch(/export default React\.memo\(BoardGridComponent\)/);
   });
 
-  it('takes pieces, pieceAnimProps Map, flashing Map, locked Set, and stable callbacks', () => {
+  it('takes pieces, pieceAnimProps Map, locked Set, and stable callbacks', () => {
     expect(gridSrc).toMatch(/pieces:\s*PlacedPiece\[\]/);
     expect(gridSrc).toMatch(/pieceAnimProps:\s*Map<string, PieceAnimProps>/);
-    expect(gridSrc).toMatch(/flashingMap:\s*Map<string, string>/);
     expect(gridSrc).toMatch(/lockedSet:\s*Set<string>/);
     expect(gridSrc).toMatch(/onPieceTap:\s*\(id: string\)\s*=>\s*void/);
     expect(gridSrc).toMatch(/onPieceLongPress:\s*\(id: string\)\s*=>\s*void/);
@@ -42,15 +41,18 @@ describe('BoardPiece — per-piece prop isolation', () => {
     expect(pieceSrc).toMatch(/function arePropsEqual\(prev: Props, next: Props\): boolean/);
   });
 
-  it('areEqual compares animProps shallowly across animType / gateResult / failColor', () => {
+  it('areEqual compares animProps shallowly across animType / gateResult / failColor / flashColor / flashCounter', () => {
     expect(pieceSrc).toMatch(/a\.animType === b\.animType/);
     expect(pieceSrc).toMatch(/a\.gateResult === b\.gateResult/);
     expect(pieceSrc).toMatch(/a\.failColor === b\.failColor/);
+    // Prompt 99C, Fix 1 (option b): flash visual state moved into
+    // animProps so a flash on piece A doesn't re-render piece B.
+    expect(pieceSrc).toMatch(/a\.flashColor === b\.flashColor/);
+    expect(pieceSrc).toMatch(/a\.flashCounter === b\.flashCounter/);
   });
 
-  it('areEqual compares cellSize / flashColor / isLocked / iconColor / pieceRef / callbacks / piece by reference', () => {
+  it('areEqual compares cellSize / isLocked / iconColor / pieceRef / callbacks / piece by reference', () => {
     expect(pieceSrc).toMatch(/prev\.cellSize !== next\.cellSize/);
-    expect(pieceSrc).toMatch(/prev\.flashColor !== next\.flashColor/);
     expect(pieceSrc).toMatch(/prev\.isLocked !== next\.isLocked/);
     expect(pieceSrc).toMatch(/prev\.iconColor !== next\.iconColor/);
     expect(pieceSrc).toMatch(/prev\.pieceRef !== next\.pieceRef/);

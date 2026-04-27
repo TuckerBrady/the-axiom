@@ -1,20 +1,31 @@
-import React from 'react';
-import { Pressable, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Pressable, View } from 'react-native';
 import { PieceIcon } from '../PieceIcon';
 import type { PlacedPiece } from '../../game/types';
 
 const PIECE_RADIUS = 10;
+// Half-duration of the native-driven flash. Two halves stitched into
+// an Animated.sequence give the contract-required 180 ms total
+// fade-in / fade-out (PERFORMANCE_CONTRACT 2.1.2).
+const FLASH_HALF_MS = 90;
 
 export interface PieceAnimProps {
   animType: string | undefined;
   gateResult: 'pass' | 'block' | null;
   failColor: string | null;
+  // Native flash trigger pair (Prompt 99C, Fix 1 option b).
+  // `flashColor` is the latest color requested by flashPiece;
+  // `flashCounter` increments each time flashPiece fires for this
+  // piece, which BoardPiece watches via useEffect to start the native
+  // opacity sequence. The counter (not the color) is the trigger,
+  // so successive flashes of the same color still fire.
+  flashColor: string | null;
+  flashCounter: number;
 }
 
 interface Props {
   piece: PlacedPiece;
   animProps: PieceAnimProps | undefined;
-  flashColor: string | undefined;
   isLocked: boolean;
   cellSize: number;
   iconColor: string;
@@ -25,7 +36,6 @@ interface Props {
 
 function arePropsEqual(prev: Props, next: Props): boolean {
   if (prev.cellSize !== next.cellSize) return false;
-  if (prev.flashColor !== next.flashColor) return false;
   if (prev.isLocked !== next.isLocked) return false;
   if (prev.iconColor !== next.iconColor) return false;
   if (prev.pieceRef !== next.pieceRef) return false;
@@ -39,7 +49,9 @@ function arePropsEqual(prev: Props, next: Props): boolean {
   return (
     a.animType === b.animType &&
     a.gateResult === b.gateResult &&
-    a.failColor === b.failColor
+    a.failColor === b.failColor &&
+    a.flashColor === b.flashColor &&
+    a.flashCounter === b.flashCounter
   );
 }
 
@@ -50,7 +62,6 @@ function arePropsEqual(prev: Props, next: Props): boolean {
 const BoardPiece = React.memo(function BoardPiece({
   piece,
   animProps,
-  flashColor,
   isLocked,
   cellSize,
   iconColor,
@@ -58,18 +69,45 @@ const BoardPiece = React.memo(function BoardPiece({
   onTap,
   onLongPress,
 }: Props) {
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const lastCounterRef = useRef<number>(animProps?.flashCounter ?? 0);
+
+  const flashCounter = animProps?.flashCounter ?? 0;
+  const flashColor = animProps?.flashColor ?? null;
+
+  // Run the native-driven opacity sequence each time flashCounter
+  // advances. The Animated.sequence runs on the native thread
+  // (useNativeDriver: true), so the JS thread is free during the
+  // 180ms fade and no per-frame setState fires.
+  useEffect(() => {
+    if (flashCounter === lastCounterRef.current) return;
+    lastCounterRef.current = flashCounter;
+    if (!flashColor) return;
+    Animated.sequence([
+      Animated.timing(flashOpacity, {
+        toValue: 1,
+        duration: FLASH_HALF_MS,
+        useNativeDriver: true,
+      }),
+      Animated.timing(flashOpacity, {
+        toValue: 0,
+        duration: FLASH_HALF_MS,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [flashCounter, flashColor, flashOpacity]);
+
   const isPrePlaced = piece.isPrePlaced;
   const pieceSize = cellSize - 4;
   const offset = (cellSize - pieceSize) / 2;
   const cellPx = piece.gridX * cellSize + offset;
   const cellPy = piece.gridY * cellSize + offset;
   const iconSize = (cellSize - 4) * 0.60;
-  const borderColorP = flashColor ? flashColor
-    : isLocked ? '#00C48C'
-    : undefined;
-  const borderWidthP = flashColor || isLocked ? 2 : 0;
-  const shadowC = flashColor ?? (isLocked ? '#00C48C' : undefined);
   const animType = animProps?.animType;
+
+  const lockedBorderWidth = isLocked ? 2 : 0;
+  const lockedBorderColor = isLocked ? '#00C48C' : undefined;
+
   return (
     <Pressable
       ref={pieceRef}
@@ -82,21 +120,41 @@ const BoardPiece = React.memo(function BoardPiece({
         top: cellPy,
         width: pieceSize,
         height: pieceSize,
-        borderWidth: borderWidthP,
-        borderColor: borderColorP,
+        borderWidth: lockedBorderWidth,
+        borderColor: lockedBorderColor,
         backgroundColor: 'transparent',
         opacity: 1,
         transform: [{ scale: 1 }],
         zIndex: 0,
-        shadowColor: shadowC,
+        shadowColor: lockedBorderColor,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: shadowC ? (flashColor ? 0.5 : 0.3) : 0,
-        shadowRadius: flashColor ? 16 : isLocked ? 8 : 0,
+        shadowOpacity: isLocked ? 0.3 : 0,
+        shadowRadius: isLocked ? 8 : 0,
       }}
       onPress={() => onTap(piece.id)}
       onLongPress={() => onLongPress(piece.id)}
       delayLongPress={500}
     >
+      {flashColor ? (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: -lockedBorderWidth,
+            left: -lockedBorderWidth,
+            width: pieceSize,
+            height: pieceSize,
+            borderRadius: PIECE_RADIUS,
+            borderWidth: 2,
+            borderColor: flashColor,
+            shadowColor: flashColor,
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.5,
+            shadowRadius: 16,
+            opacity: flashOpacity,
+          }}
+        />
+      ) : null}
       <View style={{ transform: [{ rotate: `${!isPrePlaced ? piece.rotation : 0}deg` }] }}>
         <PieceIcon
           type={piece.type}

@@ -2,11 +2,15 @@ import type { EngagementContext, ExecutionStep } from './types';
 import { useGameStore } from '../../store/gameStore';
 import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
 import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
-import { flashPiece, setHighlight, wait } from './bubbleHelpers';
+import {
+  flashPiece,
+  setHighlight,
+  wait,
+  type FlashBatch,
+} from './bubbleHelpers';
 import { runValueTravel } from './valueTravelAnimation';
 import {
   updateActiveAnimations,
-  updateGateResults,
 } from './stateHelpers';
 
 export async function runScannerInteraction(
@@ -154,19 +158,45 @@ export async function runTransmitterInteraction(
   await wait(150 * speed);
 }
 
+// triggerPieceAnim runs the piece's flash + interaction. When called
+// from inside a beam-tick (Prompt 99C, Fix 1), pass a `batch` so the
+// flash + animation registration accumulate into the tick's single
+// setPieceAnimState dispatch (clause 3.1.3). When called outside a
+// tick (e.g., from runReplayLoop's per-iteration source flash), omit
+// the batch and the helpers fire their own setter as before.
 export function triggerPieceAnim(
   ctx: EngagementContext,
   stp: ExecutionStep,
+  batch?: FlashBatch,
 ): Promise<void> {
-  flashPiece(ctx, stp.pieceId, getBeamColor(stp.type));
+  const flashColor = getBeamColor(stp.type);
+  if (batch) {
+    batch.flashes.push({ pieceId: stp.pieceId, color: flashColor });
+  } else {
+    flashPiece(ctx, stp.pieceId, flashColor);
+  }
   const anim = animMap[stp.type];
   if (anim) {
     const pieceId = stp.pieceId;
-    updateActiveAnimations(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
-    if (stp.type === 'configNode') {
-      const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
-      updateGateResults(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.set(pieceId, result); return n; });
+    if (batch) {
+      batch.animations.push({ pieceId, tag: anim.tag, duration: anim.duration });
+      if (stp.type === 'configNode') {
+        const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
+        batch.gates.push({ pieceId, result });
+      }
+    } else {
+      updateActiveAnimations(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.set(pieceId, anim.tag); return n; });
+      if (stp.type === 'configNode') {
+        const result: 'pass' | 'block' = stp.success ? 'pass' : 'block';
+        ctx.setPieceAnimState(p => ({
+          ...p,
+          gates: new Map(p.gates).set(pieceId, result),
+        }));
+      }
     }
+    // Animation-clear setTimeout still runs as a deferred (next-tick)
+    // setter; it never lands in the same tick as the start, so it
+    // doesn't compete with the in-tick batch budget.
     const t = setTimeout(() => {
       updateActiveAnimations(ctx.setPieceAnimState, prev => { const n = new Map(prev); n.delete(pieceId); return n; });
     }, anim.duration);

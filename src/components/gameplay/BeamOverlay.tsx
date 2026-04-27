@@ -9,26 +9,31 @@ interface Props {
   beamState: BeamState;
   chargeState: ChargeState;
   lockRingCenter: Pt | null;
+  voidBurstCenter: Pt | null;
   chargeProgressAnim: RNAnimated.Value;
   lockRingProgressAnim: RNAnimated.Value;
+  voidPulseRingProgressAnim: RNAnimated.Value;
   beamOpacity: RNAnimated.Value;
   gridW: number;
   gridH: number;
 }
 
 // React.memo with default shallow comparison. The Animated.Value
-// instances (chargeProgressAnim, lockRingProgressAnim, beamOpacity)
-// are created with useRef in the parent and never change identity
-// across renders (PERFORMANCE_CONTRACT 5.4.2), so they do not
-// invalidate this memo. Re-renders ONLY when beamState, chargeState,
-// or lockRingCenter reference changes — which is the per-tick driver
+// instances (chargeProgressAnim, lockRingProgressAnim,
+// voidPulseRingProgressAnim, beamOpacity) are created with useRef in
+// the parent and never change identity across renders
+// (PERFORMANCE_CONTRACT 5.4.2), so they do not invalidate this memo.
+// Re-renders ONLY when beamState, chargeState, lockRingCenter, or
+// voidBurstCenter reference changes — which is the per-tick driver
 // and is allowed (clause 4.4.2).
 function BeamOverlayComponent({
   beamState,
   chargeState,
   lockRingCenter,
+  voidBurstCenter,
   chargeProgressAnim,
   lockRingProgressAnim,
+  voidPulseRingProgressAnim,
   beamOpacity,
   gridW,
   gridH,
@@ -102,6 +107,28 @@ function BeamOverlayComponent({
               cx={beamState.voidPulse.x} cy={beamState.voidPulse.y} r={beamState.voidPulse.r}
               stroke="#FF3B3B" strokeWidth={2.5}
               fill="none" opacity={beamState.voidPulse.opacity}
+            />
+          )}
+          {/* Void burst (Prompt 99C, Fix 2). Replaces the per-RAF
+              setVoidPulse stream from the pre-99C beam tick. Both
+              radius and opacity are interpolated from
+              voidPulseRingProgressAnim on the native thread. The
+              progress anim runs 0 → 1 over 320ms with
+              useNativeDriver: true. Output ranges match the prior
+              hand-coded values: r 6 → 46, opacity 0.9 → 0. */}
+          {voidBurstCenter && (
+            <AnimatedCircle
+              cx={voidBurstCenter.x} cy={voidBurstCenter.y}
+              r={voidPulseRingProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [6, 46],
+              }) as unknown as number}
+              stroke="#FF3B3B" strokeWidth={2.5}
+              fill="none"
+              opacity={voidPulseRingProgressAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.9, 0],
+              }) as unknown as number}
             />
           )}
           {lockRingCenter && (

@@ -128,6 +128,7 @@ describe('piece anim state helpers', () => {
   it('updateActiveAnimations preserves other fields', () => {
     const { state, setter } = makeState<PieceAnimState>({
       flashing: new Map([['f', '#ff0']]),
+      flashCounter: new Map(),
       animations: new Map(),
       gates: new Map(),
       failColors: new Map(),

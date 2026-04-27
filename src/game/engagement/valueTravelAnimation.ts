@@ -12,6 +12,15 @@ const CINEMATIC_EASING = Easing.bezier(0.4, 0, 0.2, 1);
  * to trigger the trail cell's "accept" highlight so the visual handoff
  * is synchronous with the landing rather than gapped behind a 700ms
  * post-impact wait (Prompt 91, Fix 6).
+ *
+ * Prompt 99C, Fix 4 — pre-99C this function fired four
+ * setGlowTravelerState calls per traveler run (liftoff start →
+ * travel mid → impact mid → idle end), and the renderer only ever
+ * read `value` from that state. Trimmed to two: one at start
+ * (visible: true, phase: 'liftoff', coords) and one at end
+ * (visible: false, phase: 'idle'). The intermediate phase strings are
+ * gone — they were never consumed by the render layer.
+ * PERFORMANCE_CONTRACT 3.5.1.
  */
 export function runValueTravel(
   ctx: EngagementContext,
@@ -57,8 +66,6 @@ export function runValueTravel(
         useNativeDriver: true,
       }),
     ]).start(() => {
-      ctx.setGlowTravelerState(prev => ({ ...prev, phase: 'travel' }));
-
       // Phase 2: Arc travel (0.6s) — lands at exactly (toX, toY),
       // which is the TRAIL cell's center per
       // getTapeCellPosFromCache(...) - 12 from the call site.
@@ -82,8 +89,6 @@ export function runValueTravel(
           useNativeDriver: true,
         }),
       ]).start(() => {
-        ctx.setGlowTravelerState(prev => ({ ...prev, phase: 'impact' }));
-
         // Phase 3: Impact — fire onArrive synchronously so the
         // TRAIL cell's "accept" highlight starts WHILE the glow is
         // still visible on the cell, then fade the glow over 250ms

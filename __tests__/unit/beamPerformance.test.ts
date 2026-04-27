@@ -119,20 +119,35 @@ describe('Section 2: Animation Driver Requirements', () => {
     });
 
     it('[2.1.2] piece flash opacity animations use useNativeDriver: true', () => {
-      // The 180ms flash-in/flash-out per waypoint modifies only opacity.
-      // Every such animation must use the native driver.
-
-      // TODO: Import triggerPieceAnim or equivalent flash function
-      // const { triggerPieceAnim } = require('../../../src/game/engagement/beamTraversal');
-      // triggerPieceAnim(mockPieceId, mockPieceType);
-
-      // All flash animations should use native driver
-      const flashCalls = animatedTimingCalls.filter(
-        c => c.toValue === 1.0 || c.toValue === 0,
+      // BoardPiece owns the native-driven 180ms flash sequence
+      // (Prompt 99C, Fix 1 option b). Rendering the component from a
+      // .ts test environment fails because the unit jest project
+      // does not pull in a JSX-aware preset, so this test verifies
+      // the contract by source inspection instead. Behavioral
+      // coverage of the rendered fade lives in
+      // BoardPieceFlash.test.tsx (added in 99C).
+      const fs = require('fs');
+      const path = require('path');
+      const repoRoot = path.resolve(__dirname, '..', '..');
+      const pieceSrc: string = fs.readFileSync(
+        path.resolve(repoRoot, 'src/components/gameplay/BoardPiece.tsx'),
+        'utf8',
       );
-      flashCalls.forEach(call => {
-        expect(call.useNativeDriver).toBe(true);
+      // The Animated.sequence containing both halves of the flash
+      // fade must declare useNativeDriver: true on every timing.
+      const sequenceMatch = pieceSrc.match(
+        /Animated\.sequence\(\s*\[[\s\S]*?\]\s*\)/,
+      );
+      expect(sequenceMatch).toBeTruthy();
+      const sequenceBody = sequenceMatch![0];
+      const timings = sequenceBody.match(/Animated\.timing\([\s\S]*?\}\)/g) ?? [];
+      expect(timings.length).toBe(2);
+      timings.forEach(t => {
+        expect(t).toMatch(/useNativeDriver:\s*true/);
       });
+      // Sanity: 90ms half-duration so the contract's 180ms total holds.
+      expect(sequenceBody).toMatch(/duration:\s*FLASH_HALF_MS/);
+      expect(pieceSrc).toMatch(/FLASH_HALF_MS\s*=\s*90/);
     });
 
     it('[2.1.3] charge phase glow pulse uses useNativeDriver: true', async () => {
@@ -173,40 +188,92 @@ describe('Section 2: Animation Driver Requirements', () => {
       expect(animatedTimingCalls.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('[2.1.5] void burst animation uses useNativeDriver: true', () => {
-      // The void burst is a scale + opacity animation at a fixed position.
+    it('[2.1.5] void burst animation uses useNativeDriver: true', async () => {
+      // Wired by Prompt 99C, Fix 2: the wrong-output ring burst (and
+      // the in-pulse void burst by extension — both share the same
+      // native pattern through ctx.voidPulseRingProgressAnim) must
+      // run on the native thread. Triggering runWrongOutputRings is
+      // the cleanest way to exercise the migrated path.
+      jest.useRealTimers();
+      const { runWrongOutputRings } = require('../../src/game/engagement/lockPhase');
+      const setBeamState = jest.fn();
+      const setVoidBurstCenter = jest.fn();
+      const setPieceAnimState = jest.fn();
+      const ctx = {
+        setBeamState,
+        setVoidBurstCenter,
+        setPieceAnimState,
+        voidPulseRingProgressAnim: new Animated.Value(0),
+        voidPulseAnim: null,
+        machineStatePieces: [],
+        wires: [],
+      };
+      await runWrongOutputRings(ctx, { x: 100, y: 100 });
 
-      // TODO: Import and trigger void burst
-      // const { playVoidBurst } = require('../../../src/game/engagement/beamTraversal');
-      // await playVoidBurst(mockPosition);
-
+      // Every Animated.timing fired during the burst must be native.
       animatedTimingCalls.forEach(call => {
         expect(call.useNativeDriver).toBe(true);
       });
+      expect(animatedTimingCalls.length).toBeGreaterThanOrEqual(1);
+      // setVoidBurstCenter mounts and unmounts the burst — exactly
+      // two calls, no per-RAF stream. setBeamState (which previously
+      // carried the per-tick voidPulse writes) is silent here.
+      expect(setVoidBurstCenter).toHaveBeenCalledTimes(2);
+      expect(setBeamState).not.toHaveBeenCalled();
     });
 
     it('[2.1.6] tape cell highlight animations use useNativeDriver: true', () => {
-      // Tape cell fade-in/fade-out modifies only opacity.
-
-      // TODO: Import and trigger tape cell highlight
-      // const { highlightTapeCell } = require('../../../src/game/engagement/tapeInteraction');
-      // highlightTapeCell('in-0', 'scanner');
-
-      animatedTimingCalls.forEach(call => {
-        expect(call.useNativeDriver).toBe(true);
-      });
+      // TapeCell owns the native-driven 120ms / 180ms opacity fade
+      // (Prompt 99C, Fix 3). As with [2.1.2], the .ts unit project
+      // can't mount a JSX-using component, so this test verifies the
+      // contract by source inspection. Behavioral coverage of the
+      // rendered fade lives in TapeCellHighlight.test.tsx.
+      const fs = require('fs');
+      const path = require('path');
+      const repoRoot = path.resolve(__dirname, '..', '..');
+      const cellSrc: string = fs.readFileSync(
+        path.resolve(repoRoot, 'src/components/gameplay/TapeCell.tsx'),
+        'utf8',
+      );
+      // useEffect on highlight must dispatch one of two
+      // Animated.timing calls (fade-in toValue: 1, fade-out toValue: 0)
+      // — both with useNativeDriver: true.
+      const fadeInMatch = cellSrc.match(
+        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*1[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+      );
+      const fadeOutMatch = cellSrc.match(
+        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*0[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+      );
+      expect(fadeInMatch).toBeTruthy();
+      expect(fadeOutMatch).toBeTruthy();
+      // No useNativeDriver: false on the highlight overlay path.
+      const overlayBlock = cellSrc.slice(
+        cellSrc.indexOf('useEffect'),
+        cellSrc.indexOf('}, [highlight, highlightOpacity]);'),
+      );
+      expect(overlayBlock).not.toMatch(/useNativeDriver:\s*false/);
     });
 
-    it('[2.1.7] glow traveler opacity pulsing uses useNativeDriver: true', () => {
-      // Glow traveler is a continuous opacity pulse. Must use native driver.
-
-      // TODO: Import and trigger glow traveler
-      // const { startGlowTraveler } = require('../../../src/game/engagement/tapeInteraction');
-      // startGlowTraveler(mockConfig);
+    it('[2.1.7] glow traveler opacity pulsing uses useNativeDriver: true', async () => {
+      jest.useRealTimers();
+      const { runValueTravel } = require('../../src/game/engagement/valueTravelAnimation');
+      const setGlowTravelerState = jest.fn();
+      const refs = {
+        x: new Animated.Value(0),
+        y: new Animated.Value(0),
+        scale: new Animated.Value(1),
+        opacity: new Animated.Value(0),
+      };
+      const ctx = { setGlowTravelerState };
+      await runValueTravel(ctx, refs, 0, 0, 100, 100, '7');
 
       animatedTimingCalls.forEach(call => {
         expect(call.useNativeDriver).toBe(true);
       });
+      expect(animatedTimingCalls.length).toBeGreaterThanOrEqual(1);
+      // Glow traveler trim (Prompt 99C, Fix 4): exactly two
+      // setGlowTravelerState calls per run, not four.
+      expect(setGlowTravelerState).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -258,19 +325,25 @@ describe('Section 3: setState Frequency Limits', () => {
     });
 
     it('[3.1.3] at most one setPieceAnimState call per beam tick', () => {
-      // Even when multiple waypoints are flashed in one tick, only one
-      // setPieceAnimState call is permitted.
-
+      // Wired by Prompt 99C (option b). Three waypoint flashes in a
+      // single tick land in a FlashBatch buffer; one applyFlashBatch
+      // call dispatches them via a single setPieceAnimState.
+      const {
+        applyFlashBatch,
+        makeFlashBatch,
+      } = require('../../src/game/engagement/bubbleHelpers');
       const setPieceAnimState = createSetterSpy('setPieceAnimState');
+      const ctx = {
+        setPieceAnimState,
+      } as unknown as Parameters<typeof applyFlashBatch>[0];
 
-      // TODO: Simulate a fast beam traversal where 3 waypoints cross
-      // threshold in a single tick
-      // applyFrame with elapsed time covering 3 waypoints
+      const batch = makeFlashBatch();
+      batch.flashes.push({ pieceId: 'a', color: '#F0B429' });
+      batch.flashes.push({ pieceId: 'b', color: '#F0B429' });
+      batch.flashes.push({ pieceId: 'c', color: '#F0B429' });
+      applyFlashBatch(ctx, batch);
 
-      // After one tick with multiple flashes:
-      // expect(setPieceAnimState).toHaveBeenCalledTimes(1);
-
-      expect(setPieceAnimState).not.toHaveBeenCalled(); // Will fail until wired up
+      expect(setPieceAnimState).toHaveBeenCalledTimes(1);
     });
 
     it('[3.1.4] total setState calls per RAF tick does not exceed 3', () => {
@@ -415,15 +488,32 @@ describe('Section 3: setState Frequency Limits', () => {
 
   describe('3.4 Inter-pulse gap', () => {
     it('[3.4.1] inter-pulse cleanup results in at most one setPieceAnimState call', () => {
-      const setPieceAnimState = createSetterSpy('setPieceAnimState');
-
-      // TODO: Trigger inter-pulse cleanup
-      // const { cleanupBetweenPulses } = require('../../../src/game/engagement/beamTraversal');
-      // cleanupBetweenPulses({ setPieceAnimState, ...mockRefs });
-
-      // The cleanup clears flashTimersRef and all three transient Maps
-      // in a single synchronous sweep with at most one setter call.
-      expect(setPieceAnimState.mock.calls.length).toBeLessThanOrEqual(1);
+      // Wired by Prompt 99C, Fix 5: the inter-pulse sweep in
+      // GameplayScreen.handleEngage / replayLoop both reset
+      // flashing / flashCounter / animations / gates inside a single
+      // setPieceAnimState functional update. Source-contract test
+      // since GameplayScreen is unmountable from the unit project.
+      const fs = require('fs');
+      const path = require('path');
+      const repoRoot = path.resolve(__dirname, '..', '..');
+      const screenSrc: string = fs.readFileSync(
+        path.resolve(repoRoot, 'src/screens/GameplayScreen.tsx'),
+        'utf8',
+      );
+      const replaySrc: string = fs.readFileSync(
+        path.resolve(repoRoot, 'src/game/engagement/replayLoop.ts'),
+        'utf8',
+      );
+      // Both sweep blocks must reset all four Maps inside ONE
+      // setPieceAnimState call.
+      const screenSweepMatch = screenSrc.match(
+        /setPieceAnimState\(prev => \(\{[\s\S]*?flashing:\s*new Map\(\),[\s\S]*?flashCounter:\s*new Map\(\),[\s\S]*?animations:\s*new Map\(\),[\s\S]*?gates:\s*new Map\(\),[\s\S]*?\}\)\)/,
+      );
+      expect(screenSweepMatch).toBeTruthy();
+      const replaySweepMatch = replaySrc.match(
+        /setPieceAnimState\(prev => \(\{[\s\S]*?flashing:\s*new Map\(\),[\s\S]*?flashCounter:\s*new Map\(\),[\s\S]*?animations:\s*new Map\(\),[\s\S]*?gates:\s*new Map\(\),[\s\S]*?\}\)\)/,
+      );
+      expect(replaySweepMatch).toBeTruthy();
     });
   });
 

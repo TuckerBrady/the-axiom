@@ -8,11 +8,11 @@ import {
   getBeamColor,
   TAPE_PIECE_COLORS,
 } from './constants';
-import { flashPiece } from './bubbleHelpers';
-import { triggerPieceAnim } from './interactions';
 import {
-  setVoidPulse,
-} from './stateHelpers';
+  applyFlashBatch,
+  makeFlashBatch,
+} from './bubbleHelpers';
+import { triggerPieceAnim } from './interactions';
 
 // Beam-dim level while a tape piece is processing (Prompt 91, Fix 5).
 // 0.3 reads as "energy is over there now, not in the wire" without
@@ -239,6 +239,14 @@ export function runLinearPath(
         newLitWires: newLitWires.length > 0 ? newLitWires : null,
       });
 
+      // Per-tick piece-anim batch (Prompt 99C, Fix 1 option b /
+      // clause 7.1.1). Every flash + animation tag + gate result that
+      // crosses its threshold this frame accumulates here, and a
+      // single applyFlashBatch call below dispatches the lot in one
+      // setPieceAnimState (clause 3.1.3). Pre-99C each waypoint
+      // dispatched its own setter, blowing the budget on dense ticks.
+      const tickBatch = makeFlashBatch();
+
       for (let i = 0; i < waypoints.length; i++) {
         if (flashed.has(i)) continue;
         const wpDist = waypointDists[i];
@@ -246,7 +254,7 @@ export function runLinearPath(
           flashed.add(i);
           const stp = pathSteps[i];
           const isVoidBlocker = hasVoid && i === waypoints.length - 1;
-          if (isVoidBlocker) flashPiece(ctx, stp.pieceId, '#FF3B3B');
+          if (isVoidBlocker) tickBatch.flashes.push({ pieceId: stp.pieceId, color: '#FF3B3B' });
           else {
             const isTapePiece = !!TAPE_PIECE_COLORS[stp.type];
             if (isTapePiece) {
@@ -333,7 +341,7 @@ export function runLinearPath(
               // in-flight safety timer mid-pause.
               const safetyTimer = setTimeout(settleTapePause, 8000);
               ctx.safetyTimersRef.current.push(safetyTimer);
-              triggerPieceAnim(ctx, stp)
+              triggerPieceAnim(ctx, stp, tickBatch)
                 .then(() => {
                   clearTimeout(safetyTimer);
                   settleTapePause();
@@ -343,11 +351,14 @@ export function runLinearPath(
                   settleTapePause();
                 });
             } else {
-              triggerPieceAnim(ctx, stp);
+              triggerPieceAnim(ctx, stp, tickBatch);
             }
           }
         }
       }
+      // Flush the per-tick batch in one setPieceAnimState (clause
+      // 3.1.3 / 7.1.1). No-op if nothing crossed this frame.
+      applyFlashBatch(ctx, tickBatch);
       if (rawT < 1) {
         ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(tick));
       } else {
@@ -356,21 +367,29 @@ export function runLinearPath(
         // resolved.
         ctx.animFrameRef.current.delete(branchSlot);
         if (hasVoid) {
+          // Void burst (Prompt 99C, Fix 2). Pre-99C this fired
+          // setVoidPulse on every RAF tick for the 320ms burst — ~19
+          // setState calls per voided pulse. Now: mount the burst
+          // anchor once, drive radius/opacity from
+          // voidPulseRingProgressAnim with useNativeDriver: true, and
+          // unmount once the timing settles. Two setState calls
+          // total (mount + unmount) for the entire burst.
+          // PERFORMANCE_CONTRACT 2.1.5, 3.1.4.
           const blocker = waypoints[waypoints.length - 1];
-          const ps = performance.now();
-          const voidTick = (): void => {
-            const e = performance.now() - ps;
-            const p = Math.min(1, e / 320);
-            setVoidPulse(ctx.setBeamState, { x: blocker.x, y: blocker.y, r: 6 + p * 40, opacity: 0.9 * (1 - p) });
-            if (p < 1) ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(voidTick));
-            else {
-              ctx.animFrameRef.current.delete(branchSlot);
-              setVoidPulse(ctx.setBeamState, null);
-              applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
-              resolve();
-            }
-          };
-          ctx.animFrameRef.current.set(branchSlot, requestAnimationFrame(voidTick));
+          ctx.setVoidBurstCenter({ x: blocker.x, y: blocker.y });
+          ctx.voidPulseAnim?.stop();
+          ctx.voidPulseRingProgressAnim.setValue(0);
+          ctx.voidPulseAnim = Animated.timing(ctx.voidPulseRingProgressAnim, {
+            toValue: 1,
+            duration: 320,
+            useNativeDriver: true,
+          });
+          ctx.voidPulseAnim.start(() => {
+            ctx.voidPulseAnim = null;
+            ctx.setVoidBurstCenter(null);
+            applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
+            resolve();
+          });
         } else {
           applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
           resolve();

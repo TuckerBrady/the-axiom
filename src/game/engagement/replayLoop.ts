@@ -52,6 +52,7 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
     ctx.setPieceAnimState(prev => ({
       ...prev,
       flashing: new Map(),
+      flashCounter: new Map(),
       animations: new Map(),
       gates: new Map(),
     }));

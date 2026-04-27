@@ -3,6 +3,13 @@ import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Line, Rect, Path, G, Text as SvgText, Ellipse } from 'react-native-svg';
 import { Colors } from '../theme/tokens';
 
+// useNativeDriver: false on every Animated.timing in this file is
+// load-bearing — every animated value here interpolates into an SVG
+// attribute (Circle r / cy, Path strokeDashoffset, Rect width, etc.)
+// which the native driver does not support. Flipping to native
+// silently breaks the animation on iOS device. PERFORMANCE_CONTRACT
+// 2.2.3 / 2.3.1 (Bucket B exemption). Audited 99C, Fix 6.
+
 const AnimatedG = Animated.createAnimatedComponent(G);
 const AnimatedLine = Animated.createAnimatedComponent(Line);
 const AnimatedPath = Animated.createAnimatedComponent(Path);

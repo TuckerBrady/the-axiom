@@ -52,9 +52,11 @@ describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
       const sets = beamSrc.match(
         /ctx\.animFrameRef\.current\.set\(\s*branchSlot,\s*requestAnimationFrame\(/g,
       ) ?? [];
-      // Five RAF callsites in beamAnimation.ts: pause-resume, mid-tick,
-      // void inner-tick (once for set, once for re-arm), final start.
-      expect(sets.length).toBeGreaterThanOrEqual(4);
+      // Three RAF callsites remain after Prompt 99C, Fix 2: pause-
+      // resume, mid-tick, final start. The two void inner-tick RAFs
+      // were removed when the void burst migrated to native-driven
+      // voidPulseRingProgressAnim.
+      expect(sets.length).toBeGreaterThanOrEqual(3);
     });
 
     it('chargePhase / lockPhase no longer manage RAF (Prompt 99A — native driver owns the frame loop)', () => {

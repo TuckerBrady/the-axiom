@@ -360,6 +360,14 @@ export default function GameplayScreen({ navigation }: Props) {
   // Ring radius/opacity are interpolated from lockRingProgressAnim
   // on the native thread.
   const [lockRingCenter, setLockRingCenter] = useState<{ x: number; y: number } | null>(null);
+  // Void burst anchor (Prompt 99C, Fix 2). Mounted at the void
+  // blocker when a pulse terminates against a void; cleared after the
+  // 320ms native timing settles. The BeamOverlay reads
+  // voidPulseRingProgressAnim (already on the context, allocated in
+  // 99A) to draw the expanding ring on the native thread. Replaces
+  // the per-RAF setVoidPulse stream that was lighting up roughly 19
+  // setState calls per voided pulse.
+  const [voidBurstCenter, setVoidBurstCenter] = useState<{ x: number; y: number } | null>(null);
   const [tapeCellHighlights, setTapeCellHighlights] = useState<
     Map<string, TapeHighlight>
   >(new Map());
@@ -628,16 +636,27 @@ export default function GameplayScreen({ navigation }: Props) {
       animType: string | undefined;
       gateResult: 'pass' | 'block' | null;
       failColor: string | null;
+      flashColor: string | null;
+      flashCounter: number;
     }>();
     for (const piece of pieces) {
       map.set(piece.id, {
         animType: pieceAnimState.animations.get(piece.id),
         gateResult: pieceAnimState.gates.get(piece.id) ?? null,
         failColor: pieceAnimState.failColors.get(piece.id) ?? null,
+        flashColor: pieceAnimState.flashing.get(piece.id) ?? null,
+        flashCounter: pieceAnimState.flashCounter.get(piece.id) ?? 0,
       });
     }
     return map;
-  }, [pieces, pieceAnimState.animations, pieceAnimState.gates, pieceAnimState.failColors]);
+  }, [
+    pieces,
+    pieceAnimState.animations,
+    pieceAnimState.gates,
+    pieceAnimState.failColors,
+    pieceAnimState.flashing,
+    pieceAnimState.flashCounter,
+  ]);
 
   // O(1) piece-id lookup for the wire render block (Prompt 94, Fix 4).
   // Pre-fix that block called `pieces.find(...)` twice per wire on
@@ -909,6 +928,7 @@ export default function GameplayScreen({ navigation }: Props) {
       setPieceAnimState,
       setChargeState,
       setLockRingCenter,
+      setVoidBurstCenter,
       setTapeCellHighlights,
       setTapeBarState,
       setGlowTravelerState,
@@ -993,10 +1013,12 @@ export default function GameplayScreen({ navigation }: Props) {
       // would have removed entries from flashing / animations / gates.
       // Reset those Maps explicitly here so the terminal-piece purple
       // flash clears and PieceIcon re-triggers piece animations on
-      // pulses 2+ (mirrors replayLoop.ts:52-57).
+      // pulses 2+ (mirrors replayLoop.ts:52-57). PERFORMANCE_CONTRACT
+      // 3.4.1 — at most one setPieceAnimState per inter-pulse sweep.
       setPieceAnimState(prev => ({
         ...prev,
         flashing: new Map(),
+        flashCounter: new Map(),
         animations: new Map(),
         gates: new Map(),
       }));
@@ -1206,6 +1228,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setPieceAnimState(PIECE_ANIM_INITIAL);
     setChargeState(CHARGE_INITIAL);
     setLockRingCenter(null);
+    setVoidBurstCenter(null);
     chargeProgressAnim.setValue(0);
     lockRingProgressAnim.setValue(0);
     voidPulseRingProgressAnim.setValue(0);
@@ -1408,8 +1431,10 @@ export default function GameplayScreen({ navigation }: Props) {
               beamState={beamState}
               chargeState={chargeState}
               lockRingCenter={lockRingCenter}
+              voidBurstCenter={voidBurstCenter}
               chargeProgressAnim={chargeProgressAnim}
               lockRingProgressAnim={lockRingProgressAnim}
+              voidPulseRingProgressAnim={voidPulseRingProgressAnim}
               beamOpacity={beamOpacity}
               gridW={gridW}
               gridH={gridH}
@@ -1421,7 +1446,6 @@ export default function GameplayScreen({ navigation }: Props) {
             <BoardGrid
               pieces={pieces}
               pieceAnimProps={pieceAnimProps}
-              flashingMap={pieceAnimState.flashing}
               lockedSet={pieceAnimState.locked}
               cellSize={CELL_SIZE}
               sourceNodeRef={sourceNodeRef}
@@ -1630,6 +1654,7 @@ export default function GameplayScreen({ navigation }: Props) {
                   phase: 'idle',
                 }));
                 setLockRingCenter(null);
+                setVoidBurstCenter(null);
                 setChargeState(prev => ({ ...prev, pos: null }));
                 setShowCompletionCard(false);
                 setShowResults(true);
@@ -2864,10 +2889,6 @@ const styles = StyleSheet.create({
     zIndex: 2,
     elevation: 2,
   },
-  tapeCellHighlightDeparting: {
-    opacity: 0.3,
-    borderColor: 'rgba(0,229,255,0.2)',
-  },
   glowTraveler: {
     position: 'absolute',
     width: 24,
@@ -2946,22 +2967,6 @@ const styles = StyleSheet.create({
   tapeCellGateBlocked: {
     borderColor: '#FF3B3B',
     backgroundColor: 'rgba(255,59,59,0.14)',
-  },
-  tapeCellHighlightRead: {
-    borderColor: 'rgba(0,229,255,0.9)',
-    backgroundColor: 'rgba(0,229,255,0.18)',
-  },
-  tapeCellHighlightWrite: {
-    borderColor: 'rgba(0,229,255,0.9)',
-    backgroundColor: 'rgba(0,229,255,0.22)',
-  },
-  tapeCellHighlightGatePass: {
-    borderColor: 'rgba(0,255,135,0.9)',
-    backgroundColor: 'rgba(0,255,135,0.18)',
-  },
-  tapeCellHighlightGateBlock: {
-    borderColor: 'rgba(255,59,59,0.9)',
-    backgroundColor: 'rgba(255,59,59,0.18)',
   },
   tapeCellText: {
     fontFamily: Fonts.spaceMono,

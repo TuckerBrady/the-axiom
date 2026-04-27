@@ -101,14 +101,21 @@ describe('lockPhase source contract — Prompt 99A', () => {
     expect(replayMatch![0]).toMatch(/ctx\.loopingRef\.current/);
   });
 
-  it('runWrongOutputRings still calls setVoidPulse at start and clear (no per-tick stream)', () => {
+  it('runWrongOutputRings drives the burst through setVoidBurstCenter (Prompt 99C, Fix 2)', () => {
     const bodyMatch = lockSource.match(
       /export async function runWrongOutputRings\([\s\S]*?\n\}\n/,
     );
     expect(bodyMatch).toBeTruthy();
     const body = bodyMatch![0];
-    // Exactly 2 setVoidPulse calls: the start sentinel and the clear.
-    const setVoidPulseCount = (body.match(/setVoidPulse\(/g) ?? []).length;
-    expect(setVoidPulseCount).toBe(2);
+    // Pre-99C: setVoidPulse fired at start (with sentinel r/opacity)
+    // and again at end. Post-99C: voidBurstCenter mounts the burst,
+    // voidPulseRingProgressAnim drives r + opacity natively, and
+    // voidBurstCenter unmounts on completion. setVoidPulse is gone
+    // from this function.
+    expect(body).not.toMatch(/setVoidPulse\(/);
+    const setVoidBurstCenterCount = (body.match(/setVoidBurstCenter\(/g) ?? []).length;
+    expect(setVoidBurstCenterCount).toBe(2);
+    expect(body).toMatch(/voidPulseRingProgressAnim/);
+    expect(body).toMatch(/useNativeDriver:\s*true/);
   });
 });

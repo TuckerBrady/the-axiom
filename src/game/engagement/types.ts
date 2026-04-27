@@ -120,6 +120,14 @@ export const BEAM_INITIAL: BeamState = {
 
 export interface PieceAnimState {
   flashing: Map<string, string>;
+  // Per-piece flash counter (Prompt 99C, Fix 1 option b). Increments
+  // each time flashPiece is called for that piece. BoardPiece watches
+  // its slice of this map and runs a native-driven opacity sequence
+  // (useNativeDriver: true) whenever the counter advances, so the
+  // 180ms fade-in / fade-out runs off the JS thread and the flash-off
+  // setState that used to fire 180ms after every flash is gone.
+  // PERFORMANCE_CONTRACT 2.1.2, 3.1.3, 7.1.1.
+  flashCounter: Map<string, number>;
   animations: Map<string, string>;
   gates: Map<string, 'pass' | 'block'>;
   failColors: Map<string, string>;
@@ -128,6 +136,7 @@ export interface PieceAnimState {
 
 export const PIECE_ANIM_INITIAL: PieceAnimState = {
   flashing: new Map(),
+  flashCounter: new Map(),
   animations: new Map(),
   gates: new Map(),
   failColors: new Map(),
@@ -156,6 +165,13 @@ export interface EngagementContext {
   // completion. Ring expansion (radius + opacity) is driven on the
   // native thread via `lockRingProgressAnim`.
   setLockRingCenter: Dispatch<SetStateAction<Pt | null>>;
+  // Void burst center (Prompt 99C, Fix 2). Mounted at the void blocker
+  // when a pulse terminates against a void; the BeamOverlay reads
+  // `voidPulseRingProgressAnim` (already on this context, allocated in
+  // 99A for this purpose) to draw the expanding ring on the native
+  // thread. Cleared after the 320ms native timing settles. Replaces
+  // the per-RAF `setVoidPulse` stream.
+  setVoidBurstCenter: Dispatch<SetStateAction<Pt | null>>;
   setTapeCellHighlights: Dispatch<SetStateAction<Map<string, TapeHighlight>>>;
   setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
   setGlowTravelerState: Dispatch<SetStateAction<GlowTravelerState>>;

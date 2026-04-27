@@ -19,6 +19,7 @@ interface AnyCtx {
   setBeamState: jest.Mock;
   setPieceAnimState: jest.Mock;
   setLockRingCenter: jest.Mock;
+  setVoidBurstCenter: jest.Mock;
   chargeProgressAnim: any;
   chargeAnim: unknown;
   lockRingProgressAnim: any;
@@ -37,6 +38,7 @@ function buildCtx(): AnyCtx {
     setBeamState: jest.fn(),
     setPieceAnimState: jest.fn(),
     setLockRingCenter: jest.fn(),
+    setVoidBurstCenter: jest.fn(),
     chargeProgressAnim: new Animated.Value(0),
     chargeAnim: null,
     lockRingProgressAnim: new Animated.Value(0),
