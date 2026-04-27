@@ -274,6 +274,36 @@ describe('TRANSMITTER_WRITE_CONTRACT — Section 5: Void Path Interaction', () =
   });
 });
 
+describe('TRANSMITTER_WRITE_CONTRACT — Section 2 (extended): multi-pulse upstream semantics', () => {
+  it('[2.3] multi-pulse: Transmitter upstream of Config Node writes on every pulse regardless of gate outcome', () => {
+    // 4-pulse tape. Config Node gate value = 1. Trail pre-populated so
+    // pulses 0 and 1 block (trail=0 ≠ gate=1) and pulses 2 and 3 pass
+    // (trail=1 = gate=1). Transmitter is upstream of the gate, so it
+    // writes its signal value on every pulse regardless of whether the
+    // gate blocks or passes downstream.
+    const pieces = [
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
+      makePiece('tx', 'transmitter', 1, 0),
+      makePiece('cn', 'configNode', 2, 0, { configValue: 1 }),
+      makePiece('o', 'terminal', 3, 0, { isPrePlaced: true }),
+    ];
+    const inputs = [1, 0, 1, 0];
+    const state = makeState(pieces, {
+      inputTape: inputs,
+      outputTape: inputs.map(() => -1),
+      // trail[0]=0, trail[1]=0 → gate blocks pulses 0 and 1
+      // trail[2]=1, trail[3]=1 → gate passes pulses 2 and 3
+      dataTrail: { cells: [0, 0, 1, 1], headPosition: 0 },
+    });
+    for (let pulse = 0; pulse < inputs.length; pulse++) {
+      executeMachine(state, pulse);
+    }
+    // Transmitter always writes its carried signal value. Gate blocking
+    // downstream does NOT retroactively prevent the write.
+    expect(state.outputTape).toEqual([1, 0, 1, 0]);
+  });
+});
+
 describe('TRANSMITTER_WRITE_CONTRACT — Section 6: 8-pulse sequence end-to-end', () => {
   it('[3.3 + 4.1] [Source → Inverter → Transmitter → Terminal] across 8 pulses', () => {
     const pieces = [

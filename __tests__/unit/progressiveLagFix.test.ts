@@ -11,6 +11,11 @@
 // transition. Belt-and-suspenders: GameplayScreen also resets
 // loopingRef on unmount and on level.id change so the replay-loop
 // flag never leaks even if a future caller forgets to use replace.
+//
+// Prompt 105: Extended with assertions that ALL animation timers and
+// refs are cleared on unmount — not just loopingRef. animFrameRef,
+// flashTimersRef, safetyTimersRef, and gateOutcomesRef must all be
+// cleared so no visual state or pending timer leaks across levels.
 
 import * as fs from 'fs';
 import * as path from 'path';
@@ -76,6 +81,60 @@ describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
       );
       expect(levelChangeEffect).not.toBeNull();
       expect(levelChangeEffect?.[0]).toMatch(/loopingRef\.current\s*=\s*false/);
+    });
+  });
+
+  describe('Unmount clears all animation timers and refs (Prompt 105)', () => {
+    // All four checks target the same comment-anchored cleanup block
+    // so a future refactor that moves or renames the block will fail
+    // loudly here rather than silently missing cleanup.
+    const cleanupBlock = () => gameplaySrc.match(
+      /\/\/ ── Cleanup beam animation on unmount ──[\s\S]*?\}, \[\]\);/,
+    );
+
+    it('unmount cleanup iterates animFrameRef and calls cancelAnimationFrame', () => {
+      const block = cleanupBlock();
+      expect(block).not.toBeNull();
+      expect(block?.[0]).toMatch(/animFrameRef\.current\.forEach/);
+      expect(block?.[0]).toMatch(/cancelAnimationFrame/);
+    });
+
+    it('unmount cleanup calls animFrameRef.current.clear()', () => {
+      const block = cleanupBlock();
+      expect(block).not.toBeNull();
+      expect(block?.[0]).toMatch(/animFrameRef\.current\.clear\(\)/);
+    });
+
+    it('unmount cleanup resets flashTimersRef.current to empty array', () => {
+      const block = cleanupBlock();
+      expect(block).not.toBeNull();
+      expect(block?.[0]).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
+    });
+
+    it('unmount cleanup resets safetyTimersRef.current to empty array', () => {
+      const block = cleanupBlock();
+      expect(block).not.toBeNull();
+      expect(block?.[0]).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
+    });
+
+    it('unmount cleanup clears gateOutcomesRef', () => {
+      const block = cleanupBlock();
+      expect(block).not.toBeNull();
+      expect(block?.[0]).toMatch(/gateOutcomesRef\.current\.clear\(\)/);
+    });
+  });
+
+  describe('Level transition timer cleanup', () => {
+    it('elapsed timer is cleared and nulled on level.id change', () => {
+      // The level?.id effect must call clearInterval AND set
+      // timerRef.current = null to prevent dangling interval callbacks
+      // from a previous level firing after navigation.replace.
+      const timerEffect = gameplaySrc.match(
+        /\/\/ ── Elapsed timer ──[\s\S]*?\}, \[level\?\.id\]\);/,
+      );
+      expect(timerEffect).not.toBeNull();
+      expect(timerEffect?.[0]).toMatch(/clearInterval\(timerRef\.current\)/);
+      expect(timerEffect?.[0]).toMatch(/timerRef\.current\s*=\s*null/);
     });
   });
 });

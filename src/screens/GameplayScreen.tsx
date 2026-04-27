@@ -536,6 +536,7 @@ export default function GameplayScreen({ navigation }: Props) {
       flashTimersRef.current = [];
       safetyTimersRef.current.forEach(t => clearTimeout(t));
       safetyTimersRef.current = [];
+      gateOutcomesRef.current.clear();
       loopingRef.current = false;
     };
   }, []);
