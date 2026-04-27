@@ -75,7 +75,7 @@ const RED = '#EF4444';
 // ─── SVG primitives ────────────────────────────────────────────────────────
 
 function DrawConn({
-  x1, y1, x2, y2, lit, litColor = 'rgba(240,180,41,0.6)',
+  x1, y1, x2, y2, lit, litColor = 'rgba(0,212,255,0.6)',
 }: {
   x1: number; y1: number; x2: number; y2: number;
   lit?: boolean; litColor?: string;
@@ -451,7 +451,7 @@ function renderPhysicsSim(type: string, t: number): SimData {
     }
     case 'source': {
       const S = getCell(1, 1, 3, 3);
-      // Amber charge rings loop steadily; Source piece always charging.
+      // Charge rings loop steadily; Source piece always charging.
       const r1 = S.r * 0.25 + (t * S.r * 0.6);
       const r2 = S.r * 0.25 + (((t + 0.33) % 1) * S.r * 0.6);
       const r3 = S.r * 0.25 + (((t + 0.66) % 1) * S.r * 0.6);
@@ -461,9 +461,9 @@ function renderPhysicsSim(type: string, t: number): SimData {
       return {
         svgContent: (
           <>
-            <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={AMBER} strokeWidth="1" opacity={a1} />
-            <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={AMBER} strokeWidth="1" opacity={a2} />
-            <SvgCircle cx={S.x} cy={S.y} r={r3} fill="none" stroke={AMBER} strokeWidth="1" opacity={a3} />
+            <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={CYAN} strokeWidth="1" opacity={a1} />
+            <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={CYAN} strokeWidth="1" opacity={a2} />
+            <SvgCircle cx={S.x} cy={S.y} r={r3} fill="none" stroke={CYAN} strokeWidth="1" opacity={a3} />
           </>
         ),
         pieces: [{ cell: S, type: 'source', color: AMBER, charging: true }],
@@ -576,7 +576,7 @@ function renderLinearPhysics(args: {
                 key={`trail-${i}`}
                 x1={p.x} y1={p.y}
                 x2={trailPoints[i + 1].x} y2={trailPoints[i + 1].y}
-                stroke={AMBER}
+                stroke={CYAN}
                 strokeWidth={2}
                 opacity={trailOpacity}
               />
@@ -585,8 +585,8 @@ function renderLinearPhysics(args: {
         )}
         {phase === 'beam' && (
           <>
-            <SvgCircle cx={head.x} cy={head.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={head.x} cy={head.y} r={4} fill={AMBER} />
+            <SvgCircle cx={head.x} cy={head.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={head.x} cy={head.y} r={4} fill={CYAN} />
           </>
         )}
         {chargeRing}
@@ -707,7 +707,7 @@ function renderSplitterPhysics(args: {
         key={`${keyPrefix}-${i}-${p.x}-${p.y}`}
         x1={p.x} y1={p.y}
         x2={pts[i + 1].x} y2={pts[i + 1].y}
-        stroke={AMBER}
+        stroke={CYAN}
         strokeWidth={2}
         opacity={trailOpacity}
       />
@@ -741,7 +741,7 @@ function renderSplitterPhysics(args: {
             key={`pre-${i}`}
             x1={p.x} y1={p.y}
             x2={preTrail[i + 1].x} y2={preTrail[i + 1].y}
-            stroke={AMBER}
+            stroke={CYAN}
             strokeWidth={2}
             opacity={trailOpacity}
           />
@@ -752,17 +752,17 @@ function renderSplitterPhysics(args: {
         {/* Pre-fork head (only while preForkP < 1) */}
         {phase === 'beam' && preForkP < 1 && (
           <>
-            <SvgCircle cx={preHead.x} cy={preHead.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={preHead.x} cy={preHead.y} r={4} fill={AMBER} />
+            <SvgCircle cx={preHead.x} cy={preHead.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={preHead.x} cy={preHead.y} r={4} fill={CYAN} />
           </>
         )}
         {/* Two branch heads after the split */}
         {branchActive && branchPClamped < 1 && (
           <>
-            <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={AMBER} />
-            <SvgCircle cx={headB.x} cy={headB.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headB.x} cy={headB.y} r={4} fill={AMBER} />
+            <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={CYAN} />
+            <SvgCircle cx={headB.x} cy={headB.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headB.x} cy={headB.y} r={4} fill={CYAN} />
           </>
         )}
 
@@ -856,7 +856,7 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
         key={`tl-${i}-${p.x}-${p.y}`}
         x1={p.x} y1={p.y}
         x2={pts[i + 1].x} y2={pts[i + 1].y}
-        stroke={AMBER}
+        stroke={CYAN}
         strokeWidth={2}
         opacity={trailOpacity}
       />
@@ -884,20 +884,20 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
 
         {phase === 'beam' && aProgress < 1 && (
           <>
-            <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={AMBER} />
+            <SvgCircle cx={headA.x} cy={headA.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headA.x} cy={headA.y} r={4} fill={CYAN} />
           </>
         )}
         {phase === 'beam' && bProgress > 0 && bProgress < 1 && (
           <>
-            <SvgCircle cx={headB.x} cy={headB.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headB.x} cy={headB.y} r={4} fill={AMBER} />
+            <SvgCircle cx={headB.x} cy={headB.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headB.x} cy={headB.y} r={4} fill={CYAN} />
           </>
         )}
         {phase === 'beam' && outProgress > 0 && outProgress < 1 && (
           <>
-            <SvgCircle cx={headOut.x} cy={headOut.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headOut.x} cy={headOut.y} r={4} fill={AMBER} />
+            <SvgCircle cx={headOut.x} cy={headOut.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headOut.x} cy={headOut.y} r={4} fill={CYAN} />
           </>
         )}
 
@@ -912,7 +912,7 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
 // Grid 5x3. Horizontal path: Source H (0,1) → Conv (1,1) → Bridge (2,1)
 //                             → Conv (3,1) → Terminal H (4,1)
 // Vertical path:   Source V (2,0) → Bridge → Terminal V (2,2)
-// H is amber, V is cyan. Both travel independently with slight stagger.
+// Both H and V render in Codex blue. Both travel independently with slight stagger.
 function renderBridgeSim(phase: Phase, progress: number): SimData {
   const SH = getCell(0, 1, 5, 3);
   const CL = getCell(1, 1, 5, 3);
@@ -992,7 +992,7 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
           <SvgLine
             key={`hr-${i}-${p.x}-${p.y}`}
             x1={p.x} y1={p.y} x2={trailH[i + 1].x} y2={trailH[i + 1].y}
-            stroke={AMBER} strokeWidth={2} opacity={trailOpacity}
+            stroke={CYAN} strokeWidth={2} opacity={trailOpacity}
           />
         ))}
         {trailV.length >= 2 && trailV.slice(0, -1).map((p, i) => (
@@ -1005,8 +1005,8 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
 
         {phase === 'beam' && hProgress < 1 && (
           <>
-            <SvgCircle cx={headH.x} cy={headH.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={headH.x} cy={headH.y} r={4} fill={AMBER} />
+            <SvgCircle cx={headH.x} cy={headH.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={headH.x} cy={headH.y} r={4} fill={CYAN} />
           </>
         )}
         {phase === 'beam' && vProgress > 0 && vProgress < 1 && (
@@ -1073,7 +1073,7 @@ function renderTerminalSim(phase: Phase, progress: number): SimData {
             key={`tt-${i}`}
             x1={p.x} y1={p.y}
             x2={trailPoints[i + 1].x} y2={trailPoints[i + 1].y}
-            stroke={AMBER}
+            stroke={CYAN}
             strokeWidth={2}
             opacity={trailOpacity}
           />
@@ -1081,8 +1081,8 @@ function renderTerminalSim(phase: Phase, progress: number): SimData {
 
         {phase === 'beam' && beamProgress < 1 && (
           <>
-            <SvgCircle cx={head.x} cy={head.y} r={8} fill={AMBER} opacity={0.2} />
-            <SvgCircle cx={head.x} cy={head.y} r={4} fill={AMBER} />
+            <SvgCircle cx={head.x} cy={head.y} r={8} fill={CYAN} opacity={0.2} />
+            <SvgCircle cx={head.x} cy={head.y} r={4} fill={CYAN} />
           </>
         )}
 
@@ -1094,7 +1094,7 @@ function renderTerminalSim(phase: Phase, progress: number): SimData {
 }
 
 // Multi-ring green lock pulse. Three staggered expanding rings,
-// mirroring the Source sim's amber charge rings.
+// mirroring the Source sim's charge rings.
 function renderLockShowcase(O: Cell, progress: number) {
   const r1 = O.r * 0.3 + progress * O.r * 0.8;
   const r2 = O.r * 0.3 + ((progress + 0.35) % 1) * O.r * 0.8;
@@ -1113,15 +1113,15 @@ function renderLockShowcase(O: Cell, progress: number) {
 }
 
 function renderChargeRings(S: Cell, progress: number) {
-  // Two expanding amber rings during the charge phase.
+  // Two expanding rings during the charge phase (Codex blue).
   const r1 = S.r * 0.3 + progress * S.r * 0.7;
   const r2 = S.r * 0.3 + ((progress + 0.4) % 1) * S.r * 0.7;
   const a1 = Math.max(0, 0.4 * (1 - progress));
   const a2 = Math.max(0, 0.4 * (1 - ((progress + 0.4) % 1)));
   return (
     <>
-      <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={AMBER} strokeWidth="1" opacity={a1} />
-      <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={AMBER} strokeWidth="1" opacity={a2} />
+      <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={CYAN} strokeWidth="1" opacity={a1} />
+      <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={CYAN} strokeWidth="1" opacity={a2} />
     </>
   );
 }
@@ -1165,8 +1165,8 @@ function renderProtocolChargeRings(S: Cell, progress: number) {
   const a2 = Math.max(0, 0.4 * (1 - ((progress + 0.4) % 1)));
   return (
     <>
-      <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={AMBER} strokeWidth="1" opacity={a1} />
-      <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={AMBER} strokeWidth="1" opacity={a2} />
+      <SvgCircle cx={S.x} cy={S.y} r={r1} fill="none" stroke={CYAN} strokeWidth="1" opacity={a1} />
+      <SvgCircle cx={S.x} cy={S.y} r={r2} fill="none" stroke={CYAN} strokeWidth="1" opacity={a2} />
     </>
   );
 }

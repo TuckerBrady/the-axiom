@@ -237,7 +237,7 @@ cogs-intro [blue]: "You are looking at my HUD interface. I
   that this does not stop me."
 
 board-intro [blue]: "This is the circuit board. Your job is
-  to connect the Input Port to the Output Port using the
+  to connect the Source to the Terminal using the
   pieces in your tray. You have done this before. You just
   did not know what it was called."
 
@@ -258,7 +258,7 @@ board-resume [blue]: "As I was saying. Straight line, input
 **A1-2 Life Support (3 steps):**
 
 board-intro [blue]: "Life support requires a bend in the
-  path. The Input Port and Output Port are not aligned. A
+  path. The Source and Terminal are not aligned. A
   straight line will not reach. The signal needs to change
   direction once. Plan where that happens before placing
   anything."
@@ -294,7 +294,7 @@ board-resume [blue]: "As I was saying. The condition is
 **A1-4 Propulsion Core (2 steps — no new piece):**
 
 board-intro [blue]: "Two direction changes on this one. The
-  path bends twice before it reaches the Output Port. Each
+  path bends twice before it reaches the Terminal. Each
   bend requires its own solution. Plan the full route before
   placing the first piece. Engineers who place as they go
   tend to run out of board."

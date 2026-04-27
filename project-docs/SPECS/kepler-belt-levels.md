@@ -24,7 +24,7 @@ Difficulty band: intuitive.
 Narrative frame: First repair in the mining corridor. Simple but
   unfamiliar territory.
 Grid: 8x6.
-Pre-placed: Input Port (1,2), Output Port (6,4).
+Pre-placed: Source (1,2), Terminal (6,4).
 Tray: Conveyor x4, Gear x2.
 Optimal pieces: 4 (2 Conveyors, 2 Gears).
 Tutorial steps: 2 instructor steps. No new piece. First step
@@ -42,7 +42,7 @@ Difficulty band: derivable.
 Narrative frame: Relay chain built to last, outlived its
   maintainers. The signal must pass faithfully.
 Grid: 9x6.
-Pre-placed: Input Port (1,3), Output Port (7,3).
+Pre-placed: Source (1,3), Terminal (7,3).
 Tray: Conveyor x4, Scanner x1, Transmitter x1, Gear x1.
 Optimal pieces: 4 (Scanner, 2 Conveyors, Transmitter).
 Data Trail: [0, 0, 0, 0, 0, 0, 0, 0].
@@ -68,7 +68,7 @@ Narrative frame: Junction 7 is a routing bottleneck. Eleven
   settlements feed through it. The routing decision must be
   stored and applied consistently.
 Grid: 10x7.
-Pre-placed: Input Port (1,3), Output Port (8,3), Latch (4,3).
+Pre-placed: Source (1,3), Terminal (8,3), Latch (4,3).
 Tray: Conveyor x4, Scanner x1, Transmitter x1, Config Node x1,
   Gear x1.
 Optimal pieces: 5.
@@ -92,7 +92,7 @@ Narrative frame: Decommissioned platform repurposed as signal
   relay. Not designed for this. Doing the job anyway. Failure
   affects colonist communication.
 Grid: 10x7.
-Pre-placed: Input Port (1,3), Output Port (8,3).
+Pre-placed: Source (1,3), Terminal (8,3).
 Tray: Conveyor x4, Scanner x1, Latch x1, Config Node x1,
   Transmitter x1, Gear x2.
 Optimal pieces: 6.
@@ -117,7 +117,7 @@ Narrative frame: Resupply chain with four relay nodes, all
   degraded. Redundancy is the only option. Two routes to the
   same destination.
 Grid: 10x8.
-Pre-placed: Input Port (1,4), Output Port (8,4), Splitter (3,4).
+Pre-placed: Source (1,4), Terminal (8,4), Splitter (3,4).
 Tray: Conveyor x6, Merger x1, Scanner x1, Config Node x1,
   Transmitter x1, Gear x2.
 Optimal pieces: 8.
@@ -141,7 +141,7 @@ Narrative frame: Hub coordinating resupply for 31 settlements.
   Running on equipment three cycles past replacement. The people
   depending on it do not have the option of waiting.
 Grid: 11x8.
-Pre-placed: Input Port (1,4), Output Port (9,4).
+Pre-placed: Source (1,4), Terminal (9,4).
 Tray: Conveyor x6, Scanner x1, Latch x1, Splitter x1,
   Merger x1, Config Node x1, Transmitter x1, Gear x2.
 Optimal pieces: 9.
@@ -160,7 +160,7 @@ Narrative frame: Ore processing relay still active despite no
   mining. Something transmitting on the frequency. Two signals
   that must not interfere.
 Grid: 10x8.
-Pre-placed: Input Port (1,3), Output Port (8,6), Bridge (5,5).
+Pre-placed: Source (1,3), Terminal (8,6), Bridge (5,5).
 Tray: Conveyor x6, Scanner x1, Transmitter x1, Gear x3,
   Config Node x1.
 Optimal pieces: 7.
@@ -182,7 +182,7 @@ Narrative frame: Transit gate routing ghost traffic from ships
   that no longer exist. Regulating flow for the entire corridor.
   Failure disrupts all traffic.
 Grid: 11x8.
-Pre-placed: Input Port (1,4), Output Port (9,4).
+Pre-placed: Source (1,4), Terminal (9,4).
 Tray: Conveyor x6, Scanner x1, Latch x1, Bridge x1,
   Config Node x1, Transmitter x1, Gear x3, Merger x1.
 Optimal pieces: 9.
@@ -215,7 +215,7 @@ Narrative frame: The densest section of the corridor. Maximum
   signal interference. The machine must compare each new signal
   against what came before.
 Grid: 11x9.
-Pre-placed: Input Port (1,4), Output Port (9,4).
+Pre-placed: Source (1,4), Terminal (9,4).
 Tray: Conveyor x8, Scanner x1, Latch x2, Splitter x1,
   Merger x1, Config Node x2, Transmitter x1, Gear x3,
   Bridge x1.
@@ -248,7 +248,7 @@ Narrative frame: Everything routes through the Central Hub.
   Three hundred thousand people depend on it. Single point of
   failure. The machine must track state across every pulse.
 Grid: 12x9.
-Pre-placed: Input Port (1,4), Output Port (10,4).
+Pre-placed: Source (1,4), Terminal (10,4).
 Tray: Conveyor x8, Scanner x2, Latch x2, Splitter x1,
   Merger x1, Config Node x2, Transmitter x1, Gear x4,
   Bridge x1.

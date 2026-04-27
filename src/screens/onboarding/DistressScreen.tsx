@@ -36,7 +36,7 @@ const CARDS = [
   },
   {
     label: 'TRANSMISSION 02 / 03',
-    text: 'Power relay disconnected. I cannot restore it from here. There is a Conveyor piece in the repair bay. You will need to connect it between the source and the output node.',
+    text: 'Power relay disconnected. I cannot restore it from here. There is a Conveyor piece in the repair bay. You will need to connect it between the Source and the Terminal.',
   },
   {
     label: 'TRANSMISSION 03 / 03',
