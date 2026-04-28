@@ -15,6 +15,10 @@ const screenSrc = read('src/screens/GameplayScreen.tsx');
 const beamSrc = read('src/game/engagement/beamAnimation.ts');
 const typesSrc = read('src/game/engagement/types.ts');
 const starFieldSrc = read('src/components/StarField.tsx');
+// Phase 4 refactor (Prompt 110): safetyTimersRef and all beam refs
+// moved to useBeamEngine. Assertions now verify the hook's declaration
+// and that screen-level code delegates cleanup correctly.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 describe('Prompt 95 (safe subset) — render-perf cleanup', () => {
   describe('Fix 6 — StarField is React.memo', () => {
@@ -47,22 +51,28 @@ describe('Prompt 95 (safe subset) — render-perf cleanup', () => {
       expect(safetyBlock?.[0]).not.toMatch(/flashTimersRef\.current\.push\(safetyTimer\)/);
     });
 
-    it('GameplayScreen declares safetyTimersRef and threads it into the EngagementContext', () => {
-      expect(screenSrc).toMatch(
+    it('useBeamEngine declares safetyTimersRef and GameplayScreen threads it into the EngagementContext', () => {
+      // Phase 4 refactor (Prompt 110): safetyTimersRef moved from GameplayScreen
+      // into useBeamEngine. The screen accesses it via beam.safetyTimersRef.
+      expect(beamHookSrc).toMatch(
         /const safetyTimersRef = useRef<ReturnType<typeof setTimeout>\[\]>\(\[\]\)/,
       );
-      // Threaded into the context object (alongside flashTimersRef).
-      expect(screenSrc).toMatch(/flashTimersRef,\s*\n\s*safetyTimersRef,/);
+      // Threaded into the context object via beam.safetyTimersRef alongside
+      // beam.flashTimersRef.
+      expect(screenSrc).toMatch(/flashTimersRef:\s*beam\.flashTimersRef/);
+      expect(screenSrc).toMatch(/safetyTimersRef:\s*beam\.safetyTimersRef/);
     });
 
-    it('GameplayScreen unmount + handleReset clear the safety timers', () => {
-      // Two cleanup callsites should sweep safety timers (unmount,
-      // handleReset). The per-pulse loop sweep does NOT touch them
-      // — that's the bug Fix 7 was preventing.
-      const sweeps = screenSrc.match(
-        /safetyTimersRef\.current\.forEach\(t => clearTimeout\(t\)\);\s*safetyTimersRef\.current = \[\];/g,
-      ) ?? [];
-      expect(sweeps.length).toBeGreaterThanOrEqual(2);
+    it('GameplayScreen unmount + handleReset clear the safety timers (via beam.cancelAllFrames / beam.resetBeam)', () => {
+      // Phase 4 refactor (Prompt 110): inline sweeps replaced by delegation.
+      // Unmount and blur call beam.cancelAllFrames(); handleReset calls
+      // beam.resetBeam() which calls cancelAllFrames internally.
+      expect(screenSrc).toMatch(/beam\.cancelAllFrames\(\)/);
+      expect(screenSrc).toMatch(/beam\.resetBeam\(\)/);
+      // cancelAllFrames implements the sweep in useBeamEngine.
+      expect(beamHookSrc).toMatch(
+        /safetyTimersRef\.current\.forEach\(t => clearTimeout\(t\)\);\s*safetyTimersRef\.current = \[\];/,
+      );
     });
 
     it('the per-pulse flash-timer sweep does NOT touch safetyTimersRef', () => {

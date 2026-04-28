@@ -13,6 +13,11 @@ const beamSrc = read('src/game/engagement/beamAnimation.ts');
 const chargeSrc = read('src/game/engagement/chargePhase.ts');
 const lockSrc = read('src/game/engagement/lockPhase.ts');
 const typesSrc = read('src/game/engagement/types.ts');
+// Phase 4 refactor (Prompt 110): beam state, Animated.Values, and cleanup
+// refs extracted to useBeamEngine. Source-contract checks that previously
+// targeted GameplayScreen inline code now split: screen-level checks verify
+// delegation; hook-level checks verify implementation.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
   describe('Fix 1 — flashTimers swept at start of each pulse', () => {
@@ -39,8 +44,9 @@ describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
       );
     });
 
-    it('GameplayScreen initializes animFrameRef as new Map()', () => {
-      expect(screenSrc).toMatch(
+    it('useBeamEngine initializes animFrameRef as new Map() (Phase 4 extraction, Prompt 110)', () => {
+      // animFrameRef was moved from GameplayScreen into useBeamEngine.
+      expect(beamHookSrc).toMatch(
         /const animFrameRef = useRef<Map<number \| null,\s*number \| null>>\(\s*new Map\(\),?\s*\)/,
       );
     });
@@ -74,20 +80,25 @@ describe('Prompt 94 — per-pulse animation cleanup + wire render', () => {
       expect(lockSrc).not.toMatch(/ctx\.animFrameRef\.current\s*=\s*requestAnimationFrame/);
     });
 
-    it('GameplayScreen cleanup blocks walk the Map and call cancelAnimationFrame on each id', () => {
-      // The three cleanup callsites — unmount, handleReset, and
-      // post-completion CONTINUE — each iterate the Map and clear it.
-      // Pre-fix they each held a single id check.
-      const cleanups = screenSrc.match(
-        /animFrameRef\.current\.forEach\(id => \{\s*if \(id != null\) cancelAnimationFrame\(id\);\s*\}\);\s*animFrameRef\.current\.clear\(\);/g,
-      ) ?? [];
-      expect(cleanups.length).toBeGreaterThanOrEqual(3);
+    it('GameplayScreen cleanup callsites delegate to beam.cancelAllFrames() which walks the Map', () => {
+      // Phase 4 refactor (Prompt 110): the three cleanup callsites —
+      // unmount, blur, and post-completion CONTINUE — all delegate to
+      // beam.cancelAllFrames() instead of duplicating the Map.forEach+clear.
+      const delegations = screenSrc.match(/beam\.cancelAllFrames\(\)/g) ?? [];
+      expect(delegations.length).toBeGreaterThanOrEqual(3);
+      // The implementation in useBeamEngine still performs the Map.forEach
+      // + clear — this is the contract that was previously in GameplayScreen.
+      expect(beamHookSrc).toMatch(
+        /animFrameRef\.current\.forEach\(id => \{\s*if \(id != null\) cancelAnimationFrame\(id\);\s*\}\);\s*animFrameRef\.current\.clear\(\);/,
+      );
     });
 
     it('does NOT retain the pre-Fix bare animFrameRef.current = null nullification', () => {
       // The old single-id pattern set the ref to null on cancel.
-      // After Fix 2 we use Map.clear() instead.
+      // After Fix 2 we use Map.clear() instead — enforced in both the
+      // screen (delegation) and the hook (implementation).
       expect(screenSrc).not.toMatch(/animFrameRef\.current\s*=\s*null/);
+      expect(beamHookSrc).not.toMatch(/animFrameRef\.current\s*=\s*null/);
     });
   });
 

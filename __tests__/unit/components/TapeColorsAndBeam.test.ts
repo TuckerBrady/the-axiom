@@ -22,6 +22,9 @@ const typesSrc = read('src/game/engagement/types.ts');
 const tapeCellSrc = read('src/components/gameplay/TapeCell.tsx');
 const tapeBarShellSrc = read('src/components/gameplay/TapeBarShell.tsx');
 const beamOverlaySrc = read('src/components/gameplay/BeamOverlay.tsx');
+// Phase 4 refactor (Prompt 110): beamOpacity and all other beam
+// Animated.Values moved from GameplayScreen into useBeamEngine.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () => {
   describe('Fix 1 — IN tape green/yellow palette', () => {
@@ -128,13 +131,14 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(typesSrc).toMatch(/beamOpacity:\s*Animated\.Value/);
     });
 
-    it('GameplayScreen creates beamOpacity and BeamOverlay wraps the beam SVG in an animated opacity layer', () => {
-      // beamOpacity is still allocated in GameplayScreen and passed
-      // down to the extracted BeamOverlay (Prompt 99B).
-      expect(screenSrc).toMatch(/const beamOpacity = useRef\(new RNAnimated\.Value\(1\)\)\.current/);
-      // The animated opacity wrapper now lives in BeamOverlay.tsx.
+    it('useBeamEngine creates beamOpacity; GameplayScreen passes it through to BeamOverlay', () => {
+      // Phase 4 refactor (Prompt 110): beamOpacity allocation moved from
+      // GameplayScreen into useBeamEngine. GameplayScreen destructures it
+      // from the beam hook result and forwards it to BeamOverlay.
+      expect(beamHookSrc).toMatch(/const beamOpacity = useRef\(new RNAnimated\.Value\(1\)\)\.current/);
+      // The animated opacity wrapper still lives in BeamOverlay.tsx.
       expect(beamOverlaySrc).toMatch(/<RNAnimated\.View[\s\S]*?opacity:\s*beamOpacity[\s\S]*?<Svg/);
-      // handleEngage resets to 1 at the start of each run.
+      // handleEngage still resets to 1 at the start of each run.
       expect(screenSrc).toMatch(/beamOpacity\.setValue\(1\)/);
       // The animated layer is closed before the outer wrapper closes.
       expect(beamOverlaySrc).toMatch(/<\/Svg>\s*\n\s*<\/RNAnimated\.View>/);

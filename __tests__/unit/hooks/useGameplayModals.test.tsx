@@ -74,7 +74,6 @@ describe('useGameplayModals', () => {
       expect(m.cogsScoreComment).toBe('');
       expect(m.firstTimeBonus).toBe(false);
       expect(m.elaborationMult).toBe(1);
-      expect(m.flashColor).toBeNull();
     });
 
     it('derives anyModalOpen=false at initial render', () => {

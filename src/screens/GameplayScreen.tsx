@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -46,6 +46,7 @@ import { useGameplayModals } from '../hooks/useGameplayModals';
 import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
+import { useBeamEngine } from '../hooks/useBeamEngine';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -116,15 +117,9 @@ import {
   handleSuccess,
   handleWrongOutput,
   handleVoidFailure,
-  BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
-  CHARGE_INITIAL,
   type Pt,
   type EngagementContext,
-  type MeasurementCache,
-  type BeamState,
-  type PieceAnimState,
-  type ChargeState,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -271,7 +266,6 @@ export default function GameplayScreen({ navigation }: Props) {
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
     elaborationMult, setElaborationMult,
-    flashColor, setFlashColor,
   } = modals;
 
   // Phase 2 extraction — tutorial state, hint queue, all measurement refs.
@@ -309,77 +303,24 @@ export default function GameplayScreen({ navigation }: Props) {
   // Phase 3 extraction — tape visual state (highlights, overrides, glow traveler, refs).
   const tape = useGameplayTape(level);
 
-  const currentPulseRef = useRef(0);
-  // Incremented at the start of each handleEngage call. Callbacks that
-  // read runId from their captured ctx check it against this ref before
-  // applying writes, making stale async callbacks from a previous run
-  // no-ops. (A1-7 crash fix.)
-  const engageRunIdRef = useRef(0);
+  // Phase 4 extraction — beam animation state, Animated.Values, and mutable refs.
+  const beam = useBeamEngine(machineState.pieces);
+  const {
+    beamState, setBeamState,
+    pieceAnimState, setPieceAnimState,
+    chargeState, setChargeState,
+    lockRingCenter, setLockRingCenter,
+    voidBurstCenter, setVoidBurstCenter,
+    currentPulseIndex, setCurrentPulseIndex,
+    flashColor, setFlashColor,
+    pieceAnimProps,
+    beamOpacity,
+    chargeProgressAnim,
+    lockRingProgressAnim,
+    voidPulseRingProgressAnim,
+  } = beam;
 
   const [creditError, setCreditError] = useState(false);
-
-  // ── Animation state (grouped to reduce per-frame setState calls) ──
-  // beamState: heads, headColor, trails, beamState.branchTrails, beamState.voidPulse, phase, beamState.litWires
-  const [beamState, setBeamState] = useState<BeamState>(BEAM_INITIAL);
-  // pieceAnimState: flashing, animations, gates, pieceAnimState.failColors, locked
-  const [pieceAnimState, setPieceAnimState] = useState<PieceAnimState>(PIECE_ANIM_INITIAL);
-  // chargeState: pos, progress
-  const [chargeState, setChargeState] = useState<ChargeState>(CHARGE_INITIAL);
-
-  // Lock ring anchor (Prompt 99A). Replaces the per-tick lockRings
-  // array. Mounted at lock-phase start, cleared at lock-phase end.
-  // Ring radius/opacity are interpolated from lockRingProgressAnim
-  // on the native thread.
-  const [lockRingCenter, setLockRingCenter] = useState<{ x: number; y: number } | null>(null);
-  // Void burst anchor (Prompt 99C, Fix 2). Mounted at the void
-  // blocker when a pulse terminates against a void; cleared after the
-  // 320ms native timing settles. The BeamOverlay reads
-  // voidPulseRingProgressAnim (already on the context, allocated in
-  // 99A) to draw the expanding ring on the native thread. Replaces
-  // the per-RAF setVoidPulse stream that was lighting up roughly 19
-  // setState calls per voided pulse.
-  const [voidBurstCenter, setVoidBurstCenter] = useState<{ x: number; y: number } | null>(null);
-
-  // Drives the beam SVG group's opacity. Dims to 0.3 while a tape
-  // piece is processing, brightens back to 1 when ready to advance —
-  // the "Rube Goldberg energy flow" feel from Prompt 91, Fix 5.
-  const beamOpacity = useRef(new RNAnimated.Value(1)).current;
-  // Prompt 99A — phase progress Animated.Values. Allocated once and
-  // reused across pulses (PERFORMANCE_CONTRACT 5.4.2). Driven on the
-  // native thread (useNativeDriver: true) so charge/lock/void burst
-  // animations don't burn JS-thread cycles. The chargeAnim / lockAnim
-  // / voidPulseAnim handles are stored on the EngagementContext via
-  // assignment so the next phase invocation can `.stop()` an in-flight
-  // animation cleanly (mirrors the existing beamOpacityAnim pattern).
-  const chargeProgressAnim = useRef(new RNAnimated.Value(0)).current;
-  const lockRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
-  const voidPulseRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
-
-  const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
-  // Per-slot RAF id Map (Prompt 94, Fix 2). Key `null` = main beam +
-  // charge/lock; keys `0` / `1` = Splitter branches. Pre-Fix 2 this
-  // was a single `number | null`, which let Splitter branches
-  // overwrite each other's frame id.
-  const animFrameRef = useRef<Map<number | null, number | null>>(
-    new Map(),
-  );
-  const loopingRef = useRef(false);
-  const flashTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Tape-interaction safety timers (Prompt 95, Fix 7). Held in a
-  // separate bucket from flashTimersRef so the per-pulse sweep
-  // (Prompt 94, Fix 1) doesn't accidentally clear an in-flight
-  // 8 s "force-resume" timer that straddles a pulse boundary.
-  // Cleared on full unmount / handleReset / completion CONTINUE.
-  const safetyTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Counts pulses that reached Terminal with success during handleEngage.
-  // Read by the live pulse counter; reset at the start of each run.
-  const terminalSuccessCountRef = useRef(0);
-  const cacheRef = useRef<MeasurementCache>({
-    board: { x: 0, y: 0 },
-    input: null,
-    trail: null,
-    output: null,
-  });
 
   // Screen is immediately visible — slide_from_bottom handles entry transition
   const screenOpacity = useSharedValue(1);
@@ -403,19 +344,8 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Cleanup beam animation on unmount ──
   useEffect(() => {
     return () => {
-      // Walk the per-slot RAF Map and cancel every in-flight frame
-      // (Prompt 94, Fix 2). Pre-Fix 2 the ref held a single id and
-      // we missed any frame the second Splitter branch had written.
-      animFrameRef.current.forEach(id => {
-        if (id != null) cancelAnimationFrame(id);
-      });
-      animFrameRef.current.clear();
-      flashTimersRef.current.forEach(t => clearTimeout(t));
-      flashTimersRef.current = [];
-      safetyTimersRef.current.forEach(t => clearTimeout(t));
-      safetyTimersRef.current = [];
+      beam.cancelAllFrames();
       tape.resetTape();
-      loopingRef.current = false;
     };
   }, []);
 
@@ -432,16 +362,8 @@ export default function GameplayScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       return () => {
-        animFrameRef.current.forEach(id => {
-          if (id != null) cancelAnimationFrame(id);
-        });
-        animFrameRef.current.clear();
-        flashTimersRef.current.forEach(t => clearTimeout(t));
-        flashTimersRef.current = [];
-        safetyTimersRef.current.forEach(t => clearTimeout(t));
-        safetyTimersRef.current = [];
+        beam.cancelAllFrames();
         tape.resetTape();
-        loopingRef.current = false;
       };
     }, []),
   );
@@ -452,7 +374,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // a level transition, this guarantees the post-completion replay
   // loop flag does not leak from one level into the next.
   useEffect(() => {
-    loopingRef.current = false;
+    beam.loopingRef.current = false;
   }, [level?.id]);
 
   // ── Dynamic board sizing (from available canvas space) ──
@@ -467,37 +389,6 @@ export default function GameplayScreen({ navigation }: Props) {
     [pieces],
   );
   const hasPlacedPieces = playerPieces.length > 0;
-
-  // Precompute per-piece animation props so the render loop doesn't
-  // re-call pieceAnimState.animations.get(piece.id) eight times for
-  // every piece on every render. This + React.memo(PieceIcon) cuts
-  // the beam-animation re-render cost on device.
-  const pieceAnimProps = useMemo(() => {
-    const map = new Map<string, {
-      animType: string | undefined;
-      gateResult: 'pass' | 'block' | null;
-      failColor: string | null;
-      flashColor: string | null;
-      flashCounter: number;
-    }>();
-    for (const piece of pieces) {
-      map.set(piece.id, {
-        animType: pieceAnimState.animations.get(piece.id),
-        gateResult: pieceAnimState.gates.get(piece.id) ?? null,
-        failColor: pieceAnimState.failColors.get(piece.id) ?? null,
-        flashColor: pieceAnimState.flashing.get(piece.id) ?? null,
-        flashCounter: pieceAnimState.flashCounter.get(piece.id) ?? 0,
-      });
-    }
-    return map;
-  }, [
-    pieces,
-    pieceAnimState.animations,
-    pieceAnimState.gates,
-    pieceAnimState.failColors,
-    pieceAnimState.flashing,
-    pieceAnimState.flashCounter,
-  ]);
 
   // O(1) piece-id lookup for the wire render block (Prompt 94, Fix 4).
   // Pre-fix that block called `pieces.find(...)` twice per wire on
@@ -664,8 +555,8 @@ export default function GameplayScreen({ navigation }: Props) {
     if (isExecuting || !level) return;
     // Increment run ID before any async work so stale callbacks from the
     // previous run can detect the mismatch and no-op. (A1-7 crash fix.)
-    engageRunIdRef.current += 1;
-    const runId = engageRunIdRef.current;
+    beam.runIdRef.current += 1;
+    const runId = beam.runIdRef.current;
     triggerHints('onEngage');
     // Reset beam dim back to fully bright at the start of every run so
     // a previous level's mid-pause dim state never carries over
@@ -673,8 +564,8 @@ export default function GameplayScreen({ navigation }: Props) {
     beamOpacity.setValue(1);
     // Cancel any in-flight 8s safety timers from the previous run
     // before starting fresh (Prompt 104, Fix 4A).
-    safetyTimersRef.current.forEach(t => clearTimeout(t));
-    safetyTimersRef.current = [];
+    beam.safetyTimersRef.current.forEach(t => clearTimeout(t));
+    beam.safetyTimersRef.current = [];
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
     const lockedElapsed = lockTimer();
     const engageStartTime = Date.now();
@@ -724,11 +615,32 @@ export default function GameplayScreen({ navigation }: Props) {
       CELL_SIZE,
       getPieceCenter,
       machineStatePieces: machineState.pieces,
-      setBeamState,
-      setPieceAnimState,
-      setChargeState,
-      setLockRingCenter,
-      setVoidBurstCenter,
+
+      // Beam engine (Phase 4 hook)
+      setBeamState: beam.setBeamState,
+      setPieceAnimState: beam.setPieceAnimState,
+      setChargeState: beam.setChargeState,
+      setLockRingCenter: beam.setLockRingCenter,
+      setVoidBurstCenter: beam.setVoidBurstCenter,
+      animFrameRef: beam.animFrameRef,
+      flashTimersRef: beam.flashTimersRef,
+      safetyTimersRef: beam.safetyTimersRef,
+      beamOpacity: beam.beamOpacity,
+      chargeProgressAnim: beam.chargeProgressAnim,
+      lockRingProgressAnim: beam.lockRingProgressAnim,
+      voidPulseRingProgressAnim: beam.voidPulseRingProgressAnim,
+      currentPulseRef: beam.currentPulseRef,
+      loopingRef: beam.loopingRef,
+      cacheRef: beam.cacheRef,
+      chargeAnim: null,
+      lockAnim: null,
+      voidPulseAnim: null,
+      setCurrentPulseIndex: beam.setCurrentPulseIndex,
+      wires,
+      runId: beam.runIdRef.current,
+      currentRunIdRef: beam.runIdRef,
+
+      // Tape (Phase 3 hook)
       setTapeCellHighlights: tape.tapeSetters.setTapeCellHighlights,
       setTapeBarState: tape.tapeSetters.setTapeBarState,
       setGlowTravelerState: tape.tapeSetters.setGlowTravelerState,
@@ -736,32 +648,15 @@ export default function GameplayScreen({ navigation }: Props) {
       gateOutcomes: tape.gateOutcomesRef,
       setVisualTrailOverride: tape.tapeSetters.setVisualTrailOverride,
       setVisualOutputOverride: tape.tapeSetters.setVisualOutputOverride,
-      setCurrentPulseIndex,
-      currentPulseRef,
-      animFrameRef,
-      flashTimersRef,
-      safetyTimersRef,
-      beamOpacity,
-      chargeProgressAnim,
-      chargeAnim: null,
-      lockRingProgressAnim,
-      lockAnim: null,
-      voidPulseRingProgressAnim,
-      voidPulseAnim: null,
       boardGridRef,
       inputTapeCellsRef: tape.inputTapeCellsRef,
       dataTrailCellsRef: tape.dataTrailCellsRef,
       outputTapeCellsRef: tape.outputTapeCellsRef,
-      loopingRef,
-      wires,
       inputTape: level.inputTape,
-      cacheRef,
-      runId,
-      currentRunIdRef: engageRunIdRef,
     };
 
     // Reset the measurement cache for this run.
-    cacheRef.current = { board: { x: 0, y: 0 }, input: null, trail: null, output: null };
+    beam.cacheRef.current = { board: { x: 0, y: 0 }, input: null, trail: null, output: null };
 
     // Initialize progressive-reveal overrides for trail and output cells.
     // During beam animation, cells that begin null show empty until a
@@ -811,15 +706,15 @@ export default function GameplayScreen({ navigation }: Props) {
         console.warn('[handleEngage] tape container null after retry; glow animations skipped for this run');
       }
     }
-    cacheRef.current = { board: board0, input: input0, trail: trail0, output: output0 };
+    beam.cacheRef.current = { board: board0, input: input0, trail: trail0, output: output0 };
 
     // PHASE 2 — BEAM (one or more pulses)
     setBeamState(prev => ({ ...prev, phase: 'beam' }));
     // Reset the live terminal-success counter for this run. Read by
     // the pulse HUD to show "REACHED: X / N" progress.
-    terminalSuccessCountRef.current = 0;
+    beam.terminalSuccessCountRef.current = 0;
     for (let p = 0; p < pulses.length; p++) {
-      currentPulseRef.current = p;
+      beam.currentPulseRef.current = p;
       setCurrentPulseIndex(p);
       // Per-pulse flash-timer sweep (Prompt 94, Fix 1). flashPiece /
       // triggerPieceAnim / the tape-pause safety timer all push
@@ -827,8 +722,8 @@ export default function GameplayScreen({ navigation }: Props) {
       // Without this sweep the array grows unbounded across the run
       // — on long puzzles that pile of orphaned timers compounds
       // into the per-pulse lag Tucker reported.
-      flashTimersRef.current.forEach(t => clearTimeout(t));
-      flashTimersRef.current = [];
+      beam.flashTimersRef.current.forEach(t => clearTimeout(t));
+      beam.flashTimersRef.current = [];
       // Cancelling the timers also kills the deferred cleanup that
       // would have removed entries from flashing / animations / gates.
       // Reset those Maps explicitly here so the terminal-piece purple
@@ -852,7 +747,7 @@ export default function GameplayScreen({ navigation }: Props) {
         s => s.type === 'terminal' && s.success,
       );
       if (pulseReachedTerminal) {
-        terminalSuccessCountRef.current += 1;
+        beam.terminalSuccessCountRef.current += 1;
       }
 
       if (p < pulses.length - 1) {
@@ -1015,35 +910,13 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Reset ──
   const handleReset = useCallback(() => {
-    loopingRef.current = false;
     setShowResults(false);
     setShowVoid(false);
-    // Cancel beam animation and clear all visual signal state.
-    // Walks the per-slot RAF Map (Prompt 94, Fix 2) so Splitter
-    // branches can't leave orphaned frames after a reset.
-    animFrameRef.current.forEach(id => {
-      if (id != null) cancelAnimationFrame(id);
-    });
-    animFrameRef.current.clear();
+    beam.resetBeam();
     tape.resetTape();
-    flashTimersRef.current.forEach(t => clearTimeout(t));
-    flashTimersRef.current = [];
-    safetyTimersRef.current.forEach(t => clearTimeout(t));
-    safetyTimersRef.current = [];
-    setBeamState(BEAM_INITIAL);
-    setPieceAnimState(PIECE_ANIM_INITIAL);
-    setChargeState(CHARGE_INITIAL);
-    setLockRingCenter(null);
-    setVoidBurstCenter(null);
-    chargeProgressAnim.setValue(0);
-    lockRingProgressAnim.setValue(0);
-    voidPulseRingProgressAnim.setValue(0);
-    setCurrentPulseIndex(0);
     setShowInsufficientPulses(false);
     setPulseResultData(null);
-    terminalSuccessCountRef.current = 0;
     reset();
-    // Restart the elapsed timer from zero.
     resetTimer();
   }, [reset, resetTimer]);
 
@@ -1058,11 +931,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // hold then transitions from the completion card to the Results
   // overlay.
   const handleCompletionContinue = useCallback(() => {
-    loopingRef.current = false;
-    animFrameRef.current.forEach(id => {
-      if (id != null) cancelAnimationFrame(id);
-    });
-    animFrameRef.current.clear();
+    beam.cancelAllFrames();
     tape.resetTape();
     setBeamState(prev => ({
       ...prev,
@@ -1128,7 +997,7 @@ export default function GameplayScreen({ navigation }: Props) {
             level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam'
               ? `PULSE ${Math.min(currentPulseIndex + 1, level.inputTape.length)} / ${level.inputTape.length}${
                   level.requiredTerminalCount && level.requiredTerminalCount > 1
-                    ? ` — REACHED: ${terminalSuccessCountRef.current} / ${level.requiredTerminalCount}`
+                    ? ` — REACHED: ${beam.terminalSuccessCountRef.current} / ${level.requiredTerminalCount}`
                     : ''
                 }`
               : null
