@@ -22,6 +22,9 @@ const gameplaySrc = read('src/screens/GameplayScreen.tsx');
 // `navigation.reset` Continue handler lives there now.
 const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');
 const levelsSrc = read('src/game/levels.ts');
+// Phase 4 refactor (Prompt 110): blur cleanup delegates to beam.cancelAllFrames()
+// which owns the inline ref-clearing patterns that previously lived in the blur block.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 describe('Prompt 106 — Fix 1: OUT tape always shows the written value', () => {
   it('display predicate is cellHasWrittenValue alone', () => {
@@ -72,20 +75,27 @@ describe('Prompt 106 — Fix 2: Progressive lag (blur cleanup + stack reset)', (
     // the prior Gameplay instance keeps running its RAF loops. The
     // blur cleanup mirrors the unmount cleanup so background instances
     // stop burning frames.
+    //
+    // Phase 4 refactor (Prompt 110): inline cleanup delegated to
+    // beam.cancelAllFrames(). We verify the blur block calls it (same
+    // delegation as the unmount block) and that the implementation in
+    // useBeamEngine still covers every ref.
     const blurBlock = gameplaySrc.match(
       /useFocusEffect\(\s*useCallback\(\(\) => \{[\s\S]*?\}, \[\]\),\s*\)/,
     );
     expect(blurBlock).not.toBeNull();
     const body = blurBlock?.[0] ?? '';
-    expect(body).toMatch(/animFrameRef\.current\.forEach/);
-    expect(body).toMatch(/cancelAnimationFrame/);
-    expect(body).toMatch(/animFrameRef\.current\.clear\(\)/);
-    expect(body).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
-    expect(body).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
-    // Phase 3 refactor (Prompt 109): gateOutcomesRef is now inside
-    // useGameplayTape; tape.resetTape() clears it.
+    // Delegation contract: blur calls both cleanup helpers.
+    expect(body).toMatch(/beam\.cancelAllFrames\(\)/);
     expect(body).toMatch(/tape\.resetTape\(\)/);
-    expect(body).toMatch(/loopingRef\.current\s*=\s*false/);
+    // Implementation contract: cancelAllFrames clears every ref that
+    // previously lived inline in the blur block.
+    expect(beamHookSrc).toMatch(/animFrameRef\.current\.forEach/);
+    expect(beamHookSrc).toMatch(/cancelAnimationFrame/);
+    expect(beamHookSrc).toMatch(/animFrameRef\.current\.clear\(\)/);
+    expect(beamHookSrc).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
+    expect(beamHookSrc).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
+    expect(beamHookSrc).toMatch(/loopingRef\.current\s*=\s*false/);
   });
 
   it('Continue button resets the navigation stack instead of pushing LevelSelect', () => {

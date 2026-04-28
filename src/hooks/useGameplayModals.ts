@@ -67,8 +67,6 @@ export interface UseGameplayModalsResult {
   setFirstTimeBonus: React.Dispatch<React.SetStateAction<boolean>>;
   elaborationMult: number;
   setElaborationMult: React.Dispatch<React.SetStateAction<number>>;
-  flashColor: string | null;
-  setFlashColor: React.Dispatch<React.SetStateAction<string | null>>;
 
   anyModalOpen: boolean;
 }
@@ -97,7 +95,6 @@ export function useGameplayModals(
   const [cogsScoreComment, setCogsScoreComment] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
   const [elaborationMult, setElaborationMult] = useState(1);
-  const [flashColor, setFlashColor] = useState<string | null>(null);
 
   // Economy intro on first non-Axiom level (moved from GameplayScreen).
   useEffect(() => {
@@ -138,7 +135,6 @@ export function useGameplayModals(
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
     elaborationMult, setElaborationMult,
-    flashColor, setFlashColor,
     anyModalOpen,
   };
 }

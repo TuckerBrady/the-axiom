@@ -27,6 +27,10 @@ const missionDossierSrc = read('src/screens/MissionDossierScreen.tsx');
 const dailyDossierSrc = read('src/screens/DailyChallengeDossierScreen.tsx');
 const gameplaySrc = read('src/screens/GameplayScreen.tsx');
 const timerHookSrc = read('src/hooks/useGameplayTimer.ts');
+// Phase 4 refactor (Prompt 110): beam cleanup state extracted to useBeamEngine.
+// cancelAllFrames() and resetBeam() now own the inline patterns that previously
+// lived directly in GameplayScreen's cleanup blocks.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
   describe('Launch screens use navigation.replace, not navigation.navigate', () => {
@@ -60,16 +64,22 @@ describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
   });
 
   describe('Belt-and-suspenders: loopingRef is cleared across level transitions', () => {
-    it('GameplayScreen unmount cleanup resets loopingRef.current to false', () => {
-      // The cleanup useEffect with an empty deps array runs only on
-      // unmount. With the replace-based fix every level transition
-      // unmounts Gameplay, so this clears the flag in the normal
-      // path. We grep the unmount cleanup block specifically.
+    it('GameplayScreen unmount cleanup resets loopingRef.current to false (via beam.cancelAllFrames)', () => {
+      // Phase 4 refactor (Prompt 110): inline cleanup was extracted to
+      // beam.cancelAllFrames(). The unmount block delegates instead of
+      // setting loopingRef directly. We verify the delegation exists and
+      // that cancelAllFrames still performs the flag reset.
       const cleanupBlock = gameplaySrc.match(
         /\/\/ ── Cleanup beam animation on unmount ──[\s\S]*?\}, \[\]\);/,
       );
       expect(cleanupBlock).not.toBeNull();
-      expect(cleanupBlock?.[0]).toMatch(/loopingRef\.current\s*=\s*false/);
+      expect(cleanupBlock?.[0]).toMatch(/beam\.cancelAllFrames\(\)/);
+      // cancelAllFrames must still set loopingRef.current = false.
+      const cancelFn = beamHookSrc.match(
+        /const cancelAllFrames = useCallback\(\(\) => \{[\s\S]*?\}, \[\]\)/,
+      );
+      expect(cancelFn).not.toBeNull();
+      expect(cancelFn?.[0]).toMatch(/loopingRef\.current\s*=\s*false/);
     });
 
     it('GameplayScreen resets loopingRef.current on level.id change', () => {
@@ -86,36 +96,43 @@ describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
   });
 
   describe('Unmount clears all animation timers and refs (Prompt 105)', () => {
-    // All four checks target the same comment-anchored cleanup block
-    // so a future refactor that moves or renames the block will fail
-    // loudly here rather than silently missing cleanup.
+    // Phase 4 refactor (Prompt 110): the unmount block delegates cleanup
+    // to beam.cancelAllFrames() (which owns the ref-clearing logic) and
+    // tape.resetTape(). We verify the delegation exists in the block and
+    // that cancelAllFrames implements the full cleanup contract.
     const cleanupBlock = () => gameplaySrc.match(
       /\/\/ ── Cleanup beam animation on unmount ──[\s\S]*?\}, \[\]\);/,
     );
+    const cancelFn = () => beamHookSrc.match(
+      /const cancelAllFrames = useCallback\(\(\) => \{[\s\S]*?\}, \[\]\)/,
+    );
 
-    it('unmount cleanup iterates animFrameRef and calls cancelAnimationFrame', () => {
+    it('unmount cleanup delegates to beam.cancelAllFrames() which iterates animFrameRef and calls cancelAnimationFrame', () => {
       const block = cleanupBlock();
       expect(block).not.toBeNull();
-      expect(block?.[0]).toMatch(/animFrameRef\.current\.forEach/);
-      expect(block?.[0]).toMatch(/cancelAnimationFrame/);
+      expect(block?.[0]).toMatch(/beam\.cancelAllFrames\(\)/);
+      const fn = cancelFn();
+      expect(fn).not.toBeNull();
+      expect(fn?.[0]).toMatch(/animFrameRef\.current\.forEach/);
+      expect(fn?.[0]).toMatch(/cancelAnimationFrame/);
     });
 
-    it('unmount cleanup calls animFrameRef.current.clear()', () => {
-      const block = cleanupBlock();
-      expect(block).not.toBeNull();
-      expect(block?.[0]).toMatch(/animFrameRef\.current\.clear\(\)/);
+    it('cancelAllFrames calls animFrameRef.current.clear()', () => {
+      const fn = cancelFn();
+      expect(fn).not.toBeNull();
+      expect(fn?.[0]).toMatch(/animFrameRef\.current\.clear\(\)/);
     });
 
-    it('unmount cleanup resets flashTimersRef.current to empty array', () => {
-      const block = cleanupBlock();
-      expect(block).not.toBeNull();
-      expect(block?.[0]).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
+    it('cancelAllFrames resets flashTimersRef.current to empty array', () => {
+      const fn = cancelFn();
+      expect(fn).not.toBeNull();
+      expect(fn?.[0]).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
     });
 
-    it('unmount cleanup resets safetyTimersRef.current to empty array', () => {
-      const block = cleanupBlock();
-      expect(block).not.toBeNull();
-      expect(block?.[0]).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
+    it('cancelAllFrames resets safetyTimersRef.current to empty array', () => {
+      const fn = cancelFn();
+      expect(fn).not.toBeNull();
+      expect(fn?.[0]).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
     });
 
     it('unmount cleanup calls tape.resetTape() (covers gateOutcomesRef + all tape visual state)', () => {

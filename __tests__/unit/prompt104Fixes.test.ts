@@ -16,6 +16,9 @@ const gameplaySrc = read('src/screens/GameplayScreen.tsx');
 const replayLoopSrc = read('src/game/engagement/replayLoop.ts');
 const tapeCellSrc = read('src/components/gameplay/TapeCell.tsx');
 const interactionsSrc = read('src/game/engagement/interactions.ts');
+// Phase 4 refactor (Prompt 110): CONTINUE handler cleanup delegates to
+// beam.cancelAllFrames() which owns loopingRef reset + animFrameRef sweep.
+const beamHookSrc = read('src/hooks/useBeamEngine.ts');
 
 // ─── Fix 1 — Wire Glow Reset Per Pulse ─────────────────────────────────────
 
@@ -167,17 +170,21 @@ describe('Fix 4B — replay loop removed after level success', () => {
     expect(gameplaySrc).not.toMatch(/runReplayLoop,/);
   });
 
-  it('CONTINUE handler still stops looping and clears RAF frames', () => {
+  it('CONTINUE handler still stops looping and clears RAF frames (via beam.cancelAllFrames)', () => {
     // Even without an active loop, the CONTINUE handler must still run
     // its cleanup so any edge-case lingering frames are cancelled.
     // Phase 1 of the GameplayScreen refactor moved the inline onPress
     // closure into a `handleCompletionContinue` useCallback which is
     // passed to GameplayModals.
+    // Phase 4 refactor (Prompt 110): inline cleanup delegated to
+    // beam.cancelAllFrames(). Verify delegation + implementation.
     const continueBlock = gameplaySrc.match(
       /handleCompletionContinue = useCallback\(\(\) => \{[\s\S]*?setShowResults\(true\);/,
     );
     expect(continueBlock).not.toBeNull();
-    expect(continueBlock?.[0]).toMatch(/loopingRef\.current = false/);
-    expect(continueBlock?.[0]).toMatch(/animFrameRef\.current\.forEach/);
+    expect(continueBlock?.[0]).toMatch(/beam\.cancelAllFrames\(\)/);
+    // cancelAllFrames in useBeamEngine still performs the actual cleanup.
+    expect(beamHookSrc).toMatch(/loopingRef\.current\s*=\s*false/);
+    expect(beamHookSrc).toMatch(/animFrameRef\.current\.forEach/);
   });
 });
