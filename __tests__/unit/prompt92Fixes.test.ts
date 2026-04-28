@@ -9,6 +9,9 @@ const repoRoot = path.resolve(__dirname, '../..');
 const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 
 const screenSrc = read('src/screens/GameplayScreen.tsx');
+// Phase 1 GameplayScreen refactor moved the Insufficient Pulses modal
+// (and its dynamic pulse-count COGS line) into GameplayModals.
+const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');
 const levelsSrc = read('src/game/levels.ts');
 const overlaySrc = read('src/components/TutorialHUDOverlay.tsx');
 const codexScreenSrc = read('src/screens/CodexScreen.tsx');
@@ -17,16 +20,17 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
   describe('Fix 1 — dynamic pulse-count text', () => {
     it('does not hardcode "Three pulses were required"', () => {
       expect(screenSrc).not.toMatch(/Three pulses were required/);
+      expect(modalsSrc).not.toMatch(/Three pulses were required/);
     });
 
     it('interpolates pulseResultData.required into the failure text', () => {
-      expect(screenSrc).toMatch(
+      expect(modalsSrc).toMatch(
         /\$\{pulseResultData\.required\} pulse\$\{pulseResultData\.required === 1 \? '' : 's'\}/,
       );
     });
 
     it('uses singular/plural agreement (was/were)', () => {
-      expect(screenSrc).toMatch(
+      expect(modalsSrc).toMatch(
         /pulseResultData\.required === 1 \? 'was' : 'were'/,
       );
     });

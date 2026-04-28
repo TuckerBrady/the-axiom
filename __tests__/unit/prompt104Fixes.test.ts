@@ -170,8 +170,11 @@ describe('Fix 4B — replay loop removed after level success', () => {
   it('CONTINUE handler still stops looping and clears RAF frames', () => {
     // Even without an active loop, the CONTINUE handler must still run
     // its cleanup so any edge-case lingering frames are cancelled.
+    // Phase 1 of the GameplayScreen refactor moved the inline onPress
+    // closure into a `handleCompletionContinue` useCallback which is
+    // passed to GameplayModals.
     const continueBlock = gameplaySrc.match(
-      /label="CONTINUE"[\s\S]*?onPress=\{[\s\S]*?\(\) => \{[\s\S]*?setShowResults\(true\)/,
+      /handleCompletionContinue = useCallback\(\(\) => \{[\s\S]*?setShowResults\(true\);/,
     );
     expect(continueBlock).not.toBeNull();
     expect(continueBlock?.[0]).toMatch(/loopingRef\.current = false/);
