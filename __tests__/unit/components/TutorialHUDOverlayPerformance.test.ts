@@ -27,6 +27,10 @@ const screenSource = fs.readFileSync(
   path.resolve(__dirname, '../../../src/screens/GameplayScreen.tsx'),
   'utf8',
 );
+const tutorialHookSource = fs.readFileSync(
+  path.resolve(__dirname, '../../../src/hooks/useGameplayTutorial.ts'),
+  'utf8',
+);
 
 describe('TutorialHUDOverlay lifecycle cleanup (Prompt 90)', () => {
   describe('mounted ref + cleanup', () => {
@@ -143,19 +147,19 @@ describe('TutorialHUDOverlay lifecycle cleanup (Prompt 90)', () => {
   });
 });
 
-describe('GameplayScreen — memoized tutorial props (Prompt 90)', () => {
+describe('useGameplayTutorial — memoized tutorial props (Prompt 90, 108)', () => {
   it('memoizes targetRefs with an empty deps array', () => {
-    const memo = screenSource.match(
+    const memo = tutorialHookSource.match(
       /const tutorialTargetRefs = useMemo\([\s\S]*?\),\s*\[\],\s*\);/,
     );
     expect(memo).not.toBeNull();
   });
 
   it('memoizes spotlightCells with prePlacedPieces in deps', () => {
-    expect(screenSource).toMatch(
+    expect(tutorialHookSource).toMatch(
       /const tutorialSpotlightCells = useMemo\(/,
     );
-    const memoBlock = screenSource.match(
+    const memoBlock = tutorialHookSource.match(
       /const tutorialSpotlightCells = useMemo\([\s\S]*?\)\s*;/,
     );
     expect(memoBlock).not.toBeNull();
