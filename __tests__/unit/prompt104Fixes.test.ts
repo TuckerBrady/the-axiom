@@ -140,7 +140,7 @@ describe('Fix 4A — safety timer cleanup at engage start', () => {
     // Stale 8s force-resume timers from the previous run must be
     // cancelled so they cannot fire into a new run's animation state.
     const engageBlock = gameplaySrc.match(
-      /beamOpacity\.setValue\(1\);[\s\S]*?const lockedElapsed = elapsedSeconds;/,
+      /beamOpacity\.setValue\(1\);[\s\S]*?const lockedElapsed = lockTimer\(\);/,
     );
     expect(engageBlock).not.toBeNull();
     expect(engageBlock?.[0]).toMatch(

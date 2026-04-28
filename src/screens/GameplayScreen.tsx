@@ -43,6 +43,8 @@ import { getPieceCost } from '../game/types';
 import { getOutputPorts, getInputPorts } from '../game/engine';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
+import { useGameplayTimer } from '../hooks/useGameplayTimer';
+import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -278,79 +280,44 @@ export default function GameplayScreen({ navigation }: Props) {
     flashColor, setFlashColor,
   } = modals;
 
-  const [currentHint, setCurrentHint] = useState<{ key: string; text: string } | null>(null);
+  // Phase 2 extraction — tutorial state, hint queue, all measurement refs.
+  const tutorial = useGameplayTutorial(level, isAxiomLevel, isLevelPreviouslyCompleted);
+  const {
+    tutorialComplete, setTutorialComplete,
+    tutorialSkipped, setTutorialSkipped,
+    tutorialIsActive, tutorialIsActiveRef,
+    currentHint,
+    triggerHints,
+    dismissHint,
+    tutorialTargetRefs,
+    tutorialTrayRefs,
+    tutorialSpotlightCells,
+    sourceNodeRef,
+    outputNodeRef,
+    boardGridRef,
+    engageButtonRef,
+    boardScannerRef,
+    inputTapeRowRef,
+    outputTapeRowRef,
+    dataTrailRowRef,
+    trayConveyorRef,
+    trayGearRef,
+    trayConfigNodeRef,
+    traySplitterRef,
+    trayScannerRef,
+    trayTransmitterRef,
+  } = tutorial;
 
-  const [hintQueue, setHintQueue] = useState<{ key: string; text: string }[]>([]);
-  const hintTriggered = useRef<Set<string>>(new Set());
-  const sourceNodeRef = useRef<View>(null);
-  const outputNodeRef = useRef<View>(null);
-  const boardGridRef = useRef<View>(null);
-  const engageButtonRef = useRef<View>(null);
-  const boardScannerRef = useRef<View>(null);
-  const inputTapeRowRef = useRef<View>(null);
-  const outputTapeRowRef = useRef<View>(null);
-  const dataTrailRowRef = useRef<View>(null);
+  // Phase 2 extraction — elapsed-seconds timer with pause/lock/reset API.
+  const timer = useGameplayTimer(level?.id, tutorialIsActiveRef, showPauseModal);
+  const { elapsedSeconds, lockTimer, resetTimer } = timer;
+
   const dataTrailCellsRef = useRef<View>(null);
   const outputTapeCellsRef = useRef<View>(null);
   const inputTapeCellsRef = useRef<View>(null);
   const currentPulseRef = useRef(0);
-  const trayConveyorRef = useRef<View>(null);
-  const trayGearRef = useRef<View>(null);
-  const trayConfigNodeRef = useRef<View>(null);
-  const traySplitterRef = useRef<View>(null);
-  const traScannerRef = useRef<View>(null);
-  const trayTransmitterRef = useRef<View>(null);
 
-  // Memoized targetRefs object passed to TutorialHUDOverlay. Without
-  // this, the inline object literal in JSX produced a fresh identity
-  // on every parent re-render, which invalidated the overlay's
-  // measureTarget useCallback (deps: [targetRefs]) and cascaded
-  // through every downstream callback / useEffect every render.
-  // Across A1-1 → A1-8 that thrash compounded into the freeze
-  // reported on TestFlight (Prompt 90). Refs themselves are stable,
-  // so the deps array is empty.
-  const tutorialTargetRefs = useMemo(
-    () => ({
-      sourceNode: sourceNodeRef,
-      outputNode: outputNodeRef,
-      boardGrid: boardGridRef,
-      engageButton: engageButtonRef,
-      trayConveyor: trayConveyorRef,
-      trayGear: trayGearRef,
-      trayConfigNode: trayConfigNodeRef,
-      traySplitter: traySplitterRef,
-      trayScanner: traScannerRef,
-      trayTransmitter: trayTransmitterRef,
-      boardScanner: boardScannerRef,
-      inputTapeRow: inputTapeRowRef,
-      outputTapeRow: outputTapeRowRef,
-      dataTrailRow: dataTrailRowRef,
-    }),
-    [],
-  );
-
-  // Memoized PieceTray refs object (Prompt 99B). Stable identity so
-  // PieceTray's React.memo barrier holds across parent re-renders.
-  const tutorialTrayRefs = useMemo(
-    () => ({
-      trayConveyor: trayConveyorRef,
-      trayGear: trayGearRef,
-      trayConfigNode: trayConfigNodeRef,
-      traySplitter: traySplitterRef,
-      trayScanner: traScannerRef,
-      trayTransmitter: trayTransmitterRef,
-    }),
-    [],
-  );
-
-  const [tutorialComplete, setTutorialComplete] = useState(false);
-  const [tutorialSkipped, setTutorialSkipped] = useState(false);
   const [creditError, setCreditError] = useState(false);
-
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timerRunning = useRef(false);
-  const lockedRef = useRef(false);
 
   // ── Animation state (grouped to reduce per-frame setState calls) ──
   // beamState: heads, headColor, trails, beamState.branchTrails, beamState.voidPulse, phase, beamState.litWires
@@ -442,23 +409,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(1);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
 
-  // Memoized A1-1 spotlight cells fed to TutorialHUDOverlay. The
-  // inline `.filter(...).map(...)` expression at the JSX site
-  // allocated a new array every parent render even when the overlay
-  // was unmounted; combined with the new targetRefs identity below,
-  // it churned the overlay's effect graph on every run-loop tick.
-  const tutorialSpotlightCells = useMemo(
-    () =>
-      level?.prePlacedPieces
-        .filter(p => p.type === 'source' || p.type === 'terminal')
-        .map(p => ({
-          col: p.gridX,
-          row: p.gridY,
-          color: p.type === 'source' ? '#8B5CF6' : '#00C48C',
-        })) ?? [],
-    [level?.prePlacedPieces],
-  );
-
   // ── Daily challenge one-attempt enforcement ──
   useEffect(() => {
     if (!isDailyChallenge || !level) return;
@@ -472,40 +422,6 @@ export default function GameplayScreen({ navigation }: Props) {
     if (level.sector === 'axiom') return; // free pieces on tutorial
     setLevelBudget(level.budget ?? 0);
     return () => resetLevelBudget();
-  }, [level?.id]);
-
-  // ── Tutorial active derivation (matches overlay render gate) ──
-  const tutorialIsActive =
-    !tutorialComplete &&
-    !tutorialSkipped &&
-    !isLevelPreviouslyCompleted &&
-    level?.sector === 'axiom' &&
-    (level?.tutorialSteps?.length ?? 0) > 0;
-
-  const tutorialIsActiveRef = useRef(tutorialIsActive);
-  useEffect(() => {
-    tutorialIsActiveRef.current = tutorialIsActive;
-  }, [tutorialIsActive]);
-
-
-  // ── Elapsed timer ──
-  useEffect(() => {
-    if (!level) return;
-    setElapsedSeconds(0);
-    lockedRef.current = false;
-    timerRunning.current = true;
-    timerRef.current = setInterval(() => {
-      if (timerRunning.current && !tutorialIsActiveRef.current) {
-        setElapsedSeconds(prev => prev + 1);
-      }
-    }, 1000);
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-      timerRunning.current = false;
-    };
   }, [level?.id]);
 
   // ── Cleanup beam animation on unmount ──
@@ -562,70 +478,6 @@ export default function GameplayScreen({ navigation }: Props) {
   useEffect(() => {
     loopingRef.current = false;
   }, [level?.id]);
-
-  // ── Pause modal stops/resumes timer ──
-  useEffect(() => {
-    if (lockedRef.current) return;
-    timerRunning.current = !showPauseModal;
-  }, [showPauseModal]);
-
-  // ── HUD tutorial overlay hydration ──
-  useEffect(() => {
-    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted) return;
-    if (!level.tutorialSteps || level.tutorialSteps.length === 0) return;
-    (async () => {
-      const done = await AsyncStorage.getItem(`axiom_tutorial_complete_${level.id}`);
-      const skipped = await AsyncStorage.getItem(`axiom_tutorial_skipped_${level.id}`);
-      if (done) setTutorialComplete(true);
-      if (skipped) setTutorialSkipped(true);
-    })();
-  }, [level?.id, isAxiomLevel, isLevelPreviouslyCompleted]);
-
-  useEffect(() => {
-    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted || !level.tutorialHints) return;
-    if ((level.tutorialSteps?.length ?? 0) > 0) return;
-    (async () => {
-      const onMountHints: { key: string; text: string }[] = [];
-      for (const h of level.tutorialHints!) {
-        if (h.trigger !== 'onMount') continue;
-        const seen = await AsyncStorage.getItem(`axiom_hint_seen_${h.key}`);
-        if (!seen) onMountHints.push({ key: h.key, text: h.text });
-      }
-      if (onMountHints.length > 0) {
-        setCurrentHint(onMountHints[0]);
-        setHintQueue(onMountHints.slice(1));
-      }
-    })();
-  }, [level?.id]);
-
-  const triggerHints = useCallback(async (trigger: string) => {
-    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted || !level.tutorialHints) return;
-    if (hintTriggered.current.has(trigger)) return;
-    hintTriggered.current.add(trigger);
-    const hints: { key: string; text: string }[] = [];
-    for (const h of level.tutorialHints!) {
-      if (h.trigger !== trigger) continue;
-      const seen = await AsyncStorage.getItem(`axiom_hint_seen_${h.key}`);
-      if (!seen) hints.push({ key: h.key, text: h.text });
-    }
-    if (hints.length > 0 && !currentHint) {
-      setCurrentHint(hints[0]);
-      setHintQueue(prev => [...prev, ...hints.slice(1)]);
-    } else {
-      setHintQueue(prev => [...prev, ...hints]);
-    }
-  }, [level, isAxiomLevel, isLevelPreviouslyCompleted, currentHint]);
-
-  const dismissHint = useCallback(() => {
-    setCurrentHint(null);
-    setTimeout(() => {
-      setHintQueue(prev => {
-        if (prev.length === 0) return prev;
-        setCurrentHint(prev[0]);
-        return prev.slice(1);
-      });
-    }, 1500);
-  }, []);
 
   // ── Dynamic board sizing (from available canvas space) ──
   const [canvasLayout, setCanvasLayout] = useState({ w: screenWidth - 32, h: 300 });
@@ -844,13 +696,7 @@ export default function GameplayScreen({ navigation }: Props) {
     safetyTimersRef.current.forEach(t => clearTimeout(t));
     safetyTimersRef.current = [];
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
-    timerRunning.current = false;
-    lockedRef.current = true;
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    const lockedElapsed = elapsedSeconds;
+    const lockedElapsed = lockTimer();
     const engageStartTime = Date.now();
     const steps = engage();
 
@@ -1214,16 +1060,8 @@ export default function GameplayScreen({ navigation }: Props) {
     terminalSuccessCountRef.current = 0;
     reset();
     // Restart the elapsed timer from zero.
-    setElapsedSeconds(0);
-    lockedRef.current = false;
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      if (timerRunning.current && !tutorialIsActiveRef.current) {
-        setElapsedSeconds(prev => prev + 1);
-      }
-    }, 1000);
-    timerRunning.current = true;
-  }, [reset]);
+    resetTimer();
+  }, [reset, resetTimer]);
 
   // ── Debug ──
   const handleDebug = useCallback(() => {

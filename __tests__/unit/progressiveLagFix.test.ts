@@ -26,6 +26,7 @@ const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 const missionDossierSrc = read('src/screens/MissionDossierScreen.tsx');
 const dailyDossierSrc = read('src/screens/DailyChallengeDossierScreen.tsx');
 const gameplaySrc = read('src/screens/GameplayScreen.tsx');
+const timerHookSrc = read('src/hooks/useGameplayTimer.ts');
 
 describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
   describe('Launch screens use navigation.replace, not navigation.navigate', () => {
@@ -125,12 +126,14 @@ describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
   });
 
   describe('Level transition timer cleanup', () => {
-    it('elapsed timer is cleared and nulled on level.id change', () => {
-      // The level?.id effect must call clearInterval AND set
-      // timerRef.current = null to prevent dangling interval callbacks
-      // from a previous level firing after navigation.replace.
-      const timerEffect = gameplaySrc.match(
-        /\/\/ ── Elapsed timer ──[\s\S]*?\}, \[level\?\.id\]\);/,
+    it('elapsed timer is cleared and nulled on level.id change (extracted to useGameplayTimer)', () => {
+      // The levelId effect inside useGameplayTimer must call
+      // clearInterval AND set timerRef.current = null to prevent
+      // dangling interval callbacks from a previous level firing after
+      // navigation.replace. (Prompt 108 extracted this from GameplayScreen
+      // into useGameplayTimer.)
+      const timerEffect = timerHookSrc.match(
+        /useEffect\(\(\) => \{[\s\S]*?if \(!levelId\)[\s\S]*?\}, \[levelId, tutorialIsActiveRef\]\);/,
       );
       expect(timerEffect).not.toBeNull();
       expect(timerEffect?.[0]).toMatch(/clearInterval\(timerRef\.current\)/);

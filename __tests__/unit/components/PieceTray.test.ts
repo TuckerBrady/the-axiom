@@ -11,6 +11,7 @@ const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 
 const traySrc = read('src/components/gameplay/PieceTray.tsx');
 const screenSrc = read('src/screens/GameplayScreen.tsx');
+const tutorialHookSrc = read('src/hooks/useGameplayTutorial.ts');
 
 describe('PieceTray — extracted parts tray component', () => {
   it('exports a default React.memo-wrapped component', () => {
@@ -43,8 +44,8 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(screenSrc).toMatch(/<PieceTray[\s\S]*?refs=\{tutorialTrayRefs\}/);
   });
 
-  it('GameplayScreen memoizes the refs object via useMemo with empty deps', () => {
-    expect(screenSrc).toMatch(
+  it('useGameplayTutorial memoizes the refs object via useMemo with empty deps', () => {
+    expect(tutorialHookSrc).toMatch(
       /const tutorialTrayRefs = useMemo\([\s\S]*?trayConveyor: trayConveyorRef[\s\S]*?\}\),\s*\[\],\s*\)/,
     );
   });
