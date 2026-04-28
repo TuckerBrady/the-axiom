@@ -160,14 +160,14 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
     });
 
     it('Scanner interaction passes the trail-write highlight via the onArrive callback', () => {
-      // The setHighlight + setTapeBarState + setVisualTrailOverride
-      // calls now live inside the onArrive lambda passed to
-      // runValueTravel, not after the await.
-      const scannerBlock = interactionsSrc.match(/runValueTravel\(\s*ctx,[\s\S]*?\}\,?\s*\)\s*;/);
-      expect(scannerBlock).not.toBeNull();
-      expect(scannerBlock?.[0]).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'write'\)/);
-      expect(scannerBlock?.[0]).toMatch(/setTapeBarState\(prev =>/);
-      expect(scannerBlock?.[0]).toMatch(/setVisualTrailOverride\(prev =>/);
+      // The setHighlight + setTapeBarState + setVisualTrailOverride calls
+      // live inside the onArrive lambda, defined before the runValueTravel
+      // call and passed as an argument (Phase 3 refactor, Prompt 109).
+      const onArriveBlock = interactionsSrc.match(/const onArrive = \(\) => \{[\s\S]*?\};/);
+      expect(onArriveBlock).not.toBeNull();
+      expect(onArriveBlock?.[0]).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'write'\)/);
+      expect(onArriveBlock?.[0]).toMatch(/setTapeBarState\(prev =>/);
+      expect(onArriveBlock?.[0]).toMatch(/setVisualTrailOverride\(prev =>/);
     });
   });
 });

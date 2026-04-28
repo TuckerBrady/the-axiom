@@ -106,6 +106,8 @@ function buildCtx(): {
         output: { x: 100, y: 400, w: 20, h: 30 },
       },
     },
+    runId: 1,
+    currentRunIdRef: { current: 1 },
   } as unknown as EngagementContext;
 
   return { ctx, gateOutcomes, barUpdates, outputOverrideUpdates, highlightSets };

@@ -56,27 +56,37 @@ export async function runScannerInteraction(
   // onArrive callback so the handoff is synchronous with the
   // landing, not gapped behind the impact fade-out.
   const trailCellPos = getTapeCellPosFromCache(cachedTrailCells, pulse);
-  await runValueTravel(
-    ctx,
-    ctx.valueTravelRefs,
-    inputCell.x - 12,
-    inputCell.y - 12,
-    trailCellPos.x - 12,
-    trailCellPos.y - 12,
-    display,
-    () => {
-      setHighlight(ctx, `trail-${pulse}`, 'write');
-      ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
-      if (tapeValue !== undefined) {
-        ctx.setVisualTrailOverride(prev => {
-          if (!prev) return prev;
-          const next = [...prev];
-          next[pulse] = tapeValue;
-          return next;
-        });
-      }
-    },
-  );
+
+  // onArrive fires either as the glow animation landing callback or
+  // synchronously when tape container positions are unavailable (null
+  // cache). Tape state always updates; only the visual glow is skipped.
+  const onArrive = () => {
+    setHighlight(ctx, `trail-${pulse}`, 'write');
+    ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
+    if (tapeValue !== undefined) {
+      ctx.setVisualTrailOverride(prev => {
+        if (!prev) return prev;
+        const next = [...prev];
+        next[pulse] = tapeValue;
+        return next;
+      });
+    }
+  };
+
+  if (inputCell && trailCellPos) {
+    await runValueTravel(
+      ctx,
+      ctx.valueTravelRefs,
+      inputCell.x - 12,
+      inputCell.y - 12,
+      trailCellPos.x - 12,
+      trailCellPos.y - 12,
+      display,
+      onArrive,
+    );
+  } else {
+    onArrive();
+  }
 
   await wait(250 * speed);
   // Clear the IN highlight (currently 'departing'). Trail-write stays
@@ -121,6 +131,7 @@ export async function runConfigNodeInteraction(
     setHighlight(ctx, `out-${pulse}`, 'gate-block');
     ctx.setVisualOutputOverride(prev => {
       if (!prev) return prev;
+      if (ctx.runId !== ctx.currentRunIdRef.current) return prev;
       const next = [...prev];
       next[pulse] = -2;
       return next;
@@ -150,6 +161,7 @@ export async function runTransmitterInteraction(
 
   ctx.setVisualOutputOverride(prev => {
     if (!prev) return prev;
+    if (ctx.runId !== ctx.currentRunIdRef.current) return prev;
     const next = [...prev];
     next[pulse] = written;
     return next;

@@ -40,8 +40,8 @@ const TAPE_CELL_GAP = 3;
 export const getTapeCellPosFromCache = (
   cached: TapeCellContainerMeasure | null,
   cellIndex: number,
-): { x: number; y: number } => {
-  if (!cached) return { x: 0, y: 0 };
+): { x: number; y: number } | null => {
+  if (!cached) return null;
   const cellCenterX = cached.x + cellIndex * (cached.w + TAPE_CELL_GAP) + cached.w / 2;
   const cellCenterY = cached.y + cached.h / 2;
   return { x: cellCenterX, y: cellCenterY };

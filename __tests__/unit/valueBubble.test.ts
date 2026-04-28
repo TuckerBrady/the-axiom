@@ -40,9 +40,9 @@ describe('getTapeCellPosFromCache', () => {
   // with 3px gap between cells.
   const firstCell = { x: 100, y: 50, w: 24, h: 24 };
 
-  it('returns (0, 0) when the cached measurement is null', () => {
-    expect(getTapeCellPosFromCache(null, 0)).toEqual({ x: 0, y: 0 });
-    expect(getTapeCellPosFromCache(null, 5)).toEqual({ x: 0, y: 0 });
+  it('returns null when the cached measurement is null', () => {
+    expect(getTapeCellPosFromCache(null, 0)).toBeNull();
+    expect(getTapeCellPosFromCache(null, 5)).toBeNull();
   });
 
   it('centers the first cell at cell x + w/2, y + h/2', () => {
@@ -60,10 +60,10 @@ describe('getTapeCellPosFromCache', () => {
   it('scales with cached cell width — advances by cached.w + gap', () => {
     const bigCell = { x: 0, y: 0, w: 40, h: 30 };
     // x at i=1: 0 + 1 * (40 + 3) + 40/2 = 63
-    expect(getTapeCellPosFromCache(bigCell, 1).x).toBe(63);
+    expect(getTapeCellPosFromCache(bigCell, 1)!.x).toBe(63);
     // y = 0 + 30/2 = 15 for any index
-    expect(getTapeCellPosFromCache(bigCell, 0).y).toBe(15);
-    expect(getTapeCellPosFromCache(bigCell, 5).y).toBe(15);
+    expect(getTapeCellPosFromCache(bigCell, 0)!.y).toBe(15);
+    expect(getTapeCellPosFromCache(bigCell, 5)!.y).toBe(15);
   });
 });
 

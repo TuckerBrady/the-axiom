@@ -45,6 +45,7 @@ import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
 import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
+import { useGameplayTape } from '../hooks/useGameplayTape';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -118,19 +119,12 @@ import {
   BEAM_INITIAL,
   PIECE_ANIM_INITIAL,
   CHARGE_INITIAL,
-  TAPE_BAR_INITIAL,
-  GLOW_TRAVELER_INITIAL,
-  resetGlowTraveler,
   type Pt,
   type EngagementContext,
   type MeasurementCache,
   type BeamState,
   type PieceAnimState,
   type ChargeState,
-  type TapeIndicatorBarState,
-  type GlowTravelerState,
-  type TapeHighlight,
-  type GateOutcomeMap,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -312,10 +306,15 @@ export default function GameplayScreen({ navigation }: Props) {
   const timer = useGameplayTimer(level?.id, tutorialIsActiveRef, showPauseModal);
   const { elapsedSeconds, lockTimer, resetTimer } = timer;
 
-  const dataTrailCellsRef = useRef<View>(null);
-  const outputTapeCellsRef = useRef<View>(null);
-  const inputTapeCellsRef = useRef<View>(null);
+  // Phase 3 extraction — tape visual state (highlights, overrides, glow traveler, refs).
+  const tape = useGameplayTape(level);
+
   const currentPulseRef = useRef(0);
+  // Incremented at the start of each handleEngage call. Callbacks that
+  // read runId from their captured ctx check it against this ref before
+  // applying writes, making stale async callbacks from a previous run
+  // no-ops. (A1-7 crash fix.)
+  const engageRunIdRef = useRef(0);
 
   const [creditError, setCreditError] = useState(false);
 
@@ -340,16 +339,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // the per-RAF setVoidPulse stream that was lighting up roughly 19
   // setState calls per voided pulse.
   const [voidBurstCenter, setVoidBurstCenter] = useState<{ x: number; y: number } | null>(null);
-  const [tapeCellHighlights, setTapeCellHighlights] = useState<
-    Map<string, TapeHighlight>
-  >(new Map());
-  const [tapeBarState, setTapeBarState] = useState<TapeIndicatorBarState>(TAPE_BAR_INITIAL);
-  const [glowTravelerState, setGlowTravelerState] = useState<GlowTravelerState>(GLOW_TRAVELER_INITIAL);
-  // Native-driveable Animated.Values for the glow traveler (transform + opacity).
-  const glowTravelerX = useRef(new RNAnimated.Value(0)).current;
-  const glowTravelerY = useRef(new RNAnimated.Value(0)).current;
-  const glowTravelerScale = useRef(new RNAnimated.Value(1)).current;
-  const glowTravelerOpacity = useRef(new RNAnimated.Value(0)).current;
+
   // Drives the beam SVG group's opacity. Dims to 0.3 while a tape
   // piece is processing, brightens back to 1 when ready to advance —
   // the "Rube Goldberg energy flow" feel from Prompt 91, Fix 5.
@@ -364,16 +354,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const chargeProgressAnim = useRef(new RNAnimated.Value(0)).current;
   const lockRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
   const voidPulseRingProgressAnim = useRef(new RNAnimated.Value(0)).current;
-  // Visual override for the Data Trail and Output Tape during beam phase.
-  // machineState holds the post-engage values, but we want cells to pop in
-  // as their writes animate. When null, rendering falls through to
-  // machineState.
-  const [visualTrailOverride, setVisualTrailOverride] = useState<
-    (number | null)[] | null
-  >(null);
-  const [visualOutputOverride, setVisualOutputOverride] = useState<
-    number[] | null
-  >(null);
 
   const [currentPulseIndex, setCurrentPulseIndex] = useState(0);
   // Per-slot RAF id Map (Prompt 94, Fix 2). Key `null` = main beam +
@@ -391,10 +371,6 @@ export default function GameplayScreen({ navigation }: Props) {
   // 8 s "force-resume" timer that straddles a pulse boundary.
   // Cleared on full unmount / handleReset / completion CONTINUE.
   const safetyTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  // Per-pulse gate outcome: 'passed' or 'blocked'. Drives OUT tape
-  // gate-outcome coloring. Cleared at replay-iteration start and on
-  // cleanup. (Prompt 84C.)
-  const gateOutcomesRef = useRef<GateOutcomeMap>(new Map());
   // Counts pulses that reached Terminal with success during handleEngage.
   // Read by the live pulse counter; reset at the start of each run.
   const terminalSuccessCountRef = useRef(0);
@@ -438,7 +414,7 @@ export default function GameplayScreen({ navigation }: Props) {
       flashTimersRef.current = [];
       safetyTimersRef.current.forEach(t => clearTimeout(t));
       safetyTimersRef.current = [];
-      gateOutcomesRef.current.clear();
+      tape.resetTape();
       loopingRef.current = false;
     };
   }, []);
@@ -464,7 +440,7 @@ export default function GameplayScreen({ navigation }: Props) {
         flashTimersRef.current = [];
         safetyTimersRef.current.forEach(t => clearTimeout(t));
         safetyTimersRef.current = [];
-        gateOutcomesRef.current.clear();
+        tape.resetTape();
         loopingRef.current = false;
       };
     }, []),
@@ -686,6 +662,10 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
+    // Increment run ID before any async work so stale callbacks from the
+    // previous run can detect the mismatch and no-op. (A1-7 crash fix.)
+    engageRunIdRef.current += 1;
+    const runId = engageRunIdRef.current;
     triggerHints('onEngage');
     // Reset beam dim back to fully bright at the start of every run so
     // a previous level's mid-pause dim state never carries over
@@ -749,18 +729,13 @@ export default function GameplayScreen({ navigation }: Props) {
       setChargeState,
       setLockRingCenter,
       setVoidBurstCenter,
-      setTapeCellHighlights,
-      setTapeBarState,
-      setGlowTravelerState,
-      valueTravelRefs: {
-        x: glowTravelerX,
-        y: glowTravelerY,
-        scale: glowTravelerScale,
-        opacity: glowTravelerOpacity,
-      },
-      gateOutcomes: gateOutcomesRef,
-      setVisualTrailOverride,
-      setVisualOutputOverride,
+      setTapeCellHighlights: tape.tapeSetters.setTapeCellHighlights,
+      setTapeBarState: tape.tapeSetters.setTapeBarState,
+      setGlowTravelerState: tape.tapeSetters.setGlowTravelerState,
+      valueTravelRefs: tape.valueTravelRefs,
+      gateOutcomes: tape.gateOutcomesRef,
+      setVisualTrailOverride: tape.tapeSetters.setVisualTrailOverride,
+      setVisualOutputOverride: tape.tapeSetters.setVisualOutputOverride,
       setCurrentPulseIndex,
       currentPulseRef,
       animFrameRef,
@@ -774,13 +749,15 @@ export default function GameplayScreen({ navigation }: Props) {
       voidPulseRingProgressAnim,
       voidPulseAnim: null,
       boardGridRef,
-      inputTapeCellsRef,
-      dataTrailCellsRef,
-      outputTapeCellsRef,
+      inputTapeCellsRef: tape.inputTapeCellsRef,
+      dataTrailCellsRef: tape.dataTrailCellsRef,
+      outputTapeCellsRef: tape.outputTapeCellsRef,
       loopingRef,
       wires,
       inputTape: level.inputTape,
       cacheRef,
+      runId,
+      currentRunIdRef: engageRunIdRef,
     };
 
     // Reset the measurement cache for this run.
@@ -794,10 +771,10 @@ export default function GameplayScreen({ navigation }: Props) {
     // null on engage made them disappear and rendered as '·' for the
     // entire beam phase (Prompt 106, Fix 3).
     if (level.dataTrail.cells.length > 0) {
-      setVisualTrailOverride([...level.dataTrail.cells]);
+      tape.tapeSetters.setVisualTrailOverride([...level.dataTrail.cells]);
     }
     if (level.inputTape && level.inputTape.length > 0) {
-      setVisualOutputOverride(level.inputTape.map(() => -1));
+      tape.tapeSetters.setVisualOutputOverride(level.inputTape.map(() => -1));
     }
 
     // PHASE 1 — CHARGE
@@ -810,11 +787,30 @@ export default function GameplayScreen({ navigation }: Props) {
     // move during execution, and re-measuring per pulse can return
     // stale (0, 0) during re-render windows.
     const board0 = await getBoardScreenPos();
-    const [input0, trail0, output0] = await Promise.all([
-      measureTapeContainer(inputTapeCellsRef),
-      measureTapeContainer(dataTrailCellsRef),
-      measureTapeContainer(outputTapeCellsRef),
+    let [input0, trail0, output0] = await Promise.all([
+      measureTapeContainer(tape.inputTapeCellsRef),
+      measureTapeContainer(tape.dataTrailCellsRef),
+      measureTapeContainer(tape.outputTapeCellsRef),
     ]);
+    // Null ref guard: React lifecycle timing or memory pressure can leave
+    // a tape container unmeasured on the first attempt. Retry once after
+    // 150ms (same pattern as the tutorial orb delayed measure). If still
+    // null, glow animations are skipped via the getTapeCellPosFromCache
+    // null return; tape state still updates correctly.
+    if (!input0 || !trail0 || !output0) {
+      await new Promise<void>(r => setTimeout(r, 150));
+      const [input1, trail1, output1] = await Promise.all([
+        measureTapeContainer(tape.inputTapeCellsRef),
+        measureTapeContainer(tape.dataTrailCellsRef),
+        measureTapeContainer(tape.outputTapeCellsRef),
+      ]);
+      if (!input0) input0 = input1;
+      if (!trail0) trail0 = trail1;
+      if (!output0) output0 = output1;
+      if (__DEV__ && (!input0 || !trail0 || !output0)) {
+        console.warn('[handleEngage] tape container null after retry; glow animations skipped for this run');
+      }
+    }
     cacheRef.current = { board: board0, input: input0, trail: trail0, output: output0 };
 
     // PHASE 2 — BEAM (one or more pulses)
@@ -865,13 +861,7 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
     // Beam complete — fall through to machineState-driven rendering.
-    setVisualTrailOverride(null);
-    setVisualOutputOverride(null);
-    setTapeCellHighlights(new Map());
-    setTapeBarState(TAPE_BAR_INITIAL);
-    resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
-    setGlowTravelerState(GLOW_TRAVELER_INITIAL);
-    gateOutcomesRef.current.clear();
+    tape.resetTape();
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
@@ -1035,13 +1025,7 @@ export default function GameplayScreen({ navigation }: Props) {
       if (id != null) cancelAnimationFrame(id);
     });
     animFrameRef.current.clear();
-    setTapeCellHighlights(new Map());
-    setTapeBarState(TAPE_BAR_INITIAL);
-    resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
-    setGlowTravelerState(GLOW_TRAVELER_INITIAL);
-    gateOutcomesRef.current.clear();
-    setVisualTrailOverride(null);
-    setVisualOutputOverride(null);
+    tape.resetTape();
     flashTimersRef.current.forEach(t => clearTimeout(t));
     flashTimersRef.current = [];
     safetyTimersRef.current.forEach(t => clearTimeout(t));
@@ -1079,13 +1063,7 @@ export default function GameplayScreen({ navigation }: Props) {
       if (id != null) cancelAnimationFrame(id);
     });
     animFrameRef.current.clear();
-    setTapeCellHighlights(new Map());
-    setTapeBarState(TAPE_BAR_INITIAL);
-    resetGlowTraveler({ x: glowTravelerX, y: glowTravelerY, scale: glowTravelerScale, opacity: glowTravelerOpacity });
-    setGlowTravelerState(GLOW_TRAVELER_INITIAL);
-    gateOutcomesRef.current.clear();
-    setVisualTrailOverride(null);
-    setVisualOutputOverride(null);
+    tape.resetTape();
     setBeamState(prev => ({
       ...prev,
       heads: [],
@@ -1098,7 +1076,7 @@ export default function GameplayScreen({ navigation }: Props) {
     setChargeState(prev => ({ ...prev, pos: null }));
     setShowCompletionCard(false);
     setShowResults(true);
-  }, [glowTravelerX, glowTravelerY, glowTravelerScale, glowTravelerOpacity, setShowCompletionCard, setShowResults]);
+  }, [setShowCompletionCard, setShowResults]);
 
   // ── Wrong Output RETRY handler (passed to GameplayModals) ──
   // Dismisses the diagnostic modal, checks the lives gate, and
@@ -1171,19 +1149,19 @@ export default function GameplayScreen({ navigation }: Props) {
               level.availablePieces.includes('transmitter') ||
               level.prePlacedPieces.some(p => p.type === 'transmitter')
             }
-            visualTrailOverride={visualTrailOverride}
-            visualOutputOverride={visualOutputOverride}
-            tapeCellHighlights={tapeCellHighlights}
-            tapeBarState={tapeBarState}
-            gateOutcomesByIndex={gateOutcomesRef.current}
+            visualTrailOverride={tape.visualTrailOverride}
+            visualOutputOverride={tape.visualOutputOverride}
+            tapeCellHighlights={tape.tapeCellHighlights}
+            tapeBarState={tape.tapeBarState}
+            gateOutcomesByIndex={tape.gateOutcomesRef.current}
             beamPhase={beamState.phase}
             currentPulseIndex={currentPulseIndex}
             inputTapeRowRef={inputTapeRowRef}
             outputTapeRowRef={outputTapeRowRef}
             dataTrailRowRef={dataTrailRowRef}
-            inputTapeCellsRef={inputTapeCellsRef}
-            dataTrailCellsRef={dataTrailCellsRef}
-            outputTapeCellsRef={outputTapeCellsRef}
+            inputTapeCellsRef={tape.inputTapeCellsRef}
+            dataTrailCellsRef={tape.dataTrailCellsRef}
+            outputTapeCellsRef={tape.outputTapeCellsRef}
             requiredTerminalCount={level.requiredTerminalCount}
             showPulseTarget={
               !isExecuting && !showResults && !showVoid &&
@@ -1510,17 +1488,17 @@ export default function GameplayScreen({ navigation }: Props) {
         style={[
           styles.glowTraveler,
           {
-            opacity: glowTravelerOpacity,
+            opacity: tape.glowTravelerOpacity,
             transform: [
-              { translateX: glowTravelerX },
-              { translateY: glowTravelerY },
-              { scale: glowTravelerScale },
+              { translateX: tape.glowTravelerX },
+              { translateY: tape.glowTravelerY },
+              { scale: tape.glowTravelerScale },
             ],
           },
         ]}
       >
         <Text style={styles.glowTravelerText}>
-          {glowTravelerState.value}
+          {tape.glowTravelerState.value}
         </Text>
       </RNAnimated.View>
     </Animated.View>

@@ -82,7 +82,9 @@ describe('Prompt 106 — Fix 2: Progressive lag (blur cleanup + stack reset)', (
     expect(body).toMatch(/animFrameRef\.current\.clear\(\)/);
     expect(body).toMatch(/flashTimersRef\.current\s*=\s*\[\]/);
     expect(body).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
-    expect(body).toMatch(/gateOutcomesRef\.current\.clear\(\)/);
+    // Phase 3 refactor (Prompt 109): gateOutcomesRef is now inside
+    // useGameplayTape; tape.resetTape() clears it.
+    expect(body).toMatch(/tape\.resetTape\(\)/);
     expect(body).toMatch(/loopingRef\.current\s*=\s*false/);
   });
 

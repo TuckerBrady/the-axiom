@@ -252,6 +252,14 @@ export interface EngagementContext {
   inputTape?: number[];
 
   cacheRef: MutableRefObject<MeasurementCache>;
+
+  // Run ID for stale-callback guard (A1-7 crash fix). Incremented at the
+  // top of each handleEngage call. Callbacks that check runId against
+  // currentRunIdRef.current become no-ops when a new run has started,
+  // preventing stale Transmitter/ConfigNode writes from corrupting the
+  // new run's visualOutputOverride array.
+  runId: number;
+  currentRunIdRef: MutableRefObject<number>;
 }
 
 export type { ExecutionStep, PlacedPiece, PieceType };

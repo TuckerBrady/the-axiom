@@ -42,7 +42,11 @@ describe('Prompt 88 — ghost spotlight removed', () => {
     });
 
     it('still renders the indicator bars (TapeBarState) — the replacement system', () => {
-      expect(src).toMatch(/TAPE_BAR_INITIAL/);
+      // Phase 3 refactor (Prompt 109): TAPE_BAR_INITIAL moved into
+      // useGameplayTape; GameplayScreen still passes setTapeBarState via
+      // the tape hook's tapeSetters into EngagementContext.
+      const tapeSrc = read('src/hooks/useGameplayTape.ts');
+      expect(tapeSrc).toMatch(/TAPE_BAR_INITIAL/);
       expect(src).toMatch(/setTapeBarState/);
     });
 

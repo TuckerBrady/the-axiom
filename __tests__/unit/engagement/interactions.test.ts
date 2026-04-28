@@ -96,6 +96,8 @@ function buildCtx(): {
       },
     },
     inputTape: undefined,
+    runId: 1,
+    currentRunIdRef: { current: 1 },
   } as unknown as EngagementContext;
 
   return { ctx, pieceAnimRef, flashTimersRef };

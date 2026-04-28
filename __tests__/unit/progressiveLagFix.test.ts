@@ -118,10 +118,13 @@ describe('Progressive lag fix — fresh GameplayScreen mount per level', () => {
       expect(block?.[0]).toMatch(/safetyTimersRef\.current\s*=\s*\[\]/);
     });
 
-    it('unmount cleanup clears gateOutcomesRef', () => {
+    it('unmount cleanup calls tape.resetTape() (covers gateOutcomesRef + all tape visual state)', () => {
+      // Phase 3 refactor (Prompt 109) moved gateOutcomesRef and all tape
+      // visual state into useGameplayTape. The unmount block calls
+      // tape.resetTape() which clears gateOutcomesRef.current internally.
       const block = cleanupBlock();
       expect(block).not.toBeNull();
-      expect(block?.[0]).toMatch(/gateOutcomesRef\.current\.clear\(\)/);
+      expect(block?.[0]).toMatch(/tape\.resetTape\(\)/);
     });
   });
 
