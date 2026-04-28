@@ -140,6 +140,15 @@ describe('GameplayScreen button migration', () => {
     path.resolve(__dirname, '../../../src/screens/GameplayScreen.tsx'),
     'utf8',
   );
+  // Phase 1 of the GameplayScreen refactor moved the modal overlay
+  // JSX (pause modal, completion card, results, out-of-lives) into a
+  // dedicated GameplayModals component. Buttons rendered inside those
+  // overlays are now scanned in GameplayModals.tsx; the inline engage
+  // and reset buttons remain in GameplayScreen.
+  const modalsSource = fs.readFileSync(
+    path.resolve(__dirname, '../../../src/components/gameplay/GameplayModals.tsx'),
+    'utf8',
+  );
 
   it('imports the shared Button component', () => {
     expect(screenSource).toMatch(/from '\.\.\/components\/Button'/);
@@ -154,23 +163,24 @@ describe('GameplayScreen button migration', () => {
   });
 
   it('uses Button variant="primary" for RESUME', () => {
-    expect(screenSource).toMatch(/variant="primary"[\s\S]*?label="RESUME"/);
+    expect(modalsSource).toMatch(/variant="primary"[\s\S]*?label="RESUME"/);
   });
 
   it('uses Button variant="secondary" for RESTART LEVEL', () => {
-    expect(screenSource).toMatch(/variant="secondary"[\s\S]*?label="RESTART LEVEL"/);
+    expect(modalsSource).toMatch(/variant="secondary"[\s\S]*?label="RESTART LEVEL"/);
   });
 
   it('uses Button variant="danger" for ABANDON MISSION', () => {
-    expect(screenSource).toMatch(/variant="danger"[\s\S]*?label="ABANDON MISSION"/);
+    expect(modalsSource).toMatch(/variant="danger"[\s\S]*?label="ABANDON MISSION"/);
   });
 
   it('uses Button variant="primary" for completion CONTINUE', () => {
-    expect(screenSource).toMatch(/variant="primary"[\s\S]*?label="CONTINUE"/);
+    expect(modalsSource).toMatch(/variant="primary"[\s\S]*?label="CONTINUE"/);
   });
 
   it('removes the pause-button HUD bracket corner styles', () => {
     expect(screenSource).not.toMatch(/pauseBtnCorner/);
+    expect(modalsSource).not.toMatch(/pauseBtnCorner/);
   });
 
   it('removes the deprecated engageBtn / resetBtn StyleSheet entries', () => {
@@ -182,49 +192,49 @@ describe('GameplayScreen button migration', () => {
   });
 
   it('removes the deprecated pause-button StyleSheet entries', () => {
-    expect(screenSource).not.toMatch(/^\s+pauseResumeBtn:/m);
-    expect(screenSource).not.toMatch(/^\s+pauseRestartBtn:/m);
-    expect(screenSource).not.toMatch(/^\s+pauseAbandonBtn:/m);
-    expect(screenSource).not.toMatch(/^\s+pauseResumeText:/m);
-    expect(screenSource).not.toMatch(/^\s+pauseRestartText:/m);
-    expect(screenSource).not.toMatch(/^\s+pauseAbandonText:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseResumeBtn:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseRestartBtn:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseAbandonBtn:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseResumeText:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseRestartText:/m);
+    expect(modalsSource).not.toMatch(/^\s+pauseAbandonText:/m);
   });
 
   it('removes the deprecated completionCardBtn StyleSheet entries', () => {
-    expect(screenSource).not.toMatch(/^\s+completionCardBtn:/m);
-    expect(screenSource).not.toMatch(/^\s+completionCardBtnText:/m);
+    expect(modalsSource).not.toMatch(/^\s+completionCardBtn:/m);
+    expect(modalsSource).not.toMatch(/^\s+completionCardBtnText:/m);
   });
 
   describe('Prompt 89 — results + out-of-lives button migrations', () => {
     it('renders results-screen REPLAY as a secondary Button', () => {
-      expect(screenSource).toMatch(/variant="secondary"[\s\S]*?label="REPLAY"/);
+      expect(modalsSource).toMatch(/variant="secondary"[\s\S]*?label="REPLAY"/);
     });
 
     it('renders results-screen CONTINUE as a gradient Button preserving navigation', () => {
-      expect(screenSource).toMatch(/variant="gradient"[\s\S]*?label="CONTINUE"/);
+      expect(modalsSource).toMatch(/variant="gradient"[\s\S]*?label="CONTINUE"/);
       // Prompt 106 Fix 2 swapped the bare `navigate('LevelSelect')` for a
       // stack-resetting `navigation.reset(...)` so any Gameplay instance
       // pushed via HubScreen's `navigate` flow can't linger underneath.
-      expect(screenSource).toMatch(
+      expect(modalsSource).toMatch(
         /navigation\.reset\(\{\s*index: 1,\s*routes: \[\{ name: 'Tabs' \}, \{ name: 'LevelSelect' \}\]/,
       );
     });
 
     it('renders out-of-lives REFILL/NEED CR as a gradient Button gated by livesCredits', () => {
-      expect(screenSource).toMatch(/variant="gradient"[\s\S]*?label=\{livesCredits >= 30 \? 'REFILL LIVES · 30 CR'/);
-      expect(screenSource).toMatch(/disabled=\{livesCredits < 30\}/);
+      expect(modalsSource).toMatch(/variant="gradient"[\s\S]*?label=\{livesCredits >= 30 \? 'REFILL LIVES · 30 CR'/);
+      expect(modalsSource).toMatch(/disabled=\{livesCredits < 30\}/);
     });
 
     it('renders out-of-lives MAYBE LATER as a secondary Button (label preserved)', () => {
-      expect(screenSource).toMatch(/variant="secondary"[\s\S]*?label="MAYBE LATER"/);
+      expect(modalsSource).toMatch(/variant="secondary"[\s\S]*?label="MAYBE LATER"/);
     });
 
     it('drops the deprecated resultsSecondaryBtn / resultsPrimaryBtn StyleSheet entries', () => {
-      expect(screenSource).not.toMatch(/^\s+resultsSecondaryBtn:/m);
-      expect(screenSource).not.toMatch(/^\s+resultsSecondaryText:/m);
-      expect(screenSource).not.toMatch(/^\s+resultsPrimaryBtn:/m);
-      expect(screenSource).not.toMatch(/^\s+resultsPrimaryGradient:/m);
-      expect(screenSource).not.toMatch(/^\s+resultsPrimaryText:/m);
+      expect(modalsSource).not.toMatch(/^\s+resultsSecondaryBtn:/m);
+      expect(modalsSource).not.toMatch(/^\s+resultsSecondaryText:/m);
+      expect(modalsSource).not.toMatch(/^\s+resultsPrimaryBtn:/m);
+      expect(modalsSource).not.toMatch(/^\s+resultsPrimaryGradient:/m);
+      expect(modalsSource).not.toMatch(/^\s+resultsPrimaryText:/m);
     });
   });
 });

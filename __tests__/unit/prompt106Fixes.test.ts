@@ -17,6 +17,10 @@ const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 
 const tapeCellSrc = read('src/components/gameplay/TapeCell.tsx');
 const gameplaySrc = read('src/screens/GameplayScreen.tsx');
+// Phase 1 of the GameplayScreen refactor moved modal overlay JSX
+// (results / completion / pause / etc.) into GameplayModals. The
+// `navigation.reset` Continue handler lives there now.
+const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');
 const levelsSrc = read('src/game/levels.ts');
 
 describe('Prompt 106 — Fix 1: OUT tape always shows the written value', () => {
@@ -88,13 +92,13 @@ describe('Prompt 106 — Fix 2: Progressive lag (blur cleanup + stack reset)', (
     // Gameplay instance mounted underneath. navigation.reset replaces
     // the entire stack with [Tabs, LevelSelect], unmounting every
     // screen above.
-    expect(gameplaySrc).toMatch(
+    expect(modalsSrc).toMatch(
       /navigation\.reset\(\{\s*index: 1,\s*routes: \[\{ name: 'Tabs' \}, \{ name: 'LevelSelect' \}\][\s\S]*?\}\)/,
     );
-    // The bare navigate('LevelSelect') sites must be gone.
-    expect(gameplaySrc).not.toMatch(
-      /navigation\.navigate\('LevelSelect'\)/,
-    );
+    // The bare navigate('LevelSelect') sites must be gone from both
+    // the screen and the extracted modals component.
+    expect(gameplaySrc).not.toMatch(/navigation\.navigate\('LevelSelect'\)/);
+    expect(modalsSrc).not.toMatch(/navigation\.navigate\('LevelSelect'\)/);
   });
 });
 
