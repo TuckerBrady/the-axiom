@@ -78,6 +78,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     placedPieces: pieces,
     optimalPieces: level.optimalPieces,
     trayPieceTypes: level.availablePieces ?? [],
+    depthCeiling: level.depthCeiling,
     discipline: currentDiscipline,
     engageDurationMs,
     elapsedSeconds: lockedElapsed,

@@ -324,17 +324,25 @@ describe('handleVoidFailure', () => {
 // scoring.test.ts alone.
 
 function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
+  // v2 defaults: 3 purchased-active pieces → investment=9, diversity>0, discipline=10
   return {
-    completionBonus: 25,
-    machineComplexity: 20,
-    protocolPrecision: 8,
+    // v2 canonical
+    completion: 25,
     pathIntegrity: 10,
-    speedBonus: 7,
-    elaboration: 0,
-    purchasedTouchedCount: 0,
+    signalDepth: 4,
+    investment: 9,
+    diversity: 5,
+    discipline: 10,
+    // v1 compat aliases
+    completionBonus: 25,
+    machineComplexity: 9,
+    protocolPrecision: 5,
+    speedBonus: 0,
+    elaboration: 4,
+    purchasedTouchedCount: 3,
     efficiency: 25,
-    chainIntegrity: 15,
-    disciplineBonus: 20,
+    chainIntegrity: 10,
+    disciplineBonus: 10,
     ...overrides,
   };
 }
@@ -378,41 +386,41 @@ describe('getConsequenceFailureLine', () => {
 });
 
 describe('getCOGSScoreComment additional branches', () => {
-  it('returns full-machine line when stars=3 and machineComplexity >= 25', () => {
+  it('returns full-machine line when stars=3 and investment >= 12', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ machineComplexity: 25, elaboration: 0, completionBonus: 25, protocolPrecision: 10, pathIntegrity: 10, speedBonus: 8 }),
+      makeBreakdown({ investment: 12, machineComplexity: 12 }),
       'systems', 3, 4, 4,
     );
     expect(comment).toContain('Full machine');
   });
 
-  it('returns protocol-avoided line when protocolPrecision is 0 and machineComplexity >= 15', () => {
+  it('returns protocol-avoided line when diversity is 0 and investment >= 6', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ protocolPrecision: 0, machineComplexity: 20, pathIntegrity: 10, speedBonus: 7 }),
+      makeBreakdown({ diversity: 0, protocolPrecision: 0, investment: 8, machineComplexity: 8 }),
       'drive', 2, 4, 4,
     );
     expect(comment).toContain('Protocol catalogue');
   });
 
-  it('returns path-integrity line when pathIntegrity < 8 and machineComplexity >= 15', () => {
+  it('returns path-integrity line when pathIntegrity < 8 and investment >= 6 and diversity > 0', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ pathIntegrity: 5, protocolPrecision: 8, machineComplexity: 20, speedBonus: 7 }),
+      makeBreakdown({ pathIntegrity: 5, chainIntegrity: 5 }),
       'field', 2, 4, 4,
     );
     expect(comment).toContain('never saw the signal');
   });
 
-  it('returns slow-execution line when speedBonus is 0', () => {
+  it('returns void-fallback line for stars=0', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ speedBonus: 0, protocolPrecision: 8, machineComplexity: 20, pathIntegrity: 10 }),
-      'systems', 2, 4, 4,
+      makeBreakdown(),
+      'systems', 0, 4, 4,
     );
-    expect(comment).toContain('considerable length');
+    expect(comment).toContain('did not lock');
   });
 
-  it('returns stars-3 fallback when stars=3 but machineComplexity < 25', () => {
+  it('returns stars-3 fallback when stars=3 but investment < 12', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ machineComplexity: 20, elaboration: 0, completionBonus: 25, protocolPrecision: 10, pathIntegrity: 10, speedBonus: 7 }),
+      makeBreakdown({ investment: 9, machineComplexity: 9 }),
       'systems', 3, 4, 4,
     );
     expect(comment).toContain('Optimal');
@@ -420,7 +428,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns stars-2 fallback for stars=2', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ machineComplexity: 20, elaboration: 0, completionBonus: 25, protocolPrecision: 10, pathIntegrity: 10, speedBonus: 7 }),
+      makeBreakdown({ investment: 9, machineComplexity: 9 }),
       'systems', 2, 4, 4,
     );
     expect(comment).toContain('Functional');
@@ -428,7 +436,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns stars-1 fallback for stars=1', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ machineComplexity: 20, elaboration: 0, completionBonus: 25, protocolPrecision: 10, pathIntegrity: 10, speedBonus: 7 }),
+      makeBreakdown({ investment: 9, machineComplexity: 9 }),
       'systems', 1, 4, 4,
     );
     expect(comment).toContain('barely worked');
@@ -436,54 +444,74 @@ describe('getCOGSScoreComment additional branches', () => {
 });
 
 describe('calculateScore starsFromTotal branches', () => {
-  it('returns stars=1 when total is 30 (completionBonus=0, machineComplexity=30 for empty tray)', () => {
-    // totalTrayPieces=0 yields machineComplexity=30 (full marks for no tray).
-    // succeeded=false → completionBonus=0. elapsedSeconds=100 → speedBonus=0.
-    // total = 30 + 0 + 0 + 0 + 0 = 30 → stars=1.
-    const result = calculateScore({
-      executionSteps: [],
-      placedPieces: [],
-      optimalPieces: 0,
-      totalTrayPieces: 0,
-      discipline: 'field',
-      engageDurationMs: 100000,
-      elapsedSeconds: 100,
-      succeeded: false,
-    });
-    expect(result.stars).toBe(1);
-  });
-
-  it('returns stars=0 when total is below 30', () => {
-    // With one tray piece, machineComplexity = 0 (no piece placed/touched).
-    // succeeded=false, speedBonus=0, other categories=0.
-    const result = calculateScore({
-      executionSteps: [],
-      placedPieces: [],
-      optimalPieces: 1,
-      totalTrayPieces: 1,
-      discipline: 'field',
-      engageDurationMs: 100000,
-      elapsedSeconds: 100,
-      succeeded: false,
-    });
-    expect(result.stars).toBe(0);
-  });
-
-  it('returns stars=2 for a mid-range score (55-79)', () => {
+  it('returns stars=1 when total is exactly 30', () => {
+    // v2: succeeded=true, 1 player piece NOT in signal path.
+    // completion=25, pathIntegrity=0 (piece untouched), signalDepth=0,
+    // investment=0, diversity=0, discipline=5 → total=30 → stars=1.
+    const piece = {
+      id: 'c1', type: 'conveyor' as const, category: 'physics' as const,
+      gridX: 0, gridY: 0, ports: [], rotation: 0, isPrePlaced: false,
+    };
     const result = calculateScore({
       executionSteps: [
         { pieceId: 'src', type: 'source', timestamp: 0, success: true },
         { pieceId: 'out', type: 'terminal', timestamp: 0, success: true },
       ],
-      placedPieces: [],
-      optimalPieces: 0,
-      totalTrayPieces: 0,
-      discipline: 'systems',
-      engageDurationMs: 15000,
-      elapsedSeconds: 15,
+      placedPieces: [piece],
+      optimalPieces: 1,
+      discipline: 'field',
+      engageDurationMs: 1000,
       succeeded: true,
     });
-    // completionBonus=25, machineComplexity=30 (0/0 tray), speedBonus=7 → total 62
+    expect(result.total).toBe(30);
+    expect(result.stars).toBe(1);
+  });
+
+  it('returns stars=0 when total is below 30 (failed, no pieces)', () => {
+    // v2: succeeded=false, no player pieces.
+    // completion=0, pathIntegrity=15 (no pieces), signalDepth=0,
+    // investment=0, diversity=0, discipline=5 → total=20 → stars=0.
+    const result = calculateScore({
+      executionSteps: [],
+      placedPieces: [],
+      optimalPieces: 1,
+      discipline: 'field',
+      engageDurationMs: 100000,
+      elapsedSeconds: 100,
+      succeeded: false,
+    });
+    expect(result.total).toBe(20);
+    expect(result.stars).toBe(0);
+  });
+
+  it('returns stars=2 for a mid-range score (55-79) with purchased pieces', () => {
+    // v2: floor solve (45) + 2 purchased pieces active push into 2-star range.
+    const trayPieces = [
+      { id: 't0', type: 'conveyor' as const, category: 'physics' as const, gridX: 0, gridY: 0, ports: [], rotation: 0, isPrePlaced: false },
+      { id: 't1', type: 'gear' as const, category: 'physics' as const, gridX: 1, gridY: 0, ports: [], rotation: 0, isPrePlaced: false },
+    ];
+    const bought = [
+      { id: 'b0', type: 'scanner' as const, category: 'protocol' as const, gridX: 2, gridY: 0, ports: [], rotation: 0, isPrePlaced: false },
+      { id: 'b1', type: 'configNode' as const, category: 'protocol' as const, gridX: 3, gridY: 0, ports: [], rotation: 0, isPrePlaced: false },
+      { id: 'b2', type: 'transmitter' as const, category: 'protocol' as const, gridX: 4, gridY: 0, ports: [], rotation: 0, isPrePlaced: false },
+    ];
+    const allPieces = [...trayPieces, ...bought];
+    const result = calculateScore({
+      executionSteps: [
+        { pieceId: 'src', type: 'source', timestamp: 0, success: true },
+        ...allPieces.map(p => ({ pieceId: p.id, type: p.type, timestamp: 0, success: true })),
+        { pieceId: 'out', type: 'terminal', timestamp: 0, success: true },
+      ],
+      placedPieces: allPieces,
+      optimalPieces: 2,
+      trayPieceTypes: ['conveyor', 'gear'],
+      depthCeiling: 8,
+      discipline: 'systems',
+      engageDurationMs: 1000,
+      succeeded: true,
+    });
+    expect(result.total).toBeGreaterThanOrEqual(55);
+    expect(result.total).toBeLessThan(80);
     expect(result.stars).toBe(2);
   });
 });
