@@ -600,7 +600,7 @@ export const levelK1_1: LevelDefinition = {
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
   tutorialSteps: [
     { id: 'board-intro', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely up to you now. Plan the path before you place anything.' },
+      message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps.' },
     { id: 'store-intro', label: 'REQUISITION', targetRef: 'tray', eyeState: 'amber',
