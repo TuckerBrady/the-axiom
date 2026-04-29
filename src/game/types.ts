@@ -143,6 +143,15 @@ export type LevelDefinition = {
   tapeDesignRationale?: string;
   difficultyBand?: 'intuitive' | 'derivable' | 'abstract' | 'hidden';
   narrativeFrame?: string;
+  // Economy fields (v3) — drive the REQUISITION store in Kepler+
+  freeTapes?: ('IN' | 'TRAIL' | 'OUT')[];
+  purchasableTapes?: ('TRAIL' | 'OUT')[];
+  creditBudget?: number;
+  depthCeiling?: number;
+  baseReward?: number;
+  // Kepler mechanics — not used in K1-1 but type is defined here
+  damagedCells?: Array<{ gridX: number; gridY: number }>;
+  requiredPieces?: Array<{ type: string; count: number; reason?: string }>;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────

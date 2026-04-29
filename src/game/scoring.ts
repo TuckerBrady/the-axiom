@@ -10,119 +10,138 @@ function starsFromTotal(total: number): 0 | 1 | 2 | 3 {
   return 0;
 }
 
-// ─── Category helpers ────────────────────────────────────────────────────────
+// ─── Piece type sets ─────────────────────────────────────────────────────────
 
-const PROTOCOL_TYPES: PieceType[] = ['configNode', 'scanner', 'transmitter'];
-const PHYSICS_TYPES: PieceType[] = ['conveyor', 'gear', 'splitter'];
+const PROTOCOL_TYPES: PieceType[] = [
+  'configNode', 'scanner', 'transmitter', 'inverter', 'counter', 'latch',
+];
 
-function isProtocol(type: PieceType): boolean {
-  return PROTOCOL_TYPES.includes(type);
+// ─── Active-piece helpers ────────────────────────────────────────────────────
+
+function getActiveIds(steps: ExecutionStep[]): Set<string> {
+  return new Set(steps.filter(s => s.success).map(s => s.pieceId));
 }
 
-// ─── Category 1: Completion Bonus (max 25) ───────────────────────────────────
-
-function calcCompletionBonus(succeeded: boolean): number {
-  return succeeded ? 25 : 0;
-}
-
-// ─── Category 2: Machine Complexity (max 30) ─────────────────────────────────
-// Rewards using ALL tray pieces in a working machine.
-// "Active" means the piece was placed AND signal passed through it.
-
-function calcMachineComplexity(
-  steps: ExecutionStep[],
-  playerPieces: PlacedPiece[],
-  totalTrayPieces: number,
-): number {
-  if (totalTrayPieces <= 0) return 30; // No tray → full marks
-  const touchedIds = new Set(steps.filter(s => s.success).map(s => s.pieceId));
-  const activePieces = playerPieces.filter(p => touchedIds.has(p.id)).length;
-  return Math.round((activePieces / totalTrayPieces) * 30);
-}
-
-// ─── Category 3: Protocol Precision (max 20) ─────────────────────────────────
-// Percentage of Protocol pieces that were touched by signal.
-
-function calcProtocolPrecision(steps: ExecutionStep[]): number {
-  const protocolTouched = steps.filter(
-    s => s.success && PROTOCOL_TYPES.includes(s.type as PieceType),
-  ).length;
-  if (protocolTouched >= 5) return 20;
-  if (protocolTouched >= 4) return 16;
-  if (protocolTouched >= 3) return 12;
-  if (protocolTouched >= 2) return 8;
-  if (protocolTouched >= 1) return 4;
-  return 0;
-}
-
-// ─── Category 4: Path Integrity (max 15) ─────────────────────────────────────
-// Percentage of ALL placed pieces that were touched by signal.
-// Rewards clean machines where every piece contributes.
-
-function calcPathIntegrity(steps: ExecutionStep[], playerPieces: PlacedPiece[]): number {
-  if (playerPieces.length === 0) return 15;
-  const touchedIds = new Set(steps.map(s => s.pieceId));
-  const touched = playerPieces.filter(p => touchedIds.has(p.id)).length;
-  return Math.round((touched / playerPieces.length) * 15);
-}
-
-// ─── Category 5: Speed Bonus (max 10) ────────────────────────────────────────
-
-function calcSpeedBonus(engageDurationMs: number, elapsedSeconds?: number): number {
-  const seconds = elapsedSeconds && elapsedSeconds > 0 ? elapsedSeconds : engageDurationMs / 1000;
-  if (seconds < 10) return 10;
-  if (seconds <= 20) return 7;
-  if (seconds <= 45) return 4;
-  return 0;
-}
-
-// ─── Category 6: Elaboration Bonus (max 15) ────────────────────────────────
-const ELABORATION_POINTS_PER_PIECE = 3;
-const ELABORATION_MAX = 15;
-
-function calcElaboration(
+// Splits playerPieces into tray-supplied vs purchased, then identifies
+// which purchased pieces were in the active signal path.
+function splitPurchased(
   steps: ExecutionStep[],
   playerPieces: PlacedPiece[],
   trayPieceTypes: PieceType[],
-): number {
+): { purchasedPieces: PlacedPiece[]; purchasedActive: PlacedPiece[] } {
   const trayCounts: Partial<Record<PieceType, number>> = {};
   for (const pt of trayPieceTypes) {
-    trayCounts[pt] = (trayCounts[pt] || 0) + 1;
+    trayCounts[pt] = (trayCounts[pt] ?? 0) + 1;
   }
-
-  const remainingTray: Partial<Record<PieceType, number>> = { ...trayCounts };
+  const remaining: Partial<Record<PieceType, number>> = { ...trayCounts };
   const purchasedPieces: PlacedPiece[] = [];
-
   for (const p of playerPieces) {
-    if (remainingTray[p.type] && remainingTray[p.type]! > 0) {
-      remainingTray[p.type] = remainingTray[p.type]! - 1;
+    if ((remaining[p.type] ?? 0) > 0) {
+      remaining[p.type] = remaining[p.type]! - 1;
     } else {
       purchasedPieces.push(p);
     }
   }
-
-  if (purchasedPieces.length === 0) return 0;
-
-  const touchedIds = new Set(steps.filter(s => s.success).map(s => s.pieceId));
-  const purchasedTouched = purchasedPieces.filter(p => touchedIds.has(p.id)).length;
-
-  return Math.min(purchasedTouched * ELABORATION_POINTS_PER_PIECE, ELABORATION_MAX);
+  const activeIds = getActiveIds(steps);
+  return {
+    purchasedPieces,
+    purchasedActive: purchasedPieces.filter(p => activeIds.has(p.id)),
+  };
 }
 
-// ─── Main scoring function ───────────────────────────────────────────────────
+// ─── Category 1: Completion (max 25) ─────────────────────────────────────────
+// lock = 25, void = 0. "lock" means signal reached Terminal (reach_output) or
+// output tape matches expected (tape levels). Both are captured by `succeeded`.
+
+function calcCompletion(succeeded: boolean): number {
+  return succeeded ? 25 : 0;
+}
+
+// ─── Category 2: Path Integrity (max 15) ─────────────────────────────────────
+// active player pieces / total player pieces * 15
+
+function calcPathIntegrity(steps: ExecutionStep[], playerPieces: PlacedPiece[]): number {
+  if (playerPieces.length === 0) return 15;
+  const activeIds = getActiveIds(steps);
+  const active = playerPieces.filter(p => activeIds.has(p.id)).length;
+  return Math.round((active / playerPieces.length) * 15);
+}
+
+// ─── Category 3: Signal Depth (max 14) ───────────────────────────────────────
+// Gated: 0 if no purchased active pieces (enforces floor-solve ceiling of 45).
+// Otherwise: active player pieces / depthCeiling * 14.
+
+function calcSignalDepth(
+  steps: ExecutionStep[],
+  playerPieces: PlacedPiece[],
+  purchasedActiveCount: number,
+  depthCeiling: number,
+): number {
+  if (purchasedActiveCount === 0) return 0;
+  const activeIds = getActiveIds(steps);
+  const activePieces = playerPieces.filter(p => activeIds.has(p.id)).length;
+  return Math.min(Math.round((activePieces / depthCeiling) * 14), 14);
+}
+
+// ─── Category 4: Investment (max 25) ─────────────────────────────────────────
+// purchasedActive * 3 (cap 17) + tape investment (4 per purchased tape utilized, cap 8)
+
+function calcInvestment(
+  purchasedActiveCount: number,
+  purchasedTapeTypesCount: number,
+): number {
+  const piecePoints = Math.min(purchasedActiveCount * 3, 17);
+  const tapePoints = Math.min(purchasedTapeTypesCount * 4, 8);
+  return piecePoints + tapePoints;
+}
+
+// ─── Category 5: Diversity (max 11) ──────────────────────────────────────────
+// Gated: 0 if no purchased active pieces (enforces floor-solve ceiling of 45).
+// distinct active player piece types / 6 * 11.
+
+function calcDiversity(
+  steps: ExecutionStep[],
+  playerPieces: PlacedPiece[],
+  purchasedActiveCount: number,
+): number {
+  if (purchasedActiveCount === 0) return 0;
+  const activeIds = getActiveIds(steps);
+  const activeTypes = new Set(
+    playerPieces.filter(p => activeIds.has(p.id)).map(p => p.type),
+  );
+  return Math.min(Math.round((activeTypes.size / 6) * 11), 11);
+}
+
+// ─── Category 6: Discipline (max 10) ─────────────────────────────────────────
+// Half credit (5) if no purchased active pieces. Full credit (10) otherwise.
+
+function calcDiscipline(purchasedActiveCount: number): number {
+  return purchasedActiveCount > 0 ? 10 : 5;
+}
+
+// ─── ScoreBreakdown ───────────────────────────────────────────────────────────
 
 export interface ScoreBreakdown {
-  completionBonus: number;
-  machineComplexity: number;
-  protocolPrecision: number;
+  // v2 canonical fields (max: 25 + 15 + 14 + 25 + 11 + 10 = 100)
+  completion: number;
   pathIntegrity: number;
-  speedBonus: number;
-  elaboration: number;
-  purchasedTouchedCount: number;
-  // Legacy aliases for backward compatibility in UI
-  efficiency: number;
-  chainIntegrity: number;
-  disciplineBonus: number;
+  signalDepth: number;
+  investment: number;
+  diversity: number;
+  discipline: number;
+
+  // v1 backward-compat aliases — UI and older consumers read these
+  completionBonus: number;       // = completion
+  machineComplexity: number;     // = investment
+  protocolPrecision: number;     // = diversity
+  speedBonus: number;            // 0 (removed in v2)
+  elaboration: number;           // = signalDepth
+  purchasedTouchedCount: number; // = purchasedActiveCount (drives credit multiplier)
+
+  // pre-v1 legacy aliases
+  efficiency: number;            // = completion
+  chainIntegrity: number;        // = pathIntegrity
+  disciplineBonus: number;       // = discipline
 }
 
 export interface ScoreResult {
@@ -131,53 +150,73 @@ export interface ScoreResult {
   breakdown: ScoreBreakdown;
 }
 
+// ─── Main scoring function ───────────────────────────────────────────────────
+
 export function calculateScore(params: {
   executionSteps: ExecutionStep[];
   placedPieces: PlacedPiece[];
-  optimalPieces: number; // Reference only — not used in scoring. Scoring rewards using all tray pieces.
-  totalTrayPieces?: number;
+  optimalPieces: number;
+  totalTrayPieces?: number;       // retained for compat, not used in v2
   trayPieceTypes?: PieceType[];
+  purchasedTapeTypes?: string[];  // tape types purchased AND utilized by the player
+  depthCeiling?: number;          // from level definition; defaults to optimalPieces * 2
   discipline: NonNullable<Discipline>;
-  engageDurationMs: number;
-  elapsedSeconds?: number;
+  engageDurationMs: number;       // retained for compat, not used in v2
+  elapsedSeconds?: number;        // retained for compat, not used in v2
   succeeded?: boolean;
 }): ScoreResult {
-  const { executionSteps, placedPieces, totalTrayPieces, engageDurationMs, elapsedSeconds } = params;
-  const succeeded = params.succeeded ?? executionSteps.some(s => s.type === 'terminal' && s.success);
+  const {
+    executionSteps,
+    placedPieces,
+    optimalPieces,
+    trayPieceTypes = [],
+    purchasedTapeTypes = [],
+  } = params;
+
+  const succeeded = params.succeeded
+    ?? executionSteps.some(s => s.type === 'terminal' && s.success);
+
+  // depthCeiling defaults to optimalPieces * 2, with a floor of 1 to avoid /0
+  const effectiveDepthCeiling = (params.depthCeiling && params.depthCeiling > 0)
+    ? params.depthCeiling
+    : Math.max(optimalPieces * 2, 1);
 
   const playerPieces = placedPieces.filter(p => !p.isPrePlaced);
-  const trayTotal = totalTrayPieces ?? playerPieces.length; // fallback to placed count
+  const { purchasedActive } = splitPurchased(executionSteps, playerPieces, trayPieceTypes);
+  const purchasedActiveCount = purchasedActive.length;
 
-  const completionBonus = calcCompletionBonus(succeeded);
-  const machineComplexity = calcMachineComplexity(executionSteps, playerPieces, trayTotal);
-  const protocolPrecision = calcProtocolPrecision(executionSteps);
+  const completion    = calcCompletion(succeeded);
   const pathIntegrity = calcPathIntegrity(executionSteps, playerPieces);
-  const speedBonus = calcSpeedBonus(engageDurationMs, elapsedSeconds);
+  const signalDepth   = calcSignalDepth(executionSteps, playerPieces, purchasedActiveCount, effectiveDepthCeiling);
+  const investment    = calcInvestment(purchasedActiveCount, purchasedTapeTypes.length);
+  const diversity     = calcDiversity(executionSteps, playerPieces, purchasedActiveCount);
+  const discipline    = calcDiscipline(purchasedActiveCount);
 
-  const trayTypes = params.trayPieceTypes ?? [];
-  const elaboration = calcElaboration(executionSteps, playerPieces, trayTypes);
-  const purchasedTouchedCount = trayTypes.length > 0
-    ? Math.min(Math.floor(elaboration / ELABORATION_POINTS_PER_PIECE), 5)
-    : 0;
-
-  const total = completionBonus + machineComplexity + protocolPrecision + pathIntegrity + speedBonus + elaboration;
+  const total = completion + pathIntegrity + signalDepth + investment + diversity + discipline;
   const stars = starsFromTotal(total);
 
   return {
     total,
     stars,
     breakdown: {
-      completionBonus,
-      machineComplexity,
-      protocolPrecision,
+      // v2 canonical
+      completion,
       pathIntegrity,
-      speedBonus,
-      elaboration,
-      purchasedTouchedCount,
-      // Legacy aliases — map to closest new category
-      efficiency: completionBonus,
+      signalDepth,
+      investment,
+      diversity,
+      discipline,
+      // v1 compat aliases
+      completionBonus: completion,
+      machineComplexity: investment,
+      protocolPrecision: diversity,
+      speedBonus: 0,
+      elaboration: signalDepth,
+      purchasedTouchedCount: purchasedActiveCount,
+      // pre-v1 aliases
+      efficiency: completion,
       chainIntegrity: pathIntegrity,
-      disciplineBonus: machineComplexity,
+      disciplineBonus: discipline,
     },
   };
 }
@@ -187,10 +226,10 @@ export function calculateScore(params: {
 /**
  * Determines whether a consequence level's penalty triggers.
  *
- * Standard consequence levels (K2-4, K2-8):
+ * Standard consequence levels (K1-4, K1-8):
  *   Any completion avoids the consequence. 1 star is fine.
  *
- * Boss consequence levels (K2-10, requireThreeStars: true):
+ * Boss consequence levels (K1-10, requireThreeStars: true):
  *   3 stars required. 1-2 stars triggers consequence even on completion.
  *
  * Free piece set guarantee: every consequence level's availablePieces
@@ -232,31 +271,26 @@ export function getCOGSScoreComment(
   piecesUsed: number,
   totalTrayPieces: number,
 ): string {
-  const total = breakdown.completionBonus + breakdown.machineComplexity +
-    breakdown.protocolPrecision + breakdown.pathIntegrity + breakdown.speedBonus + breakdown.elaboration;
+  const total = breakdown.completion + breakdown.pathIntegrity + breakdown.signalDepth +
+    breakdown.investment + breakdown.diversity + breakdown.discipline;
 
   if (total >= 100) {
     return 'One hundred points. I am revising my estimates of you upward. That is not something I do often.';
   }
-  if (breakdown.elaboration >= 12) {
+  if (breakdown.investment >= 17) {
     return 'Unnecessary complexity. Approved. The machine is better for it.';
   }
-
-  if (stars === 3 && breakdown.machineComplexity >= 25) {
+  if (stars === 3 && breakdown.investment >= 12) {
     return 'Full machine. Every piece working. That is the correct approach.';
   }
-
-  if (breakdown.machineComplexity < 15) {
+  if (breakdown.investment < 6) {
     return `You used ${piecesUsed} of ${totalTrayPieces} available pieces. The machine could be more elaborate. I encourage ambition.`;
   }
-  if (breakdown.protocolPrecision === 0) {
+  if (breakdown.diversity === 0) {
     return 'You avoided the Protocol catalogue entirely. Technically valid.';
   }
   if (breakdown.pathIntegrity < 8) {
     return 'Several pieces you placed never saw the signal. I noticed.';
-  }
-  if (breakdown.speedBonus === 0) {
-    return 'The solution was correct. The execution was considered. At considerable length.';
   }
 
   // Generic fallbacks by star rating

@@ -136,3 +136,71 @@ describe('getLevelById', () => {
     expect(getLevelById('NONEXISTENT')).toBeUndefined();
   });
 });
+
+// ─── K1-1 v3 economy fields ──────────────────────────────────────────────────
+
+describe('K1-1 v3 economy fields', () => {
+  const k1 = () => KEPLER_LEVELS.find(l => l.id === 'K1-1')!;
+
+  it('tray is floor-solve minimum: 3 conveyors and 2 gears', () => {
+    const level = k1();
+    const conveyors = level.availablePieces.filter(p => p === 'conveyor');
+    const gears = level.availablePieces.filter(p => p === 'gear');
+    expect(conveyors).toHaveLength(3);
+    expect(gears).toHaveLength(2);
+    expect(level.availablePieces).toHaveLength(5);
+  });
+
+  it('optimalPieces is 5', () => {
+    expect(k1().optimalPieces).toBe(5);
+  });
+
+  it('freeTapes includes IN', () => {
+    expect(k1().freeTapes).toContain('IN');
+  });
+
+  it('purchasableTapes includes TRAIL and OUT', () => {
+    const level = k1();
+    expect(level.purchasableTapes).toContain('TRAIL');
+    expect(level.purchasableTapes).toContain('OUT');
+  });
+
+  it('creditBudget is 75', () => {
+    expect(k1().creditBudget).toBe(75);
+  });
+
+  it('depthCeiling is 10', () => {
+    expect(k1().depthCeiling).toBe(10);
+  });
+
+  it('baseReward is 100', () => {
+    expect(k1().baseReward).toBe(100);
+  });
+
+  it('has 6 tutorial steps (2 routing + 4 REQUISITION)', () => {
+    const level = k1();
+    expect(level.tutorialSteps).toHaveLength(6);
+  });
+
+  it('first two tutorial steps are routing instructions (blue eye)', () => {
+    const level = k1();
+    expect(level.tutorialSteps![0].eyeState).toBe('blue');
+    expect(level.tutorialSteps![1].eyeState).toBe('blue');
+  });
+
+  it('last four tutorial steps are REQUISITION store (amber eye)', () => {
+    const level = k1();
+    const storeSteps = level.tutorialSteps!.slice(2);
+    expect(storeSteps).toHaveLength(4);
+    for (const step of storeSteps) {
+      expect(step.eyeState).toBe('amber');
+      expect(step.label).toBe('REQUISITION');
+    }
+  });
+
+  it('REQUISITION step IDs are unique', () => {
+    const level = k1();
+    const ids = level.tutorialSteps!.map(s => s.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
