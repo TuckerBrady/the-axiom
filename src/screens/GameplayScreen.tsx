@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,19 +27,26 @@ import BoardGrid from '../components/gameplay/BoardGrid';
 import WireOverlay from '../components/gameplay/WireOverlay';
 import BeamOverlay from '../components/gameplay/BeamOverlay';
 import PieceTray from '../components/gameplay/PieceTray';
+import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
+import RequisitionPanel from '../components/gameplay/RequisitionPanel';
+import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
+import PlacementTransition from '../components/gameplay/PlacementTransition';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
+import { useSettingsStore } from '../store/settingsStore';
+import { useRequisitionStore, buildInventoryForLevel } from '../store/requisitionStore';
 import { TutorialHint } from '../components/TutorialHint';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
+import * as Haptics from 'expo-haptics';
 import { getOutputPorts, getInputPorts } from '../game/engine';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
@@ -225,7 +232,11 @@ export default function GameplayScreen({ navigation }: Props) {
   const { lives, loseLife, refillLives, credits: livesCredits, addCredits } = useLivesStore();
   const { completeLevel, isLevelCompleted: isLevelDone } = useProgressionStore();
   const discipline = usePlayerStore(s => s.discipline);
-  const { credits, setLevelBudget, spendCredits, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
+  const { credits, setLevelBudget, spendCredits, spendDirect, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
+  const arcWheelPosition = useSettingsStore(s => s.arcWheelPosition);
+  const requisitionStore = useRequisitionStore();
+  const requisitionPhase = useRequisitionStore(s => s.phase);
+  const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
 
   // Level-derived values needed by extracted hooks. Computed before
   // hook calls so hook order stays stable across renders.
@@ -321,6 +332,9 @@ export default function GameplayScreen({ navigation }: Props) {
   } = beam;
 
   const [creditError, setCreditError] = useState(false);
+  const [dragState, setDragState] = useState<DragState>({ active: false, pieceId: null, type: null, x: 0, y: 0 });
+  const boardScreenPos = useRef({ x: 0, y: 0 });
+  const cellSizeRef = useRef(52);
 
   // Screen is immediately visible — slide_from_bottom handles entry transition
   const screenOpacity = useSharedValue(1);
@@ -339,6 +353,13 @@ export default function GameplayScreen({ navigation }: Props) {
     if (level.sector === 'axiom') return; // free pieces on tutorial
     setLevelBudget(level.budget ?? 0);
     return () => resetLevelBudget();
+  }, [level?.id]);
+
+  // ── Requisition store init for Kepler+ levels ──
+  useEffect(() => {
+    if (!level) return;
+    if (level.sector === 'axiom') return;
+    requisitionStore.initRequisition(level, discipline);
   }, [level?.id]);
 
   // ── Cleanup beam animation on unmount ──
@@ -407,6 +428,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const CELL_SIZE = availW > 0 && availH > 0
     ? Math.min(MAX_CELL, Math.max(MIN_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows))))
     : 52;
+  cellSizeRef.current = CELL_SIZE;
   const gridW = numColumns * CELL_SIZE;
   const gridH = numRows * CELL_SIZE;
 
@@ -475,35 +497,52 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
     if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
 
-    if (selectedPieceFromTray) {
-      const count = availableCounts[selectedPieceFromTray] || 0;
-      if (count > 0) {
-        if (blownCells.has(`${gridX},${gridY}`)) return;
-        const cost = isAxiomLevel ? 0 : getPieceCost(selectedPieceFromTray, discipline);
-        if (cost > 0) {
-          const ok = spendCredits(selectedPieceFromTray, discipline);
-          if (!ok) {
-            setCreditError(true);
-            setTimeout(() => setCreditError(false), 1500);
-            return;
+    if (isAxiomLevel) {
+      // Axiom: tray-based placement (existing behavior)
+      if (selectedPieceFromTray) {
+        const count = availableCounts[selectedPieceFromTray] || 0;
+        if (count > 0) {
+          if (blownCells.has(`${gridX},${gridY}`)) return;
+          const cost = getPieceCost(selectedPieceFromTray, discipline);
+          if (cost > 0) {
+            const ok = spendCredits(selectedPieceFromTray, discipline);
+            if (!ok) {
+              setCreditError(true);
+              setTimeout(() => setCreditError(false), 1500);
+              return;
+            }
+          }
+          const rotation = getAutoRotation(gridX, gridY);
+          placePiece(selectedPieceFromTray, gridX, gridY, rotation);
+          const placedCountAfter = playerPieces.length + 1;
+          if (!hasPlacedPieces && placedCountAfter >= (level?.optimalPieces ?? 99)) {
+            triggerHints('onFirstPiecePlaced');
           }
         }
-        const rotation = getAutoRotation(gridX, gridY);
-        placePiece(selectedPieceFromTray, gridX, gridY, rotation);
-        // Bug 7 fix: only fire the "tap ENGAGE MACHINE" hint once the
-        // player has placed enough pieces to plausibly have a complete
-        // path. Gate on optimalPieces as the minimum threshold.
-        const placedCountAfter = playerPieces.length + 1;
-        if (!hasPlacedPieces && placedCountAfter >= (level?.optimalPieces ?? 99)) {
-          triggerHints('onFirstPiecePlaced');
-        }
+      } else if (selectedPlacedPiece) {
+        if (blownCells.has(`${gridX},${gridY}`)) return;
+        movePiece(selectedPlacedPiece, gridX, gridY);
+        selectPlaced(null);
       }
-    } else if (selectedPlacedPiece) {
-      if (blownCells.has(`${gridX},${gridY}`)) return;
-      movePiece(selectedPlacedPiece, gridX, gridY);
-      selectPlaced(null);
+    } else {
+      // Kepler+: Arc Wheel placement (no tray)
+      const storeState = useRequisitionStore.getState();
+      const { selectedInventoryId: selId, inventory } = storeState;
+      if (selId) {
+        const invPiece = inventory.pieces.find(p => p.id === selId && !p.placed);
+        if (!invPiece) return;
+        if (blownCells.has(`${gridX},${gridY}`)) return;
+        const rotation = getAutoRotation(gridX, gridY);
+        placePiece(invPiece.type, gridX, gridY, rotation);
+        storeState.placeInventoryPiece(invPiece.type);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      } else if (selectedPlacedPiece) {
+        if (blownCells.has(`${gridX},${gridY}`)) return;
+        movePiece(selectedPlacedPiece, gridX, gridY);
+        selectPlaced(null);
+      }
     }
-  }, [selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation]);
+  }, [isAxiomLevel, selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation, selectedInventoryId]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((pieceId: string) => {
@@ -526,18 +565,77 @@ export default function GameplayScreen({ navigation }: Props) {
     // All other piece types: no tap action
   }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, rotatePiece, updatePiece]);
 
-  // ── Long press returns piece to tray (no ghost/held state) ──
+  // ── Long press returns piece to tray / Arc Wheel (no ghost/held state) ──
   const handlePieceLongPress = useCallback((pieceId: string) => {
     if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
     const piece = machineState.pieces.find(p => p.id === pieceId);
     if (!piece) return;
     if (piece.isPrePlaced) return;
     deletePiece(piece.id);
-  }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, deletePiece]);
+    // For Kepler+ levels, return piece to Arc Wheel inventory (REQ-64)
+    if (!isAxiomLevel) {
+      useRequisitionStore.getState().unplaceInventoryPiece(piece.type);
+    }
+  }, [isAxiomLevel, isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, deletePiece]);
 
   // ── Pause modal opener (stable ref so HUDChrome memo holds) ──
   const handlePauseOpen = useCallback(() => {
     setShowPauseModal(true);
+  }, []);
+
+  // ── REQUISITION confirm ──
+  const handleRequisitionConfirm = useCallback(() => {
+    if (!level) return;
+    const store = useRequisitionStore.getState();
+    const ok = store.confirmRequisition(spendDirect);
+    if (!ok) return;
+    const inv = buildInventoryForLevel(level, store.requisition.purchases);
+    useRequisitionStore.setState({ inventory: inv });
+    store.beginTransition();
+  }, [level, spendDirect]);
+
+  const handleTransitionComplete = useCallback(() => {
+    useRequisitionStore.getState().beginPlacement();
+  }, []);
+
+  // ── Arc Wheel interaction ──
+  const handleArcWheelSelect = useCallback((id: string) => {
+    useRequisitionStore.getState().selectInventoryPiece(id);
+  }, []);
+
+  const handleDragStart = useCallback((drag: DragState) => {
+    setDragState(drag);
+  }, []);
+
+  const handleDragMove = useCallback((x: number, y: number) => {
+    setDragState(prev => ({ ...prev, x, y }));
+  }, []);
+
+  const handleDragEnd = useCallback((x: number, y: number) => {
+    // Compute which board cell the drop landed in
+    const boardPos = boardScreenPos.current;
+    const relX = x - boardPos.x;
+    const relY = y - boardPos.y;
+    const cs = cellSizeRef.current;
+    const gridX = Math.floor(relX / cs);
+    const gridY = Math.floor(relY / cs);
+    const numCols = level?.gridWidth ?? 8;
+    const numRowsV = level?.gridHeight ?? 7;
+    const inBounds = gridX >= 0 && gridX < numCols && gridY >= 0 && gridY < numRowsV;
+    const occupied = pieces.some(p => p.gridX === gridX && p.gridY === gridY);
+    const currentDrag = dragState;
+
+    if (currentDrag.type && inBounds && !occupied) {
+      const rotation = getAutoRotation(gridX, gridY);
+      placePiece(currentDrag.type, gridX, gridY, rotation);
+      useRequisitionStore.getState().placeInventoryPiece(currentDrag.type);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    setDragState({ active: false, pieceId: null, type: null, x: 0, y: 0 });
+  }, [dragState, level, pieces, getAutoRotation, placePiece]);
+
+  const handleDragCancel = useCallback(() => {
+    setDragState({ active: false, pieceId: null, type: null, x: 0, y: 0 });
   }, []);
 
   // ── Helper: get piece center in canvas coords ──
@@ -862,6 +960,7 @@ export default function GameplayScreen({ navigation }: Props) {
         engageDurationMs,
         lockedElapsed,
         levelSpent,
+        purchasedTapeTypes: isAxiomLevel ? [] : useRequisitionStore.getState().getPurchasedTapeTypes(),
         setScoreResult,
         setCogsScoreComment,
         setFirstTimeBonus,
@@ -918,7 +1017,11 @@ export default function GameplayScreen({ navigation }: Props) {
     setPulseResultData(null);
     reset();
     resetTimer();
-  }, [reset, resetTimer]);
+    // Retry on Kepler+: REQUISITION reopens fresh (REQ-101)
+    if (!isAxiomLevel && level) {
+      requisitionStore.initRequisition(level, discipline);
+    }
+  }, [reset, resetTimer, isAxiomLevel, level, discipline, requisitionStore]);
 
   // ── Debug ──
   const handleDebug = useCallback(() => {
@@ -1051,7 +1154,17 @@ export default function GameplayScreen({ navigation }: Props) {
             );
           }}
         >
-          <View ref={boardGridRef} style={[styles.canvas, { width: gridW, height: gridH }]}>
+          <View
+            ref={boardGridRef}
+            style={[styles.canvas, { width: gridW, height: gridH }]}
+            onLayout={() => {
+              if (boardGridRef.current && !isAxiomLevel) {
+                boardGridRef.current.measureInWindow((x, y) => {
+                  boardScreenPos.current = { x, y };
+                });
+              }
+            }}
+          >
             {/* Dot grid + blown-cell scars (static across beam animation) */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
               {Array.from({ length: numRows + 1 }, (_, y) =>
@@ -1148,8 +1261,8 @@ export default function GameplayScreen({ navigation }: Props) {
               onPieceLongPress={handlePieceLongPress}
             />
 
-            {/* Ghost cells — copper valid hints on Axiom, invisible taps elsewhere */}
-            {selectedPieceFromTray &&
+            {/* Ghost cells — copper valid hints on Axiom; invisible tap targets on Kepler */}
+            {(selectedPieceFromTray || (!isAxiomLevel && selectedInventoryId && requisitionPhase === 'placement')) &&
               Array.from({ length: numRows }, (_, y) =>
                 Array.from({ length: numColumns }, (_, x) => {
                   const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
@@ -1199,8 +1312,8 @@ export default function GameplayScreen({ navigation }: Props) {
         </View>
 
 
-        {/* ── Parts Tray ── */}
-        {!isExecuting && !showResults && !showVoid && !debugMode && (
+        {/* ── Parts Tray (Axiom only) ── */}
+        {isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && (
           <PieceTray
             trayPieceTypes={trayPieceTypes}
             availableCounts={availableCounts}
@@ -1209,6 +1322,18 @@ export default function GameplayScreen({ navigation }: Props) {
             affordable={trayAffordable}
             refs={tutorialTrayRefs}
             onPickup={selectFromTray}
+          />
+        )}
+
+        {/* ── REQUISITION Store (Kepler+, pre-placement phase) ── */}
+        {!isAxiomLevel && requisitionPhase === 'requisition' && !showResults && !showVoid && (
+          <RequisitionPanel
+            discipline={discipline}
+            creditBalance={credits}
+            preAssignedPieces={level?.availablePieces ?? []}
+            purchasableTapes={level?.purchasableTapes ?? []}
+            freeTapes={level?.freeTapes ?? ['IN']}
+            onConfirm={handleRequisitionConfirm}
           />
         )}
 
@@ -1273,6 +1398,43 @@ export default function GameplayScreen({ navigation }: Props) {
         )}
 
       </SafeAreaView>
+
+      {/* ── Placement Transition (Kepler+) ── */}
+      {!isAxiomLevel && requisitionPhase === 'transitioning' && (
+        <PlacementTransition onComplete={handleTransitionComplete} />
+      )}
+
+      {/* ── Arc Wheel (Kepler+, placement phase) ── */}
+      {!isAxiomLevel && requisitionPhase === 'placement' && !isExecuting && !showResults && !showVoid && (
+        <ArcWheel
+          pieces={useRequisitionStore.getState().getUnplacedPieces() as ArcWheelPiece[]}
+          side={arcWheelPosition}
+          selectedId={selectedInventoryId}
+          disabled={isExecuting}
+          onSelect={handleArcWheelSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        />
+      )}
+
+      {/* ── Ghost piece during Arc Wheel drag ── */}
+      {dragState.active && dragState.type && (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.ghostDragPiece,
+            { left: dragState.x - CELL_SIZE / 2, top: dragState.y - CELL_SIZE / 2 },
+          ]}
+        >
+          <PieceIcon
+            type={dragState.type}
+            size={CELL_SIZE * 0.6}
+            color={['configNode','scanner','transmitter','inverter','counter','latch'].includes(dragState.type) ? '#8B5CF6' : '#F0B429'}
+          />
+        </View>
+      )}
 
       {/* ── All full-screen modal overlays (Phase 1 extraction) ── */}
       <GameplayModals
@@ -1478,6 +1640,15 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     opacity: 0.18,
     zIndex: 150,
+  },
+
+  // Ghost piece during Arc Wheel drag
+  ghostDragPiece: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 200,
+    opacity: 0.85,
   },
 
   // Pieces
