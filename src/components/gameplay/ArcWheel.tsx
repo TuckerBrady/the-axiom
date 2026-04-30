@@ -9,7 +9,7 @@ import {
   PanResponder,
   Dimensions,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { hapticLight } from '../../utils/haptics';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import type { InventoryPiece } from '../../store/requisitionStore';
@@ -233,7 +233,7 @@ export default function ArcWheel({
             const wrapped = ((next % pieces.length) + pieces.length) % pieces.length;
             return wrapped;
           });
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          hapticLight();
         }
       },
       onPanResponderRelease: () => { scrollDelta.current = 0; },
@@ -274,7 +274,7 @@ export default function ArcWheel({
     if (!piece) return;
     setSelectedIndex(idx);
     onSelect(piece.id);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    hapticLight();
     activateWheel();
   }, [pieces, onSelect, activateWheel]);
 

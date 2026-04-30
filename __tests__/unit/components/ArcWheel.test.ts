@@ -8,13 +8,14 @@ const wheelSrc = read('src/components/gameplay/ArcWheel.tsx');
 const screenSrc = read('src/screens/GameplayScreen.tsx');
 
 describe('ArcWheel — source contract', () => {
-  it('imports expo-haptics', () => {
-    expect(wheelSrc).toMatch(/expo-haptics/);
+  it('uses hapticLight utility (not expo-haptics directly)', () => {
+    expect(wheelSrc).toMatch(/hapticLight/);
+    expect(wheelSrc).not.toMatch(/import \* as Haptics from 'expo-haptics'/);
   });
 
-  it('uses light haptics on scroll and medium on placement', () => {
-    expect(wheelSrc).toMatch(/ImpactFeedbackStyle\.Light/);
-    // Medium is used by the parent (GameplayScreen) on placement
+  it('calls hapticLight on scroll and node selection', () => {
+    const hapticCalls = (wheelSrc.match(/hapticLight\(\)/g) ?? []).length;
+    expect(hapticCalls).toBeGreaterThanOrEqual(2);
   });
 
   it('defines IDLE_OPACITY between 15% and 20%', () => {

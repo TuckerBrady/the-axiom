@@ -46,7 +46,7 @@ import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
-import * as Haptics from 'expo-haptics';
+import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
 import { getOutputPorts, getInputPorts } from '../game/engine';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
@@ -341,6 +341,21 @@ export default function GameplayScreen({ navigation }: Props) {
   const screenOpacity = useSharedValue(1);
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
 
+  // ── Star reveal / credits / 3-star haptics on results screen ──
+  useEffect(() => {
+    if (!showResults || !scoreResult) return;
+    const starsCount = scoreResult.stars;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    for (let i = 1; i <= starsCount; i++) {
+      timers.push(setTimeout(() => hapticMedium(), i * 200));
+    }
+    if (starsCount === 3) {
+      timers.push(setTimeout(() => hapticHeavy(), starsCount * 200 + 50));
+    }
+    timers.push(setTimeout(() => hapticMedium(), starsCount * 200 + 300));
+    return () => timers.forEach(t => clearTimeout(t));
+  }, [showResults]);
+
   // ── Daily challenge one-attempt enforcement ──
   useEffect(() => {
     if (!isDailyChallenge || !level) return;
@@ -539,6 +554,7 @@ export default function GameplayScreen({ navigation }: Props) {
           }
           const rotation = getAutoRotation(gridX, gridY);
           placePiece(selectedPieceFromTray, gridX, gridY, rotation);
+          hapticLight();
           tutorialOnPiecePlaced(selectedPieceFromTray, gridX, gridY);
           const placedCountAfter = playerPieces.length + 1;
           if (!hasPlacedPieces && placedCountAfter >= (level?.optimalPieces ?? 99)) {
@@ -561,7 +577,7 @@ export default function GameplayScreen({ navigation }: Props) {
         const rotation = getAutoRotation(gridX, gridY);
         placePiece(invPiece.type, gridX, gridY, rotation);
         storeState.placeInventoryPiece(invPiece.type);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+        hapticLight();
       } else if (selectedPlacedPiece) {
         if (blownCells.has(`${gridX},${gridY}`)) return;
         movePiece(selectedPlacedPiece, gridX, gridY);
@@ -580,11 +596,13 @@ export default function GameplayScreen({ navigation }: Props) {
     // Type-specific tap actions
     if (piece.type === 'conveyor') {
       rotatePiece(piece.id);
+      hapticLight();
       tutorialOnPieceTapped(piece.type);
     } else if (piece.type === 'configNode') {
       const current = piece.configValue ?? 1;
       const next = current === 1 ? 0 : 1;
       updatePiece(piece.id, { configValue: next });
+      hapticLight();
       tutorialOnPieceTapped(piece.type);
     } else if (piece.type === 'latch') {
       const nextMode = piece.latchMode === 'write' ? 'read' : 'write';
@@ -601,6 +619,7 @@ export default function GameplayScreen({ navigation }: Props) {
     if (!piece) return;
     if (piece.isPrePlaced) return;
     deletePiece(piece.id);
+    hapticLight();
     // For Kepler+ levels, return piece to Arc Wheel inventory (REQ-64)
     if (!isAxiomLevel) {
       useRequisitionStore.getState().unplaceInventoryPiece(piece.type);
@@ -664,7 +683,7 @@ export default function GameplayScreen({ navigation }: Props) {
     if (currentDrag.type && inBounds && !occupied && !blown) {
       const rotation = getAutoRotation(gridX, gridY);
       placePiece(currentDrag.type, gridX, gridY, rotation);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      hapticLight();
       if (isAxiomLevel) {
         tutorialOnPiecePlaced(currentDrag.type, gridX, gridY);
       } else {
@@ -691,6 +710,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Engage handler ──
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
+    hapticMedium();
     // Increment run ID before any async work so stale callbacks from the
     // previous run can detect the mismatch and no-op. (A1-7 crash fix.)
     beam.runIdRef.current += 1;
@@ -924,7 +944,10 @@ export default function GameplayScreen({ navigation }: Props) {
           return { ...prev, failColors: next };
         });
         const op = getPieceCenter(outputPiece.id);
-        if (op) await runWrongOutputRings(ctx, op);
+        if (op) {
+          hapticHeavy();
+          await runWrongOutputRings(ctx, op);
+        }
       }
     }
 
@@ -967,7 +990,10 @@ export default function GameplayScreen({ navigation }: Props) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
         const op = getPieceCenter(outputPiece.id);
-        if (op) await runLockPhase(ctx, op);
+        if (op) {
+          hapticMedium();
+          await runLockPhase(ctx, op);
+        }
       }
     }
     setBeamState(prev => ({ ...prev, phase: 'idle' }));
@@ -1028,6 +1054,7 @@ export default function GameplayScreen({ navigation }: Props) {
       // playing sequentially (Prompt 104, Fix 4B).
       // Player taps CONTINUE to proceed to the results screen.
     } else {
+      hapticHeavy();
       await handleVoidFailure({
         steps,
         levelId: level.id,

@@ -10,6 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CogsAvatar from './CogsAvatar';
 import { Colors, Fonts, Spacing } from '../theme/tokens';
+import { hapticLight } from '../utils/haptics';
 
 interface Props {
   hintKey: string;
@@ -29,6 +30,7 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
   }, []);
 
   const handleDismiss = () => {
+    hapticLight();
     AsyncStorage.setItem(`axiom_hint_seen_${hintKey}`, '1');
     Animated.parallel([
       Animated.timing(translateY, { toValue: 60, duration: 250, useNativeDriver: true }),
