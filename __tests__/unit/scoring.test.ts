@@ -615,6 +615,24 @@ describe('Backward-compat aliases in ScoreBreakdown', () => {
     expect(r.breakdown.elaboration).toBe(r.breakdown.signalDepth);
   });
 
+  it('forfeitedPurchasedCount passes through from param (default 0)', () => {
+    const r = floorSolve();
+    expect(r.breakdown.forfeitedPurchasedCount).toBe(0);
+  });
+
+  it('forfeitedPurchasedCount reflects param value when provided', () => {
+    const r = calculateScore({
+      executionSteps: [],
+      placedPieces: [],
+      optimalPieces: 0,
+      discipline: 'field',
+      engageDurationMs: 1000,
+      succeeded: false,
+      forfeitedPurchasedCount: 3,
+    });
+    expect(r.breakdown.forfeitedPurchasedCount).toBe(3);
+  });
+
   it('purchasedTouchedCount = count of purchased pieces in signal path', () => {
     const trayTypes: PlacedPiece['type'][] = ['conveyor'];
     const trayPiece = makePlayerPiece('t0', 'conveyor');
@@ -679,6 +697,7 @@ function makeBreakdownV2(overrides: Partial<Parameters<typeof getCOGSScoreCommen
     investment: 0, diversity: 0, discipline: 5,
     completionBonus: 25, machineComplexity: 0, protocolPrecision: 0,
     speedBonus: 0, elaboration: 0, purchasedTouchedCount: 0,
+    forfeitedPurchasedCount: 0,
     efficiency: 25, chainIntegrity: 15, disciplineBonus: 5,
     ...overrides,
   };

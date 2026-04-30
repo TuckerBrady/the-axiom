@@ -130,6 +130,9 @@ export interface ScoreBreakdown {
   diversity: number;
   discipline: number;
 
+  // informational (no scoring impact)
+  forfeitedPurchasedCount: number; // purchased pieces never placed — for results screen feedback
+
   // v1 backward-compat aliases — UI and older consumers read these
   completionBonus: number;       // = completion
   machineComplexity: number;     // = investment
@@ -158,8 +161,9 @@ export function calculateScore(params: {
   optimalPieces: number;
   totalTrayPieces?: number;       // retained for compat, not used in v2
   trayPieceTypes?: PieceType[];
-  purchasedTapeTypes?: string[];  // tape types purchased AND utilized by the player
-  depthCeiling?: number;          // from level definition; defaults to optimalPieces * 2
+  purchasedTapeTypes?: string[];    // tape types purchased AND utilized by the player
+  depthCeiling?: number;            // from level definition; defaults to optimalPieces * 2
+  forfeitedPurchasedCount?: number; // purchased pieces never placed (informational only)
   discipline: NonNullable<Discipline>;
   engageDurationMs: number;       // retained for compat, not used in v2
   elapsedSeconds?: number;        // retained for compat, not used in v2
@@ -206,6 +210,8 @@ export function calculateScore(params: {
       investment,
       diversity,
       discipline,
+      // informational
+      forfeitedPurchasedCount: params.forfeitedPurchasedCount ?? 0,
       // v1 compat aliases
       completionBonus: completion,
       machineComplexity: investment,

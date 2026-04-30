@@ -12,6 +12,7 @@ import {
   getTutorialCOGSComment,
 } from '../scoring';
 import { useProgressionStore } from '../../store/progressionStore';
+import { useRequisitionStore } from '../../store/requisitionStore';
 
 export interface SuccessParams {
   steps: ExecutionStep[];
@@ -75,6 +76,11 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
   } = params;
 
   const currentDiscipline = discipline ?? 'field';
+  const isTutorial = level.sector === 'axiom';
+  const forfeitedPurchasedCount = isTutorial ? 0 : (
+    useRequisitionStore.getState().getUnplacedPieces()
+      .filter(p => p.source === 'requisitioned').length
+  );
   const result = calculateScore({
     executionSteps: steps,
     placedPieces: pieces,
@@ -82,12 +88,12 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     trayPieceTypes: level.availablePieces ?? [],
     purchasedTapeTypes,
     depthCeiling: level.depthCeiling,
+    forfeitedPurchasedCount,
     discipline: currentDiscipline,
     engageDurationMs,
     elapsedSeconds: lockedElapsed,
   });
 
-  const isTutorial = level.sector === 'axiom';
   const displayStars = isTutorial ? 3 : result.stars;
   const displayResult: ScoreResult = isTutorial
     ? { ...result, stars: 3 as 0 | 1 | 2 | 3 }

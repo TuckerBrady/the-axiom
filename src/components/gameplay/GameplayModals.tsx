@@ -260,6 +260,15 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               </Text>
             )}
 
+            {scoreResult && scoreResult.breakdown.forfeitedPurchasedCount > 0 && (
+              <Text style={styles.forfeitedNotice}>
+                {scoreResult.breakdown.forfeitedPurchasedCount}{' '}
+                {scoreResult.breakdown.forfeitedPurchasedCount === 1
+                  ? 'COMPONENT FORFEITED'
+                  : 'COMPONENTS FORFEITED'}
+              </Text>
+            )}
+
             <View style={styles.cogsResultRow}>
               <CogsAvatar size="small" state="online" />
               <Text style={styles.resultsQuote}>
@@ -908,6 +917,16 @@ const styles = StyleSheet.create({
     fontSize: 5,
     color: Colors.dim,
     letterSpacing: 0.5,
+  },
+
+  // Forfeiture notice
+  forfeitedNotice: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: 'rgba(224,85,85,0.8)',
+    letterSpacing: 2,
+    marginBottom: Spacing.md,
+    textAlign: 'center',
   },
 
   // Completion CONTINUE wrappers
