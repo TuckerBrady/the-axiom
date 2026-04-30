@@ -21,6 +21,7 @@ export interface SuccessParams {
   engageDurationMs: number;
   lockedElapsed: number;
   levelSpent: number;
+  purchasedTapeTypes?: string[];
 
   setScoreResult: (r: ScoreResult | null) => void;
   setCogsScoreComment: (c: string) => void;
@@ -55,6 +56,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     engageDurationMs,
     lockedElapsed,
     levelSpent,
+    purchasedTapeTypes = [],
     setScoreResult,
     setCogsScoreComment,
     setFirstTimeBonus,
@@ -78,6 +80,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     placedPieces: pieces,
     optimalPieces: level.optimalPieces,
     trayPieceTypes: level.availablePieces ?? [],
+    purchasedTapeTypes,
     depthCeiling: level.depthCeiling,
     discipline: currentDiscipline,
     engageDurationMs,
