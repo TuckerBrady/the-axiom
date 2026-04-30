@@ -973,6 +973,10 @@ export const levelK1_10: LevelDefinition = {
   tapeDesignRationale: 'Ten pulses with multiple runs of consecutive 1s, isolated 1s, and consecutive 0s test all state transitions of the consecutive detection algorithm.',
   difficultyBand: 'abstract',
   narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure.',
+  tutorialSteps: [
+    { id: 'board-intro', label: 'CENTRAL HUB', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Central Hub. Twelve columns. The largest board in this sector. The machine must compare each incoming pulse against what the Latch stored from the previous one. All pieces are available. Nothing here has not been seen before.' },
+  ],
 };
 
 // ─── Repair Puzzles (consequence-triggered) ──────────────────────────────────
