@@ -84,6 +84,8 @@ interface Props {
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDragCancel: () => void;
+  // Tutorial: ref attached to the center/selected node for COGS orb targeting
+  mainNodeRef?: React.RefObject<View | null>;
 }
 
 // ─── ArcWheel component ───────────────────────────────────────────────────────
@@ -98,6 +100,7 @@ export default function ArcWheel({
   onDragMove,
   onDragEnd,
   onDragCancel,
+  mainNodeRef,
 }: Props) {
   const [dismissed, setDismissed] = useState(false);
   const [isActive, setIsActive] = useState(false);
@@ -323,6 +326,8 @@ export default function ArcWheel({
         }}
       >
         <View
+          ref={isSelected ? mainNodeRef : undefined}
+          collapsable={false}
           style={[
             styles.nodeWrapper,
             {

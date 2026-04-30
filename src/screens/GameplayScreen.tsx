@@ -290,7 +290,6 @@ export default function GameplayScreen({ navigation }: Props) {
     triggerHints,
     dismissHint,
     tutorialTargetRefs,
-    tutorialTrayRefs,
     tutorialSpotlightCells,
     sourceNodeRef,
     outputNodeRef,
@@ -300,12 +299,13 @@ export default function GameplayScreen({ navigation }: Props) {
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
-    trayConveyorRef,
-    trayGearRef,
-    trayConfigNodeRef,
-    traySplitterRef,
-    trayScannerRef,
-    trayTransmitterRef,
+    arcWheelMainRef,
+    placedPieceRef,
+    tutorialPlacedGridPos,
+    lastPlacedTrigger,
+    lastTappedTrigger,
+    onPiecePlaced: tutorialOnPiecePlaced,
+    onPieceTapped: tutorialOnPieceTapped,
   } = tutorial;
 
   // Phase 2 extraction — elapsed-seconds timer with pause/lock/reset API.
@@ -458,6 +458,30 @@ export default function GameplayScreen({ navigation }: Props) {
     });
   }, [availablePiecesList]);
 
+  // Axiom tutorial levels that introduce a new piece show the Arc Wheel
+  // instead of the PieceTray. Levels without tutorialFocusPiece (A1-4,
+  // A1-6, A1-8) keep the traditional tray.
+  const hasAxiomArcWheel = isAxiomLevel && !!(level?.tutorialFocusPiece);
+
+  const axiomArcWheelPieces = useMemo((): ArcWheelPiece[] => {
+    if (!hasAxiomArcWheel) return [];
+    return trayPieceTypes.map(pt => ({
+      id: pt,
+      type: pt,
+      source: 'preAssigned' as const,
+      placed: false,
+    }));
+  }, [hasAxiomArcWheel, trayPieceTypes]);
+
+  const [axiomWheelSelectedId, setAxiomWheelSelectedId] = useState<string | null>(
+    level?.tutorialFocusPiece ?? null,
+  );
+  // Re-sync when the level changes (navigation.replace produces a new
+  // component mount, but useEffect covers same-instance level changes).
+  useEffect(() => {
+    setAxiomWheelSelectedId(level?.tutorialFocusPiece ?? null);
+  }, [level?.id]);
+
   // Per-piece cost lookup for the tray (axiom levels are free).
   const trayCosts = useMemo(() => {
     const map: Partial<Record<PieceType, number>> = {};
@@ -515,6 +539,7 @@ export default function GameplayScreen({ navigation }: Props) {
           }
           const rotation = getAutoRotation(gridX, gridY);
           placePiece(selectedPieceFromTray, gridX, gridY, rotation);
+          tutorialOnPiecePlaced(selectedPieceFromTray, gridX, gridY);
           const placedCountAfter = playerPieces.length + 1;
           if (!hasPlacedPieces && placedCountAfter >= (level?.optimalPieces ?? 99)) {
             triggerHints('onFirstPiecePlaced');
@@ -543,7 +568,7 @@ export default function GameplayScreen({ navigation }: Props) {
         selectPlaced(null);
       }
     }
-  }, [isAxiomLevel, selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation, selectedInventoryId]);
+  }, [isAxiomLevel, selectedPieceFromTray, selectedPlacedPiece, isExecuting, showResults, showVoid, availableCounts, placePiece, discipline, spendCredits, hasPlacedPieces, triggerHints, selectPlaced, getAutoRotation, selectedInventoryId, tutorialOnPiecePlaced]);
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((pieceId: string) => {
@@ -555,16 +580,19 @@ export default function GameplayScreen({ navigation }: Props) {
     // Type-specific tap actions
     if (piece.type === 'conveyor') {
       rotatePiece(piece.id);
+      tutorialOnPieceTapped(piece.type);
     } else if (piece.type === 'configNode') {
       const current = piece.configValue ?? 1;
       const next = current === 1 ? 0 : 1;
       updatePiece(piece.id, { configValue: next });
+      tutorialOnPieceTapped(piece.type);
     } else if (piece.type === 'latch') {
       const nextMode = piece.latchMode === 'write' ? 'read' : 'write';
       updatePiece(piece.id, { latchMode: nextMode });
+      tutorialOnPieceTapped(piece.type);
     }
     // All other piece types: no tap action
-  }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, rotatePiece, updatePiece]);
+  }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, rotatePiece, updatePiece, tutorialOnPieceTapped]);
 
   // ── Long press returns piece to tray / Arc Wheel (no ghost/held state) ──
   const handlePieceLongPress = useCallback((pieceId: string) => {
@@ -583,6 +611,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const handlePauseOpen = useCallback(() => {
     setShowPauseModal(true);
   }, []);
+
+  // ── Axiom Arc Wheel select ──
+  const handleAxiomArcWheelSelect = useCallback((id: string) => {
+    setAxiomWheelSelectedId(id);
+    selectFromTray(id as PieceType);
+  }, [selectFromTray]);
 
   // ── REQUISITION confirm ──
   const handleRequisitionConfirm = useCallback(() => {
@@ -630,11 +664,15 @@ export default function GameplayScreen({ navigation }: Props) {
     if (currentDrag.type && inBounds && !occupied && !blown) {
       const rotation = getAutoRotation(gridX, gridY);
       placePiece(currentDrag.type, gridX, gridY, rotation);
-      useRequisitionStore.getState().placeInventoryPiece(currentDrag.type);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      if (isAxiomLevel) {
+        tutorialOnPiecePlaced(currentDrag.type, gridX, gridY);
+      } else {
+        useRequisitionStore.getState().placeInventoryPiece(currentDrag.type);
+      }
     }
     setDragState({ active: false, pieceId: null, type: null, x: 0, y: 0 });
-  }, [dragState, level, pieces, getAutoRotation, placePiece]);
+  }, [isAxiomLevel, dragState, level, pieces, getAutoRotation, placePiece, tutorialOnPiecePlaced]);
 
   const handleDragCancel = useCallback(() => {
     setDragState({ active: false, pieceId: null, type: null, x: 0, y: 0 });
@@ -1160,7 +1198,7 @@ export default function GameplayScreen({ navigation }: Props) {
             ref={boardGridRef}
             style={[styles.canvas, { width: gridW, height: gridH }]}
             onLayout={() => {
-              if (boardGridRef.current && !isAxiomLevel) {
+              if (boardGridRef.current) {
                 boardGridRef.current.measureInWindow((x, y) => {
                   boardScreenPos.current = { x, y };
                 });
@@ -1263,6 +1301,24 @@ export default function GameplayScreen({ navigation }: Props) {
               onPieceLongPress={handlePieceLongPress}
             />
 
+            {/* Tutorial placed-piece marker — zero-size invisible View at the
+                placed piece's grid cell. TutorialHUDOverlay measures it with
+                measureInWindow to fly the CAPTURE beat orb to the right spot. */}
+            {tutorialIsActive && tutorialPlacedGridPos && (
+              <View
+                ref={placedPieceRef as React.RefObject<View>}
+                collapsable={false}
+                pointerEvents="none"
+                style={{
+                  position: 'absolute',
+                  left: tutorialPlacedGridPos.gridX * CELL_SIZE,
+                  top: tutorialPlacedGridPos.gridY * CELL_SIZE,
+                  width: CELL_SIZE,
+                  height: CELL_SIZE,
+                }}
+              />
+            )}
+
             {/* Ghost cells — copper valid hints on Axiom; invisible tap targets on Kepler */}
             {(selectedPieceFromTray || (!isAxiomLevel && selectedInventoryId && requisitionPhase === 'placement')) &&
               Array.from({ length: numRows }, (_, y) =>
@@ -1314,15 +1370,14 @@ export default function GameplayScreen({ navigation }: Props) {
         </View>
 
 
-        {/* ── Parts Tray (Axiom only) ── */}
-        {isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && (
+        {/* ── Parts Tray (Axiom levels without Arc Wheel tutorial) ── */}
+        {isAxiomLevel && !hasAxiomArcWheel && !isExecuting && !showResults && !showVoid && !debugMode && (
           <PieceTray
             trayPieceTypes={trayPieceTypes}
             availableCounts={availableCounts}
             selectedPieceFromTray={selectedPieceFromTray}
             costs={trayCosts}
             affordable={trayAffordable}
-            refs={tutorialTrayRefs}
             onPickup={selectFromTray}
           />
         )}
@@ -1421,6 +1476,22 @@ export default function GameplayScreen({ navigation }: Props) {
         />
       )}
 
+      {/* ── Arc Wheel (Axiom tutorial levels with tutorialFocusPiece) ── */}
+      {hasAxiomArcWheel && !isExecuting && !showResults && !showVoid && !debugMode && (
+        <ArcWheel
+          pieces={axiomArcWheelPieces}
+          side={arcWheelPosition}
+          selectedId={axiomWheelSelectedId}
+          mainNodeRef={arcWheelMainRef}
+          disabled={isExecuting}
+          onSelect={handleAxiomArcWheelSelect}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        />
+      )}
+
       {/* ── Ghost piece during Arc Wheel drag ── */}
       {dragState.active && dragState.type && (
         <View
@@ -1511,6 +1582,8 @@ export default function GameplayScreen({ navigation }: Props) {
           onComplete={() => setTutorialComplete(true)}
           onSkip={() => setTutorialSkipped(true)}
           isBeamActive={beamState.phase !== 'idle'}
+          lastPlacedTrigger={lastPlacedTrigger}
+          lastTappedTrigger={lastTappedTrigger}
         />
       )}
 

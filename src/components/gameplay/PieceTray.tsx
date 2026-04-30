@@ -50,7 +50,7 @@ interface Props {
   selectedPieceFromTray: PieceType | null;
   costs: Partial<Record<PieceType, number>>;
   affordable: Partial<Record<PieceType, boolean>>;
-  refs: TutorialTrayRefs;
+  refs?: TutorialTrayRefs;
   onPickup: (type: PieceType | null) => void;
   disabled?: boolean;
 }
@@ -83,13 +83,14 @@ function PieceTrayComponent({
           const color = getPieceColor(pt);
           const cost = costs[pt] ?? 0;
           const canAfford = affordable[pt] ?? true;
-          const measureRef =
-            pt === 'conveyor' ? refs.trayConveyor
+          const measureRef = refs
+            ? pt === 'conveyor' ? refs.trayConveyor
             : pt === 'gear' ? refs.trayGear
             : pt === 'configNode' ? refs.trayConfigNode
             : pt === 'splitter' ? refs.traySplitter
             : pt === 'scanner' ? refs.trayScanner
             : pt === 'transmitter' ? refs.trayTransmitter
+            : undefined
             : undefined;
           return (
             <View key={pt} ref={measureRef} collapsable={false}>

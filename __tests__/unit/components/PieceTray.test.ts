@@ -18,8 +18,8 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(traySrc).toMatch(/export default React\.memo\(PieceTrayComponent\)/);
   });
 
-  it('takes a refs prop forwarded as a single object (so identity is stable)', () => {
-    expect(traySrc).toMatch(/refs:\s*TutorialTrayRefs/);
+  it('has an optional refs prop for backward compatibility (tray no longer requires tutorial refs)', () => {
+    expect(traySrc).toMatch(/refs\?:\s*TutorialTrayRefs/);
     expect(traySrc).toMatch(/export interface TutorialTrayRefs/);
   });
 
@@ -28,8 +28,8 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(traySrc).toMatch(/<TouchableOpacity/);
   });
 
-  it('forwards measureRef per piece via the refs object (not via closure capture)', () => {
-    expect(traySrc).toMatch(/measureRef =\s*\n[\s\S]*?refs\.trayConveyor[\s\S]*?refs\.trayGear/);
+  it('forwards measureRef per piece via the refs object when refs is provided', () => {
+    expect(traySrc).toMatch(/measureRef = refs[\s\S]*?refs\.trayConveyor[\s\S]*?refs\.trayGear/);
   });
 
   it('disables tap callbacks when disabled or count <= 0', () => {
@@ -37,17 +37,20 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(traySrc).toMatch(/disabled=\{disabled \|\| count <= 0\}/);
   });
 
-  it('GameplayScreen imports and renders <PieceTray />', () => {
+  it('GameplayScreen imports and renders <PieceTray /> without refs (refs is now optional)', () => {
     expect(screenSrc).toMatch(
       /import PieceTray from '\.\.\/components\/gameplay\/PieceTray'/,
     );
-    expect(screenSrc).toMatch(/<PieceTray[\s\S]*?refs=\{tutorialTrayRefs\}/);
+    // refs prop removed from GameplayScreen — PieceTray is now used for
+    // non-Arc-Wheel Axiom levels only; tutorial refs live in the Arc Wheel.
+    expect(screenSrc).toMatch(/<PieceTray/);
+    expect(screenSrc).not.toMatch(/refs=\{tutorialTrayRefs\}/);
   });
 
-  it('useGameplayTutorial memoizes the refs object via useMemo with empty deps', () => {
-    expect(tutorialHookSrc).toMatch(
-      /const tutorialTrayRefs = useMemo\([\s\S]*?trayConveyor: trayConveyorRef[\s\S]*?\}\),\s*\[\],\s*\)/,
-    );
+  it('useGameplayTutorial no longer has tutorialTrayRefs (tray refs replaced by arcWheelMainRef)', () => {
+    expect(tutorialHookSrc).not.toMatch(/tutorialTrayRefs/);
+    expect(tutorialHookSrc).toMatch(/arcWheelMainRef/);
+    expect(tutorialHookSrc).toMatch(/placedPieceRef/);
   });
 
   it('GameplayScreen memoizes per-piece costs and affordability', () => {
