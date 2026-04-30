@@ -237,6 +237,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const requisitionStore = useRequisitionStore();
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
+  const arcWheelPieces = useRequisitionStore(s => s.inventory.pieces.filter(p => !p.placed)) as ArcWheelPiece[];
 
   // Level-derived values needed by extracted hooks. Computed before
   // hook calls so hook order stays stable across renders.
@@ -623,9 +624,10 @@ export default function GameplayScreen({ navigation }: Props) {
     const numRowsV = level?.gridHeight ?? 7;
     const inBounds = gridX >= 0 && gridX < numCols && gridY >= 0 && gridY < numRowsV;
     const occupied = pieces.some(p => p.gridX === gridX && p.gridY === gridY);
+    const blown = blownCellsRef.current.has(`${gridX},${gridY}`);
     const currentDrag = dragState;
 
-    if (currentDrag.type && inBounds && !occupied) {
+    if (currentDrag.type && inBounds && !occupied && !blown) {
       const rotation = getAutoRotation(gridX, gridY);
       placePiece(currentDrag.type, gridX, gridY, rotation);
       useRequisitionStore.getState().placeInventoryPiece(currentDrag.type);
@@ -1407,7 +1409,7 @@ export default function GameplayScreen({ navigation }: Props) {
       {/* ── Arc Wheel (Kepler+, placement phase) ── */}
       {!isAxiomLevel && requisitionPhase === 'placement' && !isExecuting && !showResults && !showVoid && (
         <ArcWheel
-          pieces={useRequisitionStore.getState().getUnplacedPieces() as ArcWheelPiece[]}
+          pieces={arcWheelPieces}
           side={arcWheelPosition}
           selectedId={selectedInventoryId}
           disabled={isExecuting}

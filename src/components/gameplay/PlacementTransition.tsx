@@ -86,7 +86,7 @@ export default function PlacementTransition({ onComplete }: Props) {
       >
         <Text style={styles.phaseLabel}>PLACEMENT PHASE</Text>
         <View style={styles.phaseDivider} />
-        <Text style={styles.phaseSubLabel}>Position your pieces</Text>
+        <Text style={styles.phaseSubLabel}>Position pieces</Text>
       </Animated.View>
     </View>
   );

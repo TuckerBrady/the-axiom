@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Easing,
   PanResponder,
   Dimensions,
 } from 'react-native';
@@ -110,6 +111,48 @@ export default function ArcWheel({
   const dragStartPos = useRef({ x: 0, y: 0 });
   const dragPieceIndex = useRef(-1);
   const isDraggingRef = useRef(false);
+
+  // ── Entrance animation (REQ-68): 0.8s staggered, alternating above/below ──
+  const entranceY = useRef(
+    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0))
+  ).current;
+  const entranceOpacity = useRef(
+    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0))
+  ).current;
+  const entranceFired = useRef(false);
+
+  useEffect(() => {
+    if (entranceFired.current || pieces.length === 0) return;
+    entranceFired.current = true;
+
+    const ENTRY_DIST = NODE_SLOT_H * 1.5;
+    const STAGGER_MS = 80;
+    const ITEM_MS = 500;
+
+    entranceY.forEach((anim, i) => {
+      anim.setValue(i % 2 === 0 ? -ENTRY_DIST : ENTRY_DIST);
+    });
+    entranceOpacity.forEach(a => a.setValue(0));
+
+    const animations = entranceY.map((yAnim, i) =>
+      Animated.parallel([
+        Animated.timing(yAnim, {
+          toValue: 0,
+          duration: ITEM_MS,
+          delay: i * STAGGER_MS,
+          easing: Easing.bezier(0.16, 1, 0.3, 1),
+          useNativeDriver: false,
+        }),
+        Animated.timing(entranceOpacity[i], {
+          toValue: 1,
+          duration: Math.round(ITEM_MS * 0.6),
+          delay: i * STAGGER_MS,
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    Animated.parallel(animations).start();
+  }, []);
 
   // Snap selectedIndex to match selectedId from parent
   useEffect(() => {
@@ -255,7 +298,7 @@ export default function ArcWheel({
   ).current;
 
   // ── Render nodes ──
-  function renderNode(piece: ArcWheelPiece, idx: number) {
+  function renderNode(piece: ArcWheelPiece, idx: number, relIdx: number) {
     const distance = idx - selectedIndex;
     const absDistance = Math.abs(distance);
     const maxVisible = Math.floor(VISIBLE_NODES / 2);
@@ -264,58 +307,67 @@ export default function ArcWheel({
 
     const scaleFactor = 1 - (absDistance / (maxVisible + 1)) * 0.45;
     const nodeSize = NODE_SIZE_MAX * scaleFactor;
-    const opacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
+    const distanceOpacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
     const isSelected = piece.id === selectedId || idx === selectedIndex;
     const borderColor = getNodeBorderColor(piece, piece.isTape ?? false);
     const color = getPieceColor(piece.type);
+    const eY = entranceY[relIdx] ?? new Animated.Value(0);
+    const eOp = entranceOpacity[relIdx] ?? new Animated.Value(1);
 
     return (
-      <View
+      <Animated.View
         key={piece.id}
-        style={[
-          styles.nodeWrapper,
-          {
-            width: NODE_SIZE_MAX,
-            height: NODE_SLOT_H,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity,
-          },
-        ]}
+        style={{
+          opacity: eOp,
+          transform: [{ translateY: eY }],
+        }}
       >
-        <TouchableOpacity
-          onPressIn={(e) => handleNodePressIn(idx, e.nativeEvent.pageX, e.nativeEvent.pageY)}
-          onPressOut={handleNodePressOut}
-          onPress={() => handleNodeTap(idx)}
-          activeOpacity={0.8}
+        <View
           style={[
-            styles.node,
+            styles.nodeWrapper,
             {
-              width: nodeSize,
-              height: nodeSize,
-              borderColor: isSelected ? borderColor : `${borderColor}60`,
-              borderWidth: isSelected ? 2 : 1,
-              backgroundColor: isSelected ? `${borderColor}18` : 'rgba(8,14,28,0.9)',
+              width: NODE_SIZE_MAX,
+              height: NODE_SLOT_H,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: distanceOpacity,
             },
           ]}
-          accessibilityLabel={`${PIECE_LABELS[piece.type]}, ${piece.source === 'requisitioned' ? 'purchased' : 'pre-assigned'}`}
         >
-          <PieceIcon type={piece.type} size={nodeSize * 0.45} color={color} />
+          <TouchableOpacity
+            onPressIn={(e) => handleNodePressIn(idx, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+            onPressOut={handleNodePressOut}
+            onPress={() => handleNodeTap(idx)}
+            activeOpacity={0.8}
+            style={[
+              styles.node,
+              {
+                width: nodeSize,
+                height: nodeSize,
+                borderColor: isSelected ? borderColor : `${borderColor}60`,
+                borderWidth: isSelected ? 2 : 1,
+                backgroundColor: isSelected ? `${borderColor}18` : 'rgba(8,14,28,0.9)',
+              },
+            ]}
+            accessibilityLabel={`${PIECE_LABELS[piece.type]}, ${piece.source === 'requisitioned' ? 'purchased' : 'pre-assigned'}`}
+          >
+            <PieceIcon type={piece.type} size={nodeSize * 0.45} color={color} />
+            {isSelected && (
+              <>
+                <View style={[styles.cornerTL, { borderColor }]} />
+                <View style={[styles.cornerTR, { borderColor }]} />
+                <View style={[styles.cornerBL, { borderColor }]} />
+                <View style={[styles.cornerBR, { borderColor }]} />
+              </>
+            )}
+          </TouchableOpacity>
           {isSelected && (
-            <>
-              <View style={[styles.cornerTL, { borderColor }]} />
-              <View style={[styles.cornerTR, { borderColor }]} />
-              <View style={[styles.cornerBL, { borderColor }]} />
-              <View style={[styles.cornerBR, { borderColor }]} />
-            </>
+            <Text style={[styles.nodeLabel, { color: borderColor }]} numberOfLines={1}>
+              {PIECE_LABELS[piece.type]}
+            </Text>
           )}
-        </TouchableOpacity>
-        {isSelected && (
-          <Text style={[styles.nodeLabel, { color: borderColor }]} numberOfLines={1}>
-            {PIECE_LABELS[piece.type]}
-          </Text>
-        )}
-      </View>
+        </View>
+      </Animated.View>
     );
   }
 
@@ -363,7 +415,7 @@ export default function ArcWheel({
           )}
 
           {/* Piece nodes */}
-          {visiblePieces.map((piece, relIdx) => renderNode(piece, startIdx + relIdx))}
+          {visiblePieces.map((piece, relIdx) => renderNode(piece, startIdx + relIdx, relIdx))}
         </Animated.View>
       )}
     </Animated.View>

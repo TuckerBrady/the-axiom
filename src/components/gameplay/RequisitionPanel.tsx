@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Animated,
+  Easing,
   PanResponder,
 } from 'react-native';
 import { PieceIcon } from '../PieceIcon';
@@ -197,6 +198,8 @@ export default function RequisitionPanel({
   const orderedTabs = getOrderedTabs(discipline);
   const [activeTab, setActiveTab] = useState<TabKey>(orderedTabs[0]);
   const [expanded, setExpanded] = useState(false);
+  const [dismissing, setDismissing] = useState(false);
+  const slideOutAnim = useRef(new Animated.Value(0)).current;
 
   const {
     requisition,
@@ -260,6 +263,17 @@ export default function RequisitionPanel({
     if (nibbles <= 0) return;
     setPurchaseNibbles(tapeType, nibbles - 1);
   }, [setPurchaseNibbles, getNibblesForTape]);
+
+  const handleConfirmPress = useCallback(() => {
+    if (dismissing) return;
+    setDismissing(true);
+    Animated.timing(slideOutAnim, {
+      toValue: 600,
+      duration: 600,
+      easing: Easing.bezier(0.4, 0, 1, 0.6),
+      useNativeDriver: false,
+    }).start(() => onConfirm());
+  }, [dismissing, slideOutAnim, onConfirm]);
 
   // ── Render tab content ──
   function renderTabContent() {
@@ -336,7 +350,7 @@ export default function RequisitionPanel({
   const tabColor = TAB_COLORS[activeTab];
 
   return (
-    <View style={styles.root}>
+    <Animated.View style={[styles.root, { transform: [{ translateY: slideOutAnim }] }]}>
       {/* Drag handle */}
       <View style={styles.handleArea} {...panResponder.panHandlers}>
         <TouchableOpacity onPress={() => setExpanded(e => !e)} style={styles.handleBtn} activeOpacity={0.7}>
@@ -411,9 +425,9 @@ export default function RequisitionPanel({
 
           {/* Confirm button */}
           <TouchableOpacity
-            style={[styles.confirmBtn, { borderColor: tabColor }, !canAffordRequisition && totalSpend > 0 && styles.confirmBtnDisabled]}
-            onPress={onConfirm}
-            disabled={!canAffordRequisition && totalSpend > 0}
+            style={[styles.confirmBtn, { borderColor: tabColor }, (dismissing || (!canAffordRequisition && totalSpend > 0)) && styles.confirmBtnDisabled]}
+            onPress={handleConfirmPress}
+            disabled={dismissing || (!canAffordRequisition && totalSpend > 0)}
             activeOpacity={0.8}
             accessibilityLabel="Confirm requisition"
           >
@@ -421,7 +435,7 @@ export default function RequisitionPanel({
           </TouchableOpacity>
         </>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
