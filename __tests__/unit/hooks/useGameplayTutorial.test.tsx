@@ -87,7 +87,7 @@ describe('useGameplayTutorial', () => {
         );
       });
       const firstRefs = captured!.tutorialTargetRefs;
-      const firstTrayRefs = captured!.tutorialTrayRefs;
+      const firstArcWheelRef = captured!.arcWheelMainRef;
       const firstSourceRef = captured!.sourceNodeRef;
 
       await TestRenderer.act(async () => {
@@ -100,7 +100,7 @@ describe('useGameplayTutorial', () => {
         );
       });
       expect(captured!.tutorialTargetRefs).toBe(firstRefs);
-      expect(captured!.tutorialTrayRefs).toBe(firstTrayRefs);
+      expect(captured!.arcWheelMainRef).toBe(firstArcWheelRef);
       expect(captured!.sourceNodeRef).toBe(firstSourceRef);
     });
   });

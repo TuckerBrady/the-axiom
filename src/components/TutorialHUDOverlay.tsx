@@ -13,7 +13,8 @@ import {
   UIManager,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { TutorialStep } from '../game/types';
+import type { TutorialStep, PieceType } from '../game/types';
+import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial';
 import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
@@ -56,6 +57,10 @@ interface Props {
   // to false so existing call sites keep their current behavior;
   // GameplayScreen passes `beamState.phase !== 'idle'`.
   isBeamActive?: boolean;
+  // Arc Wheel tutorial — external event signals for awaitPlacement and awaitPieceTap.
+  // Incremented sequence numbers prevent duplicate-fire when the same type repeats.
+  lastPlacedTrigger?: PlacedTrigger | null;
+  lastTappedTrigger?: TappedTrigger | null;
 }
 
 // Targets that are section-level (no individual piece glow)
@@ -91,6 +96,8 @@ function TutorialHUDOverlayComponent({
   spotlightCells,
   spotlightCellSize,
   isBeamActive = false,
+  lastPlacedTrigger,
+  lastTappedTrigger,
 }: Props) {
   // ── State ──
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -752,12 +759,39 @@ function TutorialHUDOverlayComponent({
     });
   }, [codexTranslate, advanceStep, trackAnim, orbCollectAnim]);
 
-  // Tap anywhere to advance (or open codex for codex steps)
+  // Advance when the matching piece type is placed (awaitPlacement steps).
+  // The sequence number guards against re-firing when the same type repeats
+  // across levels; it is only reset on full overlay remount.
+  const lastPlacedSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!lastPlacedTrigger) return;
+    if (lastPlacedSeqRef.current === lastPlacedTrigger.seq) return;
+    lastPlacedSeqRef.current = lastPlacedTrigger.seq;
+    if (step?.awaitPlacement === lastPlacedTrigger.type && phase === 'arrived') {
+      advanceStep();
+    }
+  }, [lastPlacedTrigger, step, phase, advanceStep]);
+
+  // Advance when the matching piece type is tapped (awaitPieceTap steps).
+  const lastTappedSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!lastTappedTrigger) return;
+    if (lastTappedSeqRef.current === lastTappedTrigger.seq) return;
+    lastTappedSeqRef.current = lastTappedTrigger.seq;
+    if (step?.awaitPieceTap === lastTappedTrigger.type && phase === 'arrived') {
+      advanceStep();
+    }
+  }, [lastTappedTrigger, step, phase, advanceStep]);
+
+  // Tap anywhere to advance (or open codex for codex steps).
+  // awaitPlacement steps do not advance on tap — the dim backdrop is also
+  // non-interactive in that mode, so this guard is a belt-and-suspenders.
   const handleTapAnywhere = useCallback(() => {
     if (phase !== 'arrived') return;
     if (codexVisible) return;
+    if (step?.awaitPlacement) return;
     handlePrimary();
-  }, [phase, codexVisible, handlePrimary]);
+  }, [phase, codexVisible, step, handlePrimary]);
 
   if (!hydrated || !step) return null;
 
@@ -817,13 +851,17 @@ function TutorialHUDOverlayComponent({
       pointerEvents="box-none"
       style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
     >
-      {/* Dim backdrop — tap anywhere to advance */}
-      <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill}>
-        <Animated.View
-          pointerEvents="none"
-          style={[st.dim, { opacity: dimOpacity }]}
-        />
-      </Pressable>
+      {/* Dim backdrop — non-interactive for awaitPlacement / allowPieceTap
+          so board touches pass through; Pressable otherwise. */}
+      {(step?.awaitPlacement || step?.allowPieceTap) ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
+        </View>
+      ) : (
+        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill}>
+          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
+        </Pressable>
+      )}
 
       {/* Portal (rendered when arrived/codex and not center) */}
       {phase !== 'flying' && phase !== 'idle' && portalBox && (
@@ -969,7 +1007,11 @@ function TutorialHUDOverlayComponent({
           <TouchableOpacity onPress={handleSkip} style={st.skipBtn} activeOpacity={0.7}>
             <Text style={st.skipBtnText}>SKIP</Text>
           </TouchableOpacity>
-          {renderMessage()}
+          {step?.allowPieceTap ? (
+            <TouchableOpacity onPress={handlePrimary} activeOpacity={0.85}>
+              {renderMessage()}
+            </TouchableOpacity>
+          ) : renderMessage()}
         </Animated.View>
       )}
 

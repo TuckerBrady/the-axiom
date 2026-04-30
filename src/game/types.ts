@@ -152,6 +152,8 @@ export type LevelDefinition = {
   // Kepler mechanics — not used in K1-1 but type is defined here
   damagedCells?: Array<{ gridX: number; gridY: number }>;
   requiredPieces?: Array<{ type: string; count: number; reason?: string }>;
+  // Arc Wheel tutorial: pre-selects this piece at center on Axiom level load
+  tutorialFocusPiece?: PieceType;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────
@@ -255,7 +257,7 @@ export type TutorialHint = {
   text: string;
 };
 
-export type TutorialStepEye = 'blue' | 'amber';
+export type TutorialStepEye = 'blue' | 'amber' | 'green';
 
 export type TutorialStep = {
   id: string;
@@ -268,6 +270,12 @@ export type TutorialStep = {
   showDemo?: boolean;
   demoText?: string;
   codexEntryId?: string;
+  // Beat 2: pause tutorial until this piece type is placed on the board
+  awaitPlacement?: PieceType;
+  // Beat 4: allow taps to pass through the overlay to the board beneath
+  allowPieceTap?: boolean;
+  // Beat 4a: advance automatically when this piece type is tapped on board
+  awaitPieceTap?: PieceType;
 };
 
 // ─── Scoring Category Visibility ─────────────────────────────────────────────

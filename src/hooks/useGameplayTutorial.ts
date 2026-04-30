@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { LevelDefinition } from '../game/types';
-import type { TutorialTrayRefs } from '../components/gameplay/PieceTray';
+import type { LevelDefinition, PieceType } from '../game/types';
 
 type Hint = { key: string; text: string };
 
 export type TutorialTargetRefs = Record<string, React.RefObject<View | null>>;
+
+// Placement trigger: incremented every time onPiecePlaced fires so
+// TutorialHUDOverlay can react to the event even when pieceType repeats.
+export type PlacedTrigger = { type: PieceType; seq: number };
+
+// Tap trigger: incremented every time onPieceTapped fires.
+export type TappedTrigger = { type: PieceType; seq: number };
 
 export interface UseGameplayTutorialResult {
   tutorialComplete: boolean;
@@ -19,7 +25,6 @@ export interface UseGameplayTutorialResult {
   triggerHints: (trigger: string) => Promise<void>;
   dismissHint: () => void;
   tutorialTargetRefs: TutorialTargetRefs;
-  tutorialTrayRefs: TutorialTrayRefs;
   tutorialSpotlightCells: { col: number; row: number; color: string }[];
   sourceNodeRef: React.RefObject<View | null>;
   outputNodeRef: React.RefObject<View | null>;
@@ -29,12 +34,16 @@ export interface UseGameplayTutorialResult {
   inputTapeRowRef: React.RefObject<View | null>;
   outputTapeRowRef: React.RefObject<View | null>;
   dataTrailRowRef: React.RefObject<View | null>;
-  trayConveyorRef: React.RefObject<View | null>;
-  trayGearRef: React.RefObject<View | null>;
-  trayConfigNodeRef: React.RefObject<View | null>;
-  traySplitterRef: React.RefObject<View | null>;
-  trayScannerRef: React.RefObject<View | null>;
-  trayTransmitterRef: React.RefObject<View | null>;
+  // Arc Wheel tutorial refs
+  arcWheelMainRef: React.RefObject<View | null>;
+  placedPieceRef: React.RefObject<View | null>;
+  // Placement / tap state tracked for TutorialHUDOverlay
+  tutorialPlacedGridPos: { gridX: number; gridY: number } | null;
+  lastPlacedTrigger: PlacedTrigger | null;
+  lastTappedTrigger: TappedTrigger | null;
+  // Callbacks called by GameplayScreen on board events
+  onPiecePlaced: (pieceType: PieceType, gridX: number, gridY: number) => void;
+  onPieceTapped: (pieceType: PieceType) => void;
 }
 
 export function useGameplayTutorial(
@@ -48,6 +57,7 @@ export function useGameplayTutorial(
   const [hintQueue, setHintQueue] = useState<Hint[]>([]);
   const hintTriggered = useRef<Set<string>>(new Set());
 
+  // Board / HUD refs
   const sourceNodeRef = useRef<View>(null);
   const outputNodeRef = useRef<View>(null);
   const boardGridRef = useRef<View>(null);
@@ -56,12 +66,21 @@ export function useGameplayTutorial(
   const inputTapeRowRef = useRef<View>(null);
   const outputTapeRowRef = useRef<View>(null);
   const dataTrailRowRef = useRef<View>(null);
-  const trayConveyorRef = useRef<View>(null);
-  const trayGearRef = useRef<View>(null);
-  const trayConfigNodeRef = useRef<View>(null);
-  const traySplitterRef = useRef<View>(null);
-  const trayScannerRef = useRef<View>(null);
-  const trayTransmitterRef = useRef<View>(null);
+
+  // Arc Wheel tutorial refs
+  const arcWheelMainRef = useRef<View>(null);
+  // placedPieceRef is attached to a zero-size invisible View rendered at
+  // the placed piece's board position so TutorialHUDOverlay can measure it.
+  const placedPieceRef = useRef<View>(null);
+
+  // Placed piece grid position — GameplayScreen renders a marker View here
+  const [tutorialPlacedGridPos, setTutorialPlacedGridPos] = useState<{ gridX: number; gridY: number } | null>(null);
+
+  // Trigger counters for TutorialHUDOverlay effects
+  const placedSeqRef = useRef(0);
+  const tappedSeqRef = useRef(0);
+  const [lastPlacedTrigger, setLastPlacedTrigger] = useState<PlacedTrigger | null>(null);
+  const [lastTappedTrigger, setLastTappedTrigger] = useState<TappedTrigger | null>(null);
 
   // Memoized targetRefs object passed to TutorialHUDOverlay. Without
   // this, the inline object literal in JSX produced a fresh identity
@@ -77,30 +96,12 @@ export function useGameplayTutorial(
       outputNode: outputNodeRef,
       boardGrid: boardGridRef,
       engageButton: engageButtonRef,
-      trayConveyor: trayConveyorRef,
-      trayGear: trayGearRef,
-      trayConfigNode: trayConfigNodeRef,
-      traySplitter: traySplitterRef,
-      trayScanner: trayScannerRef,
-      trayTransmitter: trayTransmitterRef,
       boardScanner: boardScannerRef,
       inputTapeRow: inputTapeRowRef,
       outputTapeRow: outputTapeRowRef,
       dataTrailRow: dataTrailRowRef,
-    }),
-    [],
-  );
-
-  // Memoized PieceTray refs object (Prompt 99B). Stable identity so
-  // PieceTray's React.memo barrier holds across parent re-renders.
-  const tutorialTrayRefs = useMemo(
-    () => ({
-      trayConveyor: trayConveyorRef,
-      trayGear: trayGearRef,
-      trayConfigNode: trayConfigNodeRef,
-      traySplitter: traySplitterRef,
-      trayScanner: trayScannerRef,
-      trayTransmitter: trayTransmitterRef,
+      arcWheelMain: arcWheelMainRef,
+      placedPiece: placedPieceRef,
     }),
     [],
   );
@@ -139,6 +140,14 @@ export function useGameplayTutorial(
   // between Axiom levels (lag audit, Prompt 108).
   useEffect(() => {
     hintTriggered.current = new Set();
+  }, [level?.id]);
+
+  // Reset placed piece position on level change so stale markers
+  // from the previous level don't show on the new board.
+  useEffect(() => {
+    setTutorialPlacedGridPos(null);
+    setLastPlacedTrigger(null);
+    setLastTappedTrigger(null);
   }, [level?.id]);
 
   // HUD tutorial overlay hydration
@@ -203,6 +212,22 @@ export function useGameplayTutorial(
     }, 1500);
   }, []);
 
+  // Called by GameplayScreen when a piece is placed on the board.
+  // Stores the grid position for the placed-piece marker View and
+  // fires a trigger signal that TutorialHUDOverlay watches.
+  const onPiecePlaced = useCallback((pieceType: PieceType, gridX: number, gridY: number) => {
+    setTutorialPlacedGridPos({ gridX, gridY });
+    placedSeqRef.current += 1;
+    setLastPlacedTrigger({ type: pieceType, seq: placedSeqRef.current });
+  }, []);
+
+  // Called by GameplayScreen when a placed piece is tapped on the board.
+  // Fires a trigger signal that TutorialHUDOverlay watches for awaitPieceTap.
+  const onPieceTapped = useCallback((pieceType: PieceType) => {
+    tappedSeqRef.current += 1;
+    setLastTappedTrigger({ type: pieceType, seq: tappedSeqRef.current });
+  }, []);
+
   return {
     tutorialComplete,
     setTutorialComplete,
@@ -214,7 +239,6 @@ export function useGameplayTutorial(
     triggerHints,
     dismissHint,
     tutorialTargetRefs,
-    tutorialTrayRefs,
     tutorialSpotlightCells,
     sourceNodeRef,
     outputNodeRef,
@@ -224,11 +248,12 @@ export function useGameplayTutorial(
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
-    trayConveyorRef,
-    trayGearRef,
-    trayConfigNodeRef,
-    traySplitterRef,
-    trayScannerRef,
-    trayTransmitterRef,
+    arcWheelMainRef,
+    placedPieceRef,
+    tutorialPlacedGridPos,
+    lastPlacedTrigger,
+    lastTappedTrigger,
+    onPiecePlaced,
+    onPieceTapped,
   };
 }
