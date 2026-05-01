@@ -340,6 +340,7 @@ function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown 
     speedBonus: 0,
     elaboration: 4,
     purchasedTouchedCount: 3,
+    forfeitedPurchasedCount: 0,
     efficiency: 25,
     chainIntegrity: 10,
     disciplineBonus: 10,

@@ -4,6 +4,7 @@ jest.mock('../../../src/game/scoring', () => ({
     stars: 2,
     breakdown: {
       purchasedTouchedCount: 0,
+      forfeitedPurchasedCount: 0,
       completionBonus: 25,
       machineComplexity: 20,
       protocolPrecision: 10,
@@ -17,6 +18,14 @@ jest.mock('../../../src/game/scoring', () => ({
   }),
   getCOGSScoreComment: jest.fn().mockReturnValue('Acceptable.'),
   getTutorialCOGSComment: jest.fn().mockReturnValue('Tutorial comment.'),
+}));
+
+jest.mock('../../../src/store/requisitionStore', () => ({
+  useRequisitionStore: {
+    getState: jest.fn().mockReturnValue({
+      getUnplacedPieces: jest.fn().mockReturnValue([]),
+    }),
+  },
 }));
 
 jest.mock('../../../src/store/progressionStore', () => ({
@@ -185,6 +194,7 @@ describe('handleSuccess', () => {
       stars: 3,
       breakdown: {
         purchasedTouchedCount: 0,
+        forfeitedPurchasedCount: 0,
         completionBonus: 25,
         machineComplexity: 30,
         protocolPrecision: 20,
@@ -232,6 +242,7 @@ describe('handleSuccess', () => {
       stars: 0,
       breakdown: {
         purchasedTouchedCount: 0,
+        forfeitedPurchasedCount: 0,
         completionBonus: 0,
         machineComplexity: 0,
         protocolPrecision: 0,
@@ -258,6 +269,7 @@ describe('handleSuccess', () => {
       stars: 1,
       breakdown: {
         purchasedTouchedCount: 0,
+        forfeitedPurchasedCount: 0,
         completionBonus: 25,
         machineComplexity: 0,
         protocolPrecision: 0,
@@ -479,5 +491,43 @@ describe('handleSuccess', () => {
     );
     // setCogsScoreComment should have been called (getCOGSScoreComment path)
     expect(params.setCogsScoreComment).toHaveBeenCalled();
+  });
+
+  it('non-tutorial: forfeitedPurchasedCount from requisitionStore passed to calculateScore', async () => {
+    const { useRequisitionStore } = jest.requireMock('../../../src/store/requisitionStore') as {
+      useRequisitionStore: { getState: jest.Mock };
+    };
+    useRequisitionStore.getState.mockReturnValueOnce({
+      getUnplacedPieces: jest.fn().mockReturnValue([
+        { id: 'r1', type: 'conveyor', source: 'requisitioned', placed: false },
+        { id: 'r2', type: 'gear', source: 'requisitioned', placed: false },
+        { id: 'p1', type: 'conveyor', source: 'preAssigned', placed: false },
+      ]),
+    });
+    const params = makeParams({ level: makeLevel({ sector: 'kepler' }) });
+    const promise = handleSuccess(params);
+    await jest.runAllTimersAsync();
+    await promise;
+    expect(calculateScore).toHaveBeenCalledWith(
+      expect.objectContaining({ forfeitedPurchasedCount: 2 }),
+    );
+  });
+
+  it('tutorial (axiom): forfeitedPurchasedCount is always 0 regardless of inventory', async () => {
+    const { useRequisitionStore } = jest.requireMock('../../../src/store/requisitionStore') as {
+      useRequisitionStore: { getState: jest.Mock };
+    };
+    useRequisitionStore.getState.mockReturnValueOnce({
+      getUnplacedPieces: jest.fn().mockReturnValue([
+        { id: 'r1', type: 'conveyor', source: 'requisitioned', placed: false },
+      ]),
+    });
+    const params = makeParams({ level: makeLevel({ sector: 'axiom', id: 'A1-1' }) });
+    const promise = handleSuccess(params);
+    await jest.runAllTimersAsync();
+    await promise;
+    expect(calculateScore).toHaveBeenCalledWith(
+      expect.objectContaining({ forfeitedPurchasedCount: 0 }),
+    );
   });
 });
