@@ -851,16 +851,13 @@ function TutorialHUDOverlayComponent({
       pointerEvents="box-none"
       style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
     >
-      {/* Dim backdrop — non-interactive for awaitPlacement / allowPieceTap
-          so board touches pass through; Pressable otherwise. */}
-      {(step?.awaitPlacement || step?.allowPieceTap) ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
-        </View>
-      ) : (
-        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill}>
-          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
-        </Pressable>
+      {/* Dim backdrop — always-mounted so dimOpacity's native node never
+          detaches and remounts across step transitions. Separating the
+          Animated.View from the tap handler avoids the "node moved to
+          native" SIGABRT (same pattern as portalOpacity, Prompt 93 Fix 1). */}
+      <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
+      {!(step?.awaitPlacement || step?.allowPieceTap) && (
+        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
       )}
 
       {/* Portal (rendered when arrived/codex and not center) */}
