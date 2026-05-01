@@ -105,6 +105,40 @@ describe('Kepler Belt levels', () => {
     expect(k10.consequence?.requireThreeStars).toBe(true);
   });
 
+  it('K1-10 boss level has tutorialSteps with board-intro', () => {
+    const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
+    expect(k10.tutorialSteps).toBeDefined();
+    expect(k10.tutorialSteps!.length).toBeGreaterThanOrEqual(1);
+    const boardIntro = k10.tutorialSteps!.find(s => s.id === 'board-intro');
+    expect(boardIntro).toBeDefined();
+    expect(boardIntro!.eyeState).toBe('blue');
+    expect(boardIntro!.message).toBeTruthy();
+  });
+
+  it('K1-10 has all scoring categories visible', () => {
+    const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
+    expect(k10.scoringCategoriesVisible).toContain('efficiency');
+    expect(k10.scoringCategoriesVisible).toContain('chainIntegrity');
+    expect(k10.scoringCategoriesVisible).toContain('protocolPrecision');
+    expect(k10.scoringCategoriesVisible).toContain('disciplineBonus');
+    expect(k10.scoringCategoriesVisible).toContain('speedBonus');
+  });
+
+  it('K1-10 tape matches consecutive-1 detector spec', () => {
+    const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
+    expect(k10.inputTape).toEqual([1, 1, 0, 1, 1, 1, 0, 0, 1, 1]);
+    expect(k10.expectedOutput).toEqual([0, 1, 0, 0, 1, 1, 0, 0, 0, 1]);
+    expect(k10.inputTape!.length).toBe(k10.expectedOutput!.length);
+  });
+
+  it('K1-10 is 12x9 grid with correct piece count', () => {
+    const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
+    expect(k10.gridWidth).toBe(12);
+    expect(k10.gridHeight).toBe(9);
+    expect(k10.optimalPieces).toBe(13);
+    expect(k10.availablePieces).toHaveLength(22);
+  });
+
   it('new piece tutorial levels follow 4-step pattern', () => {
     const k3 = KEPLER_LEVELS.find(l => l.id === 'K1-3')!;
     const k5 = KEPLER_LEVELS.find(l => l.id === 'K1-5')!;
