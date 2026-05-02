@@ -48,6 +48,8 @@ export type PlacedPiece = {
   // Splitter magnet mechanic — the two sides where magnets connected
   // to adjacent pieces. Max 2. Populated by computeSplitterMagnets.
   connectedMagnetSides?: PortSide[];
+  // Set to true when piece is activated during a run. Reset before each run.
+  firedDuringRun?: boolean;
 };
 
 // ─── Connections ──────────────────────────────────────────────────────────────

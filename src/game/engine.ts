@@ -3,6 +3,7 @@ import type {
   Wire,
   MachineState,
   ExecutionStep,
+  LevelDefinition,
   PortSide,
 } from './types';
 
@@ -317,6 +318,8 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     const piece = pieces.find(p => p.id === currentId);
     if (!piece) continue;
 
+    piece.firedDuringRun = true;
+
     const step: ExecutionStep = {
       pieceId: piece.id,
       type: piece.type,
@@ -582,4 +585,46 @@ export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['catego
     case 'latch':
       return 'protocol';
   }
+}
+
+// ─── Required pieces enforcement ─────────────────────────────────────────────
+
+export interface PieceRunState {
+  pieceId: string;
+  firedDuringRun: boolean;
+}
+
+export type RequiredPiecesResult =
+  | { result: 'satisfied' }
+  | {
+      result: 'requiredPiecesNotEngaged';
+      missing: Array<{ type: string; required: number; engaged: number }>;
+    };
+
+export function resetRunState(pieces: PlacedPiece[]): void {
+  for (const p of pieces) {
+    p.firedDuringRun = false;
+  }
+}
+
+export function evaluateRequiredPieces(
+  levelDef: LevelDefinition,
+  pieceRunStates: PieceRunState[],
+): RequiredPiecesResult {
+  const required = levelDef.requiredPieces;
+  if (!required || required.length === 0) return { result: 'satisfied' };
+
+  const missing: Array<{ type: string; required: number; engaged: number }> = [];
+
+  for (const entry of required) {
+    const engaged = pieceRunStates.filter(
+      s => s.pieceId === entry.type && s.firedDuringRun,
+    ).length;
+    if (engaged < entry.count) {
+      missing.push({ type: entry.type, required: entry.count, engaged });
+    }
+  }
+
+  if (missing.length === 0) return { result: 'satisfied' };
+  return { result: 'requiredPiecesNotEngaged', missing };
 }
