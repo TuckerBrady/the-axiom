@@ -21,6 +21,16 @@
  *     pattern (native-driven value -> multiple Animated.View hosts
  *     inside conditional branches) rather than all Animated usage.
  *
+ * Window widening (Build 20 follow-up):
+ *   The original conditional-context window was 5 lines lookback /
+ *   2 lines lookahead. That window missed the Build 20 glowPulse
+ *   violation in TutorialHUDOverlay.tsx because the conditional
+ *   branches that wrap each host (`{phase !== 'flying' && portalBox &&`,
+ *   `{showPieceGlow && glowCircle &&`) open 18-20 lines above each
+ *   `<Animated.View`. Widening lookback to 60 lines closes the gap
+ *   for realistically nested JSX while still requiring some
+ *   conditional marker to appear near the host.
+ *
  * Canonical reference: docs/ANIMATION_RULES.md REQ-A-1, REQ-A-3
  */
 
@@ -30,6 +40,9 @@ import * as path from 'path';
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const CONDITIONAL_LOOKBACK_LINES = 60;
+const CONDITIONAL_LOOKAHEAD_LINES = 5;
 
 function collectTsxFiles(dir: string): string[] {
   const results: string[] = [];
@@ -116,8 +129,8 @@ function findHostViolations(filePath: string, source: string): Violation[] {
 
     if (uniqueHosts.length > 1) {
       const hasConditionalContext = uniqueHosts.some(lineNum => {
-        const start = Math.max(0, lineNum - 5);
-        const end = Math.min(lines.length, lineNum + 2);
+        const start = Math.max(0, lineNum - CONDITIONAL_LOOKBACK_LINES);
+        const end = Math.min(lines.length, lineNum + CONDITIONAL_LOOKAHEAD_LINES);
         const context = lines.slice(start, end).join('\n');
         return (
           /\?\s*\(/.test(context) ||
@@ -126,7 +139,8 @@ function findHostViolations(filePath: string, source: string): Violation[] {
           /&&\s*</.test(context) ||
           /:\s*\(/.test(context) ||
           /:\s*</.test(context) ||
-          /\bif\s*\(/.test(context)
+          /\bif\s*\(/.test(context) ||
+          /\.map\s*\(/.test(context)
         );
       });
 
@@ -170,7 +184,7 @@ describe('[REQ-A-1] Native-driver host uniqueness static check', () => {
           '  See docs/ANIMATION_RULES.md for refactoring guidance.',
         )
         .join('\n\n');
-      fail(
+      throw new Error(
         'REQ-A-1 violation(s) detected. Each native-driven Animated.Value ' +
         'must be consumed by exactly one Animated.View host across all ' +
         'conditional render branches.\n\n' + report,
@@ -191,7 +205,7 @@ describe('[REQ-A-1] Native-driver host uniqueness static check', () => {
     expect(violations[0].hostCount).toBe(2);
   });
 
-  it('[REQ-A-1] passes against current TutorialHUDOverlay.tsx (post-96a4aba)', () => {
+  it('[REQ-A-1] passes against current TutorialHUDOverlay.tsx (post-Build-20 fix)', () => {
     const overlayPath = path.resolve(SRC_DIR, 'components/TutorialHUDOverlay.tsx');
     expect(fs.existsSync(overlayPath)).toBe(true);
     const source = fs.readFileSync(overlayPath, 'utf-8');
@@ -209,5 +223,66 @@ describe('[REQ-A-1] Native-driver host uniqueness static check', () => {
     expect(
       tsxWithAnimatedView.some(f => f.includes('TutorialHUDOverlay')),
     ).toBe(true);
+  });
+
+  it('[REQ-A-1] widened conditional-context window catches the Build 20 glowPulse pattern', () => {
+    // Regression guard: the original 5-line lookback missed the Build 20
+    // glowPulse violation because the surrounding conditional opened
+    // 18-20 lines above each host. This test verifies the widened window
+    // would catch a synthetic reintroduction of that pattern.
+    const synthetic = `
+import React, { useRef, useEffect } from 'react';
+import { Animated, View } from 'react-native';
+
+function Repro() {
+  const phase: 'idle' | 'arrived' = 'arrived';
+  const showGlow = true;
+  const showSpot = true;
+  const glowPulse = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(glowPulse, { toValue: 1, useNativeDriver: true }).start();
+  }, []);
+
+  return (
+    <View>
+      {phase === 'arrived' && (
+        <View>
+          <Text>spacer line 1</Text>
+          <Text>spacer line 2</Text>
+          <Text>spacer line 3</Text>
+          <Text>spacer line 4</Text>
+          <Text>spacer line 5</Text>
+          <Text>spacer line 6</Text>
+          <Text>spacer line 7</Text>
+          <Text>spacer line 8</Text>
+          <Text>spacer line 9</Text>
+          <Text>spacer line 10</Text>
+          <Animated.View style={{ opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }} />
+        </View>
+      )}
+      {showGlow && (
+        <View>
+          <Text>spacer line 1</Text>
+          <Text>spacer line 2</Text>
+          <Text>spacer line 3</Text>
+          <Text>spacer line 4</Text>
+          <Text>spacer line 5</Text>
+          <Text>spacer line 6</Text>
+          <Text>spacer line 7</Text>
+          <Text>spacer line 8</Text>
+          <Text>spacer line 9</Text>
+          <Text>spacer line 10</Text>
+          <Animated.View style={{ opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0, 1] }) }} />
+        </View>
+      )}
+    </View>
+  );
+}
+`;
+    const violations = findHostViolations('synthetic.tsx', synthetic);
+    expect(violations.length).toBe(1);
+    expect(violations[0].valueName).toBe('glowPulse');
+    expect(violations[0].hostCount).toBe(2);
   });
 });
