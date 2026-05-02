@@ -4,6 +4,7 @@ const base = require('./jest.config.js');
 
 const unitProject = base.projects[0];
 const integProject = base.projects[1];
+const lintProject = base.projects[2];
 
 module.exports = {
   ...base,
@@ -17,6 +18,11 @@ module.exports = {
       ...integProject,
       testMatch: undefined,
       testRegex: '__tests__/integration/.*\\.test\\.(ts|tsx)$',
+    },
+    {
+      ...lintProject,
+      testMatch: undefined,
+      testRegex: '__tests__/lint/.*\\.test\\.(ts|tsx)$',
     },
   ],
 };
