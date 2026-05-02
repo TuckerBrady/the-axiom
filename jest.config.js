@@ -23,6 +23,14 @@ module.exports = {
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
     },
+    {
+      displayName: 'lint',
+      testMatch: ['<rootDir>/__tests__/lint/**/*.test.{ts,tsx}'],
+      transform: {
+        '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+      },
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+    },
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
