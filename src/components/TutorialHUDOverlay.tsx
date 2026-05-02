@@ -608,6 +608,16 @@ function TutorialHUDOverlayComponent({
   // (Prompt 92, Fix 6). Each ring's outputRange is preserved; this
   // change just narrows the input the rings sample from to the
   // bright end of their gradient.
+  //
+  // useNativeDriver: false is required because glowPulse is consumed
+  // by seven different Animated.View hosts (4 portal corners + 2
+  // piece-glow rings + N spotlight rings) that mount and unmount
+  // independently across step transitions. REQ-A-1 forbids a
+  // native-driven value to span multiple hosts (Build 20 A1-1 SIGABRT,
+  // see project-docs/REPORTS/build20-a1-1-sigabrt-investigation.md).
+  // The JS driver carries the cost of small opacity interpolations
+  // on chrome elements only; the surrounding portal tree already
+  // runs on JS driver for the same reason (Prompt 93 Fix 1).
   const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
   useEffect(() => {
     if (!showPieceGlow) return;
@@ -618,13 +628,13 @@ function TutorialHUDOverlayComponent({
           toValue: 1,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(glowPulse, {
           toValue: 0.7,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]),
     );

@@ -105,11 +105,17 @@ describe('TutorialHUDOverlay lifecycle cleanup (Prompt 90)', () => {
   });
 
   describe('native-driver opacity animations', () => {
-    it('runs the glow pulse loop with useNativeDriver: true', () => {
+    it('runs the glow pulse loop with useNativeDriver: false (REQ-A-1, Build 20 fix)', () => {
+      // glowPulse is consumed by seven different Animated.View hosts
+      // (4 portal corners + 2 piece-glow rings + N spotlight rings)
+      // that mount/unmount independently across step transitions.
+      // REQ-A-1 forbids a native-driven value to span multiple hosts.
+      // The Build 20 A1-1 SIGABRT was rooted here. See
+      // project-docs/REPORTS/build20-a1-1-sigabrt-investigation.md.
       const pulse = overlaySource.match(/glowPulse,[\s\S]*?showPieceGlow, glowPulse, trackAnim\]/);
       expect(pulse).not.toBeNull();
-      expect(pulse?.[0]).toMatch(/useNativeDriver:\s*true/);
-      expect(pulse?.[0]).not.toMatch(/useNativeDriver:\s*false/);
+      expect(pulse?.[0]).toMatch(/useNativeDriver:\s*false/);
+      expect(pulse?.[0]).not.toMatch(/useNativeDriver:\s*true/);
     });
 
     it('runs the dim / callout / exit-opacity / codex timings on the native driver', () => {
