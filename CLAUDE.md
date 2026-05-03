@@ -4,6 +4,24 @@ READ THIS FIRST. EVERY SESSION. NO EXCEPTIONS.
 
 ---
 
+## The Soul of the Game
+
+The Axiom is a Rube Goldberg, Turing Machine game set in space. It teaches computer science using Rube Goldberg machines as the medium. The space setting (lasers, signal beams, cool pieces, awesome colors) makes it fun. The computational concepts are real. The machines are the curriculum.
+
+**The joy is building elaborate, interesting machines — not finding the minimum solution.** Scoring rewards machine complexity and creativity. Credits fund creativity through the expanding tray (players buy additional pieces to build bigger machines). Spend more, build well, get rewarded with more credits than you spent. Every design decision must encourage the player to build elaborate, creative machines.
+
+**Failure is the curriculum.** If nobody ever fails, the game is too easy and nobody learned. The design loop is: build, fail, learn, invest, build better, succeed. Diagnostic feedback from COGS tells the Engineer what went wrong in computational terms. The expanding tray and purchasable tape infrastructure let the Engineer act on what they learned.
+
+**Two resource dimensions:** Physical pieces (expanding tray) and data infrastructure (purchasable tapes). Not every level provides all three tapes. The Engineer must recognize what's missing and invest in the right capability.
+
+**One-time requisition window:** Purchases happen once, before the level starts. Engineer studies the board, makes all purchases in one shot, then plays. No mid-level buying. Forces planning ahead.
+
+**Unused purchased pieces are lost:** Complete or fail with purchased pieces still in the tray = forfeited. Buy what you need, use what you buy.
+
+See docs/COMPUTATIONAL_MODEL.md "THE SOUL OF THE GAME" for full detail.
+
+---
+
 ## Project
 
 | Field | Value |

@@ -1,5 +1,216 @@
 # THE AXIOM — COMPUTATIONAL MODEL
-### Master Technical Reference | Version 1.0 | April 2026
+### Master Technical Reference | Version 1.1 | April 2026
+
+---
+
+## THE SOUL OF THE GAME
+
+The Axiom is a Rube Goldberg, Turing Machine game set in space.
+
+It teaches computer science using Rube Goldberg machines as the
+medium. The space setting — lasers, signal beams, cool pieces,
+awesome colors — makes it fun. The computational concepts are
+real. The machines are the curriculum.
+
+### The Core Truth
+
+The joy of the game is building elaborate, interesting machines.
+Not finding the minimum solution. A player who builds a
+beautiful 12-piece machine is playing the game correctly. A
+player who finds the 5-piece shortcut is missing the point.
+
+This is not an optimization puzzle. This is a building game.
+
+### Scoring Rewards Elaborate Machines
+
+Scoring MUST reward machine complexity and creativity. The game
+should never penalize a player for using more pieces, building
+longer paths, or exploring non-obvious solutions. When a player
+spends credits to expand their tray and constructs something
+ambitious, the scoring system should celebrate that.
+
+### The Credit Economy Funds Creativity
+
+Credits are an investment in creativity, not a cost to minimize.
+The expanding tray lets players purchase additional pieces beyond
+what the level provides. If you spend more credits to build a
+more complex machine and complete the puzzle well, you are
+rewarded with MORE credits than you spent. This creates a
+virtuous cycle: the better you get at building, the more
+resources you have to experiment, the more fun you have, the
+better you get.
+
+### The Expanding Tray
+
+The default tray is a starting point, not a ceiling. From
+Kepler Belt (K1-1) onward, the tray has two states:
+
+**Collapsed (default):** Shows the pre-assigned pieces for the
+level — enough to complete the floor solve, nothing more.
+
+**Expanded (swipe up):** The player swipes up on the tray and
+it slides up the screen, revealing ALL pieces discovered so far
+in the Codex, available for purchase. The player selects a
+piece, uses plus/minus to choose quantity, sees the price, and
+completes the purchase. Purchased pieces appear in the tray
+next to the pre-assigned ones.
+
+COGS is connected to the purchasing system. He is the vendor.
+(Whether this is his side hustle or a banking system connection
+is a tone opportunity for COGS dialogue.)
+
+**Pre-assigned piece progression:** In early Kepler levels, the
+tray starts with enough pieces for the floor solve. As the
+player progresses through sectors, the pre-assigned count
+decreases. Eventually the Engineer starts with zero pre-assigned
+pieces and must purchase everything. The floor solve piece count
+remains in level documentation as the baseline — it defines the
+minimum investment needed to complete the level at all.
+
+**Star threshold change:** Completing a level using only the
+pre-assigned pieces (the floor solve) earns a MAXIMUM of 1 star.
+To earn 2 or 3 stars, the Engineer MUST invest beyond the floor
+solve — buying additional pieces, building a more elaborate
+machine. This is the core incentive: the game pays you to be
+creative. Spend more, build well, earn back more than you spent.
+
+### One-Time Requisition Window
+
+Purchases happen ONCE, before the level begins. After the
+Engineer reviews the mission parameters, studies the board, and
+checks pre-assigned pieces, they open the REQUISITION store and
+make all purchases in a single session. Once they close the
+store and start the level, no further purchases are allowed
+until the next attempt.
+
+This forces planning. The Engineer must:
+1. Read the mission parameters from COGS
+2. Study the board layout (damaged cells, positions)
+3. Check what pieces are pre-assigned in the tray
+4. Assess what capability is missing (pieces, tapes)
+5. Make ALL purchases in one decision
+6. Then build
+
+Failure becomes more educational — the Engineer did not just
+fail the machine, they failed the plan. On retry, the
+requisition window opens again and they can make different,
+smarter purchases based on what they learned.
+
+### Unused Purchased Pieces Are Lost
+
+If the Engineer completes a level or fails with purchased
+pieces still sitting in the tray (unused), those pieces are
+forfeited. They are not refunded. This makes every purchase
+a real commitment — buy what you need, use what you buy.
+
+Pre-assigned pieces are not affected by this rule. Only
+purchased pieces are forfeited if unused.
+
+This prevents stockpiling and ensures the Engineer is making
+deliberate decisions about every piece they requisition.
+
+### Visual Distinction
+
+Purchased pieces appear in the tray identically to pre-assigned
+pieces (Option B — unified). Once you buy it, it is yours. No
+visual distinction between free and purchased pieces in the tray.
+
+### What This Means
+
+Every design decision — scoring, economy, level layout, piece
+design, tutorial copy, COGS dialogue — must encourage the
+player to build elaborate, creative machines. If a decision
+conflicts with this, the decision is wrong.
+
+- Levels must have room for elaborate solutions beyond the
+  floor solve.
+- Scoring must reward complexity, not penalize it.
+- The economy must make spending on pieces feel smart, not
+  wasteful.
+- Every piece should be fun to use. The space aesthetic makes
+  the Rube Goldberg aspect viscerally satisfying.
+- Computer science is taught through building, not minimizing.
+  Experience before vocabulary.
+
+### Failure Is the Curriculum
+
+It is OK to fail. That is part of engineering. If a player
+completes the entire game without ever failing a machine or
+voiding a level, the game is too easy and nobody learned
+anything. Failure is not punishment — it is the primary
+teaching mechanism.
+
+The design loop is: build, fail, learn, invest, build better,
+succeed. Every system in the game supports this loop:
+
+- **Blown cells** punish imprecise placement but leave room to
+  adapt. The board gets harder, forcing the Engineer to think
+  differently.
+- **Lives** create weight. Failure has cost. But the cost is
+  manageable — it is tuition, not a death sentence.
+- **Diagnostic feedback** teaches through failure. When a
+  machine fails, COGS does not just say "void result." He
+  tells the Engineer WHAT went wrong in computational terms:
+  "The data had nowhere to persist between pulses." "The
+  output expected three values but only received two." "You
+  needed three direction changes but the path only turned
+  twice." The player connects the failure to the missing
+  concept.
+- **The expanding tray** lets the Engineer act on what they
+  learned. Failure revealed that the machine needed a TRAIL
+  tape, or an extra Gear, or a Splitter. The Engineer buys
+  what they now know they need. That purchase is not a
+  penalty — it is a smart engineering decision.
+- **Credits reward learning.** Spend more to build better,
+  earn back more than you spent. The player who failed,
+  learned, invested, and succeeded walks away richer than
+  the player who never tried.
+
+### Purchasable Tape Infrastructure
+
+Not every level provides all three tapes (IN, TRAIL, OUT).
+Some levels arrive with partial tape infrastructure — maybe
+only IN and OUT, or just IN. The Engineer must assess what
+computational capability is missing and purchase the tape
+they need.
+
+This makes tapes part of the engineering challenge, not just
+background. The TRAIL tape is working memory. Without it,
+certain computations are impossible. The Engineer who
+recognizes this and purchases it is demonstrating real
+computational thinking — understanding that some problems
+require persistent state.
+
+**Progressive hint reduction:**
+- First time the Engineer encounters a missing tape, COGS
+  points it out explicitly during the tutorial phase.
+- After that first encounter, COGS steps back. The Engineer
+  is expected to recognize the gap themselves.
+- When they fail without the needed tape, the failure
+  diagnostic gives a hint: "The machine had no persistent
+  memory between pulses." The Engineer connects the dots.
+- This mirrors real engineering: someone teaches you the
+  concept once, then you are expected to recognize when to
+  apply it.
+
+### Two Resource Dimensions
+
+The Engineer manages two categories of purchasable resources:
+
+1. **Physical pieces** (via the expanding tray) — the
+   components that build the signal path and protocol logic.
+   More pieces enable more elaborate machines.
+
+2. **Data infrastructure** (tapes) — the computational
+   capability the machine needs. IN tape feeds values, TRAIL
+   tape provides working memory, OUT tape records answers.
+   Without the right tape, the machine cannot solve the
+   problem regardless of how many pieces it has.
+
+Both are expandable. Both reward smart investment. Together
+they create a two-dimensional resource management challenge
+that mirrors real engineering: you need both the right parts
+AND the right infrastructure.
 
 ---
 
