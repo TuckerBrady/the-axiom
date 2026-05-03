@@ -38,9 +38,11 @@ the UI MUST present a level-specific COGS-voiced rejection message identifying
 the missing piece(s). The Engage button MUST NOT be disabled pre-run; the failure
 occurs post-run.
 
-**REQ-RP-5**: A `requiredPiecesNotEngaged` failure MUST NOT consume the player's
-run attempts in the way a damage-based failure does. Confirm with Tucker if this
-conflicts with existing failure economics before Dev implements.
+**REQ-RP-5**: A `requiredPiecesNotEngaged` failure MUST consume the player's
+run attempts in the same way a damage-based failure does. Tucker confirmed this
+on 2026-05-01: 'It does consume a life. It\'s a failure of the level.' Credit
+refund behavior aligns with damage-failure economics -- Dev verifies and aligns
+in implementation.
 
 ### ENGINE API CONTRACT
 
