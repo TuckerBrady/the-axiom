@@ -24,20 +24,34 @@ describe('TapeCell — native-driven highlight overlay (Prompt 99C, Fix 3)', () 
     expect(cellSrc).toMatch(/<Animated\.View[\s\S]*?opacity:\s*highlightOpacity/);
   });
 
-  it('fade-in to 1 uses native driver with 120ms duration', () => {
+  // Build 21 follow-up: highlightOpacity demoted to JS driver because
+  // its host (Animated.View at the `overlayColors ? (...) : null`
+  // ternary) is conditionally mounted — REQ-A-1 FORM B. The runtime
+  // is mitigated by lastColorsRef latching overlayColors truthy after
+  // first highlight, but the static shape is still FORM B and a
+  // future refactor removing the latch would re-expose the parent-
+  // swap crash class. JS-driver cost on a 24x24-px overlay is
+  // trivial. See project-docs/REPORTS/build21-sigsegv-investigation.md.
+  it('fade-in to 1 uses JS driver with 120ms duration', () => {
     const fadeInMatch = cellSrc.match(
-      /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*1[\s\S]*?duration:\s*HIGHLIGHT_FADE_IN_MS[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+      /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*1[\s\S]*?duration:\s*HIGHLIGHT_FADE_IN_MS[\s\S]*?useNativeDriver:\s*false[\s\S]*?\}\)/,
     );
     expect(fadeInMatch).toBeTruthy();
     expect(cellSrc).toMatch(/HIGHLIGHT_FADE_IN_MS\s*=\s*120/);
   });
 
-  it('fade-out to 0 uses native driver with 180ms duration', () => {
+  it('fade-out to 0 uses JS driver with 180ms duration', () => {
     const fadeOutMatch = cellSrc.match(
-      /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*0[\s\S]*?duration:\s*HIGHLIGHT_FADE_OUT_MS[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+      /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*0[\s\S]*?duration:\s*HIGHLIGHT_FADE_OUT_MS[\s\S]*?useNativeDriver:\s*false[\s\S]*?\}\)/,
     );
     expect(fadeOutMatch).toBeTruthy();
     expect(cellSrc).toMatch(/HIGHLIGHT_FADE_OUT_MS\s*=\s*180/);
+  });
+
+  it('no Animated.timing on highlightOpacity uses the native driver (REQ-A-1 FORM B)', () => {
+    expect(cellSrc).not.toMatch(
+      /Animated\.timing\(highlightOpacity,[^}]*useNativeDriver:\s*true/,
+    );
   });
 
   it('preserves the pre-99C palette via colorsForHighlight()', () => {

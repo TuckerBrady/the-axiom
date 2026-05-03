@@ -155,10 +155,12 @@ export function useGameplayTutorial(
     if (!level || !isAxiomLevel || isLevelPreviouslyCompleted) return;
     if (!level.tutorialSteps || level.tutorialSteps.length === 0) return;
     (async () => {
-      const done = await AsyncStorage.getItem(`axiom_tutorial_complete_${level.id}`);
-      const skipped = await AsyncStorage.getItem(`axiom_tutorial_skipped_${level.id}`);
-      if (done) setTutorialComplete(true);
-      if (skipped) setTutorialSkipped(true);
+      try {
+        const done = await AsyncStorage.getItem(`axiom_tutorial_complete_${level.id}`);
+        const skipped = await AsyncStorage.getItem(`axiom_tutorial_skipped_${level.id}`);
+        if (done) setTutorialComplete(true);
+        if (skipped) setTutorialSkipped(true);
+      } catch { /* storage unavailable — keep defaults */ }
     })();
   }, [level?.id, isAxiomLevel, isLevelPreviouslyCompleted]);
 

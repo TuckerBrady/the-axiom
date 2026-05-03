@@ -457,6 +457,18 @@ function TutorialHUDOverlayComponent({
     trackAnim(anim);
     anim.start(() => {
       if (!mountedRef.current) return;
+      // useNativeDriver: false on glowOpacity AND calloutOpacity is
+      // required because both are consumed by conditionally-mounted
+      // Animated.View hosts (glowOpacity at line ~934 inside
+      // {showPieceGlow && glowCircle && (...)}, calloutOpacity at
+      // line ~1010 inside {phase === 'arrived' && calloutPos && (...)}).
+      // Each step transition that flips the gate tears down the host's
+      // native node and a subsequent Animated.timing(useNativeDriver: true)
+      // attaches the value to a fresh host while the native side still
+      // holds the prior binding. iOS raises NSException → SIGABRT/SIGSEGV.
+      // REQ-A-1 only constrains native-driven values; demoting to JS
+      // driver removes the parent-swap constraint. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
       const tail = Animated.parallel([
         Animated.timing(glowOpacity, {
           // Brighter steady glow to match the COGS orb's intensity
@@ -464,12 +476,12 @@ function TutorialHUDOverlayComponent({
           // "highlighted" against the dark void background.
           toValue: 0.85,
           duration: 120,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(calloutOpacity, {
           toValue: 1,
           duration: 120,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]);
       trackAnim(tail);
@@ -506,10 +518,15 @@ function TutorialHUDOverlayComponent({
     trackAnim(anim);
     anim.start(() => {
       if (!mountedRef.current) return;
+      // useNativeDriver: false on calloutOpacity — its host
+      // ({phase === 'arrived' && calloutPos && <Animated.View ...>})
+      // remounts on every step transition. See the comment in
+      // morphPortalIn above and
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
       const tail = Animated.timing(calloutOpacity, {
         toValue: 1,
         duration: 120,
-        useNativeDriver: true,
+        useNativeDriver: false,
       });
       trackAnim(tail);
       tail.start(() => {
@@ -561,10 +578,13 @@ function TutorialHUDOverlayComponent({
           }
         } else {
           // Center step: no portal. Just fade callout in.
+          // useNativeDriver: false — calloutOpacity host remounts
+          // across step transitions. See
+          // project-docs/REPORTS/build21-sigsegv-investigation.md.
           const tail = Animated.timing(calloutOpacity, {
             toValue: 1,
             duration: 200,
-            useNativeDriver: true,
+            useNativeDriver: false,
           });
           trackAnim(tail);
           tail.start();
@@ -608,6 +628,16 @@ function TutorialHUDOverlayComponent({
   // (Prompt 92, Fix 6). Each ring's outputRange is preserved; this
   // change just narrows the input the rings sample from to the
   // bright end of their gradient.
+  //
+  // useNativeDriver: false is required because glowPulse is consumed
+  // by seven different Animated.View hosts (4 portal corners + 2
+  // piece-glow rings + N spotlight rings) that mount and unmount
+  // independently across step transitions. REQ-A-1 forbids a
+  // native-driven value to span multiple hosts (Build 20 A1-1 SIGABRT,
+  // see project-docs/REPORTS/build20-a1-1-sigabrt-investigation.md).
+  // The JS driver carries the cost of small opacity interpolations
+  // on chrome elements only; the surrounding portal tree already
+  // runs on JS driver for the same reason (Prompt 93 Fix 1).
   const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
   useEffect(() => {
     if (!showPieceGlow) return;
@@ -618,13 +648,13 @@ function TutorialHUDOverlayComponent({
           toValue: 1,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(glowPulse, {
           toValue: 0.7,
           duration: 600,
           easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]),
     );
@@ -636,13 +666,16 @@ function TutorialHUDOverlayComponent({
   // ── Codex slide ──
   useEffect(() => {
     if (codexVisible) {
-      // codexTranslate drives a transform: translateY which the
-      // native driver supports.
+      // useNativeDriver: false — codexTranslate's host is conditionally
+      // mounted ({codexVisible && codexEntry && <Animated.View ...>}).
+      // Each codex open/close tears down and remounts the host's native
+      // node, so REQ-A-1 forbids native-driver here. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
       const slide = Animated.timing(codexTranslate, {
         toValue: 0,
         duration: 200,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
-        useNativeDriver: true,
+        useNativeDriver: false,
       });
       trackAnim(slide);
       slide.start();
@@ -735,11 +768,13 @@ function TutorialHUDOverlayComponent({
   }, [levelId, onSkip, exitOverlay]);
 
   const handleCodexUnderstood = useCallback(() => {
+    // useNativeDriver: false — see slide-in comment above and
+    // project-docs/REPORTS/build21-sigsegv-investigation.md.
     const slideOut = Animated.timing(codexTranslate, {
       toValue: SCREEN_H,
       duration: 200,
       easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: true,
+      useNativeDriver: false,
     });
     trackAnim(slideOut);
     slideOut.start(() => {
@@ -851,16 +886,13 @@ function TutorialHUDOverlayComponent({
       pointerEvents="box-none"
       style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
     >
-      {/* Dim backdrop — non-interactive for awaitPlacement / allowPieceTap
-          so board touches pass through; Pressable otherwise. */}
-      {(step?.awaitPlacement || step?.allowPieceTap) ? (
-        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
-        </View>
-      ) : (
-        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill}>
-          <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
-        </Pressable>
+      {/* Dim backdrop — always-mounted so dimOpacity's native node never
+          detaches and remounts across step transitions. Separating the
+          Animated.View from the tap handler avoids the "node moved to
+          native" SIGABRT (same pattern as portalOpacity, Prompt 93 Fix 1). */}
+      <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
+      {!(step?.awaitPlacement || step?.allowPieceTap) && (
+        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
       )}
 
       {/* Portal (rendered when arrived/codex and not center) */}

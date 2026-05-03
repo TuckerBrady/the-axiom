@@ -105,24 +105,56 @@ describe('TutorialHUDOverlay lifecycle cleanup (Prompt 90)', () => {
   });
 
   describe('native-driver opacity animations', () => {
-    it('runs the glow pulse loop with useNativeDriver: true', () => {
+    it('runs the glow pulse loop with useNativeDriver: false (REQ-A-1, Build 20 fix)', () => {
+      // glowPulse is consumed by seven different Animated.View hosts
+      // (4 portal corners + 2 piece-glow rings + N spotlight rings)
+      // that mount/unmount independently across step transitions.
+      // REQ-A-1 forbids a native-driven value to span multiple hosts.
+      // The Build 20 A1-1 SIGABRT was rooted here. See
+      // project-docs/REPORTS/build20-a1-1-sigabrt-investigation.md.
       const pulse = overlaySource.match(/glowPulse,[\s\S]*?showPieceGlow, glowPulse, trackAnim\]/);
       expect(pulse).not.toBeNull();
-      expect(pulse?.[0]).toMatch(/useNativeDriver:\s*true/);
-      expect(pulse?.[0]).not.toMatch(/useNativeDriver:\s*false/);
+      expect(pulse?.[0]).toMatch(/useNativeDriver:\s*false/);
+      expect(pulse?.[0]).not.toMatch(/useNativeDriver:\s*true/);
     });
 
-    it('runs the dim / callout / exit-opacity / codex timings on the native driver', () => {
-      // Sample-check each animation block by name. We assert that the
-      // timing block immediately following the value identifier opts
-      // into the native driver. (portalW / portalH / portalOpacity
-      // stay JS-driver — see the next test. Prompt 93 moved
-      // portalOpacity OFF the native driver because mixing drivers
-      // on the portal Animated.View crashes RN.)
+    it('runs the always-mounted dim + exit-opacity timings on the native driver', () => {
+      // dimOpacity (since 96a4aba) and exitOpacity both bind to a
+      // single, always-mounted Animated.View host (the dim backdrop
+      // and the root overlay respectively). Single, always-mounted
+      // hosts are REQ-A-1 compliant on the native driver.
       expect(overlaySource).toMatch(/Animated\.timing\(dimOpacity[\s\S]*?useNativeDriver:\s*true/);
-      expect(overlaySource).toMatch(/Animated\.timing\(calloutOpacity,[\s\S]*?useNativeDriver:\s*true/);
       expect(overlaySource).toMatch(/Animated\.timing\(exitOpacity,[\s\S]*?useNativeDriver:\s*true/);
-      expect(overlaySource).toMatch(/Animated\.timing\(codexTranslate,[\s\S]*?useNativeDriver:\s*true/);
+    });
+
+    it('runs callout / glow / codex timings on the JS driver (REQ-A-1, Build 21 fix)', () => {
+      // calloutOpacity, glowOpacity, codexTranslate are each consumed
+      // by a *conditionally*-mounted Animated.View host:
+      //   - calloutOpacity → {phase === 'arrived' && calloutPos && (...)}
+      //   - glowOpacity    → {showPieceGlow && glowCircle && (...)}
+      //   - codexTranslate → {codexVisible && codexEntry && (...)}
+      // Each step / codex transition tears down the host's native
+      // node and remounts a new one. A subsequent
+      // Animated.timing(useNativeDriver: true) on the same value
+      // attaches to the new host while iOS still holds the prior
+      // binding → NSException → SIGABRT/SIGSEGV. The Build 21
+      // A1-1 SIGSEGV was rooted here. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
+      // No Animated.timing on these three values may opt into the
+      // native driver.
+      expect(overlaySource).not.toMatch(/Animated\.timing\(calloutOpacity,[^}]*useNativeDriver:\s*true/);
+      expect(overlaySource).not.toMatch(/Animated\.timing\(glowOpacity,[^}]*useNativeDriver:\s*true/);
+      expect(overlaySource).not.toMatch(/Animated\.timing\(codexTranslate,[^}]*useNativeDriver:\s*true/);
+      // And every timing on these values that exists must use the JS driver.
+      const calloutTimings = overlaySource.match(/Animated\.timing\(calloutOpacity,[^}]*\}/g) ?? [];
+      const glowTimings = overlaySource.match(/Animated\.timing\(glowOpacity,[^}]*\}/g) ?? [];
+      const codexTimings = overlaySource.match(/Animated\.timing\(codexTranslate,[^}]*\}/g) ?? [];
+      expect(calloutTimings.length).toBeGreaterThan(0);
+      expect(glowTimings.length).toBeGreaterThan(0);
+      expect(codexTimings.length).toBeGreaterThan(0);
+      for (const block of [...calloutTimings, ...glowTimings, ...codexTimings]) {
+        expect(block).toMatch(/useNativeDriver:\s*false/);
+      }
     });
 
     it('keeps portalW / portalH / portalOpacity on the JS driver (Prompt 93 — same-node driver consistency)', () => {
