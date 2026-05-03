@@ -63,13 +63,29 @@ describe('Prompt 93 — Native driver crash fix + boot polish', () => {
       );
     });
 
-    it('does not regress glowOpacity / dimOpacity / calloutOpacity / exitOpacity / codexTranslate to JS driver', () => {
-      // These each ride their OWN Animated.View, so native is fine.
-      expect(overlaySrc).toMatch(/Animated\.timing\(glowOpacity,[\s\S]*?useNativeDriver:\s*true/);
+    it('keeps the always-mounted single-host values on the native driver (dimOpacity, exitOpacity)', () => {
+      // dimOpacity (post-96a4aba) and exitOpacity each bind to a
+      // single, always-mounted Animated.View host (the dim backdrop
+      // and the root overlay). REQ-A-1 is satisfied; the native
+      // driver stays here.
       expect(overlaySrc).toMatch(/Animated\.timing\(dimOpacity,[\s\S]*?useNativeDriver:\s*true/);
-      expect(overlaySrc).toMatch(/Animated\.timing\(calloutOpacity,[\s\S]*?useNativeDriver:\s*true/);
       expect(overlaySrc).toMatch(/Animated\.timing\(exitOpacity,[\s\S]*?useNativeDriver:\s*true/);
-      expect(overlaySrc).toMatch(/Animated\.timing\(codexTranslate,[\s\S]*?useNativeDriver:\s*true/);
+    });
+
+    it('forces conditionally-mounted hosts off the native driver (glowOpacity, calloutOpacity, codexTranslate — Build 21 fix)', () => {
+      // Each of these values is consumed by an Animated.View whose
+      // mount is gated on a runtime condition (showPieceGlow,
+      // phase === 'arrived', codexVisible). The host's native node
+      // detaches when the condition flips false and a new node
+      // mounts when it flips true. A subsequent native-driven
+      // Animated.timing on the same value attaches to the new host
+      // while iOS still holds the prior binding → NSException →
+      // SIGABRT/SIGSEGV. The Build 21 A1-1 SIGSEGV traced to
+      // calloutOpacity at the step 0 → step 1 transition. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
+      expect(overlaySrc).not.toMatch(/Animated\.timing\(glowOpacity,[^}]*useNativeDriver:\s*true/);
+      expect(overlaySrc).not.toMatch(/Animated\.timing\(calloutOpacity,[^}]*useNativeDriver:\s*true/);
+      expect(overlaySrc).not.toMatch(/Animated\.timing\(codexTranslate,[^}]*useNativeDriver:\s*true/);
     });
   });
 

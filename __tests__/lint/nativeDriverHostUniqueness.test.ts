@@ -2,8 +2,22 @@
  * Static analysis: REQ-A-1 native-driver single-host invariant
  *
  * This Jest-based file scan fails CI when any Animated.Value declared
- * with useNativeDriver: true appears in more than one Animated.View
- * host across conditional render branches in the same file.
+ * with useNativeDriver: true is consumed by an Animated.View host
+ * that violates REQ-A-1, in either of two forms:
+ *
+ *   FORM A — multi-host: the value appears in 2+ different
+ *   Animated.View hosts that sit in conditional render branches.
+ *   Switching branches swaps the parent of the value's binding.
+ *   Caused Build 19 (dimOpacity) and Build 20 (glowPulse).
+ *
+ *   FORM B — conditional-mount of a single host: the value appears
+ *   in exactly ONE Animated.View host, but that host is wrapped in
+ *   a JSX conditional render expression (`{cond && <Animated.View>}`
+ *   or `{cond ? <Animated.View> : ...}`). When the gate flips
+ *   false → true, the host's native node remounts; the next
+ *   Animated.timing(useNativeDriver: true) attaches the value to
+ *   the new host while iOS still holds the prior binding. Caused
+ *   Build 21 (calloutOpacity).
  *
  * Design choice: Jest assertion over AST scan (not ESLint custom rule).
  * Rationale:
@@ -17,9 +31,8 @@
  *   - The scan is fast (~50ms for the entire src/ tree) and produces
  *     clear, actionable error messages citing the exact file, value
  *     name, and line numbers.
- *   - False-positive rate is low: the heuristic flags the specific
- *     pattern (native-driven value -> multiple Animated.View hosts
- *     inside conditional branches) rather than all Animated usage.
+ *   - False-positive rate is low: each detector flags a specific
+ *     structural pattern, not all Animated usage.
  *
  * Window widening (Build 20 follow-up):
  *   The original conditional-context window was 5 lines lookback /
@@ -30,6 +43,15 @@
  *   `<Animated.View`. Widening lookback to 60 lines closes the gap
  *   for realistically nested JSX while still requiring some
  *   conditional marker to appear near the host.
+ *
+ * Conditional-mount detection (Build 21 follow-up):
+ *   FORM B detection added to catch the single-host conditional-mount
+ *   pattern that the FORM A check ignored (uniqueHosts.length === 1).
+ *   The detector walks back from each host line up to 40 lines
+ *   looking for a JSX conditional opener (`&& (`, `? (`, `: (`,
+ *   `&&`, `?`, `:` at end of line). If found and no early-close
+ *   occurs between the opener and the host, the host is classified
+ *   conditionally-mounted and flagged.
  *
  * Canonical reference: docs/ANIMATION_RULES.md REQ-A-1, REQ-A-3
  */
@@ -79,6 +101,60 @@ interface Violation {
   valueName: string;
   hostCount: number;
   lineNumbers: number[];
+  // 'multi-host' = FORM A (multiple Animated.View hosts in conditional branches)
+  // 'conditional-mount' = FORM B (single host wrapped in a conditional render expression)
+  form: 'multi-host' | 'conditional-mount';
+}
+
+// Heuristic: returns true when the Animated.View at lines[hostLineIdx]
+// (0-based) sits inside a JSX conditional render expression
+// (`{cond && <Animated.View ...>}` or `{cond ? <Animated.View> : ...}`).
+// Walks back up to LOOKBACK lines looking for a conditional opener
+// pattern at end of line. If one is found and no early `})` or `)}` or
+// `: <Tag>` (else-branch transition) appears between the opener and the
+// host, the host is classified conditional-mount.
+const CONDITIONAL_MOUNT_LOOKBACK = 40;
+function isConditionallyMountedHost(lines: string[], hostLineIdx: number): boolean {
+  const openerRegex = /(&&|\?|:)\s*\(?\s*$/;
+  for (
+    let i = hostLineIdx - 1;
+    i >= Math.max(0, hostLineIdx - CONDITIONAL_MOUNT_LOOKBACK);
+    i--
+  ) {
+    const trimmed = lines[i].replace(/\/\/.*$/, '').trimEnd();
+    if (!openerRegex.test(trimmed)) continue;
+
+    // Walk forward from the opener line to the host line. Track paren
+    // depth and brace depth contributed by intervening lines. If either
+    // dips below zero we exited the conditional before reaching the host
+    // — not a conditional-mount.
+    let parenDelta = 0;
+    let braceDelta = 0;
+    let bailed = false;
+    for (let j = i + 1; j < hostLineIdx; j++) {
+      // Strip line comments and string literals to avoid counting punctuation
+      // inside them. Block comments are rare on these lines and a partial
+      // strip is acceptable for the heuristic.
+      const stripped = lines[j]
+        .replace(/\/\/.*$/, '')
+        .replace(/'(?:\\.|[^\\'])*'/g, "''")
+        .replace(/"(?:\\.|[^\\"])*"/g, '""')
+        .replace(/`(?:\\.|[^\\`])*`/g, '``');
+      for (const ch of stripped) {
+        if (ch === '(') parenDelta++;
+        else if (ch === ')') parenDelta--;
+        else if (ch === '{') braceDelta++;
+        else if (ch === '}') braceDelta--;
+        if (parenDelta < 0 || braceDelta < 0) {
+          bailed = true;
+          break;
+        }
+      }
+      if (bailed) break;
+    }
+    if (!bailed) return true;
+  }
+  return false;
 }
 
 function findHostViolations(filePath: string, source: string): Violation[] {
@@ -127,6 +203,7 @@ function findHostViolations(filePath: string, source: string): Violation[] {
 
     const uniqueHosts = [...new Set(hostLines)];
 
+    // FORM A — multi-host with conditional context
     if (uniqueHosts.length > 1) {
       const hasConditionalContext = uniqueHosts.some(lineNum => {
         const start = Math.max(0, lineNum - CONDITIONAL_LOOKBACK_LINES);
@@ -150,8 +227,32 @@ function findHostViolations(filePath: string, source: string): Violation[] {
           valueName,
           hostCount: uniqueHosts.length,
           lineNumbers: uniqueHosts,
+          form: 'multi-host',
         });
+        // Skip FORM B for this value — multi-host is the more severe
+        // diagnosis, no need to double-report.
+        continue;
       }
+    }
+
+    // FORM B — single host wrapped in conditional render expression
+    // (e.g. `{cond && <Animated.View ...>}`). The native binding
+    // detaches when the gate flips false and reattaches when it
+    // flips true, hitting the same parent-swap class as multi-host.
+    // Build 21 calloutOpacity / glowOpacity / codexTranslate
+    // surfaced this form. See
+    // project-docs/REPORTS/build21-sigsegv-investigation.md.
+    const conditionallyMounted = uniqueHosts.filter(lineNum =>
+      isConditionallyMountedHost(lines, lineNum - 1),
+    );
+    if (conditionallyMounted.length > 0) {
+      violations.push({
+        file: filePath,
+        valueName,
+        hostCount: uniqueHosts.length,
+        lineNumbers: conditionallyMounted,
+        form: 'conditional-mount',
+      });
     }
   }
 
@@ -176,23 +277,33 @@ describe('[REQ-A-1] Native-driver host uniqueness static check', () => {
     }
     if (allViolations.length > 0) {
       const report = allViolations
-        .map(v =>
-          'VIOLATION in ' + path.relative(SRC_DIR, v.file) + ':\n' +
-          '  Native-driven value "' + v.valueName + '" appears in ' + v.hostCount +
-          ' Animated.View hosts (lines: ' + v.lineNumbers.join(', ') + ').\n' +
-          '  REQ-A-1 requires exactly one host per native-driven value.\n' +
-          '  See docs/ANIMATION_RULES.md for refactoring guidance.',
-        )
+        .map(v => {
+          const formLabel =
+            v.form === 'multi-host'
+              ? 'FORM A (multi-host across conditional branches)'
+              : 'FORM B (single host wrapped in conditional render expression)';
+          return (
+            'VIOLATION in ' + path.relative(SRC_DIR, v.file) + ':\n' +
+            '  ' + formLabel + '\n' +
+            '  Native-driven value "' + v.valueName + '" appears in ' + v.hostCount +
+            ' Animated.View host(s) (flagged lines: ' + v.lineNumbers.join(', ') + ').\n' +
+            '  REQ-A-1 requires the host to be unique AND always-mounted.\n' +
+            '  Demote the value to useNativeDriver: false, or refactor the\n' +
+            '  host to be unconditionally mounted with conditional children.\n' +
+            '  See docs/ANIMATION_RULES.md and\n' +
+            '  project-docs/REPORTS/build21-sigsegv-investigation.md.'
+          );
+        })
         .join('\n\n');
       throw new Error(
         'REQ-A-1 violation(s) detected. Each native-driven Animated.Value ' +
-        'must be consumed by exactly one Animated.View host across all ' +
-        'conditional render branches.\n\n' + report,
+        'must be consumed by exactly one always-mounted Animated.View host.\n\n' +
+        report,
       );
     }
   });
 
-  it('[REQ-A-1] correctly identifies the anti-pattern in a synthetic fixture', () => {
+  it('[REQ-A-1 FORM A] correctly identifies the multi-host anti-pattern in a synthetic fixture', () => {
     const fixturePath = path.resolve(
       __dirname,
       '../__fixtures__/nativeDriverAntiPattern.tsx',
@@ -203,9 +314,68 @@ describe('[REQ-A-1] Native-driver host uniqueness static check', () => {
     expect(violations.length).toBeGreaterThan(0);
     expect(violations[0].valueName).toBe('dimOpacity');
     expect(violations[0].hostCount).toBe(2);
+    expect(violations[0].form).toBe('multi-host');
   });
 
-  it('[REQ-A-1] passes against current TutorialHUDOverlay.tsx (post-Build-20 fix)', () => {
+  it('[REQ-A-1 FORM B] correctly identifies the conditional-mount anti-pattern (Build 21 — calloutOpacity)', () => {
+    // Build 21 root cause: a single Animated.View host wrapped in
+    // a JSX conditional render expression. Detector must flag even
+    // when uniqueHosts.length === 1.
+    const synthetic = `
+import React, { useRef, useEffect } from 'react';
+import { Animated, View } from 'react-native';
+
+function Repro() {
+  const phase: 'idle' | 'arrived' = 'arrived';
+  const calloutOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(calloutOpacity, { toValue: 1, useNativeDriver: true }).start();
+  }, []);
+
+  return (
+    <View>
+      {phase === 'arrived' && (
+        <Animated.View style={{ opacity: calloutOpacity }} />
+      )}
+    </View>
+  );
+}
+`;
+    const violations = findHostViolations('synthetic-form-b.tsx', synthetic);
+    expect(violations.length).toBe(1);
+    expect(violations[0].valueName).toBe('calloutOpacity');
+    expect(violations[0].form).toBe('conditional-mount');
+    expect(violations[0].hostCount).toBe(1);
+  });
+
+  it('[REQ-A-1 FORM B] does NOT flag a single always-mounted host (no false positive on safe pattern)', () => {
+    // dimOpacity post-96a4aba and exitOpacity in TutorialHUDOverlay
+    // both bind to a single, always-mounted Animated.View. The
+    // detector must not flag these.
+    const synthetic = `
+import React, { useRef, useEffect } from 'react';
+import { Animated, View } from 'react-native';
+
+function Repro() {
+  const dimOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(dimOpacity, { toValue: 1, useNativeDriver: true }).start();
+  }, []);
+
+  return (
+    <View>
+      <Animated.View style={{ opacity: dimOpacity }} />
+    </View>
+  );
+}
+`;
+    const violations = findHostViolations('synthetic-safe.tsx', synthetic);
+    expect(violations.length).toBe(0);
+  });
+
+  it('[REQ-A-1] passes against current TutorialHUDOverlay.tsx (post-Build-21 fix)', () => {
     const overlayPath = path.resolve(SRC_DIR, 'components/TutorialHUDOverlay.tsx');
     expect(fs.existsSync(overlayPath)).toBe(true);
     const source = fs.readFileSync(overlayPath, 'utf-8');
@@ -284,5 +454,6 @@ function Repro() {
     expect(violations.length).toBe(1);
     expect(violations[0].valueName).toBe('glowPulse');
     expect(violations[0].hostCount).toBe(2);
+    expect(violations[0].form).toBe('multi-host');
   });
 });

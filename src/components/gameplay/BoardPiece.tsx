@@ -75,10 +75,18 @@ const BoardPiece = React.memo(function BoardPiece({
   const flashCounter = animProps?.flashCounter ?? 0;
   const flashColor = animProps?.flashColor ?? null;
 
-  // Run the native-driven opacity sequence each time flashCounter
-  // advances. The Animated.sequence runs on the native thread
-  // (useNativeDriver: true), so the JS thread is free during the
-  // 180ms fade and no per-frame setState fires.
+  // Run the opacity sequence each time flashCounter advances.
+  //
+  // useNativeDriver: false is required because flashOpacity's host
+  // (Animated.View at the {flashColor ? (...) : null} below) is
+  // conditionally mounted on flashColor truthiness. The per-pulse
+  // sweep in GameplayScreen.handleEngage clears flashColor (via
+  // setPieceAnimState({ flashing: new Map(), ... })) between pulses,
+  // so the host genuinely remounts on every flash. A native-driven
+  // animation on the same value across remounts hits the same
+  // parent-swap NSException class as Build 21 (REQ-A-1 FORM B).
+  // The JS-driver cost on a 180ms opacity sequence per flash is
+  // trivial. See project-docs/REPORTS/build21-sigsegv-investigation.md.
   useEffect(() => {
     if (flashCounter === lastCounterRef.current) return;
     lastCounterRef.current = flashCounter;
@@ -87,12 +95,12 @@ const BoardPiece = React.memo(function BoardPiece({
       Animated.timing(flashOpacity, {
         toValue: 1,
         duration: FLASH_HALF_MS,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
       Animated.timing(flashOpacity, {
         toValue: 0,
         duration: FLASH_HALF_MS,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }),
     ]).start();
   }, [flashCounter, flashColor, flashOpacity]);

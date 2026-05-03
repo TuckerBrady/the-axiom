@@ -118,14 +118,18 @@ describe('Section 2: Animation Driver Requirements', () => {
       expect(brightenCalls.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('[2.1.2] piece flash opacity animations use useNativeDriver: true', () => {
-      // BoardPiece owns the native-driven 180ms flash sequence
-      // (Prompt 99C, Fix 1 option b). Rendering the component from a
-      // .ts test environment fails because the unit jest project
-      // does not pull in a JSX-aware preset, so this test verifies
-      // the contract by source inspection instead. Behavioral
-      // coverage of the rendered fade lives in
-      // BoardPieceFlash.test.tsx (added in 99C).
+    it('[2.1.2] piece flash opacity sequence — JS driver, REQ-A-1 FORM B (Build 21 fix)', () => {
+      // BoardPiece's flash overlay <Animated.View> is conditionally
+      // mounted on flashColor truthiness, and the per-pulse sweep in
+      // GameplayScreen.handleEngage clears flashColor between pulses
+      // (`setPieceAnimState({ flashing: new Map(), ... })`). The host
+      // therefore genuinely remounts on every flash during ENGAGE,
+      // which is REQ-A-1 FORM B. Native-driver on the same value
+      // across remounts hits the parent-swap NSException class. The
+      // 99C Fix 1 design (native-driver flash) was correct in
+      // isolation but predates the FORM B detector. JS driver on a
+      // 180ms opacity sequence per flash is trivial. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
       const fs = require('fs');
       const path = require('path');
       const repoRoot = path.resolve(__dirname, '..', '..');
@@ -133,8 +137,6 @@ describe('Section 2: Animation Driver Requirements', () => {
         path.resolve(repoRoot, 'src/components/gameplay/BoardPiece.tsx'),
         'utf8',
       );
-      // The Animated.sequence containing both halves of the flash
-      // fade must declare useNativeDriver: true on every timing.
       const sequenceMatch = pieceSrc.match(
         /Animated\.sequence\(\s*\[[\s\S]*?\]\s*\)/,
       );
@@ -143,7 +145,8 @@ describe('Section 2: Animation Driver Requirements', () => {
       const timings = sequenceBody.match(/Animated\.timing\([\s\S]*?\}\)/g) ?? [];
       expect(timings.length).toBe(2);
       timings.forEach(t => {
-        expect(t).toMatch(/useNativeDriver:\s*true/);
+        expect(t).toMatch(/useNativeDriver:\s*false/);
+        expect(t).not.toMatch(/useNativeDriver:\s*true/);
       });
       // Sanity: 90ms half-duration so the contract's 180ms total holds.
       expect(sequenceBody).toMatch(/duration:\s*FLASH_HALF_MS/);
@@ -222,12 +225,15 @@ describe('Section 2: Animation Driver Requirements', () => {
       expect(setBeamState).not.toHaveBeenCalled();
     });
 
-    it('[2.1.6] tape cell highlight animations use useNativeDriver: true', () => {
-      // TapeCell owns the native-driven 120ms / 180ms opacity fade
-      // (Prompt 99C, Fix 3). As with [2.1.2], the .ts unit project
-      // can't mount a JSX-using component, so this test verifies the
-      // contract by source inspection. Behavioral coverage of the
-      // rendered fade lives in TapeCellHighlight.test.tsx.
+    it('[2.1.6] tape cell highlight fade — JS driver, REQ-A-1 FORM B (Build 21 fix)', () => {
+      // TapeCell's highlight overlay <Animated.View> sits inside a
+      // `overlayColors ? (...) : null` ternary. lastColorsRef.current
+      // keeps overlayColors truthy after the first highlight ever
+      // fires, mitigating the parent-swap at runtime — but the static
+      // shape is still REQ-A-1 FORM B and a future refactor that
+      // dropped the latch would re-expose the crash. JS driver on a
+      // 24x24-px overlay opacity is trivial. See
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
       const fs = require('fs');
       const path = require('path');
       const repoRoot = path.resolve(__dirname, '..', '..');
@@ -235,23 +241,18 @@ describe('Section 2: Animation Driver Requirements', () => {
         path.resolve(repoRoot, 'src/components/gameplay/TapeCell.tsx'),
         'utf8',
       );
-      // useEffect on highlight must dispatch one of two
-      // Animated.timing calls (fade-in toValue: 1, fade-out toValue: 0)
-      // — both with useNativeDriver: true.
       const fadeInMatch = cellSrc.match(
-        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*1[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*1[\s\S]*?useNativeDriver:\s*false[\s\S]*?\}\)/,
       );
       const fadeOutMatch = cellSrc.match(
-        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*0[\s\S]*?useNativeDriver:\s*true[\s\S]*?\}\)/,
+        /Animated\.timing\(highlightOpacity,\s*\{\s*toValue:\s*0[\s\S]*?useNativeDriver:\s*false[\s\S]*?\}\)/,
       );
       expect(fadeInMatch).toBeTruthy();
       expect(fadeOutMatch).toBeTruthy();
-      // No useNativeDriver: false on the highlight overlay path.
-      const overlayBlock = cellSrc.slice(
-        cellSrc.indexOf('useEffect'),
-        cellSrc.indexOf('}, [highlight, highlightOpacity]);'),
+      // No native-driven Animated.timing on highlightOpacity anywhere.
+      expect(cellSrc).not.toMatch(
+        /Animated\.timing\(highlightOpacity,[^}]*useNativeDriver:\s*true/,
       );
-      expect(overlayBlock).not.toMatch(/useNativeDriver:\s*false/);
     });
 
     it('[2.1.7] glow traveler opacity pulsing uses useNativeDriver: true', async () => {
