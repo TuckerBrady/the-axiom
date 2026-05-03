@@ -115,6 +115,11 @@ export interface GameplayModalsProps {
   // Layout
   CELL_SIZE: number;
 
+  // Required pieces not engaged modal
+  showRequiredNotEngaged: boolean;
+  setShowRequiredNotEngaged: React.Dispatch<React.SetStateAction<boolean>>;
+  requiredNotEngagedLine: string;
+
   // Callbacks
   navigation: NativeStackNavigationProp<RootStackParamList, 'Gameplay'>;
   handleReset: () => void;
@@ -149,6 +154,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     elapsedSeconds,
     navigation, handleReset,
     onCompletionContinue, onWrongOutputRetry, onDebug,
+    showRequiredNotEngaged, setShowRequiredNotEngaged, requiredNotEngagedLine,
   } = props;
 
   return (
@@ -431,6 +437,35 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 setShowInsufficientPulses(false);
                 setPulseResultData(null);
                 handleReset();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Required Pieces Not Engaged (A3a failure) ── */}
+      {showRequiredNotEngaged && (
+        <Animated.View style={styles.completionCardWrap} entering={FadeIn.duration(300)}>
+          <View style={styles.wrongOutputCard}>
+            <Text style={styles.wrongOutputTitle}>CONFIGURATION REJECTED</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              <CogsAvatar size="small" state="damaged" />
+              <Text style={styles.wrongOutputCogsText}>
+                {`"${requiredNotEngagedLine}"`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.wrongOutputRetryBtn}
+              onPress={() => {
+                setShowRequiredNotEngaged(false);
+                if (lives <= 0) {
+                  setShowOutOfLives(true);
+                } else {
+                  handleReset();
+                }
               }}
               activeOpacity={0.7}
             >

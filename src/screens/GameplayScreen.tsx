@@ -47,7 +47,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
 import { getPieceCost } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
-import { getOutputPorts, getInputPorts } from '../game/engine';
+import { getOutputPorts, getInputPorts, evaluateRequiredPieces } from '../game/engine';
+import { buildRequiredPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
 import { useGameplayTimer } from '../hooks/useGameplayTimer';
@@ -333,6 +334,8 @@ export default function GameplayScreen({ navigation }: Props) {
   } = beam;
 
   const [creditError, setCreditError] = useState(false);
+  const [showRequiredNotEngaged, setShowRequiredNotEngaged] = useState(false);
+  const [requiredNotEngagedLine, setRequiredNotEngagedLine] = useState('');
   const [dragState, setDragState] = useState<DragState>({ active: false, pieceId: null, type: null, x: 0, y: 0 });
   const boardScreenPos = useRef({ x: 0, y: 0 });
   const cellSizeRef = useRef(52);
@@ -535,7 +538,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Grid tap handler ──
   const handleCanvasTap = useCallback((gridX: number, gridY: number) => {
-    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses || showRequiredNotEngaged) return;
 
     if (isAxiomLevel) {
       // Axiom: tray-based placement (existing behavior)
@@ -588,7 +591,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Piece tap handler ──
   const handlePieceTap = useCallback((pieceId: string) => {
-    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses || showRequiredNotEngaged) return;
     const piece = machineState.pieces.find(p => p.id === pieceId);
     if (!piece) return;
     if (piece.isPrePlaced) return;
@@ -614,7 +617,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // ── Long press returns piece to tray / Arc Wheel (no ghost/held state) ──
   const handlePieceLongPress = useCallback((pieceId: string) => {
-    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses) return;
+    if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses || showRequiredNotEngaged) return;
     const piece = machineState.pieces.find(p => p.id === pieceId);
     if (!piece) return;
     if (piece.isPrePlaced) return;
@@ -1015,6 +1018,25 @@ export default function GameplayScreen({ navigation }: Props) {
       return;
     }
 
+    // Required-pieces enforcement (A3a flavor: run completes, then
+    // evaluate. If any required piece was not engaged, consume a life
+    // and show the COGS rejection modal. REQ-RP-5: same life-cost as
+    // damage failure. Tucker confirmed 2026-05-01.)
+    if (!wrongOutput && metPulseRequirement && level.requiredPieces?.length) {
+      const runStates = useGameStore.getState().machineState.pieces.map(p => ({
+        pieceId: p.type,
+        firedDuringRun: p.firedDuringRun ?? false,
+      }));
+      const rpResult = evaluateRequiredPieces(level, runStates);
+      if (rpResult.result === 'requiredPiecesNotEngaged') {
+        setBeamState(prev => ({ ...prev, phase: 'idle' }));
+        loseLife();
+        setRequiredNotEngagedLine(buildRequiredPiecesCogsLine(level.id, rpResult.missing));
+        setShowRequiredNotEngaged(true);
+        return;
+      }
+    }
+
     const succeeded = !wrongOutput && metPulseRequirement;
     if (succeeded) {
       const engageDurationMs = Date.now() - engageStartTime;
@@ -1078,6 +1100,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleReset = useCallback(() => {
     setShowResults(false);
     setShowVoid(false);
+    setShowRequiredNotEngaged(false);
     beam.resetBeam();
     tape.resetTape();
     setShowInsufficientPulses(false);
@@ -1591,6 +1614,9 @@ export default function GameplayScreen({ navigation }: Props) {
         onCompletionContinue={handleCompletionContinue}
         onWrongOutputRetry={handleWrongOutputRetry}
         onDebug={handleDebug}
+        showRequiredNotEngaged={showRequiredNotEngaged}
+        setShowRequiredNotEngaged={setShowRequiredNotEngaged}
+        requiredNotEngagedLine={requiredNotEngagedLine}
       />
 
       {/* ── HUD Tutorial Overlay ── */}
