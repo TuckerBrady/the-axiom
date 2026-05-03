@@ -198,6 +198,18 @@ When Code discovers the spec is wrong mid-implementation:
 
 ---
 
+## Part 6B: Branching, QA, and Build Workflow
+
+All code changes go through feature branches, a QA gate, and a build approval process before reaching TestFlight. The authoritative reference for this workflow is:
+
+**`/project-docs/SPECS/branching-and-qa-strategy.md`**
+
+The short version: branch per feature, QA gate before merge, crash report before investigation, build approval before `eas build`. No exceptions to any of these. Read the spec for the full process.
+
+This changes step 5 of the handoff motion in Part 3 and step 5 of the full workflow in Part 6. Code now creates a feature branch instead of committing to master. Merge to master happens only after QA sign-off.
+
+---
+
 ## Part 7: Context Management Rules
 
 Context windows degrade as they fill. Keep sessions clean.
