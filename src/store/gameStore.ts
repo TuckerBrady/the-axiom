@@ -14,6 +14,7 @@ import {
   getDefaultPorts,
   getPieceCategory,
   getOutputPorts,
+  resetRunState,
 } from '../game/engine';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -288,6 +289,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // execution steps. The animation layer already detects pulse
     // boundaries by counting source-typed steps.
     const pulseCount = inputTape ? inputTape.length : 1;
+    resetRunState(stateWithConfig.pieces);
     let allSteps: ExecutionStep[] = [];
     for (let i = 0; i < pulseCount; i++) {
       const pulseSteps = executeMachine(stateWithConfig, i);

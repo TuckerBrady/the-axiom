@@ -129,7 +129,7 @@ describe('K1-8 Transit Gate — level definition (REQ-68)', () => {
 // DEV: Unskip this describe block once evaluateRequiredPieces is implemented.
 // See ENGINE API CONTRACT in kepler-belt-levels-v2-part2.md.
 
-describe.skip('K1-6 requiredPieces — engine enforcement (REQ-RP-1 through REQ-RP-5)', () => {
+describe('K1-6 requiredPieces — engine enforcement (REQ-RP-1 through REQ-RP-5)', () => {
   const level = getLevelById('K1-6')!;
   const tape = [1, 0, 1, 1, 0, 1];
 
@@ -205,7 +205,7 @@ describe.skip('K1-6 requiredPieces — engine enforcement (REQ-RP-1 through REQ-
 //
 // DEV: Unskip this describe block once evaluateRequiredPieces is implemented.
 
-describe.skip('K1-8 Transit Gate — engine enforcement (REQ-RP-1 through REQ-RP-5)', () => {
+describe('K1-8 Transit Gate — engine enforcement (REQ-RP-1 through REQ-RP-5)', () => {
   const level = getLevelById('K1-8')!;
   const tape = [1, 1, 0, 1, 0, 0, 1, 1];
 

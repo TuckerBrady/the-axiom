@@ -54,7 +54,7 @@ function makeState(pieces: PlacedPiece[], overrides?: Partial<MachineState>): Ma
 
 // ── K1-7 level definition assertions ─────────────────────────────────────────
 
-describe.skip('K1-7 Ore Processing — Blocker 3 fix: level definition', () => {
+describe('K1-7 Ore Processing — Blocker 3 fix: level definition', () => {
   it('optimalPieces is 7 (reduced from 8 after removing collision Conveyor at (7,6))', () => {
     const level = getLevelById('K1-7');
     expect(level).toBeDefined();
@@ -89,7 +89,7 @@ describe.skip('K1-7 Ore Processing — Blocker 3 fix: level definition', () => {
 // This is a simplified straight-line equivalent test. The full K1-7 topology
 // (Splitter + Bridge crossing) requires engine verification per REQ-62.
 
-describe.skip('K1-7 floor solve — 7-piece pass-through (REQ-T-1 compliance)', () => {
+describe('K1-7 floor solve — 7-piece pass-through (REQ-T-1 compliance)', () => {
   it('Scanner → Transmitter → Terminal: output tracks input on all 4 pulses', () => {
     // Simplified linear chain (without Splitter/Bridge for unit-test isolation).
     // Validates that a 7-piece floor-solve path produces correct output.
