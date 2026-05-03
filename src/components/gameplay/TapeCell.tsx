@@ -93,19 +93,28 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
   // skip the fade-out entirely.
   const lastColorsRef = useRef<{ bg: string; border: string } | null>(null);
 
+  // useNativeDriver: false is required because highlightOpacity's
+  // host (Animated.View at the `overlayColors ? (...) : null` ternary
+  // below) is conditionally mounted. lastColorsRef.current keeps
+  // overlayColors truthy after the first highlight ever fires, which
+  // mitigates the parent-swap pattern at runtime — but the static
+  // shape is still REQ-A-1 FORM B, and a future refactor that drops
+  // the lastColorsRef latch would re-expose the crash. JS-driver cost
+  // on a 24x24 cell overlay opacity is trivial. See
+  // project-docs/REPORTS/build21-sigsegv-investigation.md.
   useEffect(() => {
     if (highlight) {
       lastColorsRef.current = colorsForHighlight(highlight);
       Animated.timing(highlightOpacity, {
         toValue: 1,
         duration: HIGHLIGHT_FADE_IN_MS,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     } else {
       Animated.timing(highlightOpacity, {
         toValue: 0,
         duration: HIGHLIGHT_FADE_OUT_MS,
-        useNativeDriver: true,
+        useNativeDriver: false,
       }).start();
     }
   }, [highlight, highlightOpacity]);

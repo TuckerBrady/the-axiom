@@ -28,7 +28,14 @@ describe('BoardPiece — native-driven flash overlay (Prompt 99C, Fix 1)', () =>
     expect(pieceSrc).toMatch(/<Animated\.View[\s\S]*?opacity:\s*flashOpacity/);
   });
 
-  it('runs an Animated.sequence of two 90ms timings, both native', () => {
+  // Build 21 follow-up: flashOpacity demoted to JS driver because its
+  // host (Animated.View at the {flashColor ? (...) : null}) is
+  // conditionally mounted on flashColor truthiness, and the per-pulse
+  // sweep in GameplayScreen.handleEngage clears flashColor between
+  // pulses — so the host genuinely remounts on every flash. REQ-A-1
+  // FORM B. JS-driver cost on a 180ms opacity sequence per flash is
+  // trivial. See project-docs/REPORTS/build21-sigsegv-investigation.md.
+  it('runs an Animated.sequence of two 90ms timings, both JS-driver (REQ-A-1 FORM B)', () => {
     const sequenceMatch = pieceSrc.match(
       /Animated\.sequence\(\s*\[[\s\S]*?\]\s*\)/,
     );
@@ -37,7 +44,8 @@ describe('BoardPiece — native-driven flash overlay (Prompt 99C, Fix 1)', () =>
     const timings = body.match(/Animated\.timing\([\s\S]*?\}\)/g) ?? [];
     expect(timings.length).toBe(2);
     timings.forEach(t => {
-      expect(t).toMatch(/useNativeDriver:\s*true/);
+      expect(t).toMatch(/useNativeDriver:\s*false/);
+      expect(t).not.toMatch(/useNativeDriver:\s*true/);
       expect(t).toMatch(/duration:\s*FLASH_HALF_MS/);
     });
     expect(pieceSrc).toMatch(/FLASH_HALF_MS\s*=\s*90/);
