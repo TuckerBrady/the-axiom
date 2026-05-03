@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import Animated, {
@@ -15,14 +16,23 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/RootNavigator';
 import CogsAvatar from '../components/CogsAvatar';
 import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
 
+const DAILY_REWARD_KEY = '@axiom_last_daily_reward_date';
+
+function getTodayString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'DailyReward'>;
+  route: RouteProp<RootStackParamList, 'DailyReward'>;
 };
 
 // ─── Reward schedule ────────────────────────────────────────────────────────
@@ -94,8 +104,9 @@ function RewardIcon({ type, size = 48 }: { type: string; size?: number }) {
 
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
-export default function DailyRewardScreen({ navigation }: Props) {
+export default function DailyRewardScreen({ navigation, route }: Props) {
   const { addCredits } = useLivesStore();
+  const fromReturningSession = route.params?.fromReturningSession ?? false;
 
   // Determine streak day (1–7 cycling)
   const dayOfYear = useMemo(() => {
@@ -142,7 +153,11 @@ export default function DailyRewardScreen({ navigation }: Props) {
       default:
         break;
     }
-    navigation.replace('Tabs');
+    // Mark today's transmission as collected. Done here (not on entry)
+    // so an aborted launch never silently consumes the day's reward.
+    AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString()).catch(() => {});
+    // Returning sessions still see their ReturnBrief after collecting.
+    navigation.replace(fromReturningSession ? 'ReturnBrief' : 'Tabs');
   };
 
   return (

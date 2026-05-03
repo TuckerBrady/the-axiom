@@ -31,6 +31,7 @@ import { useChallengeStore } from '../store/challengeStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useCodexStore } from '../store/codexStore';
+import { resolveInitialRoute, SESSION_KEY } from './resolveInitialRoute';
 
 export type RootStackParamList = {
   // Onboarding
@@ -43,7 +44,7 @@ export type RootStackParamList = {
   Login: undefined;
   // Main app
   ReturnBrief: undefined;
-  DailyReward: undefined;
+  DailyReward: { fromReturningSession?: boolean } | undefined;
   Tabs: undefined;
   Launch: undefined;
   LevelSelect: undefined;
@@ -66,17 +67,13 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const ONBOARDING_KEY = '@axiom_onboarding_complete';
-const DAILY_REWARD_KEY = '@axiom_last_daily_reward_date';
-const SESSION_KEY = 'axiom_last_session';
-
-function getTodayString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 export default function RootNavigator() {
   const [initialRoute, setInitialRoute] = useState<'Boot' | 'ReturnBrief' | 'DailyReward' | 'Tabs' | null>(null);
+  // When DailyReward is the initial route, this records whether the user was
+  // a returning session at app launch. The screen uses this to pick its
+  // post-collect destination (ReturnBrief vs Tabs).
+  const [dailyRewardReturningSession, setDailyRewardReturningSession] = useState(false);
 
   // ── Session tracking: write timestamp when app goes to background ──
   useEffect(() => {
@@ -105,30 +102,11 @@ export default function RootNavigator() {
   useEffect(() => {
     (async () => {
       try {
-        const onboarded = await AsyncStorage.getItem(ONBOARDING_KEY);
-        if (onboarded !== 'true') {
-          setInitialRoute('Boot');
-          return;
+        const resolution = await resolveInitialRoute(AsyncStorage);
+        if (resolution.route === 'DailyReward') {
+          setDailyRewardReturningSession(resolution.fromReturningSession);
         }
-
-        // Check if this is a return visit (session key exists)
-        const lastSession = await AsyncStorage.getItem(SESSION_KEY);
-
-        // Check daily reward
-        const lastReward = await AsyncStorage.getItem(DAILY_REWARD_KEY);
-        const needsReward = lastReward !== getTodayString();
-        if (needsReward) {
-          await AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString());
-        }
-
-        if (lastSession) {
-          // Returning player → show return brief (it navigates to Tabs on dismiss)
-          setInitialRoute('ReturnBrief');
-        } else if (needsReward) {
-          setInitialRoute('DailyReward');
-        } else {
-          setInitialRoute('Tabs');
-        }
+        setInitialRoute(resolution.route);
       } catch {
         setInitialRoute('Boot');
       }
@@ -160,7 +138,11 @@ export default function RootNavigator() {
 
         {/* ── Main app ── */}
         <Stack.Screen name="ReturnBrief" component={ReturnBriefScreen} />
-        <Stack.Screen name="DailyReward" component={DailyRewardScreen} />
+        <Stack.Screen
+          name="DailyReward"
+          component={DailyRewardScreen}
+          initialParams={{ fromReturningSession: dailyRewardReturningSession }}
+        />
         <Stack.Screen name="Tabs" component={TabNavigator} />
         <Stack.Screen name="Launch" component={LaunchScreen} />
         <Stack.Screen name="LevelSelect" component={LevelSelectScreen} />
