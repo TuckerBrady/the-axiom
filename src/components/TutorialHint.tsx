@@ -24,8 +24,11 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      // BUILD23: demoted — host unmounts on parent conditional (currentHint && ...)
+      // in GameplayScreen. Mount animation can be in-flight when the parent sets
+      // currentHint to null, tearing down the native node mid-animation.
+      Animated.timing(translateY, { toValue: 0, duration: 300, easing: Easing.out(Easing.cubic), useNativeDriver: false }),
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: false }),
     ]).start();
   }, []);
 
@@ -33,8 +36,9 @@ export function TutorialHint({ hintKey, text, onDismiss }: Props) {
     hapticLight();
     AsyncStorage.setItem(`axiom_hint_seen_${hintKey}`, '1');
     Animated.parallel([
-      Animated.timing(translateY, { toValue: 60, duration: 250, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: true }),
+      // BUILD23: demoted — same values as mount animation, kept consistent
+      Animated.timing(translateY, { toValue: 60, duration: 250, useNativeDriver: false }),
+      Animated.timing(opacity, { toValue: 0, duration: 250, useNativeDriver: false }),
     ]).start(() => onDismiss());
   };
 

@@ -32,12 +32,43 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
 
   loadOrGenerateChallenge: async (pirateActive = false) => {
     const today = getTodayDateString();
-    const lastDate = await AsyncStorage.getItem(CHALLENGE_DATE_KEY);
+
+    let lastDate: string | null = null;
+    try {
+      lastDate = await AsyncStorage.getItem(CHALLENGE_DATE_KEY);
+    } catch (error) {
+      console.error('[BUILD24-DIAG] AsyncStorage failed', {
+        operation: 'getItem',
+        key: CHALLENGE_DATE_KEY,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
 
     if (lastDate === today && get().currentChallenge) {
       // Already loaded for today — check status
-      const attempted = await AsyncStorage.getItem(`${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`);
-      const result = await AsyncStorage.getItem(`${CHALLENGE_RESULT_PREFIX}${today}_result`);
+      let attempted: string | null = null;
+      let result: string | null = null;
+      try {
+        attempted = await AsyncStorage.getItem(`${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`);
+      } catch (error) {
+        console.error('[BUILD24-DIAG] AsyncStorage failed', {
+          operation: 'getItem',
+          key: `${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`,
+          error: (error as Error).message,
+          timestamp: Date.now(),
+        });
+      }
+      try {
+        result = await AsyncStorage.getItem(`${CHALLENGE_RESULT_PREFIX}${today}_result`);
+      } catch (error) {
+        console.error('[BUILD24-DIAG] AsyncStorage failed', {
+          operation: 'getItem',
+          key: `${CHALLENGE_RESULT_PREFIX}${today}_result`,
+          error: (error as Error).message,
+          timestamp: Date.now(),
+        });
+      }
       if (result) {
         set({ challengeStatus: 'completed' });
       } else if (attempted) {
@@ -48,11 +79,40 @@ export const useChallengeStore = create<ChallengeState>((set, get) => ({
 
     // Generate new challenge for today
     const challenge = generateDailyChallenge(today, pirateActive);
-    await AsyncStorage.setItem(CHALLENGE_DATE_KEY, today);
+    try {
+      await AsyncStorage.setItem(CHALLENGE_DATE_KEY, today);
+    } catch (error) {
+      console.error('[BUILD24-DIAG] AsyncStorage failed', {
+        operation: 'setItem',
+        key: CHALLENGE_DATE_KEY,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
 
     // Check if already attempted today (app restart case)
-    const attempted = await AsyncStorage.getItem(`${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`);
-    const result = await AsyncStorage.getItem(`${CHALLENGE_RESULT_PREFIX}${today}_result`);
+    let attempted: string | null = null;
+    let result: string | null = null;
+    try {
+      attempted = await AsyncStorage.getItem(`${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`);
+    } catch (error) {
+      console.error('[BUILD24-DIAG] AsyncStorage failed', {
+        operation: 'getItem',
+        key: `${CHALLENGE_ATTEMPTED_PREFIX}${today}_attempted`,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
+    try {
+      result = await AsyncStorage.getItem(`${CHALLENGE_RESULT_PREFIX}${today}_result`);
+    } catch (error) {
+      console.error('[BUILD24-DIAG] AsyncStorage failed', {
+        operation: 'getItem',
+        key: `${CHALLENGE_RESULT_PREFIX}${today}_result`,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
 
     let status: ChallengeState['challengeStatus'] = 'available';
     if (result) status = 'completed';

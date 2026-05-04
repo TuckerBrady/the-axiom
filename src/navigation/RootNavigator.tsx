@@ -102,7 +102,9 @@ export default function RootNavigator() {
   useEffect(() => {
     (async () => {
       try {
+        console.log('[BUILD24-DIAG] resolveInitialRoute:start', { timestamp: Date.now() });
         const resolution = await resolveInitialRoute(AsyncStorage);
+        console.log('[BUILD24-DIAG] resolveInitialRoute:complete', { route: resolution.route, timestamp: Date.now() });
         if (resolution.route === 'DailyReward') {
           setDailyRewardReturningSession(resolution.fromReturningSession);
         }

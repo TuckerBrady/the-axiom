@@ -124,11 +124,14 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
   const rewardScale = useSharedValue(0);
 
   useEffect(() => {
+    console.log('[BUILD24-DIAG] DailyRewardScreen:mount', { timestamp: Date.now() });
     screenOpacity.value = withTiming(1, { duration: 400 });
     rewardScale.value = withDelay(
       600,
       withSpring(1, { damping: 8, stiffness: 120 }),
     );
+    // No async reads on this screen — dataLoaded fires synchronously with mount
+    console.log('[BUILD24-DIAG] DailyRewardScreen:dataLoaded', { timestamp: Date.now() });
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
@@ -137,7 +140,7 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
     opacity: rewardScale.value,
   }));
 
-  const handleCollect = () => {
+  const handleCollect = async () => {
     // Apply reward
     switch (reward.type) {
       case 'credits':
@@ -155,7 +158,16 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
     }
     // Mark today's transmission as collected. Done here (not on entry)
     // so an aborted launch never silently consumes the day's reward.
-    AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString()).catch(() => {});
+    try {
+      await AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString());
+    } catch (error) {
+      console.error('[BUILD24-DIAG] AsyncStorage failed', {
+        operation: 'setItem',
+        key: DAILY_REWARD_KEY,
+        error: (error as Error).message,
+        timestamp: Date.now(),
+      });
+    }
     // Returning sessions still see their ReturnBrief after collecting.
     navigation.replace(fromReturningSession ? 'ReturnBrief' : 'Tabs');
   };

@@ -146,6 +146,7 @@ export default function ReturnBriefScreen({ navigation }: Props) {
 
   // Hydrate session metadata + increment session count
   useEffect(() => {
+    console.log('[BUILD24-DIAG] ReturnBriefScreen:mount', { timestamp: Date.now() });
     (async () => {
       const last = await AsyncStorage.getItem(SESSION_KEY);
       const count = await AsyncStorage.getItem(SESSION_COUNT_KEY);
@@ -297,6 +298,10 @@ export default function ReturnBriefScreen({ navigation }: Props) {
   useEffect(() => {
     if (!ready || items.length === 0) return;
 
+    console.log('[BUILD24-DIAG] ReturnBriefScreen:animationInit', { timestamp: Date.now() });
+
+    // BUILD23: audited — screenFade host (root Animated.View) mounts once when
+    // ready=true and never remounts during the animation lifecycle.
     Animated.timing(screenFade, {
       toValue: 1,
       duration: 300,
@@ -310,6 +315,8 @@ export default function ReturnBriefScreen({ navigation }: Props) {
       delay += step;
       const t = setTimeout(() => {
         if (dismissed.current) return;
+        // BUILD23: audited — per-item hosts are stable in items.map after ready=true,
+        // never conditionally unmounted during animation lifecycle.
         Animated.timing(itemAnimsRef.current[i], {
           toValue: 1,
           duration: 220,
@@ -323,6 +330,8 @@ export default function ReturnBriefScreen({ navigation }: Props) {
     const cardDelay = delay + 250;
     const cardTimer = setTimeout(() => {
       if (dismissed.current) return;
+      // BUILD23: audited — cardFade host (COGS card Animated.View) is always
+      // present in the rendered tree, never conditionally unmounted.
       Animated.timing(cardFade, {
         toValue: 1,
         duration: 500,
@@ -345,6 +354,9 @@ export default function ReturnBriefScreen({ navigation }: Props) {
     if (dismissed.current) return;
     dismissed.current = true;
     AsyncStorage.setItem(SESSION_KEY, Date.now().toString()).catch(() => {});
+    // BUILD23: audited — exitFade shares the root Animated.View host with
+    // screenFade (via Animated.multiply). That host mounts once and stays
+    // mounted until navigation.replace completes.
     Animated.timing(exitFade, {
       toValue: 0,
       duration: 350,
@@ -471,6 +483,7 @@ function getDefaultTimeAwayLine(lastSession: number | null): string {
 function HudCorners({ color }: { color: string }) {
   const fade = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    // BUILD23: audited — host always mounted during animation lifecycle
     Animated.timing(fade, {
       toValue: 1,
       duration: 600,
@@ -500,6 +513,7 @@ function HudCorners({ color }: { color: string }) {
 function ScanLine({ color }: { color: string }) {
   const y = useRef(new Animated.Value(0)).current;
   useEffect(() => {
+    // BUILD23: audited — host always mounted during animation lifecycle
     const loop = Animated.loop(
       Animated.timing(y, {
         toValue: H,
@@ -528,6 +542,7 @@ function BlinkingText({
 }) {
   const op = useRef(new Animated.Value(1)).current;
   useEffect(() => {
+    // BUILD23: audited — host always mounted during animation lifecycle
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(op, { toValue: 0.35, duration: 900, useNativeDriver: true }),
