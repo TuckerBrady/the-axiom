@@ -113,4 +113,5 @@ Registered in: `app.json` under `expo.plugins`
 
 ## Build Status
 
-Build 25 triggered after merge to master. See EAS build dashboard for result.
+Build 25 triggered: https://expo.dev/accounts/tuckerbrady/projects/the-axiom/builds/673054cb-6b28-4b3a-af9d-08b74aa14a02
+buildNumber incremented 24 → 25 automatically by EAS.
