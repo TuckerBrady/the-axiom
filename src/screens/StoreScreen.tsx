@@ -46,6 +46,22 @@ type PowerUp = {
   icon: 'hint' | 'debug' | 'life' | 'config' | 'trail';
 };
 
+// REQ-W-1: Module-scope entering= animation constants. See GameplayModals.tsx for rationale.
+const POWER_UP_ENTERS = [
+  FadeInUp.delay(0).duration(350),
+  FadeInUp.delay(60).duration(350),
+  FadeInUp.delay(120).duration(350),
+  FadeInUp.delay(180).duration(350),
+  FadeInUp.delay(240).duration(350),
+];
+
+const CIRCUIT_PACK_ENTERS = [
+  FadeInUp.delay(300).duration(350),
+  FadeInUp.delay(380).duration(350),
+  FadeInUp.delay(460).duration(350),
+  FadeInUp.delay(540).duration(350),
+];
+
 const POWER_UPS: PowerUp[] = [
   { id: 'hint', name: 'Hint Token', description: 'Reveals a valid next placement', price: 50, icon: 'hint' },
   { id: 'debug', name: 'Debug Credit', description: 'Step-through failure analysis', price: 75, icon: 'debug' },
@@ -210,7 +226,7 @@ export default function StoreScreen({ navigation }: Props) {
             return (
               <Animated.View
                 key={item.id}
-                entering={FadeInUp.delay(i * 60).duration(350)}
+                entering={POWER_UP_ENTERS[i]}
                 style={st.powerUpCard}
               >
                 <LinearGradient
@@ -246,7 +262,7 @@ export default function StoreScreen({ navigation }: Props) {
             {CIRCUIT_PACKS.map((pack, i) => (
               <Animated.View
                 key={pack.id}
-                entering={FadeInUp.delay(300 + i * 80).duration(350)}
+                entering={CIRCUIT_PACK_ENTERS[i]}
                 style={st.circuitCard}
               >
                 <LinearGradient

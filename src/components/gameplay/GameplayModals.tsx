@@ -23,6 +23,14 @@ import type { WrongOutputData, PulseResultData } from '../../hooks/useGameplayMo
 
 const { width: screenWidth } = Dimensions.get('window');
 
+// REQ-W-1: Module-scope entering= animation constants.
+// Do NOT reconstruct these inside .map() callbacks — constructing FadeInUp builder chains
+// during a render-path microtask drain triggers a HadesGC race in worklets 0.5.1.
+// See project-docs/REPORTS/build25-crashlog.crash Thread 4.
+const STAR_ENTER_1 = FadeInUp.delay(200).duration(400);
+const STAR_ENTER_2 = FadeInUp.delay(400).duration(400);
+const STAR_ENTER_3 = FadeInUp.delay(600).duration(400);
+
 const VOID_QUOTES = [
   '"The signal did not reach Output. I observed the exact moment it failed."',
   '"Void state. I could explain why. You should already know."',
@@ -37,10 +45,11 @@ function formatMMSS(totalSeconds: number): string {
 }
 
 function renderStars(count: number) {
+  const enterAnims = [STAR_ENTER_1, STAR_ENTER_2, STAR_ENTER_3];
   return [1, 2, 3].map(i => (
     <Animated.View
       key={i}
-      entering={FadeInUp.delay(i * 200).duration(400)}
+      entering={enterAnims[i - 1]}
     >
       <Svg width={40} height={40} viewBox="0 0 24 24">
         <Path
