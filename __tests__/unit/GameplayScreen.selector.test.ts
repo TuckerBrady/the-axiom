@@ -48,4 +48,14 @@ describe('GameplayScreen Zustand selector usage', () => {
   it('does not call useRequisitionStore() without a selector', () => {
     expect(source).not.toMatch(/=\s*useRequisitionStore\(\)/);
   });
+
+  it('wraps the arcWheelPieces filter selector with useShallow (no raw filter selector)', () => {
+    // .filter() returns a new array reference on every invocation, so a
+    // bare `useRequisitionStore(s => s.inventory.pieces.filter(...))`
+    // produces an unstable getSnapshot result and re-triggers the
+    // useSyncExternalStore infinite-loop bug fixed in PROMPT_117.
+    // The selector must be wrapped with useShallow so element-wise
+    // shallow equality short-circuits the re-render.
+    expect(source).not.toContain('useRequisitionStore(s => s.inventory.pieces.filter');
+  });
 });
