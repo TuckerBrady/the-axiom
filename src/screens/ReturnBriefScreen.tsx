@@ -134,11 +134,14 @@ type Item =
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function ReturnBriefScreen({ navigation }: Props) {
-  const { getSectorCompletedCount, getLevelStars, completedLevels, activeSector } =
-    useProgressionStore();
-  const { cogsIntegrity, damagedSystems } = useConsequenceStore();
-  const { credits } = useEconomyStore();
-  const { challengeStatus } = useChallengeStore();
+  const getSectorCompletedCount = useProgressionStore(s => s.getSectorCompletedCount);
+  const getLevelStars = useProgressionStore(s => s.getLevelStars);
+  const completedLevels = useProgressionStore(s => s.completedLevels);
+  const activeSector = useProgressionStore(s => s.activeSector);
+  const cogsIntegrity = useConsequenceStore(s => s.cogsIntegrity);
+  const damagedSystems = useConsequenceStore(s => s.damagedSystems);
+  const credits = useEconomyStore(s => s.credits);
+  const challengeStatus = useChallengeStore(s => s.challengeStatus);
 
   const [lastSession, setLastSession] = useState<number | null>(null);
   const [sessionsTotal, setSessionsTotal] = useState<number>(0);
