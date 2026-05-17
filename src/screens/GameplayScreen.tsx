@@ -40,6 +40,7 @@ import { usePlayerStore } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useRequisitionStore, buildInventoryForLevel } from '../store/requisitionStore';
+import { useShallow } from 'zustand/react/shallow';
 import { TutorialHint } from '../components/TutorialHint';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
@@ -228,14 +229,53 @@ export default function GameplayScreen({ navigation }: Props) {
     setDebugMode,
     debugNext,
     debugPrev,
-  } = useGameStore();
+  } = useGameStore(useShallow(s => ({
+    currentLevel: s.currentLevel,
+    machineState: s.machineState,
+    selectedPieceFromTray: s.selectedPieceFromTray,
+    selectedPlacedPiece: s.selectedPlacedPiece,
+    executionSteps: s.executionSteps,
+    isExecuting: s.isExecuting,
+    stars: s.stars,
+    configuration: s.configuration,
+    debugMode: s.debugMode,
+    debugStepIndex: s.debugStepIndex,
+    setLevel: s.setLevel,
+    placePiece: s.placePiece,
+    movePiece: s.movePiece,
+    deletePiece: s.deletePiece,
+    rotatePiece: s.rotatePiece,
+    updatePiece: s.updatePiece,
+    selectFromTray: s.selectFromTray,
+    selectPlaced: s.selectPlaced,
+    engage: s.engage,
+    reset: s.reset,
+    toggleConfiguration: s.toggleConfiguration,
+    setDebugMode: s.setDebugMode,
+    debugNext: s.debugNext,
+    debugPrev: s.debugPrev,
+  })));
 
-  const { lives, loseLife, refillLives, credits: livesCredits, addCredits } = useLivesStore();
-  const { completeLevel, isLevelCompleted: isLevelDone } = useProgressionStore();
+  const { lives, loseLife, refillLives, credits: livesCredits, addCredits } = useLivesStore(useShallow(s => ({
+    lives: s.lives,
+    loseLife: s.loseLife,
+    refillLives: s.refillLives,
+    credits: s.credits,
+    addCredits: s.addCredits,
+  })));
+  const completeLevel = useProgressionStore(s => s.completeLevel);
+  const isLevelDone = useProgressionStore(s => s.isLevelCompleted);
   const discipline = usePlayerStore(s => s.discipline);
-  const { credits, setLevelBudget, spendCredits, spendDirect, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore();
+  const { credits, setLevelBudget, spendCredits, spendDirect, earnCredits, resetLevelBudget, levelSpent } = useEconomyStore(useShallow(s => ({
+    credits: s.credits,
+    setLevelBudget: s.setLevelBudget,
+    spendCredits: s.spendCredits,
+    spendDirect: s.spendDirect,
+    earnCredits: s.earnCredits,
+    resetLevelBudget: s.resetLevelBudget,
+    levelSpent: s.levelSpent,
+  })));
   const arcWheelPosition = useSettingsStore(s => s.arcWheelPosition);
-  const requisitionStore = useRequisitionStore();
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
   const arcWheelPieces = useRequisitionStore(s => s.inventory.pieces.filter(p => !p.placed)) as ArcWheelPiece[];
@@ -378,7 +418,7 @@ export default function GameplayScreen({ navigation }: Props) {
   useEffect(() => {
     if (!level) return;
     if (level.sector === 'axiom') return;
-    requisitionStore.initRequisition(level, discipline);
+    useRequisitionStore.getState().initRequisition(level, discipline);
   }, [level?.id]);
 
   // ── Cleanup beam animation on unmount ──
@@ -1109,9 +1149,9 @@ export default function GameplayScreen({ navigation }: Props) {
     resetTimer();
     // Retry on Kepler+: REQUISITION reopens fresh (REQ-101)
     if (!isAxiomLevel && level) {
-      requisitionStore.initRequisition(level, discipline);
+      useRequisitionStore.getState().initRequisition(level, discipline);
     }
-  }, [reset, resetTimer, isAxiomLevel, level, discipline, requisitionStore]);
+  }, [reset, resetTimer, isAxiomLevel, level, discipline]);
 
   // ── Debug ──
   const handleDebug = useCallback(() => {
