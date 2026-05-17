@@ -14,7 +14,7 @@
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
     "build:info": "node ./scripts/write-build-info.js",
-    "postinstall": "node ./scripts/write-build-info.js",
+    "postinstall": "node ./scripts/write-build-info.js && patch-package",
     "prestart": "node ./scripts/write-build-info.js"
   },
   "dependencies": {
@@ -63,6 +63,7 @@
     "eslint-config-expo": "~10.0.0",
     "jest": "^30.3.0",
     "jest-expo": "^55.0.13",
+    "patch-package": "^8.0.1",
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2"
   },

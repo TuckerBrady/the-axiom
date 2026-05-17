@@ -1,0 +1,17 @@
+diff --git a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+index 0000000..0000001 100644
+--- a/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
++++ b/node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios/ReactCommon/RCTTurboModule.mm
+@@ -435,7 +435,11 @@
+     @try {
+       [inv invokeWithTarget:strongModule];
+     } @catch (NSException *exception) {
+-      throw convertNSExceptionToJSError(runtime, exception, std::string{moduleName}, methodNameStr);
++      // EAS build fix: void method block runs on a GCD queue. Nothing above the dispatch
++      // queue can catch a rethrown C++ exception into Hermes from the wrong thread.
++      // Log and return instead. See: https://github.com/reactwg/react-native-new-architecture/discussions/276
++      RCTLogError(@"[TurboModule] %s::%s: %@", moduleName, methodName, exception);
++      return;
+     } @finally {
+       [retainedObjectsForInvocation removeAllObjects];
+     }
