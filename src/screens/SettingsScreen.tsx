@@ -37,6 +37,8 @@ import { ALL_LEVELS } from '../game/levels';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { BUILD_INFO } from '../buildInfo';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
+import Constants from 'expo-constants';
+import { getDevCodename } from '../utils/devCodename';
 
 type Props = {
   navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
@@ -755,6 +757,16 @@ export default function SettingsScreen({ navigation }: Props) {
               <Text style={styles.cogsCredSub}>The Axiom · Build 0.9.{BUILD_INFO.buildNumber}</Text>
             </Text>
           </Animated.View>
+
+          {__DEV__ && (() => {
+            const hash = Constants.expoConfig?.extra?.commitHash ?? 'unknown';
+            const codename = getDevCodename(hash);
+            return (
+              <Text style={styles.devCodename}>
+                {codename}
+              </Text>
+            );
+          })()}
         </ScrollView>
       </SafeAreaView>
     </Animated.View>
@@ -762,6 +774,14 @@ export default function SettingsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  devCodename: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 10,
+    color: 'rgba(74, 158, 255, 0.35)',
+    letterSpacing: 2,
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
   root: { flex: 1, backgroundColor: Colors.void },
   safeArea: { flex: 1 },
   header: {
