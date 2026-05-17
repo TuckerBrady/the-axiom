@@ -278,7 +278,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const arcWheelPosition = useSettingsStore(s => s.arcWheelPosition);
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
-  const arcWheelPieces = useRequisitionStore(s => s.inventory.pieces.filter(p => !p.placed)) as ArcWheelPiece[];
+  const arcWheelPieces = useRequisitionStore(useShallow(s => s.inventory.pieces.filter(p => !p.placed))) as ArcWheelPiece[];
 
   // Level-derived values needed by extracted hooks. Computed before
   // hook calls so hook order stays stable across renders.
