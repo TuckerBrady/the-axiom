@@ -340,7 +340,12 @@ describe('Prompt 86B — remaining screen button migrations', () => {
       expect(src).toMatch(/from '\.\.\/components\/Button'/);
     });
     it('renders the purchase Button as a gradient with dynamic price/deficit label', () => {
-      expect(src).toMatch(/variant="gradient"[\s\S]*?label=\{canAfford \?[\s\S]*?\}/);
+      // PROMPT_120 Fix 7 hoisted the inline conditional into a `priceLabel`
+      // variable so the Axiom-sector FREE-display case can share the
+      // same Button binding. The dynamic label is still derived from
+      // canAfford / item.price / deficit inside priceLabel.
+      expect(src).toMatch(/variant="gradient"[\s\S]*?label=\{priceLabel\}/);
+      expect(src).toMatch(/const priceLabel = isAxiomSector[\s\S]*?'FREE'[\s\S]*?item\.price[\s\S]*?CR/);
       expect(src).toMatch(/disabled=\{!canAfford\}/);
     });
     it('renders COMING SOON as a disabled secondary Button', () => {

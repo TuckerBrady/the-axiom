@@ -395,7 +395,7 @@ export default function SettingsScreen({ navigation }: Props) {
           {/* Gameplay */}
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
-            <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show AI tips during levels" value={cogsHintsEnabled} onChange={setCogsHintsEnabled} delay={350} />
+            <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show COGS hints during levels" value={cogsHintsEnabled} onChange={setCogsHintsEnabled} delay={350} />
           </View>
 
           {/* Account */}
@@ -753,13 +753,16 @@ export default function SettingsScreen({ navigation }: Props) {
           <Animated.View style={[styles.cogsCredit, cogsRevealStyle]}>
             <CogsAvatar size="small" state="online" />
             <Text style={styles.cogsCredText}>
-              Cogs AI v2.1 · All systems nominal.{'\n'}
+              C.O.G.S Unit 7 · All systems nominal.{'\n'}
               <Text style={styles.cogsCredSub}>The Axiom · Build 0.9.{BUILD_INFO.buildNumber}</Text>
             </Text>
           </Animated.View>
 
           {__DEV__ && (() => {
-            const hash = Constants.expoConfig?.extra?.commitHash ?? 'unknown';
+            const hash =
+              Constants.expoConfig?.extra?.commitHash ??
+              (Constants as { manifest?: { extra?: { commitHash?: string } } }).manifest?.extra?.commitHash ??
+              'unknown';
             const codename = getDevCodename(hash);
             return (
               <Text style={styles.devCodename}>

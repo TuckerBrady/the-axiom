@@ -24,7 +24,7 @@ import type { TabParamList } from '../navigation/TabNavigator';
 import CogsHubCard from '../components/cogs/CogsHubCard';
 import AxiomShip from '../components/hub/AxiomShip';
 import type { SystemLightState } from '../components/hub/AxiomShip';
-import { Fonts, Spacing } from '../theme/tokens';
+import { Colors, Fonts, Spacing } from '../theme/tokens';
 import { useLivesStore, MAX_LIVES_COUNT } from '../store/livesStore';
 import { useEconomyStore } from '../store/economyStore';
 import { useChallengeStore } from '../store/challengeStore';
@@ -218,7 +218,7 @@ export default function HubScreen({ navigation }: Props) {
               {/* Credits */}
               <View style={st.gridCard}>
                 <Text style={st.gridLabel}>CREDITS</Text>
-                <Text style={[st.gridValue, { color: GREEN }]}>{credits}</Text>
+                <Text style={[st.gridValue, { color: Colors.copper }]}>{credits}</Text>
                 <Text style={st.gridSub}>CR</Text>
               </View>
 

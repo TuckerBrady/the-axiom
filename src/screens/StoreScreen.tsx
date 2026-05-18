@@ -24,6 +24,7 @@ import { BackButton } from '../components/BackButton';
 import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
+import { useProgressionStore } from '../store/progressionStore';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Store'>;
@@ -126,12 +127,9 @@ function PowerUpIcon({ type, size = 24 }: { type: string; size?: number }) {
     case 'life':
       return (
         <Svg width={size} height={size} viewBox="0 0 24 24">
-          <Path
-            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-            fill={Colors.blue}
-            stroke={Colors.blue}
-            strokeWidth="1"
-          />
+          <Rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke={Colors.green} strokeWidth="2" />
+          <Line x1="12" y1="7" x2="12" y2="17" stroke={Colors.green} strokeWidth="2.5" strokeLinecap="round" />
+          <Line x1="7" y1="12" x2="17" y2="12" stroke={Colors.green} strokeWidth="2.5" strokeLinecap="round" />
         </Svg>
       );
     case 'config':
@@ -161,6 +159,11 @@ function PowerUpIcon({ type, size = 24 }: { type: string; size?: number }) {
 
 export default function StoreScreen({ navigation }: Props) {
   const { credits, spendCredits: spendFromLives } = useLivesStore();
+  // Axiom is the tutorial safe-zone — credits exist but purchases must not
+  // deduct them. Active sector identifier comes from progressionStore;
+  // 'A1' is the Axiom sector code.
+  const activeSector = useProgressionStore(s => s.activeSector);
+  const isAxiomSector = activeSector === 'A1';
   const [cogsLineIdx, setCogsLineIdx] = useState(0);
 
   const screenOpacity = useSharedValue(0);
@@ -181,6 +184,7 @@ export default function StoreScreen({ navigation }: Props) {
   const headerRevealStyle = useAnimatedStyle(() => ({ opacity: headerReveal.value }));
 
   const handleBuy = (item: PowerUp) => {
+    if (isAxiomSector) return;
     spendFromLives(item.price);
   };
 
@@ -221,8 +225,13 @@ export default function StoreScreen({ navigation }: Props) {
           {/* Power-ups section */}
           <Text style={st.sectionTitle}>POWER-UPS</Text>
           {POWER_UPS.map((item, i) => {
-            const canAfford = credits >= item.price;
+            const canAfford = isAxiomSector || credits >= item.price;
             const deficit = item.price - credits;
+            const priceLabel = isAxiomSector
+              ? 'FREE'
+              : canAfford
+                ? `${item.price} CR`
+                : `Need ${deficit} CR`;
             return (
               <Animated.View
                 key={item.id}
@@ -246,7 +255,7 @@ export default function StoreScreen({ navigation }: Props) {
                   </View>
                   <Button
                     variant="gradient"
-                    label={canAfford ? `${item.price} CR` : `Need ${deficit} CR`}
+                    label={priceLabel}
                     onPress={() => handleBuy(item)}
                     disabled={!canAfford}
                     style={st.puBtn}

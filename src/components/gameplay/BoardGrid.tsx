@@ -57,7 +57,7 @@ function BoardGridComponent({
         const iconColor = isSource
           ? '#F0B429'
           : isOutput
-            ? '#00C48C'
+            ? Colors.copper
             : getPieceColor(piece.type);
         const ref = isSource
           ? sourceNodeRef
