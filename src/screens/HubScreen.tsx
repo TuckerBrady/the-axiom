@@ -30,6 +30,7 @@ import { useEconomyStore } from '../store/economyStore';
 import { useChallengeStore } from '../store/challengeStore';
 import { useConsequenceStore } from '../store/consequenceStore';
 import { useProgressionStore, AXIOM_TOTAL_LEVELS, SHIP_SYSTEMS } from '../store/progressionStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '../store/gameStore';
 import { AXIOM_LEVELS } from '../game/levels';
 
@@ -83,11 +84,15 @@ type Props = { navigation: HubNav };
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function HubScreen({ navigation }: Props) {
-  const { lives, regenerate } = useLivesStore();
-  const { credits } = useEconomyStore();
-  const { currentChallenge, challengeStatus, loadOrGenerateChallenge } = useChallengeStore();
-  const damagedSystems = useConsequenceStore(s => s.damagedSystems);
-  const { getSectorCompletedCount, isLevelCompleted } = useProgressionStore();
+  const lives = useLivesStore(s => s.lives);
+  const regenerate = useLivesStore(s => s.regenerate);
+  const credits = useEconomyStore(s => s.credits);
+  const currentChallenge = useChallengeStore(s => s.currentChallenge);
+  const challengeStatus = useChallengeStore(s => s.challengeStatus);
+  const loadOrGenerateChallenge = useChallengeStore(s => s.loadOrGenerateChallenge);
+  const damagedSystems = useConsequenceStore(useShallow(s => s.damagedSystems));
+  const getSectorCompletedCount = useProgressionStore(s => s.getSectorCompletedCount);
+  const isLevelCompleted = useProgressionStore(s => s.isLevelCompleted);
   const setLevel = useGameStore(s => s.setLevel);
 
   // Regenerate lives on mount

@@ -349,7 +349,8 @@ type Props = {
 };
 
 export default function SectorMapScreen({ navigation }: Props) {
-  const { getSectorCompletedCount, setActiveSector } = useProgressionStore();
+  const getSectorCompletedCount = useProgressionStore(s => s.getSectorCompletedCount);
+  const setActiveSector = useProgressionStore(s => s.setActiveSector);
   const axiomCompleted = getSectorCompletedCount('A1-');
   const axiomDone = axiomCompleted >= AXIOM_TOTAL_LEVELS;
 

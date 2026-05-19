@@ -534,7 +534,9 @@ const KEPLER_LEVEL_MAP: Record<number, string> = Object.fromEntries(
 );
 
 export default function LevelSelectScreen({ navigation }: Props) {
-  const { activeSector, isLevelCompleted, getLevelStars } = useProgressionStore();
+  const activeSector = useProgressionStore(s => s.activeSector);
+  const isLevelCompleted = useProgressionStore(s => s.isLevelCompleted);
+  const getLevelStars = useProgressionStore(s => s.getLevelStars);
   const isAxiom = activeSector === 'A1';
   const hudCornerColorRef = useRef(getHudCornerColor(getHudState()));
   const hudCornerColor = hudCornerColorRef.current;

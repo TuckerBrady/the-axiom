@@ -158,7 +158,8 @@ function PowerUpIcon({ type, size = 24 }: { type: string; size?: number }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function StoreScreen({ navigation }: Props) {
-  const { credits, spendCredits: spendFromLives } = useLivesStore();
+  const credits = useLivesStore(s => s.credits);
+  const spendFromLives = useLivesStore(s => s.spendCredits);
   // Axiom is the tutorial safe-zone — credits exist but purchases must not
   // deduct them. Active sector identifier comes from progressionStore;
   // 'A1' is the Axiom sector code.
