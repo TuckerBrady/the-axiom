@@ -506,9 +506,9 @@ function DetailView({
 
   const isPhysics = entry.type === 'Physics';
   const accent = isPhysics
-    ? { bg: 'rgba(74,158,255,0.08)', border: 'rgba(74,158,255,0.28)', text: Colors.blue }
-    : { bg: 'rgba(200,121,65,0.08)', border: 'rgba(200,121,65,0.28)', text: Colors.copper };
-  const atmosphereColor = isPhysics ? 'rgba(74,158,255,0.06)' : 'rgba(200,121,65,0.06)';
+    ? { bg: 'rgba(240,180,41,0.08)', border: 'rgba(240,180,41,0.28)', text: Colors.amber }
+    : { bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.28)', text: '#00D4FF' };
+  const atmosphereColor = isPhysics ? 'rgba(240,180,41,0.06)' : 'rgba(0,212,255,0.06)';
 
   useEffect(() => {
     reveal.value = withTiming(1, { duration: 400 });
