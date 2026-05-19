@@ -351,7 +351,7 @@ const st = StyleSheet.create({
   },
   currencyAmount: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
-    color: Colors.amber,
+    color: Colors.copper,
   },
   currencyLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 13, color: Colors.muted,
@@ -464,7 +464,7 @@ const st = StyleSheet.create({
   },
   ccAmount: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.xl, fontWeight: 'bold',
-    color: Colors.circuit, marginTop: Spacing.sm,
+    color: Colors.copper, marginTop: Spacing.sm,
   },
   ccLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 11, color: Colors.muted,

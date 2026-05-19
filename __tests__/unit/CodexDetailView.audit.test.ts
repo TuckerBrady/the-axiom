@@ -55,4 +55,38 @@ describe('CodexDetailView — tag color audit (Fix 3)', () => {
   it('does NOT use copper (rgba(200,121,65,...)) anywhere in the accent block', () => {
     expect(accentBlock).not.toContain('rgba(200,121,65');
   });
+
+  // ── PROMPT_122 Fix 1 ──
+  // The atmosphereColor ternary one line below the accent block had
+  // the same Physics-blue / Protocol-copper inversion. PROMPT_120
+  // scope was line 125-127 only; PROMPT_122 closes the remaining
+  // inversion in CodexDetailView.tsx.
+  describe('atmosphereColor ternary (Fix 1, PROMPT_122)', () => {
+    let atmosphereLine: string;
+
+    beforeAll(() => {
+      const match = source.match(/const atmosphereColor = isPhysics[^;]*;/);
+      atmosphereLine = match ? match[0] : '';
+    });
+
+    it('locates the atmosphereColor ternary in the source', () => {
+      expect(atmosphereLine).not.toBe('');
+    });
+
+    it('Physics branch uses amber (rgba(240,180,41,...))', () => {
+      expect(atmosphereLine).toContain('rgba(240,180,41');
+    });
+
+    it('Protocol branch uses cyan (rgba(0,212,255,...))', () => {
+      expect(atmosphereLine).toContain('rgba(0,212,255');
+    });
+
+    it('does NOT use blue (rgba(74,158,255,...))', () => {
+      expect(atmosphereLine).not.toContain('rgba(74,158,255');
+    });
+
+    it('does NOT use copper (rgba(200,121,65,...))', () => {
+      expect(atmosphereLine).not.toContain('rgba(200,121,65');
+    });
+  });
 });

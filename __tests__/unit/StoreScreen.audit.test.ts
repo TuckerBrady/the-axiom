@@ -75,4 +75,50 @@ describe('StoreScreen — UX audit round 1', () => {
       expect(source).toContain('CR');
     });
   });
+
+  // ── PROMPT_122 Fix 2 — credit balance color ──
+  describe('Fix 2 — currencyAmount uses copper, not amber', () => {
+    let block: string;
+
+    beforeAll(() => {
+      // Extract the currencyAmount StyleSheet entry: from the key
+      // through its closing `},`.
+      const match = source.match(/currencyAmount:\s*\{[\s\S]*?\},/);
+      block = match ? match[0] : '';
+    });
+
+    it('locates the currencyAmount style block in the source', () => {
+      expect(block).not.toBe('');
+    });
+
+    it('color is Colors.copper', () => {
+      expect(block).toMatch(/color:\s*Colors\.copper\b/);
+    });
+
+    it('color is NOT Colors.amber', () => {
+      expect(block).not.toMatch(/color:\s*Colors\.amber\b/);
+    });
+  });
+
+  // ── PROMPT_122 Fix 3 — IAP credit-pack amount color ──
+  describe('Fix 3 — ccAmount uses copper, not circuit purple', () => {
+    let block: string;
+
+    beforeAll(() => {
+      const match = source.match(/ccAmount:\s*\{[\s\S]*?\},/);
+      block = match ? match[0] : '';
+    });
+
+    it('locates the ccAmount style block in the source', () => {
+      expect(block).not.toBe('');
+    });
+
+    it('color is Colors.copper', () => {
+      expect(block).toMatch(/color:\s*Colors\.copper\b/);
+    });
+
+    it('color is NOT Colors.circuit', () => {
+      expect(block).not.toMatch(/color:\s*Colors\.circuit\b/);
+    });
+  });
 });
