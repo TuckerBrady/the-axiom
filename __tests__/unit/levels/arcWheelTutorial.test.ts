@@ -39,16 +39,19 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(overlaySrc).toMatch(/case 'green':\s*return '#00C48C'/);
   });
 
-  // ── 2: tutorialFocusPiece mapping ─────────────────────────────────────────
-  it('2: tutorialFocusPiece is correct for all 8 Axiom levels', () => {
-    expect(a11).toContain("tutorialFocusPiece: 'conveyor'");
-    expect(a12).toContain("tutorialFocusPiece: 'gear'");
-    expect(a13).toContain("tutorialFocusPiece: 'configNode'");
-    expect(a15).toContain("tutorialFocusPiece: 'scanner'");
-    expect(a17).toContain("tutorialFocusPiece: 'transmitter'");
-    expect(a14).not.toContain('tutorialFocusPiece');
-    expect(a16).not.toContain('tutorialFocusPiece');
-    expect(a18).not.toContain('tutorialFocusPiece');
+  // ── 2: tutorialFocusPiece field is gone from all Axiom levels ─────────────
+  // PROMPT_124 removed the field; the per-piece tray refs (trayConveyor,
+  // trayGear, trayConfigNode, trayScanner, trayTransmitter) carry the
+  // identity instead via targetRef on each step.
+  it('2: tutorialFocusPiece is absent from all 8 Axiom levels and the per-piece targetRef is wired correctly', () => {
+    for (const block of [a11, a12, a13, a14, a15, a16, a17, a18]) {
+      expect(block).not.toContain('tutorialFocusPiece');
+    }
+    expect(a11).toMatch(/id: 'conveyor-instruct'[\s\S]*?targetRef: 'trayConveyor'/);
+    expect(a12).toMatch(/id: 'gear-instruct'[\s\S]*?targetRef: 'trayGear'/);
+    expect(a13).toMatch(/id: 'confignode-instruct'[\s\S]*?targetRef: 'trayConfigNode'/);
+    expect(a15).toMatch(/id: 'scanner-instruct'[\s\S]*?targetRef: 'trayScanner'/);
+    expect(a17).toMatch(/id: 'transmitter-instruct'[\s\S]*?targetRef: 'trayTransmitter'/);
   });
 
   // ── 3: Four-beat step IDs ──────────────────────────────────────────────────

@@ -59,7 +59,6 @@ export const levelA1_1: LevelDefinition = {
   systemRepaired: 'Emergency Power',
   budget: 0,
   scoringCategoriesVisible: ['efficiency'],
-  tutorialFocusPiece: 'conveyor',
   computationalGoal: 'Deliver the signal unchanged from Source to Terminal along a continuous straight path.',
   conceptTaught: 'Signal travels along a directed path. A complete path from input to output is the machine\'s body; without it, nothing moves.',
   prerequisiteConcept: 'None. First level. The player\'s mental model is a blank slate beyond the universal human intuition that a pipe carries what you put into one end.',
@@ -105,14 +104,14 @@ export const levelA1_1: LevelDefinition = {
     {
       id: 'conveyor-notice',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayConveyor',
       eyeState: 'amber',
       message: 'Hold on. That piece on the wheel. I have no record of it.',
     },
     {
       id: 'conveyor-instruct',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayConveyor',
       eyeState: 'blue',
       message: 'Drag it onto the board. Any valid cell. I need to see it operational before I can catalogue it. Standard procedure. Go.',
       awaitPlacement: 'conveyor',
@@ -167,7 +166,6 @@ export const levelA1_2: LevelDefinition = {
   tutorialHints: [
     { key: 'a12_gear', trigger: 'onMount', text: 'Source and Terminal are not aligned. A Gear redirects the signal. Plan your path before placing.' },
   ],
-  tutorialFocusPiece: 'gear',
   tutorialSteps: [
     {
       id: 'board-intro',
@@ -179,14 +177,14 @@ export const levelA1_2: LevelDefinition = {
     {
       id: 'gear-notice',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayGear',
       eyeState: 'amber',
       message: 'The wheel. There is an uncatalogued piece sitting right there.',
     },
     {
       id: 'gear-instruct',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayGear',
       eyeState: 'blue',
       message: 'Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.',
       awaitPlacement: 'gear',
@@ -248,7 +246,6 @@ export const levelA1_3: LevelDefinition = {
     { key: 'a13_protocol', trigger: 'onMount', text: 'The amber piece is a Config Node — a Protocol piece. Protocol pieces think. Physics pieces move.' },
     { key: 'a13_config', trigger: 'onMount', text: 'The Config Node only passes the signal when conditions are met. Connect the pieces. It handles the logic.' },
   ],
-  tutorialFocusPiece: 'configNode',
   tutorialSteps: [
     {
       id: 'board-intro',
@@ -260,14 +257,14 @@ export const levelA1_3: LevelDefinition = {
     {
       id: 'confignode-notice',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayConfigNode',
       eyeState: 'amber',
       message: 'Another one. The wheel is showing a piece I cannot identify from existing records.',
     },
     {
       id: 'confignode-instruct',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayConfigNode',
       eyeState: 'blue',
       message: 'Board. Now. I will handle the classification once I observe it in a live circuit. That is how this works.',
       awaitPlacement: 'configNode',
@@ -403,7 +400,6 @@ export const levelA1_5: LevelDefinition = {
     { key: 'a15_trail', trigger: 'onMount', text: 'The Data Trail at the bottom is working memory. The Scanner reads the input tape and writes each value here.' },
     { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
   ],
-  tutorialFocusPiece: 'scanner',
   tutorialSteps: [
     {
       id: 'input-tape-intro',
@@ -438,14 +434,14 @@ export const levelA1_5: LevelDefinition = {
     {
       id: 'scanner-notice',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayScanner',
       eyeState: 'amber',
       message: 'I see it. On the wheel. Uncatalogued.',
     },
     {
       id: 'scanner-instruct',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayScanner',
       eyeState: 'blue',
       message: 'Same procedure as before. Place it. Let it run. I will do the rest.',
       awaitPlacement: 'scanner',
@@ -569,7 +565,6 @@ export const levelA1_7: LevelDefinition = {
     { key: 'a17_transmitter', trigger: 'onMount', text: 'The Transmitter writes to the output tape. Scanner reads input. Together they close the loop. The machine can think.' },
     { key: 'a17_sequence', trigger: 'onFirstPiecePlaced', text: 'Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters.' },
   ],
-  tutorialFocusPiece: 'transmitter',
   tutorialSteps: [
     {
       id: 'board-intro',
@@ -581,14 +576,14 @@ export const levelA1_7: LevelDefinition = {
     {
       id: 'transmitter-notice',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayTransmitter',
       eyeState: 'amber',
       message: 'One more. The wheel.',
     },
     {
       id: 'transmitter-instruct',
       label: 'ARC WHEEL',
-      targetRef: 'arcWheelMain',
+      targetRef: 'trayTransmitter',
       eyeState: 'blue',
       message: 'Place it. You know the drill by now. Operational necessity.',
       awaitPlacement: 'transmitter',

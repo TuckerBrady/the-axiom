@@ -340,7 +340,7 @@ export default function GameplayScreen({ navigation }: Props) {
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
-    arcWheelMainRef,
+    tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,
     lastPlacedTrigger,
@@ -516,30 +516,6 @@ export default function GameplayScreen({ navigation }: Props) {
     });
   }, [availablePiecesList]);
 
-  // Axiom tutorial levels that introduce a new piece show the Arc Wheel
-  // instead of the PieceTray. Levels without tutorialFocusPiece (A1-4,
-  // A1-6, A1-8) keep the traditional tray.
-  const hasAxiomArcWheel = isAxiomLevel && !!(level?.tutorialFocusPiece);
-
-  const axiomArcWheelPieces = useMemo((): ArcWheelPiece[] => {
-    if (!hasAxiomArcWheel) return [];
-    return trayPieceTypes.map(pt => ({
-      id: pt,
-      type: pt,
-      source: 'preAssigned' as const,
-      placed: false,
-    }));
-  }, [hasAxiomArcWheel, trayPieceTypes]);
-
-  const [axiomWheelSelectedId, setAxiomWheelSelectedId] = useState<string | null>(
-    level?.tutorialFocusPiece ?? null,
-  );
-  // Re-sync when the level changes (navigation.replace produces a new
-  // component mount, but useEffect covers same-instance level changes).
-  useEffect(() => {
-    setAxiomWheelSelectedId(level?.tutorialFocusPiece ?? null);
-  }, [level?.id]);
-
   // Per-piece cost lookup for the tray (axiom levels are free).
   const trayCosts = useMemo(() => {
     const map: Partial<Record<PieceType, number>> = {};
@@ -673,12 +649,6 @@ export default function GameplayScreen({ navigation }: Props) {
   const handlePauseOpen = useCallback(() => {
     setShowPauseModal(true);
   }, []);
-
-  // ── Axiom Arc Wheel select ──
-  const handleAxiomArcWheelSelect = useCallback((id: string) => {
-    setAxiomWheelSelectedId(id);
-    selectFromTray(id as PieceType);
-  }, [selectFromTray]);
 
   // ── REQUISITION confirm ──
   const handleRequisitionConfirm = useCallback(() => {
@@ -1460,15 +1430,20 @@ export default function GameplayScreen({ navigation }: Props) {
         </View>
 
 
-        {/* ── Parts Tray (Axiom levels without Arc Wheel tutorial) ── */}
-        {isAxiomLevel && !hasAxiomArcWheel && !isExecuting && !showResults && !showVoid && !debugMode && (
+        {/* ── Parts Tray (all Axiom levels) ── */}
+        {isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && (
           <PieceTray
             trayPieceTypes={trayPieceTypes}
             availableCounts={availableCounts}
             selectedPieceFromTray={selectedPieceFromTray}
             costs={trayCosts}
             affordable={trayAffordable}
+            refs={tutorialTrayRefs}
             onPickup={selectFromTray}
+            onDragStart={handleDragStart}
+            onDragMove={handleDragMove}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
           />
         )}
 
@@ -1559,22 +1534,6 @@ export default function GameplayScreen({ navigation }: Props) {
           selectedId={selectedInventoryId}
           disabled={isExecuting}
           onSelect={handleArcWheelSelect}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        />
-      )}
-
-      {/* ── Arc Wheel (Axiom tutorial levels with tutorialFocusPiece) ── */}
-      {hasAxiomArcWheel && !isExecuting && !showResults && !showVoid && !debugMode && (
-        <ArcWheel
-          pieces={axiomArcWheelPieces}
-          side={arcWheelPosition}
-          selectedId={axiomWheelSelectedId}
-          mainNodeRef={arcWheelMainRef}
-          disabled={isExecuting}
-          onSelect={handleAxiomArcWheelSelect}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
           onDragEnd={handleDragEnd}

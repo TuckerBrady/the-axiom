@@ -73,14 +73,14 @@ const A1_1_STEPS: TutorialStep[] = [
   {
     id: 'conveyor-notice',
     label: 'ARC WHEEL',
-    targetRef: 'arcWheelMain',
+    targetRef: 'trayConveyor',
     eyeState: 'amber',
     message: 'Test step 4 - conveyor notice (no awaitPlacement).',
   },
   {
     id: 'conveyor-instruct',
     label: 'ARC WHEEL',
-    targetRef: 'arcWheelMain',
+    targetRef: 'trayConveyor',
     eyeState: 'blue',
     message: 'Test step 5 - conveyor instruct (awaitPlacement ON).',
     awaitPlacement: 'conveyor',
@@ -195,7 +195,7 @@ describe.skip('TutorialHUDOverlay step transitions [REQ-A-1..3]', () => {
     const targetTypes = new Set(A1_1_STEPS.map(s => s.targetRef));
     expect(targetTypes.has('center')).toBe(true);
     expect(targetTypes.has('boardGrid')).toBe(true);
-    expect(targetTypes.has('arcWheelMain')).toBe(true);
+    expect(targetTypes.has('trayConveyor')).toBe(true);
     expect(targetTypes.has('placedPiece')).toBe(true);
   });
 

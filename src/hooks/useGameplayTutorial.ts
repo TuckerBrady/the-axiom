@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { LevelDefinition, PieceType } from '../game/types';
+import type { TutorialTrayRefs } from '../components/gameplay/PieceTray';
 
 type Hint = { key: string; text: string };
 
@@ -34,8 +35,17 @@ export interface UseGameplayTutorialResult {
   inputTapeRowRef: React.RefObject<View | null>;
   outputTapeRowRef: React.RefObject<View | null>;
   dataTrailRowRef: React.RefObject<View | null>;
-  // Arc Wheel tutorial refs
-  arcWheelMainRef: React.RefObject<View | null>;
+  // PieceTray tutorial refs. All Axiom levels drag from the tray;
+  // the prior Arc Wheel path was removed in favor of these refs so
+  // tutorial spotlights can attach to individual tray slots.
+  trayConveyorRef: React.RefObject<View | null>;
+  trayGearRef: React.RefObject<View | null>;
+  trayConfigNodeRef: React.RefObject<View | null>;
+  traySplitterRef: React.RefObject<View | null>;
+  trayScannerRef: React.RefObject<View | null>;
+  trayTransmitterRef: React.RefObject<View | null>;
+  // Bundled TutorialTrayRefs object for forwarding to <PieceTray>.
+  tutorialTrayRefs: TutorialTrayRefs;
   placedPieceRef: React.RefObject<View | null>;
   // Placement / tap state tracked for TutorialHUDOverlay
   tutorialPlacedGridPos: { gridX: number; gridY: number } | null;
@@ -67,8 +77,15 @@ export function useGameplayTutorial(
   const outputTapeRowRef = useRef<View>(null);
   const dataTrailRowRef = useRef<View>(null);
 
-  // Arc Wheel tutorial refs
-  const arcWheelMainRef = useRef<View>(null);
+  // PieceTray tutorial refs. Each ref is attached to the corresponding
+  // tray slot in PieceTray via the `refs` prop, so tutorial spotlights
+  // can measure the live tray-item bounding box.
+  const trayConveyorRef = useRef<View>(null);
+  const trayGearRef = useRef<View>(null);
+  const trayConfigNodeRef = useRef<View>(null);
+  const traySplitterRef = useRef<View>(null);
+  const trayScannerRef = useRef<View>(null);
+  const trayTransmitterRef = useRef<View>(null);
   // placedPieceRef is attached to a zero-size invisible View rendered at
   // the placed piece's board position so TutorialHUDOverlay can measure it.
   const placedPieceRef = useRef<View>(null);
@@ -100,8 +117,27 @@ export function useGameplayTutorial(
       inputTapeRow: inputTapeRowRef,
       outputTapeRow: outputTapeRowRef,
       dataTrailRow: dataTrailRowRef,
-      arcWheelMain: arcWheelMainRef,
+      trayConveyor: trayConveyorRef,
+      trayGear: trayGearRef,
+      trayConfigNode: trayConfigNodeRef,
+      traySplitter: traySplitterRef,
+      trayScanner: trayScannerRef,
+      trayTransmitter: trayTransmitterRef,
       placedPiece: placedPieceRef,
+    }),
+    [],
+  );
+
+  // Bundled refs object passed straight through to <PieceTray refs=...>.
+  // Refs themselves are stable so the empty deps array is correct.
+  const tutorialTrayRefs = useMemo<TutorialTrayRefs>(
+    () => ({
+      trayConveyor: trayConveyorRef,
+      trayGear: trayGearRef,
+      trayConfigNode: trayConfigNodeRef,
+      traySplitter: traySplitterRef,
+      trayScanner: trayScannerRef,
+      trayTransmitter: trayTransmitterRef,
     }),
     [],
   );
@@ -250,7 +286,13 @@ export function useGameplayTutorial(
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
-    arcWheelMainRef,
+    trayConveyorRef,
+    trayGearRef,
+    trayConfigNodeRef,
+    traySplitterRef,
+    trayScannerRef,
+    trayTransmitterRef,
+    tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,
     lastPlacedTrigger,

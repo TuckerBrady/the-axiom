@@ -1,8 +1,21 @@
-import React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  PanResponder,
+  type GestureResponderEvent,
+} from 'react-native';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
+import type { DragState } from './ArcWheel';
 import { Colors, Fonts } from '../../theme/tokens';
+
+// Hold threshold (ms) before a touch promotes from a tap candidate to a
+// drag. Mirrors the ArcWheel.tsx constant of the same name.
+const DRAG_HOLD_MS = 180;
 
 const PIECE_LABELS: Record<PieceType, string> = {
   source: 'IN',
@@ -52,6 +65,15 @@ interface Props {
   affordable: Partial<Record<PieceType, boolean>>;
   refs?: TutorialTrayRefs;
   onPickup: (type: PieceType | null) => void;
+  // Optional drag wiring. When all four are provided, a hold-to-drag
+  // PanResponder is mounted per item: a 180 ms hold promotes the touch
+  // to a drag; a shorter press falls through to onPickup (tap).
+  // When the drag props are absent, the existing TouchableOpacity tap
+  // path is rendered unchanged so non-drag call sites keep working.
+  onDragStart?: (drag: DragState) => void;
+  onDragMove?: (x: number, y: number) => void;
+  onDragEnd?: (x: number, y: number) => void;
+  onDragCancel?: () => void;
   disabled?: boolean;
 }
 
@@ -68,8 +90,15 @@ function PieceTrayComponent({
   affordable,
   refs,
   onPickup,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onDragCancel,
   disabled,
 }: Props) {
+  const dragEnabled =
+    !!onDragStart && !!onDragMove && !!onDragEnd && !!onDragCancel;
+
   return (
     <View style={styles.partsTray}>
       <ScrollView
@@ -92,35 +121,206 @@ function PieceTrayComponent({
             : pt === 'transmitter' ? refs.trayTransmitter
             : undefined
             : undefined;
+          const itemDisabled = !!disabled || count <= 0;
+          const accessibilityLabel = `${PIECE_LABELS[pt]}, ${count} available`;
+          const itemStyle = [
+            styles.trayItem,
+            isActive && { borderColor: color, backgroundColor: `${color}15` },
+          ];
+          const innerContent = (
+            <>
+              <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
+                <PieceIcon type={pt} size={22} color={color} />
+              </View>
+              <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
+                <Text style={styles.trayBadgeText}>{count}</Text>
+              </View>
+              {cost > 0 && (
+                <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
+              )}
+            </>
+          );
+
+          if (dragEnabled) {
+            return (
+              <TrayItemDraggable
+                key={pt}
+                pt={pt}
+                measureRef={measureRef}
+                disabled={itemDisabled}
+                isActive={isActive}
+                itemStyle={itemStyle}
+                accessibilityLabel={accessibilityLabel}
+                onPickup={onPickup}
+                onDragStart={onDragStart!}
+                onDragMove={onDragMove!}
+                onDragEnd={onDragEnd!}
+                onDragCancel={onDragCancel!}
+              >
+                {innerContent}
+              </TrayItemDraggable>
+            );
+          }
+
           return (
             <View key={pt} ref={measureRef} collapsable={false}>
               <TouchableOpacity
-                style={[
-                  styles.trayItem,
-                  isActive && { borderColor: color, backgroundColor: `${color}15` },
-                ]}
+                style={itemStyle}
                 onPress={() => {
-                  if (disabled) return;
+                  if (itemDisabled) return;
                   onPickup(isActive ? null : pt);
                 }}
                 activeOpacity={0.7}
-                disabled={disabled || count <= 0}
-                accessibilityLabel={`${PIECE_LABELS[pt]}, ${count} available`}
+                disabled={itemDisabled}
+                accessibilityLabel={accessibilityLabel}
               >
-                <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
-                  <PieceIcon type={pt} size={22} color={color} />
-                </View>
-                <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
-                  <Text style={styles.trayBadgeText}>{count}</Text>
-                </View>
-                {cost > 0 && (
-                  <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
-                )}
+                {innerContent}
               </TouchableOpacity>
             </View>
           );
         })}
       </ScrollView>
+    </View>
+  );
+}
+
+// ── TrayItemDraggable ────────────────────────────────────────────────────
+// Per-item touch wrapper used only when all four drag callbacks are
+// provided. Implements the hold-to-drag pattern documented at the
+// top of this file:
+//   • 0–180 ms hold + release  → tap → onPickup(pt) (or null to deselect)
+//   • >= 180 ms hold           → drag → onDragStart, onDragMove, onDragEnd
+//   • interruption mid-drag    → onDragCancel
+//
+// PanResponder.create() is called once per mount and its callbacks
+// reach the latest props via a single `propsRef` written in an effect.
+// This avoids reconstructing the PanResponder on every render (which
+// would race with active gestures) while keeping prop semantics live.
+interface TrayItemDraggableProps {
+  pt: PieceType;
+  measureRef: React.Ref<View> | undefined;
+  disabled: boolean;
+  isActive: boolean;
+  itemStyle: unknown;
+  accessibilityLabel: string;
+  onPickup: (type: PieceType | null) => void;
+  onDragStart: (drag: DragState) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: (x: number, y: number) => void;
+  onDragCancel: () => void;
+  children: React.ReactNode;
+}
+
+function TrayItemDraggable({
+  pt,
+  measureRef,
+  disabled,
+  isActive,
+  itemStyle,
+  accessibilityLabel,
+  onPickup,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
+  onDragCancel,
+  children,
+}: TrayItemDraggableProps) {
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+  const startPosRef = useRef({ x: 0, y: 0 });
+
+  const propsRef = useRef({
+    pt, disabled, isActive,
+    onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel,
+  });
+  useEffect(() => {
+    propsRef.current = {
+      pt, disabled, isActive,
+      onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel,
+    };
+  });
+
+  // Cleanup any pending hold timer when the item unmounts.
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !propsRef.current.disabled,
+      onMoveShouldSetPanResponder: () => !propsRef.current.disabled,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (evt: GestureResponderEvent) => {
+        isDraggingRef.current = false;
+        startPosRef.current = {
+          x: evt.nativeEvent.pageX,
+          y: evt.nativeEvent.pageY,
+        };
+        if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = setTimeout(() => {
+          isDraggingRef.current = true;
+          const { pt: ptNow, onDragStart: ods } = propsRef.current;
+          ods({
+            active: true,
+            pieceId: ptNow,
+            type: ptNow,
+            x: startPosRef.current.x,
+            y: startPosRef.current.y,
+          });
+        }, DRAG_HOLD_MS);
+      },
+      onPanResponderMove: (evt: GestureResponderEvent) => {
+        if (!isDraggingRef.current) return;
+        propsRef.current.onDragMove(
+          evt.nativeEvent.pageX,
+          evt.nativeEvent.pageY,
+        );
+      },
+      onPanResponderRelease: (evt: GestureResponderEvent) => {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+        if (isDraggingRef.current) {
+          isDraggingRef.current = false;
+          propsRef.current.onDragEnd(
+            evt.nativeEvent.pageX,
+            evt.nativeEvent.pageY,
+          );
+          return;
+        }
+        // Short press: treat as a tap. Toggle selection.
+        const { pt: ptNow, isActive: activeNow, onPickup: pickup } =
+          propsRef.current;
+        pickup(activeNow ? null : ptNow);
+      },
+      onPanResponderTerminate: () => {
+        if (holdTimerRef.current) {
+          clearTimeout(holdTimerRef.current);
+          holdTimerRef.current = null;
+        }
+        if (isDraggingRef.current) {
+          isDraggingRef.current = false;
+          propsRef.current.onDragCancel();
+        }
+      },
+    }),
+  ).current;
+
+  return (
+    <View ref={measureRef} collapsable={false}>
+      <View
+        {...panResponder.panHandlers}
+        style={itemStyle as object}
+        accessibilityLabel={accessibilityLabel}
+      >
+        {children}
+      </View>
     </View>
   );
 }

@@ -263,8 +263,10 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
     expect(captured!.tutorialPlacedGridPos).toBeNull();
   });
 
-  // ── 11: arcWheelMainRef identity is stable across renders ───────────────────
-  it('11: arcWheelMainRef has a stable object identity across re-renders', async () => {
+  // ── 11: trayConveyorRef identity is stable across renders ──────────────────
+  // PROMPT_124 replaced the arcWheelMainRef with per-piece tray refs.
+  // Stability of those refs across renders is the same invariant.
+  it('11: trayConveyorRef has a stable object identity across re-renders', async () => {
     let renderer!: ReturnType<typeof TestRenderer.create>;
     await TestRenderer.act(async () => {
       renderer = TestRenderer.create(React.createElement(Harness, {
@@ -273,7 +275,7 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
         isLevelPreviouslyCompleted: false,
       }));
     });
-    const ref1 = captured!.arcWheelMainRef;
+    const ref1 = captured!.trayConveyorRef;
 
     await TestRenderer.act(async () => {
       renderer.update(React.createElement(Harness, {
@@ -282,7 +284,7 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
         isLevelPreviouslyCompleted: false,
       }));
     });
-    expect(captured!.arcWheelMainRef).toBe(ref1);
+    expect(captured!.trayConveyorRef).toBe(ref1);
   });
 
   // ── 12: placedPieceRef identity is stable across renders ────────────────────
@@ -307,8 +309,8 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
     expect(captured!.placedPieceRef).toBe(ref1);
   });
 
-  // ── 13: tutorialTargetRefs includes arcWheelMain and placedPiece ────────────
-  it('13: tutorialTargetRefs memo includes arcWheelMain and placedPiece pointing to the correct refs', async () => {
+  // ── 13: tutorialTargetRefs includes tray refs and placedPiece ──────────────
+  it('13: tutorialTargetRefs memo includes trayConveyor and placedPiece pointing to the correct refs', async () => {
     await TestRenderer.act(async () => {
       TestRenderer.create(React.createElement(Harness, {
         level: makeLevel(),
@@ -316,8 +318,8 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
         isLevelPreviouslyCompleted: false,
       }));
     });
-    const { tutorialTargetRefs, arcWheelMainRef, placedPieceRef } = captured!;
-    expect(tutorialTargetRefs.arcWheelMain).toBe(arcWheelMainRef);
+    const { tutorialTargetRefs, trayConveyorRef, placedPieceRef } = captured!;
+    expect(tutorialTargetRefs.trayConveyor).toBe(trayConveyorRef);
     expect(tutorialTargetRefs.placedPiece).toBe(placedPieceRef);
   });
 });

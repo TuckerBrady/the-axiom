@@ -154,8 +154,6 @@ export type LevelDefinition = {
   // Kepler mechanics — not used in K1-1 but type is defined here
   damagedCells?: Array<{ gridX: number; gridY: number }>;
   requiredPieces?: Array<{ type: string; count: number; reason?: string }>;
-  // Arc Wheel tutorial: pre-selects this piece at center on Axiom level load
-  tutorialFocusPiece?: PieceType;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────
