@@ -72,14 +72,14 @@ const A1_1_STEPS: TutorialStep[] = [
   },
   {
     id: 'conveyor-notice',
-    label: 'ARC WHEEL',
+    label: 'PIECE TRAY',
     targetRef: 'trayConveyor',
     eyeState: 'amber',
     message: 'Test step 4 - conveyor notice (no awaitPlacement).',
   },
   {
     id: 'conveyor-instruct',
-    label: 'ARC WHEEL',
+    label: 'PIECE TRAY',
     targetRef: 'trayConveyor',
     eyeState: 'blue',
     message: 'Test step 5 - conveyor instruct (awaitPlacement ON).',

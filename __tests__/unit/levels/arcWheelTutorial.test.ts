@@ -123,7 +123,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   it('8: A1-1 conveyor dialogue matches approved spec character-for-character', () => {
     expect(a11).toContain(
-      "Hold on. That piece on the wheel. I have no record of it.",
+      "Hold on. That piece in the tray. I have no record of it.",
     );
     expect(a11).toContain(
       "Drag it onto the board. Any valid cell. I need to see it operational before I can catalogue it. Standard procedure. Go.",
@@ -138,7 +138,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   it('9: A1-2 gear dialogue matches approved spec character-for-character', () => {
     expect(a12).toContain(
-      "The wheel. There is an uncatalogued piece sitting right there.",
+      "The tray. There is an uncatalogued piece sitting right there.",
     );
     expect(a12).toContain(
       "Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.",
@@ -153,7 +153,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   it('10: A1-3 configNode dialogue matches approved spec character-for-character', () => {
     expect(a13).toContain(
-      "Another one. The wheel is showing a piece I cannot identify from existing records.",
+      "Another one. The tray is showing a piece I cannot identify from existing records.",
     );
     expect(a13).toContain(
       "Board. Now. I will handle the classification once I observe it in a live circuit. That is how this works.",
@@ -171,7 +171,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   it('11: A1-5 scanner dialogue matches approved spec character-for-character', () => {
     expect(a15).toContain(
-      "I see it. On the wheel. Uncatalogued.",
+      "I see it. In the tray. Uncatalogued.",
     );
     expect(a15).toContain(
       "Same procedure as before. Place it. Let it run. I will do the rest.",
@@ -186,7 +186,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   it('12: A1-7 transmitter dialogue matches approved spec character-for-character', () => {
     expect(a17).toContain(
-      "One more. The wheel.",
+      "One more. The tray.",
     );
     expect(a17).toContain(
       "Place it. You know the drill by now. Operational necessity.",
