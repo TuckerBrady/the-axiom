@@ -567,7 +567,12 @@ function TutorialHUDOverlayComponent({
       const box = isCenter ? null : computePortalBox(layout);
       const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
       const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
-      flyOrbTo(centerX, centerY, () => {
+      // PROMPT_126 Fix 2: when the step expects the player to tap the
+      // placed piece (allowPieceTap), nudge the orb below the target
+      // so it does not occlude the tap surface. Codex / await-tap /
+      // any other step uses the unmodified centerY.
+      const targetY = s.allowPieceTap ? centerY + ORB_SIZE * 2 : centerY;
+      flyOrbTo(centerX, targetY, () => {
         if (!mountedRef.current) return;
         setPhase('arrived');
         if (box) {
@@ -803,9 +808,21 @@ function TutorialHUDOverlayComponent({
     if (lastPlacedSeqRef.current === lastPlacedTrigger.seq) return;
     lastPlacedSeqRef.current = lastPlacedTrigger.seq;
     if (step?.awaitPlacement === lastPlacedTrigger.type && phase === 'arrived') {
+      // PROMPT_126 Fix 1: clear the dim backdrop as the placement is
+      // confirmed so the board is unobscured while COGS flies to the
+      // placed piece for the codex capture. The animation is
+      // fire-and-forget — it runs concurrently with the next step
+      // transition rather than blocking it. dimOpacity is consumed by
+      // a single always-mounted Animated.View host (see line ~893),
+      // so useNativeDriver: true is safe under REQ-A-1.
+      Animated.timing(dimOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
       advanceStep();
     }
-  }, [lastPlacedTrigger, step, phase, advanceStep]);
+  }, [lastPlacedTrigger, step, phase, advanceStep, dimOpacity]);
 
   // Advance when the matching piece type is tapped (awaitPieceTap steps).
   const lastTappedSeqRef = useRef<number | null>(null);
