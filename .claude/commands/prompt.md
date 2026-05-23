@@ -4,6 +4,8 @@ description: Read and execute the latest Cowork-drafted prompt
 
 Read `cowork-prompts/RECENT.md` and execute its instructions exactly as written. That is the active brief.
 
+**Execute immediately. Do NOT send a pre-coding summary, plan, or report before starting work.** The prompt has already been reviewed and approved by Cowork and Tucker. Repeating it back or outlining what you are about to do wastes a round-trip. Start executing. The report comes after.
+
 When work is complete (SUCCESS, BLOCKER, or NO-OP), you MUST write `cowork-prompts/LAST_REPORT.md` with this structure:
 
 ```
