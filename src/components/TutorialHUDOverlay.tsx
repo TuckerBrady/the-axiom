@@ -351,6 +351,17 @@ function TutorialHUDOverlayComponent({
     if (left < 12) left = 12;
     if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
 
+    // PROMPT_128: awaiting placement on a tray target — top-dock the
+    // instruction so the board and tray stay clear for the drag gesture.
+    // For 390x844, top=80, left=24.
+    if (step?.awaitPlacement && step?.targetRef?.startsWith('tray')) {
+      const calloutLeft = Math.max(
+        12,
+        Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
+      );
+      return { top: 80, left: calloutLeft };
+    }
+
     // PROMPT_127 Fix 2: when the step expects the player to tap the
     // placed piece (allowPieceTap), bottom-dock the callout as a
     // fixed pair with the orb (placed in runStep). Keeps the tap
@@ -591,7 +602,11 @@ function TutorialHUDOverlayComponent({
       const trayTarget = s.targetRef?.startsWith('tray');
       const placedPieceTarget = s.targetRef === 'placedPiece';
       if (trayTarget || placedPieceTarget) {
-        const dimTarget = trayTarget ? 0.45 : 0;
+        // PROMPT_128: a tray step that is awaiting placement is the "act"
+        // step — the board must be fully in focus for the drag, so dim → 0.
+        // A tray step without awaitPlacement is the "identify" step — keep
+        // the light dim so the square reads. placedPiece stays 0.
+        const dimTarget = (trayTarget && !s.awaitPlacement) ? 0.45 : 0;
         const dimAnim = Animated.timing(dimOpacity, {
           toValue: dimTarget,
           duration: 250,
@@ -692,7 +707,17 @@ function TutorialHUDOverlayComponent({
   // The JS driver carries the cost of small opacity interpolations
   // on chrome elements only; the surrounding portal tree already
   // runs on JS driver for the same reason (Prompt 93 Fix 1).
-  const showPieceGlow = !!step && !SECTION_TARGETS.has(step.targetRef) && phase === 'arrived';
+  // PROMPT_128: tray-prefixed and placedPiece targets get the corner-bracket
+  // square only — the filled glow circle was obscuring the piece icon. Port
+  // and board-codex targets keep their glow circle.
+  const isSquareOnlyTarget =
+    !!step &&
+    (step.targetRef?.startsWith('tray') || step.targetRef === 'placedPiece');
+  const showPieceGlow =
+    !!step &&
+    !SECTION_TARGETS.has(step.targetRef) &&
+    !isSquareOnlyTarget &&
+    phase === 'arrived';
   useEffect(() => {
     if (!showPieceGlow) return;
     glowPulse.setValue(0.7);
@@ -953,8 +978,11 @@ function TutorialHUDOverlayComponent({
         <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
       )}
 
-      {/* Portal (rendered when arrived/codex and not center) */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox && (
+      {/* Portal (rendered when arrived/codex and not center). PROMPT_128:
+          suppressed on awaitPlacement tray steps so the board stays clear
+          for the drag gesture. */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox &&
+        !(step?.awaitPlacement && step?.targetRef?.startsWith('tray')) && (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -981,8 +1009,10 @@ function TutorialHUDOverlayComponent({
 
       {/* Portal label (above portal). Centered across the full screen
           width so short labels like "CONFIG NODE" never have to wrap
-          even when the portal is narrow. */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label && (
+          even when the portal is narrow. PROMPT_128: suppressed on
+          awaitPlacement tray steps along with the portal square. */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label &&
+        !(step?.awaitPlacement && step?.targetRef?.startsWith('tray')) && (
         <Animated.View
           pointerEvents="none"
           style={{

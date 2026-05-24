@@ -163,3 +163,95 @@ describe('Orb hovers above tray icon on awaitPlacement tray steps', () => {
     );
   });
 });
+
+// ── PROMPT_128 Fix 1: square highlight (no glow circle) on piece targets ──
+describe('PROMPT_128 -- glow circle suppressed on piece targets (square only)', () => {
+  it('defines a square-only-target flag keying off tray-prefix and placedPiece', () => {
+    // A single derived flag must mark tray-prefixed AND placedPiece targets
+    // as square-only, so it generalizes across every piece-teach step
+    // (conveyor, gear, configNode, scanner, transmitter) with no hardcoded ids.
+    expect(overlaySrc).toMatch(
+      /isSquareOnlyTarget[\s\S]{0,160}?startsWith\(\s*['"]tray['"]\s*\)[\s\S]{0,80}?===\s*['"]placedPiece['"]/,
+    );
+  });
+
+  it('showPieceGlow excludes square-only targets', () => {
+    const m = overlaySrc.match(/const showPieceGlow\s*=[\s\S]*?;/);
+    expect(m ? m[0] : '').toMatch(/!\s*isSquareOnlyTarget/);
+  });
+
+  it('showPieceGlow still excludes SECTION targets (unchanged)', () => {
+    const m = overlaySrc.match(/const showPieceGlow\s*=[\s\S]*?;/);
+    expect(m ? m[0] : '').toMatch(/SECTION_TARGETS\.has/);
+  });
+
+  it('glow circle JSX is preserved for port/board-codex targets (NOT deleted)', () => {
+    expect(overlaySrc).toMatch(/showPieceGlow && glowCircle/);
+  });
+
+  it('glowPulse loop is preserved (NOT deleted)', () => {
+    expect(overlaySrc).toMatch(/Animated\.loop\(/);
+    expect(overlaySrc).toMatch(/glowPulse/);
+  });
+});
+
+// ── PROMPT_128 Fix 2: board into focus on the awaitPlacement tray (act) step ──
+describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () => {
+  let runStep: string;
+  let calloutPos: string;
+  beforeAll(() => {
+    runStep = extractRunStep(overlaySrc);
+    calloutPos = extractCalloutPos(overlaySrc);
+  });
+
+  it('runStep resolves dim 0 once a tray step is awaiting placement (0.45 reserved for notice)', () => {
+    // dimTarget must be 0.45 ONLY for a tray step that is NOT awaiting a
+    // placement; the act step (tray + awaitPlacement) drops to 0.
+    expect(runStep).toMatch(/!\s*s\.awaitPlacement[\s\S]{0,60}?0\.45[\s\S]{0,20}?:\s*0/);
+  });
+
+  it('runStep still animates dimOpacity 250ms ease-out (PROMPT_127 preserved)', () => {
+    expect(runStep).toMatch(
+      /Animated\.timing\(\s*dimOpacity\b[\s\S]*?duration:\s*250[\s\S]*?easing:\s*Easing\.(out|bezier)/,
+    );
+  });
+
+  it('portal square AND label are suppressed on awaitPlacement tray steps', () => {
+    // The suppression guard must gate both the portal block and the label
+    // block -- so it appears at least twice in the render tree.
+    const guards = overlaySrc.match(
+      /!\(\s*step\??\.\s*awaitPlacement[\s\S]{0,80}?startsWith\(\s*['"]tray['"]\s*\)\s*\)/g,
+    );
+    expect(guards && guards.length >= 2).toBe(true);
+  });
+
+  it('callout top-docks (top: 80) on awaitPlacement tray steps', () => {
+    expect(calloutPos).toMatch(
+      /awaitPlacement[\s\S]{0,120}?startsWith\(\s*['"]tray['"]\s*\)[\s\S]*?top:\s*80/,
+    );
+  });
+
+  it('orb still hovers above the tray icon on awaitPlacement (PROMPT_127 preserved)', () => {
+    expect(runStep).toMatch(/box\.top\s*-\s*6\s*-\s*ORB_SIZE\s*\/\s*2/);
+  });
+});
+
+// ── PROMPT_128: placedPiece keeps the square, drops the circle ──
+describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
+  let runStep: string;
+  let calloutPos: string;
+  beforeAll(() => {
+    runStep = extractRunStep(overlaySrc);
+    calloutPos = extractCalloutPos(overlaySrc);
+  });
+
+  it('placedPiece dim target stays 0 (PROMPT_127 preserved)', () => {
+    expect(runStep).toMatch(/['"]placedPiece['"]/);
+  });
+
+  it('placedPiece allowPieceTap callout still bottom-docks (PROMPT_127 preserved)', () => {
+    expect(calloutPos).toMatch(
+      /allowPieceTap[\s\S]*?SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
+    );
+  });
+});
