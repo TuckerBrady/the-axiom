@@ -351,6 +351,19 @@ function TutorialHUDOverlayComponent({
     if (left < 12) left = 12;
     if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
 
+    // PROMPT_127 Fix 2: when the step expects the player to tap the
+    // placed piece (allowPieceTap), bottom-dock the callout as a
+    // fixed pair with the orb (placed in runStep). Keeps the tap
+    // surface fully unobstructed — for 390x844, top=576, left=24.
+    if (step?.allowPieceTap) {
+      const calloutLeft = Math.max(
+        12,
+        Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
+      );
+      const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
+      return { top: calloutTop, left: calloutLeft };
+    }
+
     if (step?.targetRef === 'center') {
       // Above the orb center
       const bottomOfCallout = SCREEN_H / 2 - ORB_SIZE / 2 - CALLOUT_GAP;
@@ -567,12 +580,48 @@ function TutorialHUDOverlayComponent({
       const box = isCenter ? null : computePortalBox(layout);
       const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
       const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
-      // PROMPT_126 Fix 2: when the step expects the player to tap the
-      // placed piece (allowPieceTap), nudge the orb below the target
-      // so it does not occlude the tap surface. Codex / await-tap /
-      // any other step uses the unmodified centerY.
-      const targetY = s.allowPieceTap ? centerY + ORB_SIZE * 2 : centerY;
-      flyOrbTo(centerX, targetY, () => {
+
+      // PROMPT_127 Fix 1: drive dim from the active step's target. Tray
+      // steps dim 0.45; placedPiece (codex + tap) steps dim 0; any
+      // other step leaves dim where it is. Animation is 250ms ease-out
+      // on every step transition so the board reveal feels uniform
+      // regardless of which event got us here. dimOpacity lives on a
+      // single always-mounted Animated.View host, so native driver is
+      // safe under REQ-A-1.
+      const trayTarget = s.targetRef?.startsWith('tray');
+      const placedPieceTarget = s.targetRef === 'placedPiece';
+      if (trayTarget || placedPieceTarget) {
+        const dimTarget = trayTarget ? 0.45 : 0;
+        const dimAnim = Animated.timing(dimOpacity, {
+          toValue: dimTarget,
+          duration: 250,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        });
+        trackAnim(dimAnim);
+        dimAnim.start();
+      }
+
+      // PROMPT_127 Fix 2: bottom-dock the orb above the (also
+      // bottom-docked) callout on allowPieceTap steps so the placed
+      // piece is fully tappable. PROMPT_127 Fix 3: hover the orb
+      // above the tray icon on awaitPlacement tray steps so the
+      // player can still see which piece to drag. Any other step
+      // uses the unmodified center.
+      let targetCx = centerX;
+      let targetCy = centerY;
+      if (s.allowPieceTap) {
+        const calloutLeft = Math.max(
+          12,
+          Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
+        );
+        const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
+        targetCx = calloutLeft + CALLOUT_W / 2;
+        targetCy = calloutTop - 10 - ORB_SIZE / 2;
+      } else if (box && s.awaitPlacement && s.targetRef?.startsWith('tray')) {
+        targetCy = box.top - 6 - ORB_SIZE / 2;
+      }
+      flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;
         setPhase('arrived');
         if (box) {
@@ -596,7 +645,7 @@ function TutorialHUDOverlayComponent({
         }
       });
     });
-  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, trackAnim]);
+  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
@@ -808,21 +857,13 @@ function TutorialHUDOverlayComponent({
     if (lastPlacedSeqRef.current === lastPlacedTrigger.seq) return;
     lastPlacedSeqRef.current = lastPlacedTrigger.seq;
     if (step?.awaitPlacement === lastPlacedTrigger.type && phase === 'arrived') {
-      // PROMPT_126 Fix 1: clear the dim backdrop as the placement is
-      // confirmed so the board is unobscured while COGS flies to the
-      // placed piece for the codex capture. The animation is
-      // fire-and-forget — it runs concurrently with the next step
-      // transition rather than blocking it. dimOpacity is consumed by
-      // a single always-mounted Animated.View host (see line ~893),
-      // so useNativeDriver: true is safe under REQ-A-1.
-      Animated.timing(dimOpacity, {
-        toValue: 0,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
+      // PROMPT_127: the dim is now driven per-step from runStep, so
+      // the placement-trigger effect no longer touches dimOpacity.
+      // The next step's runStep call resolves the new dim target
+      // (0 for placedPiece, 0.45 for tray steps) and animates it.
       advanceStep();
     }
-  }, [lastPlacedTrigger, step, phase, advanceStep, dimOpacity]);
+  }, [lastPlacedTrigger, step, phase, advanceStep]);
 
   // Advance when the matching piece type is tapped (awaitPieceTap steps).
   const lastTappedSeqRef = useRef<number | null>(null);
