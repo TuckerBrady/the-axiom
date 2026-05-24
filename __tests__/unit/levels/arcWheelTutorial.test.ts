@@ -47,7 +47,10 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     for (const block of [a11, a12, a13, a14, a15, a16, a17, a18]) {
       expect(block).not.toContain('tutorialFocusPiece');
     }
-    expect(a11).toMatch(/id: 'conveyor-instruct'[\s\S]*?targetRef: 'trayConveyor'/);
+    // PROMPT_129 collapsed A1-1 to the gold conveyor-collect step;
+    // it now targets trayConveyor on a single ungated step. A1-2..A1-8
+    // still use the four-beat Arc-Wheel-era structure pending PROMPT_130.
+    expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?targetRef: 'trayConveyor'/);
     expect(a12).toMatch(/id: 'gear-instruct'[\s\S]*?targetRef: 'trayGear'/);
     expect(a13).toMatch(/id: 'confignode-instruct'[\s\S]*?targetRef: 'trayConfigNode'/);
     expect(a15).toMatch(/id: 'scanner-instruct'[\s\S]*?targetRef: 'trayScanner'/);
@@ -55,9 +58,10 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
   });
 
   // ── 3: Four-beat step IDs ──────────────────────────────────────────────────
-  it('3: each new-piece level contains four-beat step IDs in the correct order', () => {
-    // A1-1
-    expect(a11).toMatch(/id: 'conveyor-notice'[\s\S]*?id: 'conveyor-instruct'[\s\S]*?id: 'conveyor-capture'[\s\S]*?id: 'conveyor-teach'/);
+  // PROMPT_129 collapsed A1-1 to the gold conveyor-collect/board-resume
+  // pair; A1-2..A1-8 still use the four-beat Arc-Wheel-era structure
+  // pending PROMPT_130's retrofit.
+  it('3: each remaining four-beat level contains step IDs in the correct order', () => {
     // A1-2
     expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?id: 'gear-instruct'[\s\S]*?id: 'gear-capture'[\s\S]*?id: 'gear-teach'/);
     // A1-3 (teach is split into teach-a and teach-b)
@@ -69,7 +73,9 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
   });
 
   // ── 4: Eye state sequence amber → blue → green → blue ────────────────────
-  it('4: four-beat eye states are amber, blue, green, blue in order', () => {
+  // PROMPT_129 retired the four-beat A1-1 sequence; A1-2..A1-8 still
+  // carry it pending PROMPT_130.
+  it('4: four-beat eye states are amber, blue, green, blue in order (A1-2..A1-7)', () => {
     const eyeSeqRe = (prefix: string) =>
       new RegExp(
         `id: '${prefix}-notice'[\\s\\S]*?eyeState: 'amber'` +
@@ -77,22 +83,22 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
         `[\\s\\S]*?id: '${prefix}-capture'[\\s\\S]*?eyeState: 'green'` +
         `[\\s\\S]*?id: '${prefix}-teach`,
       );
-    expect(a11).toMatch(eyeSeqRe('conveyor'));
     expect(a12).toMatch(eyeSeqRe('gear'));
     expect(a13).toMatch(eyeSeqRe('confignode'));
     expect(a15).toMatch(eyeSeqRe('scanner'));
     expect(a17).toMatch(eyeSeqRe('transmitter'));
     // teach beat must be blue
-    expect(a11).toMatch(/id: 'conveyor-teach'[\s\S]*?eyeState: 'blue'/);
     expect(a12).toMatch(/id: 'gear-teach'[\s\S]*?eyeState: 'blue'/);
     expect(a15).toMatch(/id: 'scanner-teach'[\s\S]*?eyeState: 'blue'/);
     expect(a17).toMatch(/id: 'transmitter-teach'[\s\S]*?eyeState: 'blue'/);
   });
 
   // ── 5: codexEntryId only on capture steps ─────────────────────────────────
-  it('5: codexEntryId appears only on -capture steps, not notice/instruct/teach', () => {
+  // PROMPT_129 retired A1-1 from the four-beat structure; A1-2..A1-7
+  // still anchor codex collection on the -capture beat.
+  it('5: codexEntryId appears only on -capture steps, not notice/instruct/teach (A1-2..A1-7)', () => {
     for (const [src, prefix] of [
-      [a11, 'conveyor'], [a12, 'gear'], [a13, 'confignode'],
+      [a12, 'gear'], [a13, 'confignode'],
       [a15, 'scanner'],  [a17, 'transmitter'],
     ] as [string, string][]) {
       expect(src).toMatch(new RegExp(`id: '${prefix}-capture'[\\s\\S]*?codexEntryId:`));
@@ -102,9 +108,11 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
   });
 
   // ── 6: awaitPlacement only on instruct steps ──────────────────────────────
-  it('6: awaitPlacement appears only on -instruct steps, not notice/capture/teach', () => {
+  // PROMPT_129 removed A1-1's awaitPlacement gating entirely; the gated
+  // four-beat sequence remains on A1-2..A1-7 pending PROMPT_130.
+  it('6: awaitPlacement appears only on -instruct steps, not notice/capture/teach (A1-2..A1-7)', () => {
     for (const [src, prefix, piece] of [
-      [a11, 'conveyor', 'conveyor'], [a12, 'gear', 'gear'],
+      [a12, 'gear', 'gear'],
       [a13, 'confignode', 'configNode'], [a15, 'scanner', 'scanner'],
       [a17, 'transmitter', 'transmitter'],
     ] as [string, string, string][]) {
@@ -112,6 +120,8 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       expect(src).not.toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?awaitPlacement:[\\s\\S]*?id: '${prefix}-instruct'`));
       expect(src).not.toMatch(new RegExp(`id: '${prefix}-capture'[\\s\\S]*?awaitPlacement:`));
     }
+    // A1-1 explicitly has no awaitPlacement after PROMPT_129.
+    expect(a11).not.toMatch(/awaitPlacement/);
   });
 
   // ── 7: A1-3 awaitPieceTap on teach-a ─────────────────────────────────────
@@ -121,18 +131,15 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   // ── 8–12: Dialogue integrity — approved messages character-for-character ──
 
-  it('8: A1-1 conveyor dialogue matches approved spec character-for-character', () => {
+  it('8: A1-1 conveyor dialogue matches the gold conveyor-collect/board-resume copy (PROMPT_129)', () => {
+    // PROMPT_129 restored the gold "teach then hand over" flow:
+    // catalogue the Conveyor on the first beat, then hand the board
+    // over for free play. The four Arc-Wheel-era lines are retired.
     expect(a11).toContain(
-      "Hold on. That piece in the tray. I have no record of it.",
+      'That piece is not in the Codex yet. It will be.',
     );
     expect(a11).toContain(
-      "Drag it onto the board. Any valid cell. I need to see it operational before I can catalogue it. Standard procedure. Go.",
-    );
-    expect(a11).toContain(
-      "Conveyor. Straight-line signal carrier. Rotation on tap. Entry logged. ...I have been waiting 847 days to log something new.",
-    );
-    expect(a11).toContain(
-      "One thing. Tap the Conveyor. It rotates. Only piece that does this. Everything else aligns to the path. The Conveyor, the Engineer aims.",
+      'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
     );
   });
 

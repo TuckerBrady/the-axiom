@@ -26,6 +26,31 @@ const repoRoot = path.resolve(__dirname, '../../..');
 const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 
 const overlaySrc = read('src/components/TutorialHUDOverlay.tsx');
+const levelsSrc = read('src/game/levels.ts');
+
+// ── Helper: slice the A1-1 tutorialSteps array ────────────────────────────────
+function extractA11Steps(src: string): string {
+  // Anchor on the A1-1 level definition, then grab from its
+  // `tutorialSteps:` opening bracket to the closing `],`.
+  const a11Start = src.indexOf("id: 'A1-1'");
+  if (a11Start === -1) return '';
+  const stepsKey = src.indexOf('tutorialSteps:', a11Start);
+  if (stepsKey === -1) return '';
+  const openBracket = src.indexOf('[', stepsKey);
+  if (openBracket === -1) return '';
+  // Walk to find the matching closing bracket.
+  let depth = 0;
+  let i = openBracket;
+  for (; i < src.length; i++) {
+    const ch = src[i];
+    if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth--;
+      if (depth === 0) break;
+    }
+  }
+  return src.slice(openBracket, i + 1);
+}
 
 // ── Helper: extract the runStep callback body ────────────────────────────────
 function extractRunStep(src: string): string {
@@ -154,12 +179,12 @@ describe('Orb hovers above tray icon on awaitPlacement tray steps', () => {
     runStep = extractRunStep(overlaySrc);
   });
 
-  it('runStep computes orb hover Y from box.top - 6 - ORB_SIZE/2 for tray awaitPlacement steps', () => {
-    // The tray-hover override fires when awaitPlacement is set AND
-    // the target is a tray ref. The orb bottom edge lands 6px above
-    // the portal box top so the Conveyor icon remains fully visible.
+  it('runStep computes orb hover Y from box.top for any tray-targeted step (PROMPT_129 widened)', () => {
+    // PROMPT_129 collapsed A1-1's gated conveyor flow, so the tray-hover
+    // override now fires for ANY tray step (not gated on awaitPlacement).
+    // The orb sits above the label, which sits above the tray slot.
     expect(runStep).toMatch(
-      /awaitPlacement[\s\S]*?targetRef\??\.\s*startsWith\(\s*['"]tray['"]\s*\)[\s\S]*?box\.top\s*-\s*6\s*-\s*ORB_SIZE\s*\/\s*2/,
+      /targetRef\??\.\s*startsWith\(\s*['"]tray['"]\s*\)[\s\S]*?box\.top\s*-/,
     );
   });
 });
@@ -216,13 +241,16 @@ describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () =>
     );
   });
 
-  it('portal square AND label are suppressed on awaitPlacement tray steps', () => {
-    // The suppression guard must gate both the portal block and the label
-    // block -- so it appears at least twice in the render tree.
-    const guards = overlaySrc.match(
-      /!\(\s*step\??\.\s*awaitPlacement[\s\S]{0,80}?startsWith\(\s*['"]tray['"]\s*\)\s*\)/g,
+  it('portal square is suppressed via !isSquareOnlyTarget (PROMPT_129 widened); label always renders', () => {
+    // PROMPT_129 widened the portal suppression from
+    // (awaitPlacement && tray) to the broader !isSquareOnlyTarget
+    // gate, and DROPPED the label suppression entirely — the label
+    // is the orientation cue when the square goes away. So the old
+    // (awaitPlacement && tray) guard pattern must be gone.
+    expect(overlaySrc).not.toMatch(
+      /!\(\s*step\??\.\s*awaitPlacement[\s\S]{0,80}?startsWith\(\s*['"]tray['"]\s*\)\s*\)/,
     );
-    expect(guards && guards.length >= 2).toBe(true);
+    expect(overlaySrc).toMatch(/portalBox && !isSquareOnlyTarget/);
   });
 
   it('callout top-docks (top: 80) on awaitPlacement tray steps', () => {
@@ -231,8 +259,11 @@ describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () =>
     );
   });
 
-  it('orb still hovers above the tray icon on awaitPlacement (PROMPT_127 preserved)', () => {
-    expect(runStep).toMatch(/box\.top\s*-\s*6\s*-\s*ORB_SIZE\s*\/\s*2/);
+  it('orb still hovers above the tray icon on tray steps (PROMPT_129 raised above label)', () => {
+    // PROMPT_129 raised the orb to clear the PIECE TRAY label, so the
+    // formula now subtracts the label height too. The orb still uses
+    // box.top as its anchor and still subtracts ORB_SIZE/2 for centering.
+    expect(runStep).toMatch(/box\.top\s*-[\s\S]*?ORB_SIZE\s*\/\s*2/);
   });
 });
 
@@ -253,5 +284,78 @@ describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
     expect(calloutPos).toMatch(
       /allowPieceTap[\s\S]*?SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
     );
+  });
+});
+
+// ── PROMPT_129 -- restore the gold "teach then hand over" A1-1 flow ─────────
+describe('PROMPT_129 -- A1-1 restored to the gold teach-then-hand-over flow', () => {
+  let a11: string;
+  beforeAll(() => { a11 = extractA11Steps(levelsSrc); });
+
+  it('A1-1 has the gold conveyor-collect codex step', () => {
+    expect(a11).toMatch(/id:\s*['"]conveyor-collect['"]/);
+    expect(a11).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
+  });
+
+  it('A1-1 has the gold board-resume hand-over step', () => {
+    expect(a11).toMatch(/id:\s*['"]board-resume['"]/);
+  });
+
+  it('A1-1 no longer has the gated conveyor-instruct / conveyor-teach steps', () => {
+    expect(a11).not.toMatch(/conveyor-instruct/);
+    expect(a11).not.toMatch(/conveyor-teach/);
+    expect(a11).not.toMatch(/conveyor-capture/);
+  });
+
+  it('A1-1 no longer gates the tutorial on placement or piece-tap', () => {
+    expect(a11).not.toMatch(/awaitPlacement/);
+    expect(a11).not.toMatch(/allowPieceTap/);
+  });
+});
+
+describe('PROMPT_129 -- ungated tap-anywhere dismissal restored', () => {
+  it('handleTapAnywhere no longer early-returns on awaitPlacement', () => {
+    const m = overlaySrc.match(/const handleTapAnywhere = useCallback\([\s\S]*?\}, \[[^\]]*\]\);/);
+    const body = m ? m[0] : '';
+    expect(body).not.toMatch(/awaitPlacement/);
+    expect(body).not.toMatch(/allowPieceTap/);
+  });
+
+  it('the full-screen tap layer is rendered unconditionally (not gated by step flags)', () => {
+    // The Pressable/tap layer must not be wrapped in a
+    // !(step?.awaitPlacement || step?.allowPieceTap) guard.
+    expect(overlaySrc).not.toMatch(/!\(\s*step\??\.\s*awaitPlacement\s*\|\|\s*step\??\.\s*allowPieceTap\s*\)/);
+    expect(overlaySrc).toMatch(/onPress=\{handleTapAnywhere\}/);
+  });
+});
+
+describe('PROMPT_129 -- no square and no glow on piece/tray targets', () => {
+  it('showPieceGlow excludes tray-prefixed and placedPiece targets (no glow circle)', () => {
+    const m = overlaySrc.match(/const showPieceGlow\s*=[\s\S]*?;/);
+    expect(m ? m[0] : '').toMatch(/!\s*isSquareOnlyTarget/);
+  });
+
+  it('the portal corner-bracket square is suppressed on tray/placedPiece targets', () => {
+    // The portal render block must be gated so it does NOT draw for
+    // square-only (tray/placedPiece) targets. After this change the
+    // portal renders only for board/section/port targets.
+    const portalGuards = overlaySrc.match(/portalBox &&[\s\S]{0,80}?!\s*isSquareOnlyTarget/g);
+    expect(portalGuards && portalGuards.length >= 1).toBe(true);
+  });
+
+  it('glowCircle JSX and glowPulse loop are preserved for board/port targets', () => {
+    expect(overlaySrc).toMatch(/showPieceGlow && glowCircle/);
+    expect(overlaySrc).toMatch(/Animated\.loop\(/);
+  });
+});
+
+describe('PROMPT_129 -- COGS orb sits above the PIECE TRAY label on tray steps', () => {
+  it('runStep positions the orb above the tray label on tray-targeted steps', () => {
+    const runStep = extractRunStep(overlaySrc);
+    // Orb target Y for a tray step is computed above the label/portal box
+    // top (a negative offset from box.top). Accept the existing tray-hover
+    // form or an explicit label-relative offset.
+    expect(runStep).toMatch(/startsWith\(\s*['"]tray['"]\s*\)/);
+    expect(runStep).toMatch(/box\.top\s*-/);
   });
 });

@@ -633,8 +633,16 @@ function TutorialHUDOverlayComponent({
         const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
         targetCx = calloutLeft + CALLOUT_W / 2;
         targetCy = calloutTop - 10 - ORB_SIZE / 2;
-      } else if (box && s.awaitPlacement && s.targetRef?.startsWith('tray')) {
-        targetCy = box.top - 6 - ORB_SIZE / 2;
+      } else if (box && s.targetRef?.startsWith('tray')) {
+        // PROMPT_129: orb sits above the PIECE TRAY label, which sits
+        // above the tray slot — stack reads orb / label / tray icon
+        // from top to bottom. The label renders at box.top - 24 (see
+        // label render block below), so orb bottom edge is 6px above
+        // the label top. Applies to every tray-targeted step (no
+        // longer gated by awaitPlacement) because PROMPT_129 collapsed
+        // the gated A1-1 flow into a single tap-through tray step.
+        const labelTop = box.top - 24;
+        targetCy = labelTop - 6 - ORB_SIZE / 2;
       }
       flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;
@@ -901,15 +909,16 @@ function TutorialHUDOverlayComponent({
     }
   }, [lastTappedTrigger, step, phase, advanceStep]);
 
-  // Tap anywhere to advance (or open codex for codex steps).
-  // awaitPlacement steps do not advance on tap — the dim backdrop is also
-  // non-interactive in that mode, so this guard is a belt-and-suspenders.
+  // PROMPT_129: tap anywhere to advance (or open codex for codex steps).
+  // The gold A1-1 flow is a tap-to-walk-through tutorial — gating tap
+  // dismissal on awaitPlacement/allowPieceTap trapped the player. The
+  // tap-anywhere model is restored; the overlay hands control over to
+  // the board after the last codex step.
   const handleTapAnywhere = useCallback(() => {
     if (phase !== 'arrived') return;
     if (codexVisible) return;
-    if (step?.awaitPlacement) return;
     handlePrimary();
-  }, [phase, codexVisible, step, handlePrimary]);
+  }, [phase, codexVisible, handlePrimary]);
 
   if (!hydrated || !step) return null;
 
@@ -974,15 +983,18 @@ function TutorialHUDOverlayComponent({
           Animated.View from the tap handler avoids the "node moved to
           native" SIGABRT (same pattern as portalOpacity, Prompt 93 Fix 1). */}
       <Animated.View pointerEvents="none" style={[st.dim, { opacity: dimOpacity }]} />
-      {!(step?.awaitPlacement || step?.allowPieceTap) && (
-        <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
-      )}
+      {/* PROMPT_129: tap layer is unconditional so the player can always
+          dismiss the callout — the gold model. The Pressable sits below
+          the orb (zIndex 200) and below the callout (zIndex 160), so
+          dedicated controls still capture their own taps first. */}
+      <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
 
-      {/* Portal (rendered when arrived/codex and not center). PROMPT_128:
-          suppressed on awaitPlacement tray steps so the board stays clear
-          for the drag gesture. */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox &&
-        !(step?.awaitPlacement && step?.targetRef?.startsWith('tray')) && (
+      {/* Portal (rendered when arrived/codex and not center). PROMPT_129:
+          suppressed for square-only (tray/placedPiece) targets so the
+          piece icon reads clean — neither glow circle nor corner-bracket
+          square is drawn over it. The label still renders above, the
+          orb hovers above the label, and the callout carries the text. */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && !isSquareOnlyTarget && (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -1009,10 +1021,11 @@ function TutorialHUDOverlayComponent({
 
       {/* Portal label (above portal). Centered across the full screen
           width so short labels like "CONFIG NODE" never have to wrap
-          even when the portal is narrow. PROMPT_128: suppressed on
-          awaitPlacement tray steps along with the portal square. */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label &&
-        !(step?.awaitPlacement && step?.targetRef?.startsWith('tray')) && (
+          even when the portal is narrow. PROMPT_129: always renders
+          on any step that has a label, including tray/placedPiece —
+          the PIECE TRAY / CONVEYOR / etc. caption is the orientation
+          cue when the square is suppressed. */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label && (
         <Animated.View
           pointerEvents="none"
           style={{

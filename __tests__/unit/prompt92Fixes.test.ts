@@ -57,10 +57,10 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       );
     });
 
-    it('has the conveyor-capture step (Arc Wheel tutorial rework; replaces conveyor-collect)', () => {
+    it('has the conveyor-collect step (PROMPT_129 restored gold flow; collapses Arc Wheel four-beat)', () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'conveyor-capture'[\s\S]*?codexEntryId: 'conveyor'/,
+        /id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/,
       );
     });
   });
