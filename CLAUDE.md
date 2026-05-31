@@ -260,11 +260,10 @@ See docs/WORKFLOW_GENERAL.md for the full workflow reference.
 4. If no brief, ask Tucker what is needed
 5. Read any referenced docs (COMPUTATIONAL_MODEL, NARRATIVE, etc.)
 6. Explore codebase first — do not start coding yet
-7. Write a plan and confirm with Tucker before implementing
-8. Implement, test, lint, typecheck
-9. Run QUALITY GATES — all four must pass
-10. Commit with appropriate prefix
-11. If blocked, write to /project-docs/REPORTS/ and stop
+7. Implement, test, lint, typecheck
+8. Run QUALITY GATES — all four must pass
+9. Commit and push
+10. If blocked, write to /project-docs/REPORTS/ and stop
 
 ---
 
