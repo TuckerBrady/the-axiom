@@ -80,10 +80,12 @@ Code is the execution layer. It handles:
 - Signal engine work (piece behavior, tape system, Data Trail)
 - Screen building (following approved HTML prototypes in design/screens/)
 - Writing and running tests
-- Git commits and PRs
+- Git work on branches, opening pull requests via Claude Code's GitHub integration (not `gh`)
 - CI pipeline maintenance
 
 Code reads CLAUDE.md automatically every session and checks /project-docs/ for briefs.
+
+Changes reach master through a branch + PR: CI runs the four gates as required checks, T-Bot reviews and approves the diff on GitHub, and GitHub performs the merge. GitHub is the source of truth; the local repo is disposable. A trivial single-agent foreground commit may still go direct-to-master. See docs/WORKFLOW_GENERAL.md Part 6B and project-docs/SPECS/branching-and-qa-strategy.md.
 
 ### Code's Subagent Team
 
@@ -141,7 +143,7 @@ steps fire in order, scoring calculates correctly."
 ```
 
 **Step 5 — Ship (Code)**
-Create PR with description from spec. Commit prefix: feat.
+Open the work on a branch (`feature/`), push, and open a PR targeting master with a description from the spec (commit prefix: feat). CI runs the four gates as required checks; T-Bot reviews the diff and approves on GitHub, which performs the merge. Code does not merge to master directly. See the branch + PR governance in docs/WORKFLOW_GENERAL.md Part 6B and project-docs/SPECS/branching-and-qa-strategy.md.
 
 ### New Piece (Full Ceremony)
 

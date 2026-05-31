@@ -182,6 +182,7 @@ No emojis in commit messages. Ever.
 - Source = origin of signal (formerly Input Port), Terminal = destination of signal (formerly Output Port) — locked
 - Wire rendering (dashed connection lines): all sectors — locked
 - Placement highlights (orange valid-cell indicators): Axiom sector only — locked
+- Code lands via branch + PR; T-Bot approves on GitHub; GitHub is source of truth — locked (2026-05-30)
 
 ---
 

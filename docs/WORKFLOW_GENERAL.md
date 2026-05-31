@@ -200,13 +200,15 @@ When Code discovers the spec is wrong mid-implementation:
 
 ## Part 6B: Branching, QA, and Build Workflow
 
-All code changes go through feature branches, a QA gate, and a build approval process before reaching TestFlight. The authoritative reference for this workflow is:
+All code changes go through a branch, a pull request, the four CI gates, and T-Bot review before reaching master — and a build approval process before reaching TestFlight. The authoritative model is the T-Bot folder doc `REPO_GOVERNANCE.md`; the in-repo reference is:
 
 **`/project-docs/SPECS/branching-and-qa-strategy.md`**
 
-The short version: branch per feature, QA gate before merge, crash report before investigation, build approval before `eas build`. No exceptions to any of these. Read the spec for the full process.
+The short version: branch per change (`feature/ fix/ refactor/ chore/ docs/`), open a PR, the four gates run on the PR as required CI checks (`Lint & Type Check`, `Unit & Integration Tests`, `Security Audit`), T-Bot reviews the diff and approves or requests changes, GitHub performs the merge. Crash report before investigation, build approval before `eas build`. No exceptions to any of these. Read the spec for the full process.
 
-This changes step 5 of the handoff motion in Part 3 and step 5 of the full workflow in Part 6. Code now creates a feature branch instead of committing to master. Merge to master happens only after QA sign-off.
+**Source of truth.** GitHub is authoritative; the local repo is disposable — reclone to recover a known-good state. Agents open PRs via Claude Code's GitHub integration (not `gh`). T-Bot holds editorial authority on the merge. A trivial single-agent foreground commit may still go direct-to-master; everything else lands via PR. Builds are cut only from master, only after the smoke gate.
+
+This changes step 5 of the handoff motion in Part 3 and step 5 of the full workflow in Part 6. Code now opens a branch and a PR instead of committing to master; the merge happens on GitHub after CI is green and T-Bot approves.
 
 ---
 
