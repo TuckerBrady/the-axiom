@@ -15,9 +15,9 @@ The problems this solves: bugs stacking on master with no isolation, TestFlight 
 
 Version 1.1 adds the pull request layer on top of the v1.0 branch and QA process below. This reflects the move from a single serial builder to parallel work across Code subagents. The authoritative model lives in the T-Bot folder doc `REPO_GOVERNANCE.md`; this section summarizes how it lands in this repo. The v1.0 content (Parts 1 through 6) remains in force — the PR layer formalizes how a QA-passing branch reaches master.
 
-### Agents open PRs (not `gh`)
+### Agents open PRs with `gh pr create`
 
-Code does not commit feature work directly to master and does not use the `gh` CLI (it is not available in this environment). Every change is pushed to a branch and opened as a pull request targeting master via Claude Code's GitHub integration. The PR description summarizes what changed and names the reviewer.
+Code does not commit feature work directly to master. Every change is pushed to a branch and opened as a pull request targeting master with `gh pr create` — `gh` is installed and authenticated in this Code environment (account TuckerBrady, repo+workflow scopes); plain `git` also works. The PR description summarizes what changed and names the reviewer.
 
 A single carveout remains: a trivial, single-agent, foreground commit (for example a one-line docs or config fix being made interactively with Tucker) may still go direct-to-master. Everything produced by a dispatched or background agent lands via PR.
 
