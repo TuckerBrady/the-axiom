@@ -80,7 +80,7 @@ Code is the execution layer. It handles:
 - Signal engine work (piece behavior, tape system, Data Trail)
 - Screen building (following approved HTML prototypes in design/screens/)
 - Writing and running tests
-- Git work on branches, opening pull requests via Claude Code's GitHub integration (not `gh`)
+- Git work on branches, opening pull requests with `gh pr create` (`gh` is installed and authenticated here; plain `git` also works)
 - CI pipeline maintenance
 
 Code reads CLAUDE.md automatically every session and checks /project-docs/ for briefs.
