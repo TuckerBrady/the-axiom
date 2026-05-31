@@ -1,5 +1,5 @@
 # Git Branching and QA Strategy
-### The Axiom | Version 1.0 | May 2026
+### The Axiom | Version 1.1 | May 2026
 
 ---
 
@@ -8,6 +8,40 @@
 This is the authoritative workflow for how code moves from idea to TestFlight build. It replaces the previous approach of committing directly to master and cutting builds on hope.
 
 The problems this solves: bugs stacking on master with no isolation, TestFlight builds wasted on crashes that should have been caught locally, and investigation processes that guess at root causes instead of reading the actual crash report first.
+
+---
+
+## PR Layer (added 2026-05-30)
+
+Version 1.1 adds the pull request layer on top of the v1.0 branch and QA process below. This reflects the move from a single serial builder to parallel work across Code subagents. The authoritative model lives in the T-Bot folder doc `REPO_GOVERNANCE.md`; this section summarizes how it lands in this repo. The v1.0 content (Parts 1 through 6) remains in force — the PR layer formalizes how a QA-passing branch reaches master.
+
+### Agents open PRs with `gh pr create`
+
+Code does not commit feature work directly to master. Every change is pushed to a branch and opened as a pull request targeting master with `gh pr create` — `gh` is installed and authenticated in this Code environment (account TuckerBrady, repo+workflow scopes); plain `git` also works. The PR description summarizes what changed and names the reviewer.
+
+A single carveout remains: a trivial, single-agent, foreground commit (for example a one-line docs or config fix being made interactively with Tucker) may still go direct-to-master. Everything produced by a dispatched or background agent lands via PR.
+
+### CI required checks (by name)
+
+The four quality gates run automatically on every PR through the existing GitHub Actions pipeline. Three checks are required and must be green before merge:
+
+- `Lint & Type Check` — `npx expo lint` (zero warnings) and `npx tsc --noEmit` (zero errors)
+- `Unit & Integration Tests` — `npm test` (all green, coverage thresholds met)
+- `Security Audit` — `npm audit --audit-level=high` (clean)
+
+A PR cannot merge with any required check failing or pending.
+
+### T-Bot as editorial approver
+
+T-Bot holds editorial authority over what reaches master. T-Bot reviews the PR diff on GitHub and approves, requests changes, or rejects. Green CI is necessary but not sufficient — T-Bot's approval is the merge gate. GitHub performs the merge once approved; no agent self-merges.
+
+### GitHub source of truth; local repo disposable
+
+GitHub is the single source of truth for repository state. The local working copy is disposable: to recover a known-good state, reclone from GitHub rather than trying to repair local history. This means no local-only commits of record, and no reliance on a particular machine's working tree.
+
+### Branch protection
+
+Master is protected: no direct pushes for agent-produced work, required status checks must pass, and a review approval is required before merge. Branch protection is what enforces the PR layer mechanically rather than by convention. Builds are cut only from master, only after the smoke gate.
 
 ---
 
