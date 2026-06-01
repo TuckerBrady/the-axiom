@@ -478,6 +478,8 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
       }
 
       case 'latch': {
+        // A Latch with unset latchMode is treated as 'write'
+        // (REQ-LATCH-PREPLACE-1, deterministic default).
         const mode = piece.latchMode ?? 'write';
         // G2 (REQ-CONFIG-LATCH-1): a Latch emits a value downstream; mark the
         // carried signal so a downstream Config Node gates on the Latch's
@@ -490,6 +492,18 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
           // tapeValue directly — same correctness gap as Transmitter.
           piece.storedValue = signalValue as 0 | 1;
           step.message = `Latch WRITE — stored ${piece.storedValue}`;
+        } else if (mode === 'delay') {
+          // Latch DELAY — true D flip-flop (G1, SPEC_KEPLER_ENGINE 3.1).
+          // Read-before-write within the pulse (REQ-LATCH-DELAY-3): emit
+          // the value captured on the previous pulse, then capture the
+          // current inbound value for the next pulse. On the first pulse
+          // of a run nothing is stored, so emit 0 (REQ-LATCH-DELAY-2).
+          // A DELAY Latch always passes — it never blocks
+          // (REQ-LATCH-DELAY-4); it only transforms the carried value.
+          const emitted = piece.storedValue ?? 0;
+          outboundSignalValue = emitted;
+          piece.storedValue = signalValue as 0 | 1;
+          step.message = `Latch DELAY — emitted ${emitted}, stored ${piece.storedValue}`;
         } else {
           if (piece.storedValue == null) {
             step.success = false;
@@ -635,24 +649,62 @@ export type RequiredPiecesResult =
       missing: Array<{ type: string; required: number; engaged: number }>;
     };
 
-export function resetRunState(pieces: PlacedPiece[]): void {
+/**
+ * Reset per-run piece state at run start (precedes pulse 0). Accepts either a
+ * raw PlacedPiece[] (legacy callers) or a MachineState (the run-init path).
+ * Clears `firedDuringRun` on every piece and, per REQ-LATCH-RESET-1, clears each
+ * Latch's `storedValue` to null so consecutive runs are independent and a DELAY
+ * Latch emits 0 on pulse 0 of every run.
+ */
+export function resetRunState(pieces: PlacedPiece[]): void;
+export function resetRunState(state: MachineState): void;
+export function resetRunState(arg: PlacedPiece[] | MachineState): void {
+  const pieces = Array.isArray(arg) ? arg : arg.pieces;
   for (const p of pieces) {
     p.firedDuringRun = false;
+    if (p.type === 'latch') {
+      p.storedValue = null;
+    }
   }
+}
+
+/**
+ * Resolve a run state's `pieceId` to the piece TYPE used for requiredPieces
+ * matching (REQ-REQPIECES-MAP-1, SPEC_KEPLER_ENGINE.md §3.4).
+ *
+ * Arc Wheel placements carry an inventory instance id (e.g. `inv-07`), not a
+ * type string. We look the id up in the placed-pieces array to recover its
+ * type. When no placed-pieces array is supplied, or the id is not found in it,
+ * we fall back to treating the `pieceId` itself as the type — this preserves
+ * the existing contract (keplerRequiredPieces.test.ts) where run states already
+ * carry type strings as their `pieceId`.
+ */
+function resolveRunStateType(
+  state: PieceRunState,
+  typeById: Map<string, string> | undefined,
+): string {
+  return typeById?.get(state.pieceId) ?? state.pieceId;
 }
 
 export function evaluateRequiredPieces(
   levelDef: LevelDefinition,
   pieceRunStates: PieceRunState[],
+  placedPieces?: PlacedPiece[],
 ): RequiredPiecesResult {
   const required = levelDef.requiredPieces;
   if (!required || required.length === 0) return { result: 'satisfied' };
+
+  // Build an instance-id -> type lookup so Arc Wheel inventory ids (inv-NN)
+  // resolve to a real piece type before matching (REQ-REQPIECES-MAP-1).
+  const typeById = placedPieces
+    ? new Map(placedPieces.map(p => [p.id, p.type as string]))
+    : undefined;
 
   const missing: Array<{ type: string; required: number; engaged: number }> = [];
 
   for (const entry of required) {
     const engaged = pieceRunStates.filter(
-      s => s.pieceId === entry.type && s.firedDuringRun,
+      s => resolveRunStateType(s, typeById) === entry.type && s.firedDuringRun,
     ).length;
     if (engaged < entry.count) {
       missing.push({ type: entry.type, required: entry.count, engaged });

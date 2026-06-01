@@ -42,7 +42,7 @@ interface Props {
   inverting?: boolean;
   counting?: boolean;
   latching?: boolean;
-  latchMode?: 'write' | 'read';
+  latchMode?: 'write' | 'read' | 'delay';
   storedValue?: number | null;
   count?: number;
   configValue?: number;
