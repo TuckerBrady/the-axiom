@@ -43,7 +43,7 @@ export type PlacedPiece = {
   threshold?: number;
   count?: number;
   // Latch state — persists across pulses within one run
-  latchMode?: 'write' | 'read';
+  latchMode?: 'write' | 'read' | 'delay';
   storedValue?: number | null;
   // Splitter magnet mechanic — the two sides where magnets connected
   // to adjacent pieces. Max 2. Populated by computeSplitterMagnets.

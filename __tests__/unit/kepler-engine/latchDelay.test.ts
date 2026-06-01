@@ -2,14 +2,14 @@
 // Contract: project-docs/SPECS/SPEC_KEPLER_ENGINE.md Section 3.1 (G1).
 // Driving levels: K1-9 (shift register), K1-10 (temporal AND).
 //
-// PENDING STATUS: every executable suite below is `describe.skip` and every
-// behavioral stub is `it.todo`, so nothing executes-and-fails. Phase 3 (Dev)
-// activates these (remove `.skip` / fill the todo) while implementing against the
-// contract. Phase 3 MUST NOT alter the assertions.
+// ACTIVATED (Phase 3, G1): the executable suites below run and the engine
+// implements Latch DELAY mode per SPEC_KEPLER_ENGINE.md Section 3.1. The two
+// it.todo stubs (3.1.1 tap cycle, K1-10 capstone) remain todo — they are
+// board-interaction and level-design concerns, not engine-execution concerns.
+// Assertions are unchanged from the pending phase.
 //
-// TYPE NOTE: `latchMode: 'delay'` is not yet a member of PlacedPiece['latchMode']
-// (currently 'write' | 'read'). Phase 3 widens that union. Until then, the cast
-// below keeps this pending suite type-checking green. Phase 3 removes the cast.
+// TYPE NOTE: `latchMode: 'delay'` is now a member of PlacedPiece['latchMode']
+// ('write' | 'read' | 'delay'), so the forward-compatible cast was removed.
 
 import type { PlacedPiece, MachineState } from '../../../src/game/types';
 import {
@@ -18,8 +18,7 @@ import {
   getDefaultPorts,
 } from '../../../src/game/engine';
 
-// Forward-compatible cast for the not-yet-widened latchMode union.
-const DELAY: PlacedPiece['latchMode'] = 'delay' as unknown as PlacedPiece['latchMode'];
+const DELAY: PlacedPiece['latchMode'] = 'delay';
 
 function makePiece(
   id: string,
@@ -69,7 +68,7 @@ describe('Latch mode cycle (3.1.1)', () => {
 
 // ── 3.1.2 / 3.1.3 / 3.1.5 — DELAY emits the previous pulse value, shift register ─
 
-describe.skip('Latch DELAY — shift register (3.1.2, 3.1.3, 3.1.5)', () => {
+describe('Latch DELAY — shift register (3.1.2, 3.1.3, 3.1.5)', () => {
   it('[REQ-LATCH-DELAY-1] emits input[N-1] each pulse; [REQ-LATCH-DELAY-2] emits 0 on pulse 0', () => {
     // Source -> Latch(delay) -> Transmitter -> Terminal. A DELAY Latch always passes
     // (REQ-LATCH-DELAY-4), so the Transmitter writes the delayed value every pulse.
@@ -126,7 +125,7 @@ describe.skip('Latch DELAY — shift register (3.1.2, 3.1.3, 3.1.5)', () => {
 
 // ── 3.1.4 — DELAY always passes ──────────────────────────────────────────────
 
-describe.skip('Latch DELAY — flow (3.1.4)', () => {
+describe('Latch DELAY — flow (3.1.4)', () => {
   it('[REQ-LATCH-DELAY-4] a DELAY Latch never blocks, even with nothing stored', () => {
     const pieces = [
       makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
@@ -142,7 +141,7 @@ describe.skip('Latch DELAY — flow (3.1.4)', () => {
 
 // ── 3.1.6 — run independence ─────────────────────────────────────────────────
 
-describe.skip('Latch DELAY — run independence (3.1.6)', () => {
+describe('Latch DELAY — run independence (3.1.6)', () => {
   it('[REQ-LATCH-RESET-1] stored state is cleared at run start so DELAY emits 0 on pulse 0 of every run', () => {
     // resetRunState (or the run-init path that precedes pulse 0) is expected by Phase
     // 3 to clear storedValue. After a prior run leaves a value stored, a fresh run
@@ -167,7 +166,7 @@ describe.skip('Latch DELAY — run independence (3.1.6)', () => {
 
 // ── 3.1.7 — pre-placed Latch default mode ────────────────────────────────────
 
-describe.skip('Latch pre-placement default (3.1.7)', () => {
+describe('Latch pre-placement default (3.1.7)', () => {
   it('[REQ-LATCH-PREPLACE-1] a Latch with unset latchMode is treated as write (stores its input)', () => {
     const pieces = [
       makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
