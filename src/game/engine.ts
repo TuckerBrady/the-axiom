@@ -634,18 +634,43 @@ export function resetRunState(arg: PlacedPiece[] | MachineState): void {
   }
 }
 
+/**
+ * Resolve a run state's `pieceId` to the piece TYPE used for requiredPieces
+ * matching (REQ-REQPIECES-MAP-1, SPEC_KEPLER_ENGINE.md §3.4).
+ *
+ * Arc Wheel placements carry an inventory instance id (e.g. `inv-07`), not a
+ * type string. We look the id up in the placed-pieces array to recover its
+ * type. When no placed-pieces array is supplied, or the id is not found in it,
+ * we fall back to treating the `pieceId` itself as the type — this preserves
+ * the existing contract (keplerRequiredPieces.test.ts) where run states already
+ * carry type strings as their `pieceId`.
+ */
+function resolveRunStateType(
+  state: PieceRunState,
+  typeById: Map<string, string> | undefined,
+): string {
+  return typeById?.get(state.pieceId) ?? state.pieceId;
+}
+
 export function evaluateRequiredPieces(
   levelDef: LevelDefinition,
   pieceRunStates: PieceRunState[],
+  placedPieces?: PlacedPiece[],
 ): RequiredPiecesResult {
   const required = levelDef.requiredPieces;
   if (!required || required.length === 0) return { result: 'satisfied' };
+
+  // Build an instance-id -> type lookup so Arc Wheel inventory ids (inv-NN)
+  // resolve to a real piece type before matching (REQ-REQPIECES-MAP-1).
+  const typeById = placedPieces
+    ? new Map(placedPieces.map(p => [p.id, p.type as string]))
+    : undefined;
 
   const missing: Array<{ type: string; required: number; engaged: number }> = [];
 
   for (const entry of required) {
     const engaged = pieceRunStates.filter(
-      s => s.pieceId === entry.type && s.firedDuringRun,
+      s => resolveRunStateType(s, typeById) === entry.type && s.firedDuringRun,
     ).length;
     if (engaged < entry.count) {
       missing.push({ type: entry.type, required: entry.count, engaged });
