@@ -1,23 +1,29 @@
 import type { LevelDefinition, PlacedPiece } from './types';
-import { getDefaultPorts } from './engine';
+import { getDefaultPorts, getPieceCategory } from './engine';
 
 // ─── Helper to create pre-placed pieces ───────────────────────────────────────
 
 let pieceCounter = 0;
 
-function prePlaced(
+export function prePlaced(
   type: PlacedPiece['type'],
   gridX: number,
   gridY: number,
   options?: {
     condition?: (configuration: number) => boolean;
+    latchMode?: PlacedPiece['latchMode'];
   },
 ): PlacedPiece {
   const id = `pre-${type}-${++pieceCounter}`;
-  const category =
-    type === 'configNode' || type === 'scanner' || type === 'transmitter'
-      ? 'protocol'
-      : 'physics';
+  // Canonical categorization: getPieceCategory is the single source of truth.
+  // Protocol pieces include latch/inverter/counter, not just configNode/scanner/
+  // transmitter. (REQ-PREPLACED-CAT-1)
+  const category = getPieceCategory(type);
+
+  // A pre-placed Latch MUST carry an explicit latchMode; default to 'write'
+  // (deterministic default per REQ-LATCH-PREPLACE-1).
+  const latchMode =
+    type === 'latch' ? options?.latchMode ?? 'write' : options?.latchMode;
 
   return {
     id,
@@ -29,6 +35,7 @@ function prePlaced(
     rotation: 0,
     isPrePlaced: true,
     condition: options?.condition,
+    ...(latchMode !== undefined ? { latchMode } : {}),
   };
 }
 
