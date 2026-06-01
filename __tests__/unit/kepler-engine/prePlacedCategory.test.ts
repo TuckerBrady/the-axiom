@@ -5,12 +5,13 @@
 // Archaeology Bug B: the prePlaced() helper categorizes only configNode/scanner/
 // transmitter as 'protocol', so a pre-placed Latch is mis-categorized 'physics'.
 //
-// PENDING STATUS: `describe.skip` — activates once Phase 3 fixes prePlaced() and the
-// K1-3 level data lands its pre-placed Latch.
+// PHASE 3 ACTIVATED: prePlaced() now categorizes via the canonical getPieceCategory
+// (latch/inverter/counter => 'protocol') and assigns pre-placed Latches an explicit
+// latchMode default of 'write'. (G5, REQ-PREPLACED-CAT-1; REQ-LATCH-PREPLACE-1)
 
-import { getLevelById } from '../../../src/game/levels';
+import { getLevelById, prePlaced } from '../../../src/game/levels';
 
-describe.skip('Pre-placed Latch categorization (3.5.1)', () => {
+describe('Pre-placed Latch categorization (3.5.1)', () => {
   it('[REQ-PREPLACED-CAT-1] K1-3 pre-placed Latch has category protocol', () => {
     const level = getLevelById('K1-3');
     expect(level).toBeDefined();
@@ -31,5 +32,26 @@ describe.skip('Pre-placed Latch categorization (3.5.1)', () => {
     const level = getLevelById('K1-3');
     const latch = level!.prePlacedPieces.find(p => p.type === 'latch');
     expect(latch!.latchMode).toBe('write');
+  });
+
+  // Exercise the prePlaced() factory directly (not just hardcoded level data),
+  // confirming the canonical category map is what categorizes each type.
+  it('[REQ-PREPLACED-CAT-1] prePlaced factory categorizes protocol pieces as protocol', () => {
+    expect(prePlaced('latch', 0, 0).category).toBe('protocol');
+    expect(prePlaced('inverter', 0, 0).category).toBe('protocol');
+    expect(prePlaced('counter', 0, 0).category).toBe('protocol');
+  });
+
+  it('[REQ-PREPLACED-CAT-1] prePlaced factory keeps physics pieces as physics', () => {
+    expect(prePlaced('conveyor', 0, 0).category).toBe('physics');
+    expect(prePlaced('splitter', 0, 0).category).toBe('physics');
+    expect(prePlaced('bridge', 0, 0).category).toBe('physics');
+  });
+
+  it('[REQ-LATCH-PREPLACE-1] prePlaced Latch defaults latchMode to write and is overridable', () => {
+    expect(prePlaced('latch', 0, 0).latchMode).toBe('write');
+    expect(prePlaced('latch', 0, 0, { latchMode: 'read' }).latchMode).toBe('read');
+    // Non-latch pieces carry no latchMode by default.
+    expect(prePlaced('conveyor', 0, 0).latchMode).toBeUndefined();
   });
 });
