@@ -11,13 +11,13 @@ import type { NarrativeConsequence } from './types';
 // weight-only warnings. The reveal happens after failure.
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// ─── Kepler Belt Boss (K2-10) ────────────────────────────────────────────────
+// ─── Kepler Belt Boss (K1-10) ────────────────────────────────────────────────
 // Trigger: completed with < 3 stars or failed entirely
 
 export const KEPLER_BOSS_CONSEQUENCE: NarrativeConsequence = {
   id: 'kepler_boss_consequence',
   sectorId: 'kepler',
-  triggerLevelId: 'K2-10',
+  triggerLevelId: 'K1-10',
   triggerCondition: 'below3star',
   mechanicalEffects: [
     {
