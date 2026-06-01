@@ -1033,11 +1033,15 @@ export default function GameplayScreen({ navigation }: Props) {
     // and show the COGS rejection modal. REQ-RP-5: same life-cost as
     // damage failure. Tucker confirmed 2026-05-01.)
     if (!wrongOutput && metPulseRequirement && level.requiredPieces?.length) {
-      const runStates = useGameStore.getState().machineState.pieces.map(p => ({
-        pieceId: p.type,
+      const placedPieces = useGameStore.getState().machineState.pieces;
+      // Run states carry the instance id (which may be an Arc Wheel inventory
+      // id like inv-NN); evaluateRequiredPieces resolves it to the piece type
+      // via the placedPieces array (REQ-REQPIECES-MAP-1).
+      const runStates = placedPieces.map(p => ({
+        pieceId: p.id,
         firedDuringRun: p.firedDuringRun ?? false,
       }));
-      const rpResult = evaluateRequiredPieces(level, runStates);
+      const rpResult = evaluateRequiredPieces(level, runStates, placedPieces);
       if (rpResult.result === 'requiredPiecesNotEngaged') {
         setBeamState(prev => ({ ...prev, phase: 'idle' }));
         loseLife();
