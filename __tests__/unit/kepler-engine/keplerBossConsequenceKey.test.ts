@@ -18,7 +18,7 @@ import {
   getTriggeredConsequence,
 } from '../../../src/game/consequences';
 
-describe.skip('Kepler boss consequence key (3.6.1)', () => {
+describe('Kepler boss consequence key (3.6.1)', () => {
   it('[REQ-CONSEQ-KEY-1] KEPLER_BOSS_CONSEQUENCE.triggerLevelId is K1-10', () => {
     expect(KEPLER_BOSS_CONSEQUENCE.triggerLevelId).toBe('K1-10');
   });
@@ -39,7 +39,7 @@ describe.skip('Kepler boss consequence key (3.6.1)', () => {
   });
 });
 
-describe.skip('Kepler boss consequence semantics preserved (3.6.2)', () => {
+describe('Kepler boss consequence semantics preserved (3.6.2)', () => {
   it('[REQ-CONSEQ-KEY-2] a 3-star success on K1-10 returns null (no consequence)', () => {
     const c = getTriggeredConsequence('K1-10', true, 3);
     expect(c).toBeNull();

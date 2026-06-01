@@ -50,17 +50,17 @@ describe('resolveCogsLine', () => {
 
 describe('getTriggeredConsequence', () => {
   it('returns Kepler consequence on below3star', () => {
-    const c = getTriggeredConsequence('K2-10', true, 2);
+    const c = getTriggeredConsequence('K1-10', true, 2);
     expect(c?.id).toBe('kepler_boss_consequence');
   });
 
   it('returns Kepler consequence on fail', () => {
-    const c = getTriggeredConsequence('K2-10', false, 0);
+    const c = getTriggeredConsequence('K1-10', false, 0);
     expect(c?.id).toBe('kepler_boss_consequence');
   });
 
   it('returns null for Kepler on 3-star success', () => {
-    const c = getTriggeredConsequence('K2-10', true, 3);
+    const c = getTriggeredConsequence('K1-10', true, 3);
     expect(c).toBeNull();
   });
 
