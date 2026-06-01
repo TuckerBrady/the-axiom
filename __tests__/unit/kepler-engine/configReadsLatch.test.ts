@@ -54,7 +54,7 @@ function makeState(pieces: PlacedPiece[], overrides?: Partial<MachineState>): Ma
   };
 }
 
-describe.skip('Config Node reads upstream Latch value (3.2.1)', () => {
+describe('Config Node reads upstream Latch value (3.2.1)', () => {
   it('[REQ-CONFIG-LATCH-1] passes when the Latch emits a value equal to configValue', () => {
     // Latch READ emits stored 1; tape carries 0; configValue=1.
     // Gate on the Latch value (1 == 1) -> pass. If it gated on the tape (0), it would block.
@@ -96,7 +96,7 @@ describe.skip('Config Node reads upstream Latch value (3.2.1)', () => {
   });
 });
 
-describe.skip('Config Node does not default-pass when a Latch value is available (3.2.2)', () => {
+describe('Config Node does not default-pass when a Latch value is available (3.2.2)', () => {
   it('[REQ-CONFIG-LATCH-2] with a carried Latch value present, the empty-trail default pass MUST NOT apply', () => {
     // Empty trail (would normally trigger default-pass), but an upstream Latch emits 0
     // and configValue=1. The node MUST evaluate the carried 0 (block), not default-pass.

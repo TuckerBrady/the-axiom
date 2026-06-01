@@ -301,9 +301,19 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   // Seed value comes from the input tape (clause 3.2: passthrough
   // matches input). When inputTape is undefined (legacy levels with
   // no tape), default to 0 so downstream typing stays clean.
-  const queue: { id: string; entrySide?: PortSide; signalValue: number }[] = [
-    { id: source.id, signalValue: tapeValue ?? 0 },
-  ];
+  // G2 (REQ-CONFIG-LATCH-1/2): `carriesLatchValue` marks that the carried
+  // `signalValue` is a value EMITTED by an upstream value-producing piece
+  // (a Latch), as opposed to the default source seed. A downstream Config
+  // Node gates on this carried value and MUST NOT fall back to the
+  // empty-trail default pass when it is present. The source seed is NOT a
+  // carried Latch value, so the existing trail/tape gating and default-pass
+  // behavior are unchanged for machines with no upstream Latch.
+  const queue: {
+    id: string;
+    entrySide?: PortSide;
+    signalValue: number;
+    carriesLatchValue: boolean;
+  }[] = [{ id: source.id, signalValue: tapeValue ?? 0, carriesLatchValue: false }];
 
   const trail = {
     cells: [...dataTrail.cells],
@@ -311,7 +321,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   };
 
   while (queue.length > 0 && steps.length < MAX_STEPS) {
-    const { id: currentId, entrySide, signalValue } = queue.shift()!;
+    const { id: currentId, entrySide, signalValue, carriesLatchValue } = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
 
@@ -335,6 +345,10 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     // to the trail; Transmitter writes the signal out; Config Node
     // gates without mutating).
     let outboundSignalValue: number = signalValue;
+    // G2: rides alongside `outboundSignalValue`. Pass-through pieces inherit
+    // the inbound flag; a Latch sets it true (its emitted value becomes the
+    // carried value a downstream Config Node gates on).
+    let outboundCarriesLatchValue: boolean = carriesLatchValue;
 
     switch (piece.type) {
       case 'source':
@@ -355,6 +369,21 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'configNode': {
         const nodeValue = piece.configValue ?? 1;
+        // G2 (REQ-CONFIG-LATCH-1/2): when a carried value emitted by an
+        // upstream Latch is present, the value under test is that carried
+        // signal value. This takes precedence over the Data Trail and MUST
+        // NOT fall back to the empty-trail default pass.
+        if (carriesLatchValue) {
+          const passes = signalValue === nodeValue;
+          if (!passes) {
+            step.success = false;
+            step.message = `Configuration check failed — value ${signalValue} !== gate ${nodeValue}`;
+            steps.push(step);
+            continue;
+          }
+          step.message = `Configuration check passed — value ${signalValue} === gate ${nodeValue}`;
+          break;
+        }
         let trailValue: number | null;
         if (trail.cells.length > 0 && pulseIndex < trail.cells.length) {
           trailValue = trail.cells[pulseIndex];
@@ -450,6 +479,10 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
 
       case 'latch': {
         const mode = piece.latchMode ?? 'write';
+        // G2 (REQ-CONFIG-LATCH-1): a Latch emits a value downstream; mark the
+        // carried signal so a downstream Config Node gates on the Latch's
+        // emitted value rather than the Data Trail / default pass.
+        outboundCarriesLatchValue = true;
         if (mode === 'write') {
           // Latch WRITE captures the carried signal value, mirroring
           // the same source-of-truth shift Inverter and Transmitter use
@@ -506,6 +539,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
           id: neighbor.id,
           entrySide: neighborEntrySide,
           signalValue: outboundSignalValue,
+          carriesLatchValue: outboundCarriesLatchValue,
         });
       }
     }
