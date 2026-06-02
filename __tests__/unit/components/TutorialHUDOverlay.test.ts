@@ -327,11 +327,13 @@ describe('PROMPT_138 -- A1-1 orb-chase capture beat', () => {
     expect(resume).toBeGreaterThan(capture);
   });
 
-  it('conveyor-capture message is flagged PROPOSED (Tucker sign-off required)', () => {
+  it('conveyor-capture message is the Tucker-approved copy (PROPOSED flag cleared)', () => {
     const idx = a11.indexOf("id: 'conveyor-capture'");
     const slice = a11.slice(idx, idx + 600);
-    expect(slice).toMatch(/PROPOSED — Tucker sign-off required/);
-    expect(slice).toMatch(/message:\s*['"]PROPOSED:/);
+    expect(slice).not.toMatch(/PROPOSED/);
+    expect(slice).toMatch(
+      /message:\s*['"]Logged\. CONVEYOR\. Routes signal in a straight line\. I have seen worse\.['"]/
+    );
   });
 
   it('A1-1 still keeps board-resume as the final hand-over step', () => {
