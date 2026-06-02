@@ -109,11 +109,28 @@ export const levelA1_1: LevelDefinition = {
       codexEntryId: 'terminal',
     },
     {
+      // Pre-capture beat: the piece is still unrecognized, so the label
+      // reads '???' and no codex entry is attached. awaitPlacement holds
+      // the tutorial here until the Engineer drags a conveyor onto the
+      // board; placement advances to conveyor-capture (mirrors the
+      // notice/instruct -> capture pattern in A1-2/3/5/7).
       id: 'conveyor-collect',
-      label: 'CONVEYOR',
+      label: '???',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
       message: 'That piece is not in the Codex yet. It will be.',
+      awaitPlacement: 'conveyor',
+    },
+    {
+      // Capture beat: orb flies to the just-placed conveyor, COGS names
+      // it, and the codex entry is revealed. codexEntryId 'conveyor' also
+      // triggers the A1-1 batch reveal (source + terminal + conveyor) in
+      // TutorialHUDOverlay.handlePrimary.
+      id: 'conveyor-capture',
+      label: 'CONVEYOR',
+      targetRef: 'placedPiece',
+      eyeState: 'green',
+      message: 'Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.',
       codexEntryId: 'conveyor',
     },
     {

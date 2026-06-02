@@ -57,10 +57,15 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       );
     });
 
-    it('has the conveyor-collect step (PROMPT_129 restored gold flow; collapses Arc Wheel four-beat)', () => {
+    it('catalogues the conveyor via the conveyor-capture step (PROMPT_138 orb-chase beat)', () => {
+      // PROMPT_138 moved the conveyor codex reveal off the tray step and
+      // onto the placedPiece capture beat. conveyor-collect is now the
+      // pre-capture "place it" step (no codex); conveyor-capture carries
+      // codexEntryId 'conveyor'.
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      expect(a11?.[0]).toMatch(/id: 'conveyor-collect'/);
       expect(a11?.[0]).toMatch(
-        /id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/,
+        /id: 'conveyor-capture'[\s\S]*?codexEntryId: 'conveyor'/,
       );
     });
   });

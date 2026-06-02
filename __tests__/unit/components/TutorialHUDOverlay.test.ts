@@ -241,16 +241,17 @@ describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () =>
     );
   });
 
-  it('portal square is suppressed via !isSquareOnlyTarget (PROMPT_129 widened); label always renders', () => {
-    // PROMPT_129 widened the portal suppression from
-    // (awaitPlacement && tray) to the broader !isSquareOnlyTarget
-    // gate, and DROPPED the label suppression entirely — the label
-    // is the orientation cue when the square goes away. So the old
-    // (awaitPlacement && tray) guard pattern must be gone.
+  it('portal square renders for all targets (PROMPT_138 superseded the PROMPT_129 suppression); label always renders', () => {
+    // PROMPT_129 had suppressed the corner-bracket square on
+    // square-only (tray/placedPiece) targets. PROMPT_138 reversed that:
+    // the square frames every target; only the filled glow circle stays
+    // suppressed (via the separate showPieceGlow block). The old
+    // (awaitPlacement && tray) guard must still be gone, and the portal
+    // gate must NO LONGER include !isSquareOnlyTarget.
     expect(overlaySrc).not.toMatch(
       /!\(\s*step\??\.\s*awaitPlacement[\s\S]{0,80}?startsWith\(\s*['"]tray['"]\s*\)\s*\)/,
     );
-    expect(overlaySrc).toMatch(/portalBox && !isSquareOnlyTarget/);
+    expect(overlaySrc).not.toMatch(/portalBox && !isSquareOnlyTarget/);
   });
 
   it('callout top-docks (top: 80) on awaitPlacement tray steps', () => {
@@ -287,29 +288,64 @@ describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
   });
 });
 
-// ── PROMPT_129 -- restore the gold "teach then hand over" A1-1 flow ─────────
-describe('PROMPT_129 -- A1-1 restored to the gold teach-then-hand-over flow', () => {
+// ── PROMPT_138 -- A1-1 orb-chase capture beat restored ──────────────────────
+// PROMPT_138 supersedes the PROMPT_129 collapse: A1-1 regains the
+// notice/instruct -> capture pattern used by every other A1 piece intro.
+// conveyor-collect is now the pre-capture "place this unknown piece" beat
+// ('???' label, awaitPlacement, NO codex); conveyor-capture is the orb-chase
+// codex beat (targetRef placedPiece, 'CONVEYOR' label, codexEntryId conveyor).
+describe('PROMPT_138 -- A1-1 orb-chase capture beat', () => {
   let a11: string;
   beforeAll(() => { a11 = extractA11Steps(levelsSrc); });
 
-  it('A1-1 has the gold conveyor-collect codex step', () => {
-    expect(a11).toMatch(/id:\s*['"]conveyor-collect['"]/);
-    expect(a11).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
+  it('A1-1 has the conveyor-collect pre-capture step labelled ??? with no codex', () => {
+    const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-collect['"][^{}]*\}/);
+    expect(m).not.toBeNull();
+    const step = m ? m[0] : '';
+    expect(step).toMatch(/label:\s*['"]\?\?\?['"]/);
+    expect(step).toMatch(/targetRef:\s*['"]trayConveyor['"]/);
+    expect(step).toMatch(/awaitPlacement:\s*['"]conveyor['"]/);
+    expect(step).not.toMatch(/codexEntryId/);
   });
 
-  it('A1-1 has the gold board-resume hand-over step', () => {
+  it('A1-1 has the conveyor-capture step targeting the placed piece with the codex reveal', () => {
+    const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-capture['"][^{}]*\}/);
+    expect(m).not.toBeNull();
+    const step = m ? m[0] : '';
+    expect(step).toMatch(/label:\s*['"]CONVEYOR['"]/);
+    expect(step).toMatch(/targetRef:\s*['"]placedPiece['"]/);
+    expect(step).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
+    expect(step).toMatch(/eyeState:\s*['"]green['"]/);
+  });
+
+  it('conveyor-capture sits between conveyor-collect and board-resume', () => {
+    const collect = a11.indexOf("id: 'conveyor-collect'");
+    const capture = a11.indexOf("id: 'conveyor-capture'");
+    const resume = a11.indexOf("id: 'board-resume'");
+    expect(collect).toBeGreaterThanOrEqual(0);
+    expect(capture).toBeGreaterThan(collect);
+    expect(resume).toBeGreaterThan(capture);
+  });
+
+  it('conveyor-capture message is the Tucker-approved copy (PROPOSED flag cleared)', () => {
+    const idx = a11.indexOf("id: 'conveyor-capture'");
+    const slice = a11.slice(idx, idx + 600);
+    expect(slice).not.toMatch(/PROPOSED/);
+    expect(slice).toMatch(
+      /message:\s*['"]Logged\. CONVEYOR\. Routes signal in a straight line\. I have seen worse\.['"]/
+    );
+  });
+
+  it('A1-1 still keeps board-resume as the final hand-over step', () => {
     expect(a11).toMatch(/id:\s*['"]board-resume['"]/);
   });
 
-  it('A1-1 no longer has the gated conveyor-instruct / conveyor-teach steps', () => {
+  it('A1-1 does not introduce a standalone conveyor-instruct / conveyor-teach step', () => {
+    // The collapsed A1-1 flow uses only collect (notice+instruct) and
+    // capture; the longer instruct/teach beats stay reserved for the
+    // multi-step intros (A1-2/3/5/7).
     expect(a11).not.toMatch(/conveyor-instruct/);
     expect(a11).not.toMatch(/conveyor-teach/);
-    expect(a11).not.toMatch(/conveyor-capture/);
-  });
-
-  it('A1-1 no longer gates the tutorial on placement or piece-tap', () => {
-    expect(a11).not.toMatch(/awaitPlacement/);
-    expect(a11).not.toMatch(/allowPieceTap/);
   });
 });
 
@@ -329,18 +365,20 @@ describe('PROMPT_129 -- ungated tap-anywhere dismissal restored', () => {
   });
 });
 
-describe('PROMPT_129 -- no square and no glow on piece/tray targets', () => {
+describe('PROMPT_138 -- square renders on all targets, glow circle suppressed on tray/placedPiece', () => {
   it('showPieceGlow excludes tray-prefixed and placedPiece targets (no glow circle)', () => {
     const m = overlaySrc.match(/const showPieceGlow\s*=[\s\S]*?;/);
     expect(m ? m[0] : '').toMatch(/!\s*isSquareOnlyTarget/);
   });
 
-  it('the portal corner-bracket square is suppressed on tray/placedPiece targets', () => {
-    // The portal render block must be gated so it does NOT draw for
-    // square-only (tray/placedPiece) targets. After this change the
-    // portal renders only for board/section/port targets.
-    const portalGuards = overlaySrc.match(/portalBox &&[\s\S]{0,80}?!\s*isSquareOnlyTarget/g);
-    expect(portalGuards && portalGuards.length >= 1).toBe(true);
+  it('the portal corner-bracket square is NOT gated by isSquareOnlyTarget (renders on every target)', () => {
+    // PROMPT_138: the corner-bracket square frames every portal target,
+    // including square-only (tray/placedPiece). The portal gate must no
+    // longer carry the !isSquareOnlyTarget exclusion.
+    expect(overlaySrc).not.toMatch(/portalBox &&[\s\S]{0,80}?!\s*isSquareOnlyTarget/);
+    // The portal block is still gated on phase + portalBox so it only
+    // draws once the orb has arrived and a box has been measured.
+    expect(overlaySrc).toMatch(/phase !== 'flying' && phase !== 'idle' && portalBox &&/);
   });
 
   it('glowCircle JSX and glowPulse loop are preserved for board/port targets', () => {
