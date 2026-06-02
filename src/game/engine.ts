@@ -266,6 +266,23 @@ function getDirectionalNeighbors(
 const MAX_STEPS = 50;
 
 /**
+ * Count the inbound signal edges into a Merger instance — the number of distinct
+ * upstream pieces whose output port faces one of the Merger's input ports. Used by
+ * the deferred-evaluation hold (G3, SPEC_KEPLER_ENGINE.md §3.3) to know how many
+ * paths to wait for before OR-ing them. Derived from live port adjacency
+ * (`canSendTo`), the same routing rule the BFS uses, so it is a safe upper bound on
+ * the number of paths that can actually arrive. When an inbound path is blocked
+ * upstream and never arrives, the drain-fallback flush (see executeMachine) emits
+ * the OR of whatever did arrive.
+ */
+function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPiece[]): number {
+  return allPieces.reduce(
+    (n, p) => (p.id !== merger.id && canSendTo(p, merger) ? n + 1 : n),
+    0,
+  );
+}
+
+/**
  * Directional signal tracer. Follows output→input port matching.
  *
  * For tape-enabled levels, pass pulseIndex (0-based) to drive protocol
@@ -291,6 +308,11 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
   }
 
   const visited = new Set<string>();
+  // G3 (REQ-MERGER-OR-1/2/3): deferred-Merger state. Each Merger that the BFS
+  // reaches collects every inbound path's signal value here before emitting the
+  // OR. Holding the Merger out of `visited` until its paths arrive is what stops
+  // the visited-set from silently dropping the second converging path.
+  const pendingMergers = new Map<string, { arrivals: number[]; expectedPaths: number }>();
   // Prompt 100 — BFS queue entries carry a `signalValue`, the bit
   // value being propagated along the path. Pieces that transform the
   // signal (Inverter flip, Latch READ override) update the outbound
@@ -313,6 +335,9 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     entrySide?: PortSide;
     signalValue: number;
     carriesLatchValue: boolean;
+    // G3: set by the drain-fallback to force a held Merger to emit when an
+    // inbound path was blocked upstream and will never arrive on its own.
+    flushMerger?: boolean;
   }[] = [{ id: source.id, signalValue: tapeValue ?? 0, carriesLatchValue: false }];
 
   const trail = {
@@ -320,13 +345,47 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     headPosition: dataTrail.headPosition,
   };
 
-  while (queue.length > 0 && steps.length < MAX_STEPS) {
-    const { id: currentId, entrySide, signalValue, carriesLatchValue } = queue.shift()!;
+  // Outer loop: drain the BFS queue, then flush any held Merger that received at
+  // least one inbound path but never reached `expectedPaths` (a path blocked
+  // upstream that never arrives). Each flush re-seeds the queue, so we loop until
+  // there is no queue work and no flushable Merger left (G3, REQ-MERGER-OR-3).
+  let didWork = true;
+  while (didWork) {
+    didWork = false;
+
+    while (queue.length > 0 && steps.length < MAX_STEPS) {
+    const { id: currentId, entrySide, signalValue, carriesLatchValue, flushMerger } = queue.shift()!;
     if (visited.has(currentId)) continue;
-    visited.add(currentId);
 
     const piece = pieces.find(p => p.id === currentId);
     if (!piece) continue;
+
+    // ── G3 (REQ-MERGER-OR-1/2/3): deferred Merger evaluation ──
+    // A Merger reconverges multiple inbound paths under OR. Processing it on the
+    // first arriving path (and marking it visited) is exactly the defect that
+    // drops the second converging path. Instead, record each arrival and HOLD the
+    // Merger — do not mark it visited, do not emit downstream — until every
+    // expected inbound path has arrived. Only then does it fall through to normal
+    // processing, where `case 'merger'` ORs the collected values. A `flushMerger`
+    // entry (queued by the drain-fallback below) forces the hold to release when
+    // an inbound path was blocked upstream and never arrives.
+    if (piece.type === 'merger') {
+      let pending = pendingMergers.get(currentId);
+      if (!pending) {
+        pending = { arrivals: [], expectedPaths: countMergerInboundEdges(piece, pieces) };
+        pendingMergers.set(currentId, pending);
+      }
+      if (!flushMerger) {
+        pending.arrivals.push(signalValue);
+      }
+      const allPathsArrived = pending.arrivals.length >= pending.expectedPaths;
+      if (!flushMerger && !allPathsArrived) {
+        continue; // hold for the remaining inbound path(s)
+      }
+      // ready — fall through to normal processing (visited add + OR in switch)
+    }
+
+    visited.add(currentId);
 
     piece.firedDuringRun = true;
 
@@ -440,9 +499,22 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         }
         break;
 
-      case 'merger':
-        step.message = 'Signal merged from input path';
+      case 'merger': {
+        // G3 (REQ-MERGER-OR-1/2/3): emit the OR of every inbound path value
+        // collected during the deferred hold — 1 if any delivering path carried
+        // 1, else 0. A non-delivering (blocked-upstream) path contributes no
+        // operand, so a single delivering path makes the Merger emit that path's
+        // value. A merged value is a fresh derived result, not a single Latch's
+        // emission, so it does not carry a Latch value downstream (G2 flag cleared).
+        const pending = pendingMergers.get(piece.id);
+        const arrivals = pending?.arrivals ?? [signalValue];
+        outboundSignalValue = arrivals.some(v => v === 1) ? 1 : 0;
+        outboundCarriesLatchValue = false;
+        step.message = `Signal merged (OR of ${arrivals.length} path${
+          arrivals.length === 1 ? '' : 's'
+        }) = ${outboundSignalValue}`;
         break;
+      }
 
       case 'bridge':
         step.message = 'Signal crossed bridge without interaction';
@@ -555,6 +627,22 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
           signalValue: outboundSignalValue,
           carriesLatchValue: outboundCarriesLatchValue,
         });
+      }
+    }
+    }
+
+    // ── G3 drain-fallback (REQ-MERGER-OR-3) ──
+    // A held Merger that received at least one arrival but never reached
+    // `expectedPaths` (because an inbound path was blocked upstream and will
+    // never arrive) must still emit. Re-queue it with `flushMerger` so it
+    // releases on the next inner pass and ORs whatever delivered. Guarded by
+    // MAX_STEPS so a permanently-held Merger can never spin the outer loop.
+    if (steps.length < MAX_STEPS) {
+      for (const [mergerId, pending] of pendingMergers) {
+        if (!visited.has(mergerId) && pending.arrivals.length >= 1) {
+          queue.push({ id: mergerId, signalValue: 0, carriesLatchValue: false, flushMerger: true });
+          didWork = true;
+        }
       }
     }
   }
