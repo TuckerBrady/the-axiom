@@ -989,12 +989,14 @@ function TutorialHUDOverlayComponent({
           dedicated controls still capture their own taps first. */}
       <Pressable onPress={handleTapAnywhere} style={StyleSheet.absoluteFill} />
 
-      {/* Portal (rendered when arrived/codex and not center). PROMPT_129:
-          suppressed for square-only (tray/placedPiece) targets so the
-          piece icon reads clean — neither glow circle nor corner-bracket
-          square is drawn over it. The label still renders above, the
-          orb hovers above the label, and the callout carries the text. */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox && !isSquareOnlyTarget && (
+      {/* Portal (rendered when arrived/codex and not center). PROMPT_138:
+          the corner-bracket square renders for ALL portal targets,
+          including square-only (tray/placedPiece). Only the filled glow
+          circle is suppressed for those targets — that lives in the
+          separate showPieceGlow block below, which already excludes
+          isSquareOnlyTarget. The square frames the tray slot / placed
+          piece without the circle obscuring the icon. */}
+      {phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
           style={{

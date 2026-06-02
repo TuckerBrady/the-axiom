@@ -108,8 +108,9 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
   });
 
   // ── 6: awaitPlacement only on instruct steps ──────────────────────────────
-  // PROMPT_129 removed A1-1's awaitPlacement gating entirely; the gated
-  // four-beat sequence remains on A1-2..A1-7 pending PROMPT_130.
+  // A1-2..A1-7 gate placement on the -instruct beat. PROMPT_138 restored
+  // A1-1's placement gate onto its collapsed conveyor-collect beat (which
+  // doubles as notice + instruct) and added a conveyor-capture beat.
   it('6: awaitPlacement appears only on -instruct steps, not notice/capture/teach (A1-2..A1-7)', () => {
     for (const [src, prefix, piece] of [
       [a12, 'gear', 'gear'],
@@ -120,8 +121,10 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       expect(src).not.toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?awaitPlacement:[\\s\\S]*?id: '${prefix}-instruct'`));
       expect(src).not.toMatch(new RegExp(`id: '${prefix}-capture'[\\s\\S]*?awaitPlacement:`));
     }
-    // A1-1 explicitly has no awaitPlacement after PROMPT_129.
-    expect(a11).not.toMatch(/awaitPlacement/);
+    // PROMPT_138: A1-1 gates placement on conveyor-collect, and the
+    // capture beat must NOT carry awaitPlacement.
+    expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?awaitPlacement: 'conveyor'/);
+    expect(a11).not.toMatch(/id: 'conveyor-capture'[\s\S]*?awaitPlacement:/);
   });
 
   // ── 7: A1-3 awaitPieceTap on teach-a ─────────────────────────────────────
