@@ -562,7 +562,12 @@ export default function GameplayScreen({ navigation }: Props) {
         const count = availableCounts[selectedPieceFromTray] || 0;
         if (count > 0) {
           if (blownCells.has(`${gridX},${gridY}`)) return;
-          const cost = getPieceCost(selectedPieceFromTray, discipline);
+          // Tutorial (Axiom) levels never charge credits, and pre-assigned
+          // pieces are always free regardless of sector. Protocol pieces
+          // (Scanner, Config Node, Transmitter) carry non-zero base costs,
+          // so without these guards the credit gate fired on A1-3/5/6/7/8.
+          const isPreAssigned = level?.availablePieces?.includes(selectedPieceFromTray) ?? false;
+          const cost = isAxiomLevel || isPreAssigned ? 0 : getPieceCost(selectedPieceFromTray, discipline);
           if (cost > 0) {
             const ok = spendCredits(selectedPieceFromTray, discipline);
             if (!ok) {
