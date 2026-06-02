@@ -130,8 +130,7 @@ export const levelA1_1: LevelDefinition = {
       label: 'CONVEYOR',
       targetRef: 'placedPiece',
       eyeState: 'green',
-      // PROPOSED — Tucker sign-off required
-      message: 'PROPOSED: Logged. CONVEYOR. Redirects signal along a straight line. I have added it to the Codex. You may proceed.',
+      message: 'Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.',
       codexEntryId: 'conveyor',
     },
     {
