@@ -57,16 +57,16 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       );
     });
 
-    it('catalogues the conveyor via the conveyor-capture step (PROMPT_138 orb-chase beat)', () => {
-      // PROMPT_138 moved the conveyor codex reveal off the tray step and
-      // onto the placedPiece capture beat. conveyor-collect is now the
-      // pre-capture "place it" step (no codex); conveyor-capture carries
-      // codexEntryId 'conveyor'.
+    it('catalogues the conveyor inline on the conveyor-collect step (PROMPT_140 inline reveal)', () => {
+      // PROMPT_140 (Tucker direction) reverted PROMPT_138's orb-chase:
+      // the conveyor codex reveal lives back on the tray-targeted
+      // conveyor-collect '???' step. No placement gate, no placedPiece
+      // capture beat.
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
-      expect(a11?.[0]).toMatch(/id: 'conveyor-collect'/);
       expect(a11?.[0]).toMatch(
-        /id: 'conveyor-capture'[\s\S]*?codexEntryId: 'conveyor'/,
+        /id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/,
       );
+      expect(a11?.[0]).not.toMatch(/conveyor-capture/);
     });
   });
 

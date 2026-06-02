@@ -26,7 +26,13 @@
 import type { TutorialStep } from '../../src/game/types';
 
 // ---------------------------------------------------------------------------
-// Arc-wheel tutorial steps (A1-1 canonical example from Build 19 incident)
+// Synthetic awaitPlacement step fixture (Build 19 incident reproduction)
+// ---------------------------------------------------------------------------
+// NOTE: As of PROMPT_140 the live A1-1 level no longer uses awaitPlacement
+// or a placedPiece capture beat (Tucker direction — inline codex reveal).
+// This fixture is intentionally synthetic: it exercises the overlay's
+// dimOpacity single-host invariant across an awaitPlacement on/off boundary,
+// a capability the engine still supports for Kepler+ Arc Wheel levels.
 // ---------------------------------------------------------------------------
 // Steps 0-4: no awaitPlacement (regular advance-on-tap flow)
 // Step 5: awaitPlacement: 'conveyor' (pauses tutorial until piece placed)

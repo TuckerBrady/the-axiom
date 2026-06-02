@@ -47,40 +47,50 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     for (const block of [a11, a12, a13, a14, a15, a16, a17, a18]) {
       expect(block).not.toContain('tutorialFocusPiece');
     }
-    // PROMPT_129 collapsed A1-1 to the gold conveyor-collect step;
-    // it now targets trayConveyor on a single ungated step. A1-2..A1-8
-    // still use the four-beat Arc-Wheel-era structure pending PROMPT_130.
+    // PROMPT_140: A1 piece intros reveal the Codex inline from the tray.
+    // No placement gate, no placedPiece capture beat. Both the notice and
+    // the named-reveal beats target the tray slot.
     expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?targetRef: 'trayConveyor'/);
-    expect(a12).toMatch(/id: 'gear-instruct'[\s\S]*?targetRef: 'trayGear'/);
-    expect(a13).toMatch(/id: 'confignode-instruct'[\s\S]*?targetRef: 'trayConfigNode'/);
-    expect(a15).toMatch(/id: 'scanner-instruct'[\s\S]*?targetRef: 'trayScanner'/);
-    expect(a17).toMatch(/id: 'transmitter-instruct'[\s\S]*?targetRef: 'trayTransmitter'/);
+    expect(a11).toMatch(/id: 'conveyor-reveal'[\s\S]*?targetRef: 'trayConveyor'/);
+    expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?targetRef: 'trayGear'/);
+    expect(a12).toMatch(/id: 'gear-reveal'[\s\S]*?targetRef: 'trayGear'/);
+    expect(a13).toMatch(/id: 'confignode-notice'[\s\S]*?targetRef: 'trayConfigNode'/);
+    expect(a13).toMatch(/id: 'confignode-reveal'[\s\S]*?targetRef: 'trayConfigNode'/);
+    expect(a15).toMatch(/id: 'scanner-notice'[\s\S]*?targetRef: 'trayScanner'/);
+    expect(a15).toMatch(/id: 'scanner-reveal'[\s\S]*?targetRef: 'trayScanner'/);
+    expect(a17).toMatch(/id: 'transmitter-notice'[\s\S]*?targetRef: 'trayTransmitter'/);
+    expect(a17).toMatch(/id: 'transmitter-reveal'[\s\S]*?targetRef: 'trayTransmitter'/);
   });
 
-  // ── 3: Four-beat step IDs ──────────────────────────────────────────────────
-  // PROMPT_129 collapsed A1-1 to the gold conveyor-collect/board-resume
-  // pair; A1-2..A1-8 still use the four-beat Arc-Wheel-era structure
-  // pending PROMPT_130's retrofit.
-  it('3: each remaining four-beat level contains step IDs in the correct order', () => {
+  // ── 3: Inline-reveal step IDs ──────────────────────────────────────────────
+  // PROMPT_140: A1 piece intros are notice → named-reveal → teach. The
+  // Arc-Wheel-era -instruct (placement gate) and -capture (placedPiece)
+  // beats are gone. A1-1 is collect → reveal → board-resume.
+  it('3: each piece-intro level contains step IDs in the correct order', () => {
+    // A1-1
+    expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?id: 'conveyor-reveal'[\s\S]*?id: 'board-resume'/);
     // A1-2
-    expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?id: 'gear-instruct'[\s\S]*?id: 'gear-capture'[\s\S]*?id: 'gear-teach'/);
+    expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?id: 'gear-reveal'[\s\S]*?id: 'gear-teach'/);
     // A1-3 (teach is split into teach-a and teach-b)
-    expect(a13).toMatch(/id: 'confignode-notice'[\s\S]*?id: 'confignode-instruct'[\s\S]*?id: 'confignode-capture'[\s\S]*?id: 'confignode-teach-a'[\s\S]*?id: 'confignode-teach-b'/);
+    expect(a13).toMatch(/id: 'confignode-notice'[\s\S]*?id: 'confignode-reveal'[\s\S]*?id: 'confignode-teach-a'[\s\S]*?id: 'confignode-teach-b'/);
     // A1-5
-    expect(a15).toMatch(/id: 'scanner-notice'[\s\S]*?id: 'scanner-instruct'[\s\S]*?id: 'scanner-capture'[\s\S]*?id: 'scanner-teach'/);
+    expect(a15).toMatch(/id: 'scanner-notice'[\s\S]*?id: 'scanner-reveal'[\s\S]*?id: 'scanner-teach'/);
     // A1-7
-    expect(a17).toMatch(/id: 'transmitter-notice'[\s\S]*?id: 'transmitter-instruct'[\s\S]*?id: 'transmitter-capture'[\s\S]*?id: 'transmitter-teach'/);
+    expect(a17).toMatch(/id: 'transmitter-notice'[\s\S]*?id: 'transmitter-reveal'[\s\S]*?id: 'transmitter-teach'/);
+    // The retired beat ids must be gone everywhere.
+    for (const src of [a11, a12, a13, a15, a17]) {
+      expect(src).not.toMatch(/-instruct'/);
+      expect(src).not.toMatch(/-capture'/);
+    }
   });
 
-  // ── 4: Eye state sequence amber → blue → green → blue ────────────────────
-  // PROMPT_129 retired the four-beat A1-1 sequence; A1-2..A1-8 still
-  // carry it pending PROMPT_130.
-  it('4: four-beat eye states are amber, blue, green, blue in order (A1-2..A1-7)', () => {
+  // ── 4: Eye state sequence amber → green → blue ───────────────────────────
+  // PROMPT_140: notice (amber, codex reveal) → named-reveal (green) → teach (blue).
+  it('4: piece-intro eye states are amber, green, blue in order (A1-2..A1-7)', () => {
     const eyeSeqRe = (prefix: string) =>
       new RegExp(
         `id: '${prefix}-notice'[\\s\\S]*?eyeState: 'amber'` +
-        `[\\s\\S]*?id: '${prefix}-instruct'[\\s\\S]*?eyeState: 'blue'` +
-        `[\\s\\S]*?id: '${prefix}-capture'[\\s\\S]*?eyeState: 'green'` +
+        `[\\s\\S]*?id: '${prefix}-reveal'[\\s\\S]*?eyeState: 'green'` +
         `[\\s\\S]*?id: '${prefix}-teach`,
       );
     expect(a12).toMatch(eyeSeqRe('gear'));
@@ -93,38 +103,31 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(a17).toMatch(/id: 'transmitter-teach'[\s\S]*?eyeState: 'blue'/);
   });
 
-  // ── 5: codexEntryId only on capture steps ─────────────────────────────────
-  // PROMPT_129 retired A1-1 from the four-beat structure; A1-2..A1-7
-  // still anchor codex collection on the -capture beat.
-  it('5: codexEntryId appears only on -capture steps, not notice/instruct/teach (A1-2..A1-7)', () => {
-    for (const [src, prefix] of [
-      [a12, 'gear'], [a13, 'confignode'],
-      [a15, 'scanner'],  [a17, 'transmitter'],
-    ] as [string, string][]) {
-      expect(src).toMatch(new RegExp(`id: '${prefix}-capture'[\\s\\S]*?codexEntryId:`));
-      expect(src).not.toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?codexEntryId:[\\s\\S]*?id: '${prefix}-instruct'`));
-      expect(src).not.toMatch(new RegExp(`id: '${prefix}-instruct'[\\s\\S]*?codexEntryId:[\\s\\S]*?id: '${prefix}-capture'`));
+  // ── 5: codexEntryId on the tray-targeted notice step (inline reveal) ──────
+  // PROMPT_140: the codex reveal moves onto the -notice beat so it fires
+  // while COGS is still showing the tray item. Not on -reveal or -teach.
+  it('5: codexEntryId appears on the -notice step, not -reveal/teach (A1-2..A1-7)', () => {
+    for (const [src, prefix, codexId] of [
+      [a12, 'gear', 'gear'], [a13, 'confignode', 'configNode'],
+      [a15, 'scanner', 'scanner'], [a17, 'transmitter', 'transmitter'],
+    ] as [string, string, string][]) {
+      expect(src).toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?codexEntryId: '${codexId}'[\\s\\S]*?id: '${prefix}-reveal'`));
+      // The named-reveal beat must NOT carry its own codexEntryId.
+      expect(src).not.toMatch(new RegExp(`id: '${prefix}-reveal'[\\s\\S]*?codexEntryId:[\\s\\S]*?id: '${prefix}-teach`));
     }
+    // A1-1: codexEntryId 'conveyor' lives on the '???' conveyor-collect beat.
+    expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/);
+    expect(a11).not.toMatch(/id: 'conveyor-reveal'[\s\S]*?codexEntryId:/);
   });
 
-  // ── 6: awaitPlacement only on instruct steps ──────────────────────────────
-  // A1-2..A1-7 gate placement on the -instruct beat. PROMPT_138 restored
-  // A1-1's placement gate onto its collapsed conveyor-collect beat (which
-  // doubles as notice + instruct) and added a conveyor-capture beat.
-  it('6: awaitPlacement appears only on -instruct steps, not notice/capture/teach (A1-2..A1-7)', () => {
-    for (const [src, prefix, piece] of [
-      [a12, 'gear', 'gear'],
-      [a13, 'confignode', 'configNode'], [a15, 'scanner', 'scanner'],
-      [a17, 'transmitter', 'transmitter'],
-    ] as [string, string, string][]) {
-      expect(src).toMatch(new RegExp(`id: '${prefix}-instruct'[\\s\\S]*?awaitPlacement: '${piece}'`));
-      expect(src).not.toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?awaitPlacement:[\\s\\S]*?id: '${prefix}-instruct'`));
-      expect(src).not.toMatch(new RegExp(`id: '${prefix}-capture'[\\s\\S]*?awaitPlacement:`));
+  // ── 6: no awaitPlacement / placedPiece anywhere in A1 ─────────────────────
+  // PROMPT_140 (Tucker direction): inline reveal, no placement gate, no
+  // orb-chase to a placed piece across every A1 level.
+  it('6: no A1 level carries awaitPlacement or targetRef placedPiece', () => {
+    for (const src of [a11, a12, a13, a14, a15, a16, a17, a18]) {
+      expect(src).not.toContain('awaitPlacement');
+      expect(src).not.toContain("'placedPiece'");
     }
-    // PROMPT_138: A1-1 gates placement on conveyor-collect, and the
-    // capture beat must NOT carry awaitPlacement.
-    expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?awaitPlacement: 'conveyor'/);
-    expect(a11).not.toMatch(/id: 'conveyor-capture'[\s\S]*?awaitPlacement:/);
   });
 
   // ── 7: A1-3 awaitPieceTap on teach-a ─────────────────────────────────────
@@ -150,7 +153,9 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(a12).toContain(
       "The tray. There is an uncatalogued piece sitting right there.",
     );
-    expect(a12).toContain(
+    // PROMPT_140: the "Place it. On the board..." instruct line is retired
+    // along with the placement gate.
+    expect(a12).not.toContain(
       "Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.",
     );
     expect(a12).toContain(
@@ -165,7 +170,8 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(a13).toContain(
       "Another one. The tray is showing a piece I cannot identify from existing records.",
     );
-    expect(a13).toContain(
+    // PROMPT_140: the "Board. Now..." instruct line is retired.
+    expect(a13).not.toContain(
       "Board. Now. I will handle the classification once I observe it in a live circuit. That is how this works.",
     );
     expect(a13).toContain(
@@ -183,7 +189,8 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(a15).toContain(
       "I see it. In the tray. Uncatalogued.",
     );
-    expect(a15).toContain(
+    // PROMPT_140: the "Same procedure as before. Place it..." instruct line is retired.
+    expect(a15).not.toContain(
       "Same procedure as before. Place it. Let it run. I will do the rest.",
     );
     expect(a15).toContain(
@@ -198,7 +205,8 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(a17).toContain(
       "One more. The tray.",
     );
-    expect(a17).toContain(
+    // PROMPT_140: the "Place it. You know the drill..." instruct line is retired.
+    expect(a17).not.toContain(
       "Place it. You know the drill by now. Operational necessity.",
     );
     expect(a17).toContain(
