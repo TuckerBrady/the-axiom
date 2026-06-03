@@ -288,47 +288,52 @@ describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
   });
 });
 
-// ── PROMPT_138 -- A1-1 orb-chase capture beat restored ──────────────────────
-// PROMPT_138 supersedes the PROMPT_129 collapse: A1-1 regains the
-// notice/instruct -> capture pattern used by every other A1 piece intro.
-// conveyor-collect is now the pre-capture "place this unknown piece" beat
-// ('???' label, awaitPlacement, NO codex); conveyor-capture is the orb-chase
-// codex beat (targetRef placedPiece, 'CONVEYOR' label, codexEntryId conveyor).
-describe('PROMPT_138 -- A1-1 orb-chase capture beat', () => {
+// ── PROMPT_140 -- A1-1 inline codex reveal (no awaitPlacement/placedPiece) ──
+// PROMPT_140 supersedes PROMPT_138's orb-chase capture beat (Tucker
+// direction): COGS notices the new piece in the tray and reveals it to the
+// Codex inline. conveyor-collect keeps its '???' label and now carries
+// codexEntryId 'conveyor'; conveyor-reveal is a tray-targeted named beat.
+// No placement gate, no placedPiece target.
+describe('PROMPT_140 -- A1-1 inline codex reveal', () => {
   let a11: string;
   beforeAll(() => { a11 = extractA11Steps(levelsSrc); });
 
-  it('A1-1 has the conveyor-collect pre-capture step labelled ??? with no codex', () => {
+  it("A1-1 conveyor-collect keeps the ??? label and now carries codexEntryId 'conveyor'", () => {
     const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-collect['"][^{}]*\}/);
     expect(m).not.toBeNull();
     const step = m ? m[0] : '';
     expect(step).toMatch(/label:\s*['"]\?\?\?['"]/);
     expect(step).toMatch(/targetRef:\s*['"]trayConveyor['"]/);
-    expect(step).toMatch(/awaitPlacement:\s*['"]conveyor['"]/);
-    expect(step).not.toMatch(/codexEntryId/);
+    expect(step).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
+    expect(step).not.toMatch(/awaitPlacement/);
   });
 
-  it('A1-1 has the conveyor-capture step targeting the placed piece with the codex reveal', () => {
-    const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-capture['"][^{}]*\}/);
+  it('A1-1 conveyor-reveal targets the tray slot (not a placed piece) with no own codex', () => {
+    const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-reveal['"][^{}]*\}/);
     expect(m).not.toBeNull();
     const step = m ? m[0] : '';
     expect(step).toMatch(/label:\s*['"]CONVEYOR['"]/);
-    expect(step).toMatch(/targetRef:\s*['"]placedPiece['"]/);
-    expect(step).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
+    expect(step).toMatch(/targetRef:\s*['"]trayConveyor['"]/);
     expect(step).toMatch(/eyeState:\s*['"]green['"]/);
+    expect(step).not.toMatch(/codexEntryId/);
   });
 
-  it('conveyor-capture sits between conveyor-collect and board-resume', () => {
+  it('A1-1 has no awaitPlacement and no placedPiece target on any step', () => {
+    expect(a11).not.toMatch(/awaitPlacement/);
+    expect(a11).not.toMatch(/placedPiece/);
+  });
+
+  it('conveyor-reveal sits between conveyor-collect and board-resume', () => {
     const collect = a11.indexOf("id: 'conveyor-collect'");
-    const capture = a11.indexOf("id: 'conveyor-capture'");
+    const reveal = a11.indexOf("id: 'conveyor-reveal'");
     const resume = a11.indexOf("id: 'board-resume'");
     expect(collect).toBeGreaterThanOrEqual(0);
-    expect(capture).toBeGreaterThan(collect);
-    expect(resume).toBeGreaterThan(capture);
+    expect(reveal).toBeGreaterThan(collect);
+    expect(resume).toBeGreaterThan(reveal);
   });
 
-  it('conveyor-capture message is the Tucker-approved copy (PROPOSED flag cleared)', () => {
-    const idx = a11.indexOf("id: 'conveyor-capture'");
+  it('conveyor-reveal message is the Tucker-approved copy', () => {
+    const idx = a11.indexOf("id: 'conveyor-reveal'");
     const slice = a11.slice(idx, idx + 600);
     expect(slice).not.toMatch(/PROPOSED/);
     expect(slice).toMatch(
@@ -340,12 +345,9 @@ describe('PROMPT_138 -- A1-1 orb-chase capture beat', () => {
     expect(a11).toMatch(/id:\s*['"]board-resume['"]/);
   });
 
-  it('A1-1 does not introduce a standalone conveyor-instruct / conveyor-teach step', () => {
-    // The collapsed A1-1 flow uses only collect (notice+instruct) and
-    // capture; the longer instruct/teach beats stay reserved for the
-    // multi-step intros (A1-2/3/5/7).
+  it('A1-1 does not introduce a standalone conveyor-instruct / conveyor-capture step', () => {
     expect(a11).not.toMatch(/conveyor-instruct/);
-    expect(a11).not.toMatch(/conveyor-teach/);
+    expect(a11).not.toMatch(/conveyor-capture/);
   });
 });
 

@@ -109,29 +109,27 @@ export const levelA1_1: LevelDefinition = {
       codexEntryId: 'terminal',
     },
     {
-      // Pre-capture beat: the piece is still unrecognized, so the label
-      // reads '???' and no codex entry is attached. awaitPlacement holds
-      // the tutorial here until the Engineer drags a conveyor onto the
-      // board; placement advances to conveyor-capture (mirrors the
-      // notice/instruct -> capture pattern in A1-2/3/5/7).
+      // Inline reveal beat (Tucker direction): COGS notices the new piece
+      // in the tray and reveals it to the Codex immediately. No placement
+      // gate, no orb-chase to a placed piece — chase-down is reserved for
+      // Kepler+ Arc Wheel. The '???' label is retained (Tucker approved);
+      // codexEntryId 'conveyor' triggers the A1-1 batch reveal
+      // (source + terminal + conveyor) in TutorialHUDOverlay.handlePrimary.
       id: 'conveyor-collect',
       label: '???',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
       message: 'That piece is not in the Codex yet. It will be.',
-      awaitPlacement: 'conveyor',
+      codexEntryId: 'conveyor',
     },
     {
-      // Capture beat: orb flies to the just-placed conveyor, COGS names
-      // it, and the codex entry is revealed. codexEntryId 'conveyor' also
-      // triggers the A1-1 batch reveal (source + terminal + conveyor) in
-      // TutorialHUDOverlay.handlePrimary.
-      id: 'conveyor-capture',
+      // Named-reveal beat: COGS names the piece after the Codex reveal.
+      // Targets the tray slot (not a placed piece).
+      id: 'conveyor-reveal',
       label: 'CONVEYOR',
-      targetRef: 'placedPiece',
+      targetRef: 'trayConveyor',
       eyeState: 'green',
       message: 'Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.',
-      codexEntryId: 'conveyor',
     },
     {
       id: 'board-resume',
@@ -183,32 +181,28 @@ export const levelA1_2: LevelDefinition = {
       message: 'Life support requires a bend in the path. The Source and Terminal are not aligned. A straight line will not reach. The signal needs to change direction once. Plan where that happens before placing anything.',
     },
     {
+      // Inline reveal (Tucker direction): COGS notices the new piece in
+      // the tray and reveals it to the Codex (codexEntryId). No placement
+      // gate, no orb-chase to a placed piece.
       id: 'gear-notice',
       label: 'PIECE TRAY',
       targetRef: 'trayGear',
       eyeState: 'amber',
       message: 'The tray. There is an uncatalogued piece sitting right there.',
+      codexEntryId: 'gear',
     },
     {
-      id: 'gear-instruct',
-      label: 'PIECE TRAY',
-      targetRef: 'trayGear',
-      eyeState: 'blue',
-      message: 'Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.',
-      awaitPlacement: 'gear',
-    },
-    {
-      id: 'gear-capture',
+      // Named-reveal beat: targets the tray slot, not a placed piece.
+      id: 'gear-reveal',
       label: 'GEAR',
-      targetRef: 'placedPiece',
+      targetRef: 'trayGear',
       eyeState: 'green',
       message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Two entries in two missions. This is... this is acceptable progress.',
-      codexEntryId: 'gear',
     },
     {
       id: 'gear-teach',
       label: 'GEAR',
-      targetRef: 'placedPiece',
+      targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Gear does not rotate on tap. It redirects the signal ninety degrees based on where the next piece is placed. Place where a corner is needed. The signal handles the rest.',
     },
@@ -263,32 +257,28 @@ export const levelA1_3: LevelDefinition = {
       message: 'There is a gate on this board. It will not open automatically. Something upstream needs to set the condition before the signal arrives. Order of placement is order of execution. Keep that in mind.',
     },
     {
+      // Inline reveal (Tucker direction): COGS notices the new piece in
+      // the tray and reveals it to the Codex (codexEntryId). No placement
+      // gate, no orb-chase to a placed piece.
       id: 'confignode-notice',
       label: 'PIECE TRAY',
       targetRef: 'trayConfigNode',
       eyeState: 'amber',
       message: 'Another one. The tray is showing a piece I cannot identify from existing records.',
+      codexEntryId: 'configNode',
     },
     {
-      id: 'confignode-instruct',
-      label: 'PIECE TRAY',
-      targetRef: 'trayConfigNode',
-      eyeState: 'blue',
-      message: 'Board. Now. I will handle the classification once I observe it in a live circuit. That is how this works.',
-      awaitPlacement: 'configNode',
-    },
-    {
-      id: 'confignode-capture',
+      // Named-reveal beat: targets the tray slot, not a placed piece.
+      id: 'confignode-reveal',
       label: 'CONFIG NODE',
-      targetRef: 'placedPiece',
+      targetRef: 'trayConfigNode',
       eyeState: 'green',
       message: 'Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Three entries. The Codex is starting to look like a real archive.',
-      codexEntryId: 'configNode',
     },
     {
       id: 'confignode-teach-a',
       label: 'CONFIG NODE',
-      targetRef: 'placedPiece',
+      targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Tap the Config Node. The gate blocks the pulse. This configuration lets ones flow through. Tap it.',
       allowPieceTap: true,
@@ -297,7 +287,7 @@ export const levelA1_3: LevelDefinition = {
     {
       id: 'confignode-teach-b',
       label: 'CONFIG NODE',
-      targetRef: 'placedPiece',
+      targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'This configuration lets zeros flow through. The Data Trail decides which is correct. The Config Node decides whether to care.',
     },
@@ -440,32 +430,28 @@ export const levelA1_5: LevelDefinition = {
       message: 'This board has a gate and a data trail. The gate reads the trail before it decides whether to open. Something needs to write the correct value to the trail before the signal reaches the gate. The sequence matters more than the placement.',
     },
     {
+      // Inline reveal (Tucker direction): COGS notices the new piece in
+      // the tray and reveals it to the Codex (codexEntryId). No placement
+      // gate, no orb-chase to a placed piece.
       id: 'scanner-notice',
       label: 'PIECE TRAY',
       targetRef: 'trayScanner',
       eyeState: 'amber',
       message: 'I see it. In the tray. Uncatalogued.',
+      codexEntryId: 'scanner',
     },
     {
-      id: 'scanner-instruct',
-      label: 'PIECE TRAY',
-      targetRef: 'trayScanner',
-      eyeState: 'blue',
-      message: 'Same procedure as before. Place it. Let it run. I will do the rest.',
-      awaitPlacement: 'scanner',
-    },
-    {
-      id: 'scanner-capture',
+      // Named-reveal beat: targets the tray slot, not a placed piece.
+      id: 'scanner-reveal',
       label: 'SCANNER',
-      targetRef: 'placedPiece',
+      targetRef: 'trayScanner',
       eyeState: 'green',
       message: 'Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Catalogued. I may need a bigger archive.',
-      codexEntryId: 'scanner',
     },
     {
       id: 'scanner-teach',
       label: 'SCANNER',
-      targetRef: 'placedPiece',
+      targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Scanner does not require configuration. Place it in the path. When the signal reaches it, it reads the IN value and transfers it to the Data Trail.',
     },
@@ -582,32 +568,28 @@ export const levelA1_7: LevelDefinition = {
       message: 'The weapons systems were locked deliberately. The lock is a gate with a condition. The condition has to be written to the trail before the signal checks it. There is a piece in the tray that writes. It has not been logged yet.',
     },
     {
+      // Inline reveal (Tucker direction): COGS notices the new piece in
+      // the tray and reveals it to the Codex (codexEntryId). No placement
+      // gate, no orb-chase to a placed piece.
       id: 'transmitter-notice',
       label: 'PIECE TRAY',
       targetRef: 'trayTransmitter',
       eyeState: 'amber',
       message: 'One more. The tray.',
+      codexEntryId: 'transmitter',
     },
     {
-      id: 'transmitter-instruct',
-      label: 'PIECE TRAY',
-      targetRef: 'trayTransmitter',
-      eyeState: 'blue',
-      message: 'Place it. You know the drill by now. Operational necessity.',
-      awaitPlacement: 'transmitter',
-    },
-    {
-      id: 'transmitter-capture',
+      // Named-reveal beat: targets the tray slot, not a placed piece.
+      id: 'transmitter-reveal',
       label: 'TRANSMITTER',
-      targetRef: 'placedPiece',
+      targetRef: 'trayTransmitter',
       eyeState: 'green',
       message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Five entries. The Codex is... it is becoming something.',
-      codexEntryId: 'transmitter',
     },
     {
       id: 'transmitter-teach',
       label: 'TRANSMITTER',
-      targetRef: 'placedPiece',
+      targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Transmitter reads the Data Trail and writes to the OUT tape. A piece that writes. Not sure how I feel about that.',
     },
