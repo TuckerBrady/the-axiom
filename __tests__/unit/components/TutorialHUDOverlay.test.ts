@@ -146,11 +146,12 @@ describe('Orb and callout positions on conveyor-teach (allowPieceTap)', () => {
     expect(calloutPos).not.toBe('');
   });
 
-  it('calloutPos returns a bottom-docked position when step has allowPieceTap', () => {
-    // The override must compute calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST.
-    // For 390x844 frame: top == 576, left == 24.
+  it('calloutPos snaps to the lower anchor (CALLOUT_LOWER_TOP) formula', () => {
+    // UX-01 two-position system: the lower anchor is
+    // SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST (~576 on 390x844). The
+    // old allowPieceTap special case is superseded by the general rule.
     expect(calloutPos).toMatch(
-      /allowPieceTap[\s\S]*?SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
+      /SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
     );
   });
 
@@ -162,11 +163,13 @@ describe('Orb and callout positions on conveyor-teach (allowPieceTap)', () => {
     );
   });
 
-  it('non-allowPieceTap steps still use the existing portal-relative callout logic', () => {
-    // The existing portal-relative branches (portalCenterY < midY, etc.)
-    // must remain intact for codex / non-tap steps.
-    expect(calloutPos).toMatch(/portalCenterY\s*<\s*midY/);
-    expect(calloutPos).toMatch(/Target in top half/);
+  it('calloutPos uses the two-position rule keyed on portalCenterY vs SCREEN_H / 2', () => {
+    // UX-01: the floating portal-relative branches (portalCenterY < midY,
+    // "Target in top half") are removed in favor of a single two-branch
+    // rule.
+    expect(calloutPos).toMatch(/portalCenterY\s*>\s*SCREEN_H\s*\/\s*2/);
+    expect(calloutPos).not.toMatch(/portalCenterY\s*<\s*midY/);
+    expect(calloutPos).not.toMatch(/Target in top half/);
   });
 });
 
@@ -254,10 +257,14 @@ describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () =>
     expect(overlaySrc).not.toMatch(/portalBox && !isSquareOnlyTarget/);
   });
 
-  it('callout top-docks (top: 80) on awaitPlacement tray steps', () => {
-    expect(calloutPos).toMatch(
-      /awaitPlacement[\s\S]{0,120}?startsWith\(\s*['"]tray['"]\s*\)[\s\S]*?top:\s*80/,
-    );
+  it('callout top-docks (upper anchor = 80) for lower-half / tray targets', () => {
+    // UX-01: a tray target sits in the lower half of the screen, so the
+    // general two-position rule resolves to the upper anchor
+    // (CALLOUT_UPPER_TOP = 80). The awaitPlacement tray special case is
+    // superseded and removed.
+    expect(calloutPos).toMatch(/CALLOUT_UPPER_TOP/);
+    expect(overlaySrc).toMatch(/const CALLOUT_UPPER_TOP = 80/);
+    expect(calloutPos).not.toMatch(/awaitPlacement/);
   });
 
   it('orb still hovers above the tray icon on tray steps (PROMPT_129 raised above label)', () => {
@@ -281,10 +288,12 @@ describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
     expect(runStep).toMatch(/['"]placedPiece['"]/);
   });
 
-  it('placedPiece allowPieceTap callout still bottom-docks (PROMPT_127 preserved)', () => {
-    expect(calloutPos).toMatch(
-      /allowPieceTap[\s\S]*?SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
-    );
+  it('placedPiece/allowPieceTap callout now follows the two-position rule (UX-01 supersedes the bottom-dock special case)', () => {
+    // A placedPiece target sits on the board (lower half), so the general
+    // rule resolves its callout via portalCenterY vs SCREEN_H / 2 rather
+    // than a dedicated allowPieceTap branch inside calloutPos.
+    expect(calloutPos).not.toMatch(/allowPieceTap/);
+    expect(calloutPos).toMatch(/portalCenterY\s*>\s*SCREEN_H\s*\/\s*2/);
   });
 });
 

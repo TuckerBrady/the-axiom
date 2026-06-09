@@ -32,6 +32,8 @@ const NAV_HEIGHT = 64;
 const CALLOUT_MAX_W = 360;
 const CALLOUT_GAP = 12;
 const CALLOUT_SIDE_PAD = 24;
+const CALLOUT_UPPER_TOP = 80;
+// CALLOUT_LOWER_TOP computed inline below (depends on CALLOUT_H_EST)
 
 type Phase = 'idle' | 'flying' | 'arrived' | 'codex' | 'complete';
 
@@ -345,68 +347,29 @@ function TutorialHUDOverlayComponent({
 
   const calloutPos = useMemo((): { top: number; left: number } | null => {
     if (!targetLayout) return null;
-    const midY = SCREEN_H / 2;
-    // Horizontal: centered, clamped to margins
-    let left = SCREEN_W / 2 - CALLOUT_W / 2;
-    if (left < 12) left = 12;
-    if (left + CALLOUT_W > SCREEN_W - 12) left = SCREEN_W - 12 - CALLOUT_W;
 
-    // PROMPT_128: awaiting placement on a tray target — top-dock the
-    // instruction so the board and tray stay clear for the drag gesture.
-    // For 390x844, top=80, left=24.
-    if (step?.awaitPlacement && step?.targetRef?.startsWith('tray')) {
-      const calloutLeft = Math.max(
-        12,
-        Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
-      );
-      return { top: 80, left: calloutLeft };
-    }
+    const centeredLeft = Math.max(
+      12,
+      Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
+    );
 
-    // PROMPT_127 Fix 2: when the step expects the player to tap the
-    // placed piece (allowPieceTap), bottom-dock the callout as a
-    // fixed pair with the orb (placed in runStep). Keeps the tap
-    // surface fully unobstructed — for 390x844, top=576, left=24.
-    if (step?.allowPieceTap) {
-      const calloutLeft = Math.max(
-        12,
-        Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
-      );
-      const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
-      return { top: calloutTop, left: calloutLeft };
-    }
+    const CALLOUT_LOWER_TOP = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
 
+    // Presentation Mode center step — orb centered, no spotlight — always upper
     if (step?.targetRef === 'center') {
-      // Above the orb center
-      const bottomOfCallout = SCREEN_H / 2 - ORB_SIZE / 2 - CALLOUT_GAP;
-      const top = Math.max(80, bottomOfCallout - CALLOUT_H_EST);
-      return { top, left };
+      return { top: CALLOUT_UPPER_TOP, left: centeredLeft };
     }
 
-    if (!portalBox) return null;
-    const portalTop = portalBox.top;
-    const portalBottom = portalBox.top + portalBox.height;
-    const portalCenterY = portalBox.top + portalBox.height / 2;
+    // Two-position rule: target in lower half of screen → card upper.
+    // Target in upper half → card lower.
+    const portalCenterY = portalBox
+      ? portalBox.top + portalBox.height / 2
+      : targetLayout.y + targetLayout.height / 2;
 
-    if (portalCenterY < midY) {
-      // Target in top half → callout below portal by default. If
-      // placing it below would push the bottom past 85% of screen
-      // height (long-message overflow), flip above the portal.
-      const belowTop = portalBottom + CALLOUT_GAP;
-      const belowBottom = belowTop + CALLOUT_H_EST;
-      if (belowBottom > SCREEN_H * 0.85) {
-        let top = portalTop - CALLOUT_GAP - CALLOUT_H_EST;
-        if (top < 80) top = 80;
-        return { top, left };
-      }
-      let top = belowTop;
-      const maxTop = SCREEN_H - NAV_HEIGHT - CALLOUT_H_EST - 8;
-      if (top > maxTop) top = maxTop;
-      return { top, left };
+    if (portalCenterY > SCREEN_H / 2) {
+      return { top: CALLOUT_UPPER_TOP, left: centeredLeft };
     } else {
-      // Target in bottom half → callout above portal
-      let top = portalTop - CALLOUT_GAP - CALLOUT_H_EST;
-      if (top < 80) top = 80;
-      return { top, left };
+      return { top: CALLOUT_LOWER_TOP, left: centeredLeft };
     }
   }, [targetLayout, portalBox, step, CALLOUT_W, CALLOUT_H_EST]);
 
