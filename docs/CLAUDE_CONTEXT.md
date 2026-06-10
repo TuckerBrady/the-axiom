@@ -409,7 +409,7 @@ To trigger a native binary build: include [build] in commit message.
    React Native implementation. All approved prototypes live in
    design/screens/ and are referenced directly in Claude Code
    implementation prompts.
-8. COGS eye states: blue=operations, amber=engagement,
+8. COGS AI Orb states: blue=operations, amber=engagement,
    green=warmth, red=damage, dark=offline.
 9. Credits is the only currency. Abbreviate as CR only where space
    is genuinely tight. Spell out Credits everywhere else.

@@ -1,10 +1,10 @@
-// ─── COGS eye state color tokens (DECISION-08) ──────────────────────────────
+// ─── COGS AI Orb state color tokens (DECISION-08) ───────────────────────────
 // Locked values from the Hub mockup. The ONLY place hex values live.
-// Components reference tokens by CogsEyeColor name, never raw hex.
+// Components reference tokens by CogsAIOrbColor name, never raw hex.
 
-export type CogsEyeColor = 'AMBER' | 'BLUE' | 'GREEN' | 'RED' | 'DARK';
+export type CogsAIOrbColor = 'AMBER' | 'BLUE' | 'GREEN' | 'RED' | 'DARK';
 
-export const COGS_EYE_COLORS: Record<CogsEyeColor, {
+export const COGS_AI_ORB_COLORS: Record<CogsAIOrbColor, {
   solid: string;
   border: string;
   dim: string;

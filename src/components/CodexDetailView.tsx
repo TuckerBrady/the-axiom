@@ -209,8 +209,8 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
         <View style={st.cogsCardWrap}>
           <View style={st.cogsCard}>
             <View style={st.cogsHeader}>
-              <View style={st.cogsEyeIcon}>
-                <View style={st.cogsEyeDot} />
+              <View style={st.cogsAIOrbIcon}>
+                <View style={st.cogsAIOrbDot} />
               </View>
               <Text style={st.cogsLabel}>C.O.G.S NOTES</Text>
               <View style={st.teachBadge}>
@@ -410,7 +410,7 @@ const st = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.xs,
   },
-  cogsEyeIcon: {
+  cogsAIOrbIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -419,7 +419,7 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cogsEyeDot: {
+  cogsAIOrbDot: {
     width: 6,
     height: 6,
     borderRadius: 3,

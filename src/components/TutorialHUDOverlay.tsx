@@ -18,7 +18,7 @@ import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial'
 import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
-import { COGS_EYE_COLORS } from '../constants/cogsEyeColors';
+import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1127,7 +1127,7 @@ function TutorialHUDOverlayComponent({
             borderWidth: 1.5,
             borderColor: orbCollectAnim.interpolate({
               inputRange: [0, 1],
-              outputRange: [eyeColor, COGS_EYE_COLORS.GREEN.solid],
+              outputRange: [eyeColor, COGS_AI_ORB_COLORS.GREEN.solid],
             }),
             alignItems: 'center',
             justifyContent: 'center',
@@ -1145,7 +1145,7 @@ function TutorialHUDOverlayComponent({
               borderRadius: 4,
               backgroundColor: orbCollectAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [eyeColor, COGS_EYE_COLORS.GREEN.solid],
+                outputRange: [eyeColor, COGS_AI_ORB_COLORS.GREEN.solid],
               }),
             }}
           />

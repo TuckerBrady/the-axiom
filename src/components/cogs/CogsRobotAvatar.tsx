@@ -1,15 +1,15 @@
 import React from 'react';
-import type { CogsEyeColor } from '../../constants/cogsEyeColors';
+import type { CogsAIOrbColor } from '../../constants/cogsAIOrbColors';
 import CogsAvatar from '../CogsAvatar';
 import type { CogsState } from '../CogsAvatar';
 
 interface Props {
-  color: CogsEyeColor;
+  color: CogsAIOrbColor;
   size?: number;
 }
 
 // Map hub eye color to the canonical CogsAvatar state
-const COLOR_TO_STATE: Record<CogsEyeColor, CogsState> = {
+const COLOR_TO_STATE: Record<CogsAIOrbColor, CogsState> = {
   AMBER: 'engaged',
   BLUE: 'online',
   GREEN: 'green',

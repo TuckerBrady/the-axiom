@@ -138,7 +138,7 @@ Every new piece must follow docs/PIECE_CREATION_STANDARD.md checklist.
 5. Button-driven. Explicit Confirm press only.
 6. HUD chrome is contextual. Corner brackets on tactical/operational screens only.
 7. HTML prototype first. Tucker approves design in HTML before React Native implementation.
-8. COGS eye states: blue=operations, amber=engagement, green=warmth, red=damage, dark=offline.
+8. COGS AI Orb eye states: blue=operations, amber=engagement, green=warmth, red=damage, dark=offline. (The element is the COGS AI Orb, not "the COGS eye" — the eye-state color vocabulary describes the Orb. Codebase rename complete, see TRIBAL_KNOWLEDGE.md "COGS AI Orb (canonical name)" / TERM-01.)
 9. Credits is the only currency. Abbreviate as CR only where space is tight.
 10. Free-to-play guarantee. Every level solvable without spending real money.
 
