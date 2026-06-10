@@ -74,16 +74,6 @@ export type PieceEntry = {
 const PIECES: PieceEntry[] = [
   // ── Unlocked Physics ──
   {
-    id: 'conveyor', name: 'Conveyor', type: 'Physics', status: 'unlocked',
-    description: 'A mechanical belt that accepts an item on one end and delivers it to the other. No branching. No memory.',
-    function: 'Moves a signal exactly one position forward along a defined axis. Output occurs at the far end.',
-    importance: 'Without the Conveyor, isolated components cannot communicate. It is the connective tissue of every working circuit.',
-    cogsNote: 'The Conveyor carries signal in a straight line. Input enters from the rear, output exits the front. It cannot bend, branch, or redirect \u2014 that is not what it is for. Direction is set before you place it, not after. A Conveyor facing away from the signal source is not a Conveyor. It is a dead end. Rotate first.',
-    timesUsed: 14, levelsPlayed: 4, sectorsSeen: 1,
-    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
-    seenIn: ['Boot Sequence T-1', 'First Contact', 'Signal Drift', 'Relay Breach'],
-  },
-  {
     id: 'source', name: 'Source', type: 'Physics', status: 'unlocked',
     description: 'Primary input node. The origin of all signal flow aboard the vessel.',
     function: 'Emits a continuous signal from its output port. Always active. Cannot be switched off.',
@@ -102,6 +92,16 @@ const PIECES: PieceEntry[] = [
     timesUsed: 18, levelsPlayed: 4, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['First Contact', 'Signal Drift', 'Relay Breach', 'Ion Cascade'],
+  },
+  {
+    id: 'conveyor', name: 'Conveyor', type: 'Physics', status: 'unlocked',
+    description: 'A mechanical belt that accepts an item on one end and delivers it to the other. No branching. No memory.',
+    function: 'Moves a signal exactly one position forward along a defined axis. Output occurs at the far end.',
+    importance: 'Without the Conveyor, isolated components cannot communicate. It is the connective tissue of every working circuit.',
+    cogsNote: 'The Conveyor carries signal in a straight line. Input enters from the rear, output exits the front. It cannot bend, branch, or redirect \u2014 that is not what it is for. Direction is set before you place it, not after. A Conveyor facing away from the signal source is not a Conveyor. It is a dead end. Rotate first.',
+    timesUsed: 14, levelsPlayed: 4, sectorsSeen: 1,
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
+    seenIn: ['Boot Sequence T-1', 'First Contact', 'Signal Drift', 'Relay Breach'],
   },
   {
     id: 'gear', name: 'Gear', type: 'Physics', status: 'unlocked',

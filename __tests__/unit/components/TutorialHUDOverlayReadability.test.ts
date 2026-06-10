@@ -51,10 +51,15 @@ describe('TutorialHUDOverlay readability (Prompt 87)', () => {
       expect(overlaySource).toMatch(/isLongMessage[\s\S]*?\?\s*CALLOUT_H_EST_LONG/);
     });
 
-    it('flips the callout above the portal when below-placement would cross 85% of screen height', () => {
-      expect(overlaySource).toMatch(/SCREEN_H\s*\*\s*0\.85/);
-      // Above-placement uses portalTop - CALLOUT_GAP - CALLOUT_H_EST.
-      expect(overlaySource).toMatch(/portalTop\s*-\s*CALLOUT_GAP\s*-\s*CALLOUT_H_EST/);
+    it('floats the lower anchor with CALLOUT_H_EST so long messages stay clear of the nav bar (UX-01)', () => {
+      // UX-01 replaced the floating 85%-overflow flip with a strict
+      // two-position system. The lower anchor still uses CALLOUT_H_EST, so
+      // a long message (240 est) shifts the card up relative to a default
+      // one (188 est). The old SCREEN_H * 0.85 flip is removed.
+      expect(overlaySource).toMatch(
+        /SCREEN_H\s*-\s*NAV_HEIGHT\s*-\s*16\s*-\s*CALLOUT_H_EST/,
+      );
+      expect(overlaySource).not.toMatch(/SCREEN_H\s*\*\s*0\.85/);
     });
   });
 });
