@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import type { CogsEyeColor } from '../../constants/cogsEyeColors';
-import { COGS_EYE_COLORS } from '../../constants/cogsEyeColors';
+import type { CogsAIOrbColor } from '../../constants/cogsAIOrbColors';
+import { COGS_AI_ORB_COLORS } from '../../constants/cogsAIOrbColors';
 import CogsRobotAvatar from './CogsRobotAvatar';
 import { Fonts } from '../../theme/tokens';
 
 interface Props {
-  color: CogsEyeColor;
+  color: CogsAIOrbColor;
   name?: string;
   role?: string;
   cta: string;
@@ -26,7 +26,7 @@ export default function CogsHubCard({
   body,
   onPress,
 }: Props) {
-  const c = COGS_EYE_COLORS[color];
+  const c = COGS_AI_ORB_COLORS[color];
 
   return (
     <Pressable

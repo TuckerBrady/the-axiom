@@ -570,8 +570,8 @@ function DetailView({
         <View style={cs.dossierSections}>
           <View style={[cs.dossierCard, cs.cogsTeachCard]}>
             <View style={cs.cogsTeachHeader}>
-              <View style={cs.cogsEyeIcon}>
-                <View style={cs.cogsEyeDot} />
+              <View style={cs.cogsAIOrbIcon}>
+                <View style={cs.cogsAIOrbDot} />
               </View>
               <Text style={cs.cogsTeachLabel}>C.O.G.S NOTES</Text>
               <View style={cs.teachBadge}>
@@ -1003,7 +1003,7 @@ const cs = StyleSheet.create({
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
   },
-  cogsEyeIcon: {
+  cogsAIOrbIcon: {
     width: 20,
     height: 20,
     borderRadius: 10,
@@ -1012,7 +1012,7 @@ const cs = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cogsEyeDot: {
+  cogsAIOrbDot: {
     width: 6,
     height: 6,
     borderRadius: 3,

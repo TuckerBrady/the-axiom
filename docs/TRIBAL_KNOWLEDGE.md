@@ -98,6 +98,11 @@ The joy is building elaborate, interesting machines — NOT finding the minimum 
 - Eye states: blue=operations, amber=engagement, green=warmth, red=damage, dark=offline.
 - In-level: COGS is an AI persona. Out-of-gameplay (Launch, Hub, Level Select): he's a droid character. NEVER use "AI companion" or "AI unit" in out-of-gameplay chrome.
 
+### COGS AI Orb (canonical name) — TERM-01
+
+- The circular animated COGS element is canonically the **COGS AI Orb**. The eye-state color vocabulary (blue/amber/green/red/dark) describes the Orb; it is not "the COGS eye."
+- Codebase rename **complete** (TERM-01, PROMPT_141). `src/constants/cogsEyeColors.ts` is now `src/constants/cogsAIOrbColors.ts`; identifiers `COGS_EYE_COLORS` → `COGS_AI_ORB_COLORS` and `CogsEyeColor` → `CogsAIOrbColor`; all importers and the "cogs eye" prose in `docs/CLAUDE_CONTEXT.md` and `project-docs/SPECS/maestro-smoke-suite.md` updated. No remaining `cogs eye` / `cogsEye` / `CogsEye` references in `src/`.
+
 ### "The Engineer" naming
 
 - Player is always "The Engineer."
