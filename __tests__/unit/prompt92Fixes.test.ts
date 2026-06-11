@@ -165,12 +165,14 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
     });
   });
 
-  describe('Fix 7 — A1-4 direction enforcement (TODO/blocker only)', () => {
-    it('records a TODO comment in A1-4 referencing min_direction_changes', () => {
+  describe('Fix 7 — A1-4 direction enforcement (implemented in PROMPT_142 / GAME-02)', () => {
+    it('A1-4 now enforces min_direction_changes (Prompt 92 TODO resolved)', () => {
       const a14 = levelsSrc.match(/levelA1_4:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a14).not.toBeNull();
-      expect(a14?.[0]).toMatch(/min_direction_changes/);
-      expect(a14?.[0]).toMatch(/Out of scope for Prompt 92/);
+      // The objective is live (no longer a deferred TODO).
+      expect(a14?.[0]).toMatch(/type: 'min_direction_changes', count: 2/);
+      // The Prompt 92 deferral note must be gone.
+      expect(a14?.[0]).not.toMatch(/Out of scope for Prompt 92/);
     });
   });
 });

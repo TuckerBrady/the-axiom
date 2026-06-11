@@ -410,6 +410,14 @@ function TutorialHUDOverlayComponent({
   const portalLeft = useRef(new Animated.Value(0)).current;
   const portalTop = useRef(new Animated.Value(0)).current;
 
+  // UX-07 (Presentation Mode, SPEC-01): track the previous step's target
+  // and the board-outline geometry it settled on. When two consecutive
+  // steps target the same boardGrid element with an unchanged layout, the
+  // outline must persist without replaying its expand animation — the
+  // playtest flagged the board outline reloading/flickering on every tap.
+  const previousTargetRef = useRef<string | null>(null);
+  const previousBoardBoxRef = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
+
   // ── Morph portal in ──
   const morphPortalIn = useCallback((box: { width: number; height: number }, done?: () => void) => {
     portalW.setValue(0);
@@ -528,6 +536,46 @@ function TutorialHUDOverlayComponent({
     const s = steps[idx];
     if (!s) return;
     if (!mountedRef.current) return;
+
+    // UX-07: when this step targets the same boardGrid element as the
+    // previous step, the outline is already drawn. Snap it to its settled
+    // geometry and refresh only the dialogue card — do NOT tear it down
+    // (resetVisualState / flying phase) or replay the expand morph, which
+    // is what made the board outline reload/flicker on every tap.
+    const willPersistBoard =
+      s.targetRef === 'boardGrid' &&
+      previousTargetRef.current === 'boardGrid' &&
+      !!previousBoardBoxRef.current;
+
+    if (willPersistBoard) {
+      previousTargetRef.current = s.targetRef;
+      setPhase('arrived');
+      measureTarget(s.targetRef, (layout) => {
+        if (!mountedRef.current) return;
+        const box = layout ? computePortalBox(layout) : previousBoardBoxRef.current!;
+        if (layout) setTargetLayout(layout);
+        previousBoardBoxRef.current = box;
+        // Snap the outline in place (no expand animation) and fade the new
+        // card in. portalLeft/Top/W/H + portalOpacity stay on the JS driver.
+        portalLeft.setValue(box.left);
+        portalTop.setValue(box.top);
+        portalW.setValue(box.width);
+        portalH.setValue(box.height);
+        portalOpacity.setValue(1);
+        glowOpacity.setValue(0.85);
+        calloutOpacity.setValue(0);
+        const tail = Animated.timing(calloutOpacity, {
+          toValue: 1,
+          duration: 120,
+          useNativeDriver: false,
+        });
+        trackAnim(tail);
+        tail.start();
+      });
+      return;
+    }
+
+    previousTargetRef.current = s.targetRef;
     resetVisualState();
     setTargetLayout(null);
     setPhase('flying');
@@ -612,6 +660,9 @@ function TutorialHUDOverlayComponent({
         setPhase('arrived');
         if (box) {
           if (s.targetRef === 'boardGrid') {
+            // UX-07: remember the settled board outline so the next step,
+            // if it targets boardGrid again, can persist it without replay.
+            previousBoardBoxRef.current = box;
             morphBoardReveal(box);
           } else {
             morphPortalIn({ width: box.width, height: box.height });
@@ -631,7 +682,7 @@ function TutorialHUDOverlayComponent({
         }
       });
     });
-  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST]);
+  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST, portalLeft, portalTop, portalW, portalH, portalOpacity, glowOpacity]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
@@ -970,7 +1021,10 @@ function TutorialHUDOverlayComponent({
             height: portalH,
             opacity: portalOpacity,
             borderWidth: 1.5,
-            borderColor: isCodexStep ? '#F0B429' : eyeColor,
+            // UX-04: the highlight square border is always amber. The COGS AI
+            // Orb's eye-state color drives the orb itself, not the targeting
+            // bracket — a green/red orb state must not recolor the square.
+            borderColor: '#F0B429',
             borderRadius: 10,
             backgroundColor: 'rgba(0,0,0,0.3)',
             zIndex: 150,
@@ -984,28 +1038,14 @@ function TutorialHUDOverlayComponent({
         </Animated.View>
       )}
 
-      {/* Portal label (above portal). Centered across the full screen
-          width so short labels like "CONFIG NODE" never have to wrap
-          even when the portal is narrow. PROMPT_129: always renders
-          on any step that has a label, including tray/placedPiece —
-          the PIECE TRAY / CONVEYOR / etc. caption is the orientation
-          cue when the square is suppressed. */}
-      {phase !== 'flying' && phase !== 'idle' && portalBox && step.label && (
-        <Animated.View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: portalBox.top - 24,
-            left: 0,
-            right: 0,
-            alignItems: 'center',
-            opacity: portalOpacity,
-            zIndex: 151,
-          }}
-        >
-          <Text style={st.label} numberOfLines={1}>{step.label}</Text>
-        </Animated.View>
-      )}
+      {/* UX-02: the per-step mission sub-header (step.label, e.g. "CIRCUIT
+          BOARD" / "INPUT TAPE" / "PROPULSION CORE" / "???") used to render
+          above the portal here. Skeptic playtest flagged it as redundant
+          chrome competing with the static level title and the dialogue card.
+          The render is removed; step.label is retained as data in levels.ts
+          (now unused — flag for a future cleanup pass). Removing the only
+          consumer also resolves UX-03 (off-center "???"/codex labels) as a
+          side effect: nothing renders a label that could be off-center. */}
 
       {/* Piece glow (steady fill + inner bright layer + pulsing outer ring).
           The steady fill casts a shadow so the glow reads as light

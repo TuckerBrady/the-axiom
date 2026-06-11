@@ -180,7 +180,7 @@ function TapeBarShellComponent({
                   tape="out"
                   index={i}
                   value={null}
-                  highlight={undefined}
+                  highlight={tapeCellHighlights.get(`out-${i}`)}
                   gatePassed={gatePassed}
                   gateBlocked={gateBlocked}
                   hasValue={hasValue}
