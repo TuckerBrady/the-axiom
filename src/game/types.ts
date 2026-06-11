@@ -91,8 +91,12 @@ export type MachineState = {
 // ─── Level Definition ─────────────────────────────────────────────────────────
 
 export type LevelObjective = {
-  type: 'reach_output' | 'reach_output_with_value';
+  type: 'reach_output' | 'reach_output_with_value' | 'min_direction_changes';
   requiredValue?: number;
+  // min_direction_changes — the minimum number of Gear-driven direction
+  // changes the executed signal path must contain (GAME-02). A1-4 sets
+  // count: 2 to enforce the two-bend route that teaches multi-turn routing.
+  count?: number;
 };
 
 // ─── Consequence Level Config ─────────────────────────────────────────────

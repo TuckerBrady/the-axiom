@@ -16,6 +16,7 @@ import {
   getOutputPorts,
   resetRunState,
 } from '../game/engine';
+import { meetsDirectionObjectives } from '../game/objectives';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       succeeded = reachedOutputEveryPulse && tapeMatches;
     } else {
       succeeded = allSteps.some(s => s.type === 'terminal' && s.success);
+    }
+
+    // GAME-02: structural objectives (e.g. A1-4's min_direction_changes)
+    // gate success in addition to reaching the Terminal. A zero/one-bend
+    // path that reaches the Terminal still fails the level if it does not
+    // contain the required Gear-driven direction changes.
+    if (succeeded && currentLevel) {
+      succeeded = meetsDirectionObjectives(currentLevel.objectives, allSteps);
     }
 
     const playerPiecesUsed = machineState.pieces.filter(p => !p.isPrePlaced).length;

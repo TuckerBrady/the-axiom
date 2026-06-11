@@ -318,16 +318,13 @@ export const levelA1_4: LevelDefinition = {
   ],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
   dataTrail: { cells: [], headPosition: 0 },
-  objectives: [{ type: 'reach_output' }],
+  // GAME-02: A1-4 is where "we begin teaching the soul of the game" —
+  // a two-bend route. reach_output alone lets a zero/one-bend path pass
+  // once it reaches the Terminal, so min_direction_changes enforces the
+  // two Gear-driven turns. Counted in the executed signal path at lock
+  // (see src/game/objectives.ts, wired in gameStore.executeAndScore).
+  objectives: [{ type: 'reach_output' }, { type: 'min_direction_changes', count: 2 }],
   optimalPieces: 5,
-  // TODO (Prompt 92, Fix 7) — Tucker reports COGS calls for two
-  // direction changes here ("we begin teaching the soul of the
-  // game"), but the engine currently only enforces reach_output, so
-  // a one-bend or zero-bend path still passes if it reaches the
-  // terminal. Add a `min_direction_changes` objective type, count
-  // Gear-driven turns in the executed signal path at lock, and
-  // fail the run if count < 2. Out of scope for Prompt 92 (touches
-  // engine + scoring + objective types). Tracked as a follow-up.
   systemRepaired: 'Propulsion Core',
   budget: 20,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
@@ -648,7 +645,6 @@ export const levelA1_8: LevelDefinition = {
     { key: 'a18_boss', trigger: 'onMount', text: 'Bridge systems. Every piece you have learned is in play. This is what the Axiom needs.' },
     { key: 'a18_scoring', trigger: 'onMount', text: 'Your full score is now visible: Efficiency, Protocol, Integrity, Discipline, Speed. Three stars is the goal.' },
     { key: 'a18_discipline', trigger: 'onMount', text: 'Your discipline shapes your bonus. Play to your strengths — but every path to three stars is open.' },
-    { key: 'a18_speed', trigger: 'onEngage', text: 'Timer running. Decisive solutions score higher.' },
   ],
   tutorialSteps: [
     {

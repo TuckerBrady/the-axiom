@@ -25,9 +25,14 @@ describe('TutorialHUDOverlay readability (Prompt 87)', () => {
       expect(overlaySource).toMatch(/label:\s*\{[\s\S]*?color:\s*'#F0B429'/);
     });
 
-    it('positions the label at portalBox.top - 24 to clear the larger text', () => {
-      expect(overlaySource).toMatch(/top:\s*portalBox\.top\s*-\s*24/);
-      expect(overlaySource).not.toMatch(/top:\s*portalBox\.top\s*-\s*20/);
+    it('no longer renders step.label as a portal sub-header (UX-02, PROMPT_142)', () => {
+      // PROMPT_142 UX-02 removed the per-step mission sub-header. The
+      // `<Text style={st.label}>{step.label}</Text>` block — previously
+      // positioned at portalBox.top - 24 — no longer renders. The st.label
+      // style (fontSize 13, amber) is retained as dead style for a future
+      // cleanup pass; the two assertions above still pin it.
+      expect(overlaySource).not.toMatch(/<Text[^>]*style=\{st\.label\}[^>]*>\s*\{step\.label\}/);
+      expect(overlaySource).not.toMatch(/top:\s*portalBox\.top\s*-\s*24/);
     });
   });
 
