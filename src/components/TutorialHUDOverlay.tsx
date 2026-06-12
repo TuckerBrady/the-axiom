@@ -938,6 +938,21 @@ function TutorialHUDOverlayComponent({
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
 
+  // PROMPT_143: the '???' Codex-discovery caption. Restored after PROMPT_142's
+  // UX-02 fix removed the only renderer (the step.label sub-header). This is a
+  // separate render path that does NOT read step.label — it is derived purely
+  // from the step's codexEntryId plus monotonic discovery state, so it appears
+  // automatically for ANY undiscovered collectible piece (A1-1 conveyor AND the
+  // gear/configNode/scanner/transmitter PIECE TRAY steps in later levels), with
+  // no per-level hardcoding. Once collected (markDiscovered fires on confirm),
+  // a re-encountered step with the same codexEntryId no longer shows '???'.
+  // isCodexStep === !!step.codexEntryId, so the codexEntryId check is implicit;
+  // it is kept explicit here for the type narrow on the isDiscovered argument.
+  const showCodexDiscoveryCaption =
+    isCodexStep &&
+    !!step.codexEntryId &&
+    !useCodexStore.getState().isDiscovered(step.codexEntryId);
+
   // ── Spotlight ring positions (A1-1 only) ──
   const isBoardStep = step.targetRef === 'boardGrid';
   const showSpotlights =
@@ -1046,6 +1061,32 @@ function TutorialHUDOverlayComponent({
           (now unused — flag for a future cleanup pass). Removing the only
           consumer also resolves UX-03 (off-center "???"/codex labels) as a
           side effect: nothing renders a label that could be off-center. */}
+
+      {/* PROMPT_143: '???' Codex-discovery caption. Centered over the highlight
+          square by matching the portal box geometry exactly (same animated
+          left/top/width/height + portalOpacity), so it tracks the square and
+          fades with it — and stays centered, avoiding the UX-03 off-center
+          regression the old step.label sub-header was raised against. Driven
+          solely by showCodexDiscoveryCaption (codexEntryId + !isDiscovered);
+          reuses the amber-mono caption styling the sub-header label used. */}
+      {showCodexDiscoveryCaption && phase !== 'flying' && phase !== 'idle' && portalBox && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: isBoardStep ? portalLeft : portalBox.left,
+            top: isBoardStep ? portalTop : portalBox.top,
+            width: portalW,
+            height: portalH,
+            opacity: portalOpacity,
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 151,
+          }}
+        >
+          <Text style={st.label}>???</Text>
+        </Animated.View>
+      )}
 
       {/* Piece glow (steady fill + inner bright layer + pulsing outer ring).
           The steady fill casts a shadow so the glow reads as light
