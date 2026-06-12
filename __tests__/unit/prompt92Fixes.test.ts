@@ -85,6 +85,41 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
     });
   });
 
+  describe('PROMPT_144 — A1-7 output-tape-intro added', () => {
+    it('introduces the output tape on A1-7, where the Transmitter first appears', () => {
+      const a17 = levelsSrc.match(/levelA1_7:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      expect(a17).not.toBeNull();
+      expect(a17?.[0]).toMatch(/id: 'output-tape-intro'[\s\S]*?targetRef: 'outputTapeRow'/);
+    });
+
+    it('places output-tape-intro after transmitter-reveal and before transmitter-teach', () => {
+      const a17 = levelsSrc.match(/levelA1_7:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const src = a17?.[0] ?? '';
+      const revealIdx = src.indexOf("id: 'transmitter-reveal'");
+      const outputIdx = src.indexOf("id: 'output-tape-intro'");
+      const teachIdx = src.indexOf("id: 'transmitter-teach'");
+      expect(revealIdx).toBeGreaterThan(-1);
+      expect(outputIdx).toBeGreaterThan(-1);
+      expect(teachIdx).toBeGreaterThan(-1);
+      expect(outputIdx).toBeGreaterThan(revealIdx);
+      expect(outputIdx).toBeLessThan(teachIdx);
+    });
+
+    it('does not add output-tape-intro to any other Axiom level', () => {
+      const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a12 = levelsSrc.match(/levelA1_2:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a13 = levelsSrc.match(/levelA1_3:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a14 = levelsSrc.match(/levelA1_4:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a15 = levelsSrc.match(/levelA1_5:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a16 = levelsSrc.match(/levelA1_6:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      const a18 = levelsSrc.match(/levelA1_8:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
+      for (const m of [a11, a12, a13, a14, a15, a16, a18]) {
+        expect(m).not.toBeNull();
+        expect(m?.[0]).not.toMatch(/id: 'output-tape-intro'/);
+      }
+    });
+  });
+
   describe('Fix 6 — Tutorial glow brightness', () => {
     it('morphPortalIn settles glowOpacity at 0.85 (was 0.45)', () => {
       // Match the timing block whose toValue feeds glowOpacity. We

@@ -584,6 +584,17 @@ export const levelA1_7: LevelDefinition = {
       message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Five entries. The Codex is... it is becoming something.',
     },
     {
+      // PROPOSED COGS copy (PROMPT_144) — Tucker sign-off required before
+      // any TestFlight build surfaces it. Introduces the OUT tape as a
+      // standalone concept now that the Transmitter (which writes to it)
+      // has been named, mirroring A1-5's input-tape-intro pattern.
+      id: 'output-tape-intro',
+      label: 'OUTPUT TAPE',
+      targetRef: 'outputTapeRow',
+      eyeState: 'blue',
+      message: 'This is the output tape. The Transmitter writes here — one cell per pulse, left to right. What the machine produces becomes visible the moment it produces it.',
+    },
+    {
       id: 'transmitter-teach',
       label: 'TRANSMITTER',
       targetRef: 'boardGrid',
