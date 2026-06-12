@@ -51,3 +51,24 @@ requires fresh sign-off.
   caption style.
 - No changes to `handlePrimary` / `markDiscovered` calls, animation host
   structure, driver flags, or triple-guard cleanup (REQ-A-1 intact).
+
+## Fix-up note (PROMPT_143_FIX)
+
+T-Bot's PR #17 review flagged the caption render site as `????` (four
+question marks). At execution time the rendered glyph was already `???`
+(three characters) at `TutorialHUDOverlay.tsx:1087`
+(`<Text style={st.label}>???</Text>`), and a repo-wide search found no
+four-question-mark string anywhere in the file — the source was already
+correct (no glyph change required, no production source touched).
+
+The substantive issue was the test regex. The source-contract assertion
+`expect(overlaySrc).toMatch(/['"]\?\?\?['"]/)` looks for `???` wrapped in
+quotes, but the rendered JSX text node `>???</Text>` has no surrounding
+quotes. The regex was only matching the quoted `'???'` / `"???"` strings in
+the file's source comments (lines ~941, ~948, ~1057, ~1062, ~1065), so the
+test passed without ever asserting against the real rendered glyph. Per the
+prompt's option to "adjust the regex to also match an unquoted `???` inside
+a JSX text node," the assertion is now
+`expect(overlaySrc).toMatch(/>\s*\?\?\?\s*</)`, which matches the actual
+`>???<` text node and not the comment occurrences. The source-contract test
+now verifies the rendered glyph directly.

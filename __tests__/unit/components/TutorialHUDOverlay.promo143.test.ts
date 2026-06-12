@@ -21,7 +21,14 @@ describe('PROMPT_143 -- Codex-discovery "???" caption restored and generalized',
     // Source must contain a render path for '???' that checks BOTH
     // step.codexEntryId presence and useCodexStore discovery state --
     // not a hardcoded per-level string match.
-    expect(overlaySrc).toMatch(/['"]\?\?\?['"]/);
+    //
+    // Assert against the actual rendered JSX text node (>???<), not a
+    // quoted '???' literal: the caption renders as a bare JSX text node
+    // (<Text ...>???</Text>) with no surrounding quotes. The earlier
+    // /['"]\?\?\?['"]/ regex only matched the quoted '???' / "???" inside
+    // source comments, so it passed without ever exercising the real glyph
+    // (PROMPT_143_FIX).
+    expect(overlaySrc).toMatch(/>\s*\?\?\?\s*</);
     expect(overlaySrc).toMatch(/isDiscovered/);
   });
 
