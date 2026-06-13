@@ -29,14 +29,25 @@ function getCodexPieceColor(pieceId: string): string {
     case 'counter':
     case 'latch':
       return '#8B5CF6'; // Protocol purple
+    // Tape entries (DATA STREAM) — match the in-game tape bar colors.
+    case 'inputTape':
+      return '#BFFF3F'; // IN — neon green
+    case 'dataTrail':
+      return '#A97FDB'; // TRAIL — atomic purple
+    case 'outputTape':
+      return '#FF7D3F'; // OUT — fire orange
     default:
       return '#4a9eff'; // Physics blue
   }
 }
 
+// Tape ids render as DATA STREAM entries (not Physics/Protocol pieces) — they
+// use a dedicated hero glyph + field strip instead of PieceIcon/PieceSimulation.
+const TAPE_IDS = new Set(['inputTape', 'dataTrail', 'outputTape']);
+
 // ─── Local PieceEntry type (mirrors CodexScreen) ───────────────────────────
 
-export type CodexPieceType = 'Physics' | 'Protocol';
+export type CodexPieceType = 'Physics' | 'Protocol' | 'Stream';
 
 export type PieceEntry = {
   id: string;
@@ -74,6 +85,19 @@ export const CODEX_PIECES: PieceEntry[] = [
     description: 'A programmable routing node that modifies the behaviour of adjacent components based on set parameters.',
     cogsNote: 'The Config Node is a conditional gate. Signal passes through only when the current Data Trail value satisfies the Node\u2019s configured condition.',
     firstEncountered: 'THE AXIOM \u2014 A1-3 Navigation Array' },
+  // \u2500\u2500 Tape system (DATA STREAM) \u2014 copy approved by Tucker 2026-06-12 \u2500\u2500
+  { id: 'inputTape', name: 'Input Tape', type: 'Stream',
+    description: 'A read-only sequence of bit values fed into the machine \u2014 one cell per pulse, left to right. The machine fires once per cell.',
+    cogsNote: 'The input tape is the question. One bit at a time, in order, no second readings. The machine does not choose what it is asked. Only what it does about it.',
+    firstEncountered: 'THE AXIOM \u2014 A1-5 Communication Array' },
+  { id: 'dataTrail', name: 'Data Trail', type: 'Stream',
+    description: 'The machine\u2019s working memory. Pieces write values here; pieces read them back. It persists across pulses within a single run.',
+    cogsNote: 'The Data Trail is what the machine remembers. Without it, every pulse is a stranger. With it, the machine carries a thought from one moment to the next. Unreasonably close to thinking.',
+    firstEncountered: 'THE AXIOM \u2014 A1-5 Communication Array' },
+  { id: 'outputTape', name: 'Output Tape', type: 'Stream',
+    description: 'Where results are recorded \u2014 one cell per pulse. A value appears the moment a signal completes the circuit at the Terminal.',
+    cogsNote: 'The output tape is the answer. Everything upstream is opinion until a value lands here. Then it is fact. And it is yours.',
+    firstEncountered: 'THE AXIOM \u2014 A1-7 Weapons Lock' },
   { id: 'scanner', name: 'Scanner', type: 'Protocol',
     description: 'Reads the state of a connected piece and broadcasts its status to any listening nodes on the circuit.',
     cogsNote: 'The Scanner reads the Data Trail at the moment signal passes through it. That value is captured and stored \u2014 available to any Config Node that follows it.',
@@ -108,6 +132,112 @@ export function getCodexEntry(id: string): PieceEntry | null {
   return CODEX_PIECES.find(p => p.id === id) ?? null;
 }
 
+// Canonical Codex numbering (COPY-01, Scheme A). Defined in a dependency-free
+// module so it can be unit tested without importing this component. Re-exported
+// here for the existing call sites that import from CodexDetailView.
+export { CODEX_DISCOVERY_ORDER, getCodexEntryNumber } from '../game/codexOrder';
+
+// ─── Tape (DATA STREAM) rendering helpers ──────────────────────────────────
+
+// #RRGGBB -> rgba() with the given alpha. Tape entries derive their accent
+// from the tape bar color, which is stored as hex.
+export function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Sample cell values shown in each tape's hero glyph + field strip. These are
+// illustrative, not live — they convey the shape of each tape:
+//  - Input: a fixed read-only bit sequence
+//  - Data Trail: a couple of written cells, the rest pending
+//  - Output: the first results landed, the rest still blank
+const TAPE_SAMPLE: Record<string, (string | null)[]> = {
+  inputTape: ['1', '0', '1', '1', '0'],
+  dataTrail: ['1', '0', null, null, null],
+  outputTape: ['1', '1', null, null, null],
+};
+
+// Tape ids that render as DATA STREAM entries. Exported so CodexScreen's
+// library grid/detail can share the same tape rendering as the reveal.
+export function isStreamEntry(id: string): boolean {
+  return TAPE_IDS.has(id);
+}
+
+// Small multi-cell glyph used as the hero icon for tape entries.
+export function TapeGlyph({ color }: { color: string }) {
+  return (
+    <View style={tg.row}>
+      {['1', '0', '1'].map((v, i) => (
+        <View key={i} style={[tg.cell, { borderColor: color }]}>
+          <Text style={[tg.cellText, { color }]}>{v}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// Field-simulation replacement for tape entries: a labeled strip of cells in
+// the tape's own color, filling the same slot PieceSimulation would occupy.
+export function TapeFieldStrip({ id, color }: { id: string; color: string }) {
+  const cells = TAPE_SAMPLE[id] ?? ['_', '_', '_', '_', '_'];
+  const label = id === 'inputTape' ? 'IN' : id === 'dataTrail' ? 'TRAIL' : 'OUT';
+  return (
+    <View style={tg.stripWrap}>
+      <View style={tg.strip}>
+        <Text style={[tg.stripLabel, { color }]}>{label}</Text>
+        {cells.map((v, i) => {
+          const filled = v !== null;
+          return (
+            <View
+              key={i}
+              style={[
+                tg.stripCell,
+                filled
+                  ? { borderColor: color, backgroundColor: hexToRgba(color, 0.18) }
+                  : { borderColor: 'rgba(124,138,165,0.3)' },
+              ]}
+            >
+              <Text style={[tg.stripCellText, { color: filled ? '#fff' : Colors.muted }]}>
+                {v ?? '_'}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={tg.stripCaption}>One cell per pulse. Read left to right.</Text>
+    </View>
+  );
+}
+
+const tg = StyleSheet.create({
+  row: { flexDirection: 'row', gap: 3 },
+  cell: {
+    width: 14, height: 18, borderRadius: 3, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  cellText: { fontFamily: Fonts.spaceMono, fontSize: 10, fontWeight: '700' },
+  stripWrap: {
+    marginHorizontal: Spacing.lg, marginBottom: Spacing.lg,
+    borderRadius: 10, borderWidth: 1, borderColor: 'rgba(124,138,165,0.18)',
+    backgroundColor: 'rgba(10,22,40,0.5)', paddingVertical: Spacing.md, alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  strip: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  stripLabel: {
+    fontFamily: Fonts.spaceMono, fontSize: 10, letterSpacing: 1, width: 40, textAlign: 'right',
+    marginRight: 4,
+  },
+  stripCell: {
+    width: 30, height: 30, borderRadius: 6, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stripCellText: { fontFamily: Fonts.spaceMono, fontSize: 14, fontWeight: '700' },
+  stripCaption: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, letterSpacing: 0.5 },
+});
+
 // ─── CodexDetailView component ─────────────────────────────────────────────
 
 interface Props {
@@ -122,10 +252,19 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
   const loggedSlide = useSharedValue(-40);
 
   const isPhysics = entry.type === 'Physics';
-  const accent = isPhysics
-    ? { bg: 'rgba(240,180,41,0.08)', border: 'rgba(240,180,41,0.28)', text: Colors.amber }
-    : { bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.28)', text: '#00D4FF' };
-  const atmosphereColor = isPhysics ? 'rgba(240,180,41,0.06)' : 'rgba(0,212,255,0.06)';
+  const isStream = entry.type === 'Stream';
+  // Stream (tape) entries take their accent from the tape's own bar color so
+  // the entry screen reads as the same object the player sees in gameplay.
+  const streamColor = getCodexPieceColor(entry.id);
+  const accent = isStream
+    ? { bg: hexToRgba(streamColor, 0.08), border: hexToRgba(streamColor, 0.4), text: streamColor }
+    : isPhysics
+      ? { bg: 'rgba(240,180,41,0.08)', border: 'rgba(240,180,41,0.28)', text: Colors.amber }
+      : { bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.28)', text: '#00D4FF' };
+  const atmosphereColor = isStream
+    ? hexToRgba(streamColor, 0.06)
+    : isPhysics ? 'rgba(240,180,41,0.06)' : 'rgba(0,212,255,0.06)';
+  const typeBadgeLabel = isStream ? 'DATA STREAM' : isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE';
 
   useEffect(() => {
     reveal.value = withTiming(1, { duration: 200 });
@@ -168,12 +307,14 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
         {/* Hero */}
         <View style={st.hero}>
           <View style={[st.iconBox, { backgroundColor: accent.bg, borderColor: accent.border }]}>
-            <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />
+            {isStream
+              ? <TapeGlyph color={streamColor} />
+              : <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />}
           </View>
           <Text style={st.heroName}>{entry.name.toUpperCase()}</Text>
           <View style={[st.typeBadge, { backgroundColor: accent.bg, borderColor: accent.border }]}>
             <Text style={[st.typeBadgeText, { color: accent.text }]}>
-              {isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE'}
+              {typeBadgeLabel}
             </Text>
           </View>
           <Animated.View style={[st.loggedBadge, loggedStyle]}>
@@ -203,7 +344,9 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
         )}
 
         {/* Field simulation */}
-        <PieceSimulation pieceType={entry.id} />
+        {isStream
+          ? <TapeFieldStrip id={entry.id} color={streamColor} />
+          : <PieceSimulation pieceType={entry.id} />}
 
         {/* C.O.G.S NOTES */}
         <View style={st.cogsCardWrap}>

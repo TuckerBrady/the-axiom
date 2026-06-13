@@ -112,8 +112,13 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       [a15, 'scanner', 'scanner'], [a17, 'transmitter', 'transmitter'],
     ] as [string, string, string][]) {
       expect(src).toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?codexEntryId: '${codexId}'[\\s\\S]*?id: '${prefix}-reveal'`));
-      // The named-reveal beat must NOT carry its own codexEntryId.
-      expect(src).not.toMatch(new RegExp(`id: '${prefix}-reveal'[\\s\\S]*?codexEntryId:[\\s\\S]*?id: '${prefix}-teach`));
+      // The named-reveal beat must NOT carry its own codexEntryId. Scope the
+      // check to the reveal step's own object (up to its closing "}," ) so
+      // unrelated codexEntryId on a later step (e.g. the A1-7 output-tape-notice
+      // that follows transmitter-reveal) does not trip this.
+      const revealBlock = src.match(new RegExp(`id: '${prefix}-reveal'[\\s\\S]*?\\},`));
+      expect(revealBlock).not.toBeNull();
+      expect(revealBlock![0]).not.toContain('codexEntryId');
     }
     // A1-1: codexEntryId 'conveyor' lives on the '???' conveyor-collect beat.
     expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/);
@@ -159,7 +164,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       "Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.",
     );
     expect(a12).toContain(
-      "Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Two entries in two missions. This is... this is acceptable progress.",
+      "Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.",
     );
     expect(a12).toContain(
       "The Gear does not rotate on tap. It redirects the signal ninety degrees based on where the next piece is placed. Place where a corner is needed. The signal handles the rest.",
@@ -175,7 +180,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       "Board. Now. I will handle the classification once I observe it in a live circuit. That is how this works.",
     );
     expect(a13).toContain(
-      "Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Three entries. The Codex is starting to look like a real archive.",
+      "Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Five entries. The Codex is starting to look like a real archive.",
     );
     expect(a13).toContain(
       "Tap the Config Node. The gate blocks the pulse. This configuration lets ones flow through. Tap it.",
@@ -194,7 +199,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       "Same procedure as before. Place it. Let it run. I will do the rest.",
     );
     expect(a15).toContain(
-      "Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Catalogued. I may need a bigger archive.",
+      "Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Eighth entry. I may need a bigger archive.",
     );
     expect(a15).toContain(
       "The Scanner does not require configuration. Place it in the path. When the signal reaches it, it reads the IN value and transfers it to the Data Trail.",
@@ -210,10 +215,34 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
       "Place it. You know the drill by now. Operational necessity.",
     );
     expect(a17).toContain(
-      "Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Five entries. The Codex is... it is becoming something.",
+      "Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Nine entries. The Codex is... it is becoming something.",
     );
     expect(a17).toContain(
       "The Transmitter reads the Data Trail and writes to the OUT tape. A piece that writes. Not sure how I feel about that.",
     );
+  });
+
+  // ── 13–15: Tape Codex entries (CONTENT-01) ────────────────────────────────
+  const codexSrc = read('src/components/CodexDetailView.tsx');
+
+  it('13: A1-5 catalogues IN tape and Data Trail via ??? -> Codex notice steps', () => {
+    expect(a15).toMatch(/id: 'input-tape-notice'[\s\S]*?codexEntryId: 'inputTape'[\s\S]*?id: 'input-tape-reveal'/);
+    expect(a15).toMatch(/id: 'data-trail-notice'[\s\S]*?codexEntryId: 'dataTrail'[\s\S]*?id: 'data-trail-reveal'/);
+    // The named-reveal beats are green and carry the Scheme-A entry numbers.
+    expect(a15).toContain('Sixth entry.');
+    expect(a15).toContain('Seventh entry.');
+  });
+
+  it('14: A1-7 catalogues OUT tape via a ??? -> Codex notice step', () => {
+    expect(a17).toMatch(/id: 'output-tape-notice'[\s\S]*?codexEntryId: 'outputTape'[\s\S]*?id: 'output-tape-reveal'/);
+    expect(a17).toContain('Tenth entry.');
+  });
+
+  it('15: CodexDetailView defines the three tape entries as DATA STREAM', () => {
+    for (const id of ['inputTape', 'dataTrail', 'outputTape']) {
+      expect(codexSrc).toMatch(new RegExp(`id: '${id}'[\\s\\S]*?type: 'Stream'`));
+    }
+    // The DATA STREAM badge label is wired in the component.
+    expect(codexSrc).toContain("'DATA STREAM'");
   });
 });

@@ -187,7 +187,7 @@ export const levelA1_2: LevelDefinition = {
       id: 'gear-reveal',
       targetRef: 'trayGear',
       eyeState: 'green',
-      message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Two entries in two missions. This is... this is acceptable progress.',
+      message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.',
     },
     {
       id: 'gear-teach',
@@ -258,7 +258,7 @@ export const levelA1_3: LevelDefinition = {
       id: 'confignode-reveal',
       targetRef: 'trayConfigNode',
       eyeState: 'green',
-      message: 'Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Three entries. The Codex is starting to look like a real archive.',
+      message: 'Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Five entries. The Codex is starting to look like a real archive.',
     },
     {
       id: 'confignode-teach-a',
@@ -376,26 +376,41 @@ export const levelA1_5: LevelDefinition = {
     { key: 'a15_scanner', trigger: 'onMount', text: 'The Scanner is placed. Connect it into the path. It reads automatically when you engage.' },
   ],
   tutorialSteps: [
+    // CONTENT-01: tapes get the same ??? -> Codex discovery flow as pieces
+    // (Tucker direction 2026-06-12). The IN tape and Data Trail are
+    // catalogued here as DATA STREAM entries (006, 007 in CODEX_DISCOVERY_ORDER).
+    // The output-tape-intro step that previously lived here was removed
+    // (Prompt 92, Fix 5): A1-5 has no Transmitter, so the OUT row is gated
+    // off and outputTapeRow points at a non-rendered View. OUT is introduced
+    // on its first real appearance (A1-7).
     {
-      id: 'input-tape-intro',
+      // Notice beat: COGS spotlights the IN tape, '???' caption shows, tap
+      // opens the Codex entry. codexEntryId drives both.
+      id: 'input-tape-notice',
       targetRef: 'inputTapeRow',
-      eyeState: 'blue',
-      message: 'This is the input tape. Each cell is a bit value fed into the machine one pulse at a time. The machine fires once per bit. Left to right.',
+      eyeState: 'amber',
+      message: 'There is a data stream feeding this board. I have not catalogued it.',
+      codexEntryId: 'inputTape',
     },
-    // The output-tape-intro step that previously lived here was
-    // removed (Prompt 92, Fix 5). A1-5 has no Transmitter, so the
-    // OUT tape row is gated off in GameplayScreen and the
-    // outputTapeRow ref points at a non-rendered View. The tutorial
-    // overlay's measureTarget then fell back to screen center, so
-    // COGS flew to mid-board, sat there with text describing a tape
-    // the player couldn't see, and required a tap to advance. The
-    // OUT tape's introduction belongs on its first appearance
-    // (A1-7 introduces the Transmitter and the OUT row).
     {
-      id: 'data-trail-intro',
+      // Named-reveal beat after the Codex closes.
+      id: 'input-tape-reveal',
+      targetRef: 'inputTapeRow',
+      eyeState: 'green',
+      message: 'Input tape. Each cell is one bit, fed in order, one per pulse. The machine fires once per cell, left to right. Sixth entry.',
+    },
+    {
+      id: 'data-trail-notice',
       targetRef: 'dataTrailRow',
-      eyeState: 'blue',
-      message: 'This is the Data Trail. The machine\'s working memory. Pieces read from it and write to it as the signal passes through. What is here determines what happens next.',
+      eyeState: 'amber',
+      message: 'Another stream. This one the machine writes to as it runs. Also uncatalogued.',
+      codexEntryId: 'dataTrail',
+    },
+    {
+      id: 'data-trail-reveal',
+      targetRef: 'dataTrailRow',
+      eyeState: 'green',
+      message: 'Data Trail. The machine\'s working memory. Pieces read from it and write to it as the signal passes. What is here decides what happens next. Seventh entry.',
     },
     {
       id: 'board-intro',
@@ -418,7 +433,7 @@ export const levelA1_5: LevelDefinition = {
       id: 'scanner-reveal',
       targetRef: 'trayScanner',
       eyeState: 'green',
-      message: 'Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Catalogued. I may need a bigger archive.',
+      message: 'Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Eighth entry. I may need a bigger archive.',
     },
     {
       id: 'scanner-teach',
@@ -549,17 +564,23 @@ export const levelA1_7: LevelDefinition = {
       id: 'transmitter-reveal',
       targetRef: 'trayTransmitter',
       eyeState: 'green',
-      message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Five entries. The Codex is... it is becoming something.',
+      message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Nine entries. The Codex is... it is becoming something.',
     },
     {
-      // PROPOSED COGS copy (PROMPT_144) — Tucker sign-off required before
-      // any TestFlight build surfaces it. Introduces the OUT tape as a
-      // standalone concept now that the Transmitter (which writes to it)
-      // has been named, mirroring A1-5's input-tape-intro pattern.
-      id: 'output-tape-intro',
+      // CONTENT-01: OUT tape catalogued as a DATA STREAM entry (010), now
+      // that the Transmitter that writes to it has been named. Same
+      // ??? -> Codex notice/reveal flow as the IN tape and Data Trail.
+      id: 'output-tape-notice',
       targetRef: 'outputTapeRow',
-      eyeState: 'blue',
-      message: 'This is the output tape. The Transmitter writes here — one cell per pulse, left to right. What the machine produces becomes visible the moment it produces it.',
+      eyeState: 'amber',
+      message: 'One more stream. Where the results land. Not yet on record.',
+      codexEntryId: 'outputTape',
+    },
+    {
+      id: 'output-tape-reveal',
+      targetRef: 'outputTapeRow',
+      eyeState: 'green',
+      message: 'Output tape. One cell per pulse. A value appears the moment a signal completes the circuit at the Terminal. Tenth entry. The full pipeline is on record.',
     },
     {
       id: 'transmitter-teach',

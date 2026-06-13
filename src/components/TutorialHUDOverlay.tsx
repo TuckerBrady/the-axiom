@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep, PieceType } from '../game/types';
 import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial';
 import { Colors, Fonts } from '../theme/tokens';
-import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
+import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 
@@ -1245,6 +1245,7 @@ function TutorialHUDOverlayComponent({
         >
           <CodexDetailView
             entry={codexEntry}
+            entryNumber={getCodexEntryNumber(codexEntry.id)}
             onUnderstood={handleCodexUnderstood}
             alsoCollected={codexAlsoCollected.length > 0 ? codexAlsoCollected : undefined}
           />

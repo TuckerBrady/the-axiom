@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>The Axiom — Numbered Codex + Tape Entries (Mock)</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Space+Mono:wght@400;700&family=Exo+2:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --void:#02050E; --panel:rgba(10,22,40,0.7); --star:#E8F0FF; --muted:#7C8AA5;
+    --amber:#F0B429; --cyan:#00D4FF; --purple:#8B5CF6; --green:#00C48C; --copper:#C87941;
+    --in:#BFFF3F; --trail:#A97FDB; --out:#FF7D3F;
+    --mono:'Space Mono',monospace; --orb:'Orbitron',sans-serif; --body:'Exo 2',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#070b16;color:var(--star);font-family:var(--body);padding:32px;}
+  h1{font-family:var(--orb);font-size:20px;letter-spacing:3px;margin-bottom:4px;}
+  .sub{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:1px;margin-bottom:28px;}
+  h2{font-family:var(--orb);font-size:14px;letter-spacing:2px;margin:36px 0 14px;color:var(--cyan);
+     border-bottom:1px solid rgba(0,212,255,0.18);padding-bottom:8px;}
+  .note{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7;margin-bottom:18px;max-width:760px;}
+  .note b{color:var(--amber);}
+  .row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;}
+
+  /* numbering tables */
+  table{border-collapse:collapse;font-family:var(--mono);font-size:11px;margin-bottom:8px;}
+  th,td{border:1px solid rgba(124,138,165,0.25);padding:6px 12px;text-align:left;}
+  th{color:var(--cyan);letter-spacing:1px;font-size:10px;}
+  td.num{color:var(--amber);font-weight:700;text-align:center;}
+  .tape-row td{color:var(--purple);}
+  .infra td.name{color:var(--green);}
+  .cap{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;}
+
+  /* phone frame */
+  .phone{width:300px;background:var(--void);border:1px solid rgba(0,212,255,0.18);border-radius:18px;
+     overflow:hidden;position:relative;box-shadow:0 0 0 1px rgba(0,0,0,0.4);}
+  .chrome{display:flex;justify-content:space-between;align-items:center;padding:14px 16px 8px;
+     border-bottom:1px solid rgba(0,212,255,0.12);}
+  .chrome .l{display:flex;align-items:center;gap:8px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);}
+  .chrome .lab{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:2px;}
+  .chrome .entry{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;}
+  .hero{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 0 20px;}
+  .iconbox{width:60px;height:60px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+     font-family:var(--orb);font-size:24px;border:1.5px solid;}
+  .heroName{font-family:var(--orb);font-weight:700;font-size:20px;letter-spacing:4px;}
+  .badge{border:1px solid;border-radius:20px;padding:3px 16px;font-family:var(--mono);font-size:10px;letter-spacing:2px;}
+  .logged{border:1px solid var(--copper);background:rgba(200,121,65,0.10);border-radius:6px;padding:4px 10px;
+     font-family:var(--mono);font-size:9px;color:var(--copper);letter-spacing:2px;}
+  .firstEnc{display:flex;gap:8px;align-items:center;margin:0 16px 14px;background:rgba(78,203,141,0.06);
+     border:1px solid rgba(78,203,141,0.2);border-radius:10px;padding:8px 12px;}
+  .firstEnc .k{font-family:var(--mono);font-size:8px;color:var(--green);letter-spacing:1px;}
+  .firstEnc .v{font-family:var(--mono);font-size:9px;color:var(--star);}
+  .sim{margin:0 16px 14px;height:90px;border-radius:10px;border:1px dashed rgba(124,138,165,0.3);
+     display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:var(--muted);
+     position:relative;overflow:hidden;}
+  .cogscard{margin:0 16px 16px;background:var(--panel);border:1px solid rgba(240,180,41,0.2);border-radius:12px;padding:12px;}
+  .cogshead{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .cogsorb{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--cyan);display:flex;align-items:center;justify-content:center;}
+  .cogsorb i{width:6px;height:6px;border-radius:50%;background:var(--cyan);display:block;}
+  .cogslab{font-family:var(--mono);font-size:9px;color:var(--amber);letter-spacing:2px;flex:1;}
+  .teach{border:1px solid var(--cyan);border-radius:6px;padding:2px 6px;font-family:var(--mono);font-size:8px;color:var(--cyan);}
+  .desc{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px;}
+  .cogstext{font-size:12.5px;font-style:italic;color:rgba(232,240,255,0.82);line-height:1.65;}
+  .actionbar{display:flex;justify-content:space-between;align-items:center;padding:12px 16px 16px;
+     background:rgba(2,5,14,0.96);border-top:1px solid rgba(0,212,255,0.16);}
+  .actionbar .k{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:2px;}
+  .btn{border:1px solid var(--amber);background:rgba(240,180,41,0.12);border-radius:8px;padding:8px 18px;
+     font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:2px;}
+
+  /* tape cells */
+  .tape{display:flex;gap:4px;align-items:center;margin:10px 0;}
+  .tlabel{font-family:var(--mono);font-size:10px;width:42px;letter-spacing:1px;}
+  .cell{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+     font-family:var(--mono);font-size:14px;font-weight:700;border:1px solid rgba(124,138,165,0.3);color:var(--muted);}
+  .opt{background:var(--void);border:1px solid rgba(124,138,165,0.2);border-radius:12px;padding:16px;width:330px;}
+  .opt h3{font-family:var(--mono);font-size:11px;letter-spacing:1px;color:var(--star);margin-bottom:4px;}
+  .opt p{font-family:var(--mono);font-size:9.5px;color:var(--muted);line-height:1.6;margin-bottom:6px;}
+</style>
+</head>
+<body>
+  <h1>NUMBERED CODEX + TAPE ENTRIES</h1>
+  <div class="sub">DESIGN MOCK · resolves COPY-01 (numbered codex) + CONTENT-01 (tape codex entries) · DRAFT copy — needs Tucker sign-off</div>
+
+  <!-- ============================ NUMBERING ============================ -->
+  <h2>1 · THE NUMBERING SCHEME — pick one</h2>
+  <div class="note">
+    Today the on-screen <b>ENTRY 00X</b> number comes from a static array index, and COGS's spoken counts contradict
+    themselves (source = "first entry" / terminal = "two entries", but gear = "two entries in two missions",
+    configNode = "three entries"). Once tapes join the Codex, every milestone count has to be re-derived anyway.
+    The fix: <b>entry number = the order COGS catalogues it</b> (already tracked in <b>codexStore.discoveredIds</b>).
+    Two ways to count it:
+  </div>
+  <div class="row">
+    <div>
+      <table>
+        <tr><th>#</th><th>Entry</th><th>Where</th></tr>
+        <tr class="infra"><td class="num">001</td><td class="name">Source</td><td>A1-1</td></tr>
+        <tr class="infra"><td class="num">002</td><td class="name">Terminal</td><td>A1-1</td></tr>
+        <tr><td class="num">003</td><td>Conveyor</td><td>A1-1</td></tr>
+        <tr><td class="num">004</td><td>Gear</td><td>A1-2</td></tr>
+        <tr><td class="num">005</td><td>Config Node</td><td>A1-3</td></tr>
+        <tr class="tape-row"><td class="num">006</td><td>Input Tape</td><td>A1-5</td></tr>
+        <tr class="tape-row"><td class="num">007</td><td>Data Trail</td><td>A1-5</td></tr>
+        <tr><td class="num">008</td><td>Scanner</td><td>A1-5</td></tr>
+        <tr><td class="num">009</td><td>Transmitter</td><td>A1-7</td></tr>
+        <tr class="tape-row"><td class="num">010</td><td>Output Tape</td><td>A1-7</td></tr>
+      </table>
+      <div class="cap">SCHEME A — count everything COGS catalogues (recommended)</div>
+      <div class="cap" style="color:var(--green)">green = fixed infrastructure · <span style="color:var(--purple)">purple = tape</span></div>
+    </div>
+    <div>
+      <table>
+        <tr><th>#</th><th>Entry</th><th>Where</th></tr>
+        <tr class="infra"><td class="num">—</td><td class="name">Source</td><td>A1-1 (uncounted)</td></tr>
+        <tr class="infra"><td class="num">—</td><td class="name">Terminal</td><td>A1-1 (uncounted)</td></tr>
+        <tr><td class="num">001</td><td>Conveyor</td><td>A1-1</td></tr>
+        <tr><td class="num">002</td><td>Gear</td><td>A1-2</td></tr>
+        <tr><td class="num">003</td><td>Config Node</td><td>A1-3</td></tr>
+        <tr class="tape-row"><td class="num">004</td><td>Input Tape</td><td>A1-5</td></tr>
+        <tr class="tape-row"><td class="num">005</td><td>Data Trail</td><td>A1-5</td></tr>
+        <tr><td class="num">006</td><td>Scanner</td><td>A1-5</td></tr>
+        <tr><td class="num">007</td><td>Transmitter</td><td>A1-7</td></tr>
+        <tr class="tape-row"><td class="num">008</td><td>Output Tape</td><td>A1-7</td></tr>
+      </table>
+      <div class="cap">SCHEME B — Source/Terminal catalogued but not numbered</div>
+      <div class="cap">(they're fixed infrastructure, "not a piece you place")</div>
+    </div>
+    <div class="note" style="width:240px">
+      <b>My recommendation: Scheme A.</b> It's the most literal reading of "numbered in the order
+      discovered," it makes COGS's "first entry / second entry" lines on Source and Terminal correct
+      as written, and the player never has to wonder why an entry is unnumbered. Either way, the
+      milestone counts in COGS's reveal lines get rewritten to match (see §2).
+    </div>
+  </div>
+
+  <!-- ============================ COPY RECONCILE ============================ -->
+  <h2>2 · RECONCILED COGS REVEAL COPY (Scheme A)</h2>
+  <div class="note">Only the count-phrases change. Voice and meaning preserved. <b>Needs your sign-off.</b></div>
+  <table>
+    <tr><th>Entry</th><th>Current count phrase</th><th>Proposed (Scheme A)</th></tr>
+    <tr><td>Source</td><td>"This is the first entry."</td><td style="color:var(--green)">unchanged ✓ (=001)</td></tr>
+    <tr><td>Terminal</td><td>"Two entries."</td><td style="color:var(--green)">"The second entry." (=002)</td></tr>
+    <tr><td>Conveyor</td><td>(no count)</td><td>"Third. Logged."</td></tr>
+    <tr><td>Gear</td><td>"Two entries in two missions."</td><td>"Four entries now. Acceptable progress."</td></tr>
+    <tr><td>Config Node</td><td>"Three entries."</td><td>"Five entries. A real archive."</td></tr>
+    <tr><td>Input Tape</td><td>(new)</td><td>"Sixth entry. Not a piece. Still worth knowing."</td></tr>
+    <tr><td>Data Trail</td><td>(new)</td><td>"Seven. The machine's memory, catalogued."</td></tr>
+    <tr><td>Scanner</td><td>(unknown)</td><td>"Eight."</td></tr>
+    <tr><td>Transmitter</td><td>"Five entries."</td><td>"Nine entries. It is becoming something."</td></tr>
+    <tr><td>Output Tape</td><td>(new)</td><td>"Ten. The full pipeline, on record."</td></tr>
+  </table>
+  <div class="cap">Exact wording is yours to tune — these are placeholders that get the counts right.</div>
+
+  <!-- ============================ TAPE ENTRIES ============================ -->
+  <h2>3 · THE THREE NEW TAPE CODEX ENTRIES — DRAFT copy</h2>
+  <div class="note">
+    Same screen layout as piece entries, with a new third badge type for tapes:
+    <b style="color:var(--in)">DATA STREAM</b> (instead of PHYSICS / PROTOCOL). Discovery flow is identical to pieces:
+    COGS spotlights the tape → <b>???</b> → this Codex screen → UNDERSTOOD.
+  </div>
+  <div class="row">
+
+    <!-- IN TAPE -->
+    <div class="phone">
+      <div class="chrome"><div class="l"><span class="dot" style="background:var(--in)"></span><span class="lab" style="color:var(--in)">C.O.G.S</span></div><span class="entry">ENTRY 006</span></div>
+      <div class="hero">
+        <div class="iconbox" style="background:rgba(191,255,63,0.08);border-color:rgba(191,255,63,0.4);color:var(--in)">⊏⊐</div>
+        <div class="heroName">INPUT TAPE</div>
+        <div class="badge" style="background:rgba(191,255,63,0.08);border-color:rgba(191,255,63,0.4);color:var(--in)">DATA STREAM</div>
+        <div class="logged">LOGGED TO CODEX</div>
+      </div>
+      <div class="firstEnc"><span class="k">FIRST ENCOUNTERED</span><span class="v">THE AXIOM — A1-5</span></div>
+      <div class="sim">
+        <div class="tape" style="margin:0"><div class="cell" style="border-color:var(--in);color:var(--in)">1</div><div class="cell">0</div><div class="cell" style="border-color:var(--in);color:var(--in)">1</div><div class="cell" style="border-color:var(--in);color:var(--in)">1</div><div class="cell">0</div></div>
+      </div>
+      <div class="cogscard">
+        <div class="cogshead"><div class="cogsorb"><i></i></div><div class="cogslab">C.O.G.S NOTES</div><div class="teach">TEACHING</div></div>
+        <div class="desc">A read-only sequence of bit values fed into the machine — one cell per pulse, left to right. The machine fires once per cell.</div>
+        <div class="cogstext">"The input tape is the question. One bit at a time, in order, no second readings. The machine does not choose what it is asked. Only what it does about it."</div>
+      </div>
+      <div class="actionbar"><span class="k">ENTRY LOGGED</span><span class="btn">UNDERSTOOD</span></div>
+    </div>
+
+    <!-- TRAIL TAPE -->
+    <div class="phone">
+      <div class="chrome"><div class="l"><span class="dot" style="background:var(--trail)"></span><span class="lab" style="color:var(--trail)">C.O.G.S</span></div><span class="entry">ENTRY 007</span></div>
+      <div class="hero">
+        <div class="iconbox" style="background:rgba(169,127,219,0.08);border-color:rgba(169,127,219,0.4);color:var(--trail)">▤</div>
+        <div class="heroName" style="font-size:17px">DATA TRAIL</div>
+        <div class="badge" style="background:rgba(169,127,219,0.08);border-color:rgba(169,127,219,0.4);color:var(--trail)">DATA STREAM</div>
+        <div class="logged">LOGGED TO CODEX</div>
+      </div>
+      <div class="firstEnc"><span class="k">FIRST ENCOUNTERED</span><span class="v">THE AXIOM — A1-5</span></div>
+      <div class="sim">
+        <div class="tape" style="margin:0"><div class="cell" style="border-color:var(--trail);color:var(--trail)">1</div><div class="cell" style="border-color:var(--trail);color:var(--trail)">0</div><div class="cell">·</div><div class="cell">·</div><div class="cell">·</div></div>
+      </div>
+      <div class="cogscard">
+        <div class="cogshead"><div class="cogsorb"><i></i></div><div class="cogslab">C.O.G.S NOTES</div><div class="teach">TEACHING</div></div>
+        <div class="desc">The machine's working memory. Pieces write values here; pieces read them back. It persists across pulses within a single run.</div>
+        <div class="cogstext">"The Data Trail is what the machine remembers. Without it, every pulse is a stranger. With it, the machine carries a thought from one moment to the next. Unreasonably close to thinking."</div>
+      </div>
+      <div class="actionbar"><span class="k">ENTRY LOGGED</span><span class="btn">UNDERSTOOD</span></div>
+    </div>
+
+    <!-- OUT TAPE -->
+    <div class="phone">
+      <div class="chrome"><div class="l"><span class="dot" style="background:var(--out)"></span><span class="lab" style="color:var(--out)">C.O.G.S</span></div><span class="entry">ENTRY 010</span></div>
+      <div class="hero">
+        <div class="iconbox" style="background:rgba(255,125,63,0.08);border-color:rgba(255,125,63,0.4);color:var(--out)">⊐⊏</div>
+        <div class="heroName">OUTPUT TAPE</div>
+        <div class="badge" style="background:rgba(255,125,63,0.08);border-color:rgba(255,125,63,0.4);color:var(--out)">DATA STREAM</div>
+        <div class="logged">LOGGED TO CODEX</div>
+      </div>
+      <div class="firstEnc"><span class="k">FIRST ENCOUNTERED</span><span class="v">THE AXIOM — A1-7</span></div>
+      <div class="sim">
+        <div class="tape" style="margin:0"><div class="cell" style="border-color:var(--out);color:var(--out)">1</div><div class="cell" style="border-color:var(--out);color:var(--out)">1</div><div class="cell">_</div><div class="cell">_</div><div class="cell">_</div></div>
+      </div>
+      <div class="cogscard">
+        <div class="cogshead"><div class="cogsorb"><i></i></div><div class="cogslab">C.O.G.S NOTES</div><div class="teach">TEACHING</div></div>
+        <div class="desc">Where results are recorded — one cell per pulse. A value appears the moment a signal completes the circuit at the Terminal.</div>
+        <div class="cogstext">"The output tape is the answer. Everything upstream is opinion until a value lands here. Then it is fact. And it is yours."</div>
+      </div>
+      <div class="actionbar"><span class="k">ENTRY LOGGED</span><span class="btn">UNDERSTOOD</span></div>
+    </div>
+  </div>
+  <div class="cap" style="margin-top:8px">Hero glyphs are placeholders — real icons would come from PieceIcon / a new TapeIcon.</div>
+
+  <!-- ============================ A1-7 NUMBER STYLING ============================ -->
+  <h2>4 · A1-7 TRAIL / OUT NUMBER STYLING — experiment (your "needs work" note)</h2>
+  <div class="note">Plus the highlight-logic fix: OUT cell lights up <b>when the signal reaches the Terminal</b>, for <b>any</b> value (0s included) — not when the Transmitter fires, and not "because it's a 1."</div>
+  <div class="row">
+    <div class="opt">
+      <h3>A · CURRENT</h3>
+      <p>value sits in cell, green/red fill on gate outcome. Reads as "is it a 1" not "did it arrive."</p>
+      <div class="tape"><span class="tlabel" style="color:var(--out)">OUT</span>
+        <div class="cell" style="background:rgba(0,196,140,0.25);border-color:var(--green);color:var(--green)">1</div>
+        <div class="cell" style="background:rgba(0,196,140,0.25);border-color:var(--green);color:var(--green)">1</div>
+        <div class="cell" style="background:rgba(255,59,59,0.2);border-color:#FF3B3B;color:#FF3B3B">·</div>
+        <div class="cell">_</div><div class="cell">_</div>
+      </div>
+    </div>
+    <div class="opt">
+      <h3>B · ARRIVAL FILL (recommended)</h3>
+      <p>cell stays dim until the signal lands at Terminal, then fills with the tape's own color + a brief pulse. Any value, 0 or 1. "Arrived" reads instantly.</p>
+      <div class="tape"><span class="tlabel" style="color:var(--out)">OUT</span>
+        <div class="cell" style="background:rgba(255,125,63,0.22);border-color:var(--out);color:#fff">1</div>
+        <div class="cell" style="background:rgba(255,125,63,0.22);border-color:var(--out);color:#fff">0</div>
+        <div class="cell" style="background:rgba(255,125,63,0.22);border-color:var(--out);color:#fff">1</div>
+        <div class="cell">_</div><div class="cell">_</div>
+      </div>
+    </div>
+    <div class="opt">
+      <h3>C · GHOST → LOCK</h3>
+      <p>upcoming cells show a faint ghost of the expected value; on Terminal arrival the cell "locks" bright. Strongest cause/effect read, most work to build.</p>
+      <div class="tape"><span class="tlabel" style="color:var(--out)">OUT</span>
+        <div class="cell" style="background:rgba(255,125,63,0.3);border-color:var(--out);color:#fff;box-shadow:0 0 8px var(--out)">1</div>
+        <div class="cell" style="color:rgba(255,125,63,0.35);border-color:rgba(255,125,63,0.25)">0</div>
+        <div class="cell" style="color:rgba(255,125,63,0.35);border-color:rgba(255,125,63,0.25)">1</div>
+        <div class="cell">_</div><div class="cell">_</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

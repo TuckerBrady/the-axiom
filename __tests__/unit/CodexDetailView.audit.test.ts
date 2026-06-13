@@ -26,7 +26,9 @@ describe('CodexDetailView — tag color audit (Fix 3)', () => {
     source = fs.readFileSync(CODEX_PATH, 'utf-8');
     // Extract the accent ternary. Captures from `const accent = isPhysics`
     // through the `: { ... };` closer.
-    const match = source.match(/const accent = isPhysics[\s\S]*?\};/);
+    // PROMPT (numbered-codex/tape entries): the accent ternary now leads with
+    // the isStream (DATA STREAM tape) branch before the Physics/Protocol split.
+    const match = source.match(/const accent = isStream[\s\S]*?\};/);
     accentBlock = match ? match[0] : '';
   });
 
@@ -65,7 +67,7 @@ describe('CodexDetailView — tag color audit (Fix 3)', () => {
     let atmosphereLine: string;
 
     beforeAll(() => {
-      const match = source.match(/const atmosphereColor = isPhysics[^;]*;/);
+      const match = source.match(/const atmosphereColor = isStream[^;]*;/);
       atmosphereLine = match ? match[0] : '';
     });
 
