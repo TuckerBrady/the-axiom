@@ -300,18 +300,18 @@ describe('PROMPT_128 -- placedPiece keeps the square, drops the circle', () => {
 // ── PROMPT_140 -- A1-1 inline codex reveal (no awaitPlacement/placedPiece) ──
 // PROMPT_140 supersedes PROMPT_138's orb-chase capture beat (Tucker
 // direction): COGS notices the new piece in the tray and reveals it to the
-// Codex inline. conveyor-collect keeps its '???' label and now carries
-// codexEntryId 'conveyor'; conveyor-reveal is a tray-targeted named beat.
+// Codex inline. conveyor-collect carries codexEntryId 'conveyor' (the '???'
+// discovery caption is now derived from that, not a per-step label —
+// PROMPT_143/PROMPT_146); conveyor-reveal is a tray-targeted named beat.
 // No placement gate, no placedPiece target.
 describe('PROMPT_140 -- A1-1 inline codex reveal', () => {
   let a11: string;
   beforeAll(() => { a11 = extractA11Steps(levelsSrc); });
 
-  it("A1-1 conveyor-collect keeps the ??? label and now carries codexEntryId 'conveyor'", () => {
+  it("A1-1 conveyor-collect carries codexEntryId 'conveyor' and targets the tray slot", () => {
     const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-collect['"][^{}]*\}/);
     expect(m).not.toBeNull();
     const step = m ? m[0] : '';
-    expect(step).toMatch(/label:\s*['"]\?\?\?['"]/);
     expect(step).toMatch(/targetRef:\s*['"]trayConveyor['"]/);
     expect(step).toMatch(/codexEntryId:\s*['"]conveyor['"]/);
     expect(step).not.toMatch(/awaitPlacement/);
@@ -321,7 +321,6 @@ describe('PROMPT_140 -- A1-1 inline codex reveal', () => {
     const m = a11.match(/\{[^{}]*id:\s*['"]conveyor-reveal['"][^{}]*\}/);
     expect(m).not.toBeNull();
     const step = m ? m[0] : '';
-    expect(step).toMatch(/label:\s*['"]CONVEYOR['"]/);
     expect(step).toMatch(/targetRef:\s*['"]trayConveyor['"]/);
     expect(step).toMatch(/eyeState:\s*['"]green['"]/);
     expect(step).not.toMatch(/codexEntryId/);

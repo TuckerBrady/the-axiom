@@ -228,7 +228,7 @@ describe('K1-1 v3 economy fields', () => {
     expect(storeSteps).toHaveLength(4);
     for (const step of storeSteps) {
       expect(step.eyeState).toBe('amber');
-      expect(step.label).toBe('REQUISITION');
+      expect(step.targetRef).toBe('tray');
     }
   });
 

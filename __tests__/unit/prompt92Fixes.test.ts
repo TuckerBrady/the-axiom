@@ -211,3 +211,22 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
     });
   });
 });
+
+describe('PROMPT_146 — dead tutorialStep.label removed', () => {
+  it('no tutorialStep in any Axiom level defines a label field', () => {
+    const axiomLevelIds = ['A1_1', 'A1_2', 'A1_3', 'A1_4', 'A1_5', 'A1_6', 'A1_7', 'A1_8'];
+    for (const id of axiomLevelIds) {
+      const re = new RegExp(`level${id}:\\s*LevelDefinition\\s*=\\s*\\{[\\s\\S]*?\\n\\};`);
+      const m = levelsSrc.match(re);
+      expect(m).not.toBeNull();
+      const tutorialBlock = m?.[0].match(/tutorialSteps:\s*\[[\s\S]*?\n\s{2}\],/);
+      if (tutorialBlock) {
+        expect(tutorialBlock[0]).not.toMatch(/\n\s*label:\s*'/);
+      }
+    }
+  });
+
+  it('removes the four stale PIECE TRAY labels', () => {
+    expect(levelsSrc).not.toMatch(/label: 'PIECE TRAY'/);
+  });
+});

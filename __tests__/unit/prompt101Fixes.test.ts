@@ -28,17 +28,17 @@ describe('Prompt 101 — Source/Terminal rename + Codex beam color', () => {
       expect(a11?.[0]).not.toMatch(/Input port, output port/);
     });
 
-    it("A1-1 source-collect step labels and copy are Source", () => {
+    it("A1-1 source-collect step copy is Source", () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'source-collect'[\s\S]*?label: 'SOURCE'[\s\S]*?message: 'Source\./,
+        /id: 'source-collect'[\s\S]*?message: 'Source\./,
       );
     });
 
-    it("A1-1 terminal-collect step labels and copy are Terminal", () => {
+    it("A1-1 terminal-collect step copy is Terminal", () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'terminal-collect'[\s\S]*?label: 'TERMINAL'[\s\S]*?message: 'Terminal\./,
+        /id: 'terminal-collect'[\s\S]*?message: 'Terminal\./,
       );
     });
 
