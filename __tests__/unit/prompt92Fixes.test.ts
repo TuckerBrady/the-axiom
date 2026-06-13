@@ -43,17 +43,19 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       expect(a11?.[0]).not.toMatch(/id: 'codex-intro'/);
     });
 
-    it("adds source-collect step targeting the Source port with codexEntryId 'source'", () => {
+    it("adds source-notice step targeting the Source port with codexEntryId 'source'", () => {
+      // Standardized discovery (2026-06-13): the silent-catalogue codexEntryId
+      // lives on the source-notice (???) beat; source-reveal names it.
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'source-collect'[\s\S]*?targetRef: 'sourceNode'[\s\S]*?codexEntryId: 'source'/,
+        /id: 'source-notice'[\s\S]*?targetRef: 'sourceNode'[\s\S]*?codexEntryId: 'source'/,
       );
     });
 
-    it("adds terminal-collect step targeting the Output port with codexEntryId 'terminal'", () => {
+    it("adds terminal-notice step targeting the Output port with codexEntryId 'terminal'", () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'terminal-collect'[\s\S]*?targetRef: 'outputNode'[\s\S]*?codexEntryId: 'terminal'/,
+        /id: 'terminal-notice'[\s\S]*?targetRef: 'outputNode'[\s\S]*?codexEntryId: 'terminal'/,
       );
     });
 

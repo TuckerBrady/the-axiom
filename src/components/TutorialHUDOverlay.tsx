@@ -950,18 +950,13 @@ function TutorialHUDOverlayComponent({
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
 
-  // PROMPT_143: the '???' Codex-discovery caption. Restored after PROMPT_142's
-  // UX-02 fix removed the only renderer (the step.label sub-header). This is a
-  // separate render path that does NOT read step.label — it is derived purely
-  // from the step's explicit `unknownCaption` flag — set on every "notice" beat
-  // where COGS encounters something he has not catalogued (A1-1 conveyor, the
-  // gear/configNode/scanner/transmitter tray notices, and the IN/TRAIL/OUT tape
-  // notices). It is intentionally NOT derived from persisted discovery state:
-  // the tutorial is a re-enactment, so the caption must replay even after the
-  // piece has been catalogued in a prior session. It also stays off the
-  // Source/Terminal steps, where COGS names the entity and a '???' would
-  // contradict the copy.
-  const showCodexDiscoveryCaption = !!step.unknownCaption;
+  // Discovery caption: a label rendered above the highlight square that reads
+  // '???' on a notice beat and the piece/entity name on the reveal beat. Driven
+  // purely by the step's explicit `captionLabel` (set on every notice and
+  // reveal step), NOT by persisted discovery state — the tutorial is a
+  // re-enactment, so the caption must replay every session. Every piece is
+  // captured the same way: ??? -> name.
+  const captionText = step.captionLabel;
 
   // ── Spotlight ring positions (A1-1 only) ──
   const isBoardStep = step.targetRef === 'boardGrid';
@@ -1073,29 +1068,27 @@ function TutorialHUDOverlayComponent({
           only consumer also resolves UX-03 (off-center "???"/codex labels) as a
           side effect: nothing renders a label that could be off-center. */}
 
-      {/* '???' Codex-discovery caption. Centered over the highlight square by
-          matching the portal box geometry exactly (same animated
-          left/top/width/height + portalOpacity), so it tracks the square and
-          fades with it — and stays centered, avoiding the UX-03 off-center
-          regression the old step.label sub-header was raised against. Driven
-          solely by showCodexDiscoveryCaption (the step's unknownCaption flag);
-          reuses the amber-mono caption styling the sub-header label used. */}
-      {showCodexDiscoveryCaption && phase !== 'flying' && phase !== 'idle' && portalBox && (
+      {/* Discovery caption label. Sits ABOVE the highlight square (box.top - 24),
+          horizontally centered on the box center, reading '???' on a notice beat
+          and the piece/entity name on the reveal beat. A fixed-width centered
+          container lets long names (e.g. TRANSMITTER, OUTPUT TAPE) overflow the
+          narrow piece highlight without clipping. Fades with portalOpacity.
+          Caption steps never target the board, so static portalBox geometry is
+          used (no animated portalLeft/Top branch needed). */}
+      {captionText && phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: isBoardStep ? portalLeft : portalBox.left,
-            top: isBoardStep ? portalTop : portalBox.top,
-            width: portalW,
-            height: portalH,
+            left: portalBox.left + portalBox.width / 2 - 100,
+            top: portalBox.top - 24,
+            width: 200,
             opacity: portalOpacity,
             alignItems: 'center',
-            justifyContent: 'center',
             zIndex: 151,
           }}
         >
-          <Text style={st.label}>???</Text>
+          <Text style={st.label} numberOfLines={1}>{captionText}</Text>
         </Animated.View>
       )}
 

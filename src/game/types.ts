@@ -278,12 +278,13 @@ export type TutorialStep = {
   showDemo?: boolean;
   demoText?: string;
   codexEntryId?: string;
-  // Show the '???' discovery caption over the highlight on this step. Marks a
-  // "notice" beat where COGS encounters something uncatalogued. Decoupled from
-  // persisted discovery state so the caption replays with the tutorial (the
-  // tutorial is a re-enactment), and so it stays OFF the Source/Terminal steps
-  // where COGS names the entity outright and a '???' would contradict the copy.
-  unknownCaption?: boolean;
+  // Discovery caption rendered as a label above the highlight square. Holds
+  // either '???' (a "notice" beat — COGS has not catalogued it yet) or the
+  // piece/entity name (a "reveal" beat — e.g. 'CONVEYOR', 'SOURCE'). The same
+  // label slot hosts both across the capture, so every piece is discovered the
+  // same way. Decoupled from persisted discovery state so the caption replays
+  // with the tutorial (the tutorial is a re-enactment).
+  captionLabel?: string;
   // Beat 2: pause tutorial until this piece type is placed on the board
   awaitPlacement?: PieceType;
   // Beat 4: allow taps to pass through the overlay to the board beneath

@@ -21,24 +21,32 @@ const keplerLevelsSrc = read('project-docs/SPECS/kepler-belt-levels.md');
 
 describe('Prompt 101 — Source/Terminal rename + Codex beam color', () => {
   describe('Tutorial dialogue (A1-1)', () => {
-    it('A1-1 board-intro uses Source/Terminal, not Input/Output port', () => {
+    it('A1-1 uses Source/Terminal terminology, not Input/Output port', () => {
+      // board-intro no longer pre-names the fixtures (standardized discovery,
+      // 2026-06-13: they are named on their reveal beats so the ??? notice
+      // isn't contradicted). The Source/Terminal terminology now lives on the
+      // reveal steps; the Input/Output port rename guard still holds.
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11).not.toBeNull();
-      expect(a11?.[0]).toMatch(/Source, Terminal\. Bridge them\./);
+      expect(a11?.[0]).toMatch(/message: 'Source\. The origin/);
+      expect(a11?.[0]).toMatch(/message: 'Terminal\. Where the signal/);
       expect(a11?.[0]).not.toMatch(/Input port, output port/);
+      expect(a11?.[0]).toMatch(/Bridge them\./); // bridging language retained
     });
 
-    it("A1-1 source-collect step copy is Source", () => {
+    it("A1-1 source-reveal step copy is Source", () => {
+      // Standardized discovery (2026-06-13): source-collect split into
+      // source-notice (???) + source-reveal (named).
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'source-collect'[\s\S]*?message: 'Source\./,
+        /id: 'source-reveal'[\s\S]*?message: 'Source\./,
       );
     });
 
-    it("A1-1 terminal-collect step copy is Terminal", () => {
+    it("A1-1 terminal-reveal step copy is Terminal", () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'terminal-collect'[\s\S]*?message: 'Terminal\./,
+        /id: 'terminal-reveal'[\s\S]*?message: 'Terminal\./,
       );
     });
 

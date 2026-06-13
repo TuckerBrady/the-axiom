@@ -88,21 +88,41 @@ export const levelA1_1: LevelDefinition = {
       id: 'board-intro',
       targetRef: 'boardGrid',
       eyeState: 'blue',
-      message: 'Source, Terminal. Bridge them. Signal follows whatever path you build — you don\'t aim pieces, the path aims them.',
+      message: 'Two fixtures are already on this board. Bridge them. Signal follows whatever path you build — you don\'t aim pieces, the path aims them.',
     },
+    // Standardized discovery (Tucker 2026-06-13): every piece is captured the
+    // same way — a notice beat ('???') then a named-reveal beat. Source and
+    // Terminal get the same treatment as collectible pieces but do NOT open a
+    // Codex page (handlePrimary's A1-1 special case catalogues them silently).
     {
-      id: 'source-collect',
+      id: 'source-notice',
       targetRef: 'sourceNode',
       eyeState: 'amber',
-      message: 'Source. The origin of every signal. I am beginning a record. This is the first entry.',
+      message: 'Something is already on this board. Powered. I will catalogue it before we build.',
       codexEntryId: 'source',
+      captionLabel: '???',
     },
     {
-      id: 'terminal-collect',
+      id: 'source-reveal',
+      targetRef: 'sourceNode',
+      eyeState: 'green',
+      message: 'Source. The origin of every signal. I am beginning a record. This is the first entry.',
+      captionLabel: 'SOURCE',
+    },
+    {
+      id: 'terminal-notice',
       targetRef: 'outputNode',
       eyeState: 'amber',
-      message: 'Terminal. Where the signal is meant to arrive. Two entries. Gotta catch \'em all. That is a personal policy.',
+      message: 'A second fixture, downstream. Also uncatalogued.',
       codexEntryId: 'terminal',
+      captionLabel: '???',
+    },
+    {
+      id: 'terminal-reveal',
+      targetRef: 'outputNode',
+      eyeState: 'green',
+      message: 'Terminal. Where the signal is meant to arrive. Two entries. Gotta catch \'em all. That is a personal policy.',
+      captionLabel: 'TERMINAL',
     },
     {
       // Inline reveal beat (Tucker direction): COGS notices the new piece
@@ -116,7 +136,7 @@ export const levelA1_1: LevelDefinition = {
       eyeState: 'amber',
       message: 'That piece is not in the Codex yet. It will be.',
       codexEntryId: 'conveyor',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat: COGS names the piece after the Codex reveal.
@@ -125,6 +145,7 @@ export const levelA1_1: LevelDefinition = {
       targetRef: 'trayConveyor',
       eyeState: 'green',
       message: 'Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.',
+      captionLabel: 'CONVEYOR',
     },
     {
       id: 'board-resume',
@@ -182,7 +203,7 @@ export const levelA1_2: LevelDefinition = {
       eyeState: 'amber',
       message: 'The tray. There is an uncatalogued piece sitting right there.',
       codexEntryId: 'gear',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -190,6 +211,7 @@ export const levelA1_2: LevelDefinition = {
       targetRef: 'trayGear',
       eyeState: 'green',
       message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.',
+      captionLabel: 'GEAR',
     },
     {
       id: 'gear-teach',
@@ -254,7 +276,7 @@ export const levelA1_3: LevelDefinition = {
       eyeState: 'amber',
       message: 'Another one. The tray is showing a piece I cannot identify from existing records.',
       codexEntryId: 'configNode',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -262,6 +284,7 @@ export const levelA1_3: LevelDefinition = {
       targetRef: 'trayConfigNode',
       eyeState: 'green',
       message: 'Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Five entries. The Codex is starting to look like a real archive.',
+      captionLabel: 'CONFIG NODE',
     },
     {
       id: 'confignode-teach-a',
@@ -394,7 +417,7 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'There is a data stream feeding this board. I have not catalogued it.',
       codexEntryId: 'inputTape',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat after the Codex closes.
@@ -402,6 +425,7 @@ export const levelA1_5: LevelDefinition = {
       targetRef: 'inputTapeRow',
       eyeState: 'green',
       message: 'Input tape. Each cell is one bit, fed in order, one per pulse. The machine fires once per cell, left to right. Sixth entry.',
+      captionLabel: 'INPUT TAPE',
     },
     {
       id: 'data-trail-notice',
@@ -409,13 +433,14 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'Another stream. This one the machine writes to as it runs. Also uncatalogued.',
       codexEntryId: 'dataTrail',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       id: 'data-trail-reveal',
       targetRef: 'dataTrailRow',
       eyeState: 'green',
       message: 'Data Trail. The machine\'s working memory. Pieces read from it and write to it as the signal passes. What is here decides what happens next. Seventh entry.',
+      captionLabel: 'DATA TRAIL',
     },
     {
       id: 'board-intro',
@@ -432,7 +457,7 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'I see it. In the tray. Uncatalogued.',
       codexEntryId: 'scanner',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -440,6 +465,7 @@ export const levelA1_5: LevelDefinition = {
       targetRef: 'trayScanner',
       eyeState: 'green',
       message: 'Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Eighth entry. I may need a bigger archive.',
+      captionLabel: 'SCANNER',
     },
     {
       id: 'scanner-teach',
@@ -564,7 +590,7 @@ export const levelA1_7: LevelDefinition = {
       eyeState: 'amber',
       message: 'One more. The tray.',
       codexEntryId: 'transmitter',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -572,6 +598,7 @@ export const levelA1_7: LevelDefinition = {
       targetRef: 'trayTransmitter',
       eyeState: 'green',
       message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Nine entries. The Codex is... it is becoming something.',
+      captionLabel: 'TRANSMITTER',
     },
     {
       // CONTENT-01: OUT tape catalogued as a DATA STREAM entry (010), now
@@ -582,13 +609,14 @@ export const levelA1_7: LevelDefinition = {
       eyeState: 'amber',
       message: 'One more stream. Where the results land. Not yet on record.',
       codexEntryId: 'outputTape',
-      unknownCaption: true,
+      captionLabel: '???',
     },
     {
       id: 'output-tape-reveal',
       targetRef: 'outputTapeRow',
       eyeState: 'green',
       message: 'Output tape. One cell per pulse. A value appears the moment a signal completes the circuit at the Terminal. Tenth entry. The full pipeline is on record.',
+      captionLabel: 'OUTPUT TAPE',
     },
     {
       id: 'transmitter-teach',
