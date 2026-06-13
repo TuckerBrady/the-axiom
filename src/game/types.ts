@@ -265,7 +265,11 @@ export type TutorialStepEye = 'blue' | 'amber' | 'green';
 
 export type TutorialStep = {
   id: string;
-  label: string;
+  // PROMPT_146: legacy per-step mission sub-header. Its only renderer was
+  // removed (UX-02), and superseded by the generic '???' discovery caption
+  // (PROMPT_143). Retained as an optional field for now; data removed from
+  // levels.ts. Full type-field removal is a follow-up candidate.
+  label?: string;
   targetRef: string;
   eyeState: TutorialStepEye;
   message: string;

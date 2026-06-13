@@ -1057,9 +1057,10 @@ function TutorialHUDOverlayComponent({
           BOARD" / "INPUT TAPE" / "PROPULSION CORE" / "???") used to render
           above the portal here. Skeptic playtest flagged it as redundant
           chrome competing with the static level title and the dialogue card.
-          The render is removed; step.label is retained as data in levels.ts
-          (now unused — flag for a future cleanup pass). Removing the only
-          consumer also resolves UX-03 (off-center "???"/codex labels) as a
+          The render is removed; PROMPT_146 then removed the now-dead
+          step.label data from levels.ts (the TutorialStep.label type field
+          remains, optional, as a follow-up cleanup candidate). Removing the
+          only consumer also resolves UX-03 (off-center "???"/codex labels) as a
           side effect: nothing renders a label that could be off-center. */}
 
       {/* PROMPT_143: '???' Codex-discovery caption. Centered over the highlight

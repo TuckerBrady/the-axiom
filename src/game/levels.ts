@@ -80,21 +80,18 @@ export const levelA1_1: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'cogs-intro',
-      label: 'C.O.G.S',
       targetRef: 'center',
       eyeState: 'blue',
       message: 'You are looking at my HUD interface. I use it to communicate with you. I will appear when there is something worth knowing. You can ignore me. I have noted that this does not stop me.',
     },
     {
       id: 'board-intro',
-      label: 'CIRCUIT BOARD',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Source, Terminal. Bridge them. Signal follows whatever path you build — you don\'t aim pieces, the path aims them.',
     },
     {
       id: 'source-collect',
-      label: 'SOURCE',
       targetRef: 'sourceNode',
       eyeState: 'amber',
       message: 'Source. The origin of every signal. I am beginning a record. This is the first entry.',
@@ -102,7 +99,6 @@ export const levelA1_1: LevelDefinition = {
     },
     {
       id: 'terminal-collect',
-      label: 'TERMINAL',
       targetRef: 'outputNode',
       eyeState: 'amber',
       message: 'Terminal. Where the signal is meant to arrive. Two entries. Gotta catch \'em all. That is a personal policy.',
@@ -116,7 +112,6 @@ export const levelA1_1: LevelDefinition = {
       // codexEntryId 'conveyor' triggers the A1-1 batch reveal
       // (source + terminal + conveyor) in TutorialHUDOverlay.handlePrimary.
       id: 'conveyor-collect',
-      label: '???',
       targetRef: 'trayConveyor',
       eyeState: 'amber',
       message: 'That piece is not in the Codex yet. It will be.',
@@ -126,14 +121,12 @@ export const levelA1_1: LevelDefinition = {
       // Named-reveal beat: COGS names the piece after the Codex reveal.
       // Targets the tray slot (not a placed piece).
       id: 'conveyor-reveal',
-      label: 'CONVEYOR',
       targetRef: 'trayConveyor',
       eyeState: 'green',
       message: 'Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.',
     },
     {
       id: 'board-resume',
-      label: 'CIRCUIT BOARD',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
@@ -175,7 +168,6 @@ export const levelA1_2: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'LIFE SUPPORT',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Life support requires a bend in the path. The Source and Terminal are not aligned. A straight line will not reach. The signal needs to change direction once. Plan where that happens before placing anything.',
@@ -185,7 +177,6 @@ export const levelA1_2: LevelDefinition = {
       // the tray and reveals it to the Codex (codexEntryId). No placement
       // gate, no orb-chase to a placed piece.
       id: 'gear-notice',
-      label: 'PIECE TRAY',
       targetRef: 'trayGear',
       eyeState: 'amber',
       message: 'The tray. There is an uncatalogued piece sitting right there.',
@@ -194,21 +185,18 @@ export const levelA1_2: LevelDefinition = {
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
       id: 'gear-reveal',
-      label: 'GEAR',
       targetRef: 'trayGear',
       eyeState: 'green',
       message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Two entries in two missions. This is... this is acceptable progress.',
     },
     {
       id: 'gear-teach',
-      label: 'GEAR',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Gear does not rotate on tap. It redirects the signal ninety degrees based on where the next piece is placed. Place where a corner is needed. The signal handles the rest.',
     },
     {
       id: 'board-resume',
-      label: 'LIFE SUPPORT',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'As I was saying. The Gear handles the corner. Place the Conveyors approaching the bend, Gear at the turn. Signal follows the direction it exits. Plan the corner before you place anything.',
@@ -251,7 +239,6 @@ export const levelA1_3: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'NAVIGATION ARRAY',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'There is a gate on this board. It will not open automatically. Something upstream needs to set the condition before the signal arrives. Order of placement is order of execution. Keep that in mind.',
@@ -261,7 +248,6 @@ export const levelA1_3: LevelDefinition = {
       // the tray and reveals it to the Codex (codexEntryId). No placement
       // gate, no orb-chase to a placed piece.
       id: 'confignode-notice',
-      label: 'PIECE TRAY',
       targetRef: 'trayConfigNode',
       eyeState: 'amber',
       message: 'Another one. The tray is showing a piece I cannot identify from existing records.',
@@ -270,14 +256,12 @@ export const levelA1_3: LevelDefinition = {
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
       id: 'confignode-reveal',
-      label: 'CONFIG NODE',
       targetRef: 'trayConfigNode',
       eyeState: 'green',
       message: 'Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Three entries. The Codex is starting to look like a real archive.',
     },
     {
       id: 'confignode-teach-a',
-      label: 'CONFIG NODE',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Tap the Config Node. The gate blocks the pulse. This configuration lets ones flow through. Tap it.',
@@ -286,14 +270,12 @@ export const levelA1_3: LevelDefinition = {
     },
     {
       id: 'confignode-teach-b',
-      label: 'CONFIG NODE',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'This configuration lets zeros flow through. The Data Trail decides which is correct. The Config Node decides whether to care.',
     },
     {
       id: 'board-resume',
-      label: 'NAVIGATION ARRAY',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'As I was saying. The gate checks the trail. If the values match, it opens. The Engineer sets the condition. The trail is what it is.',
@@ -341,14 +323,12 @@ export const levelA1_4: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'PROPULSION CORE',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Two direction changes on this one. The path bends twice before it reaches the Terminal. Each bend requires its own solution. Plan the full route before placing the first piece. Engineers who place as they go tend to run out of board.',
     },
     {
       id: 'board-resume',
-      label: 'PROPULSION CORE',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Both corners need a Gear. Place it at the bend, then tap it to rotate until the signal exits in the right direction.',
@@ -398,7 +378,6 @@ export const levelA1_5: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'input-tape-intro',
-      label: 'INPUT TAPE',
       targetRef: 'inputTapeRow',
       eyeState: 'blue',
       message: 'This is the input tape. Each cell is a bit value fed into the machine one pulse at a time. The machine fires once per bit. Left to right.',
@@ -414,14 +393,12 @@ export const levelA1_5: LevelDefinition = {
     // (A1-7 introduces the Transmitter and the OUT row).
     {
       id: 'data-trail-intro',
-      label: 'DATA TRAIL',
       targetRef: 'dataTrailRow',
       eyeState: 'blue',
       message: 'This is the Data Trail. The machine\'s working memory. Pieces read from it and write to it as the signal passes through. What is here determines what happens next.',
     },
     {
       id: 'board-intro',
-      label: 'COMMUNICATION ARRAY',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'This board has a gate and a data trail. The gate reads the trail before it decides whether to open. Something needs to write the correct value to the trail before the signal reaches the gate. The sequence matters more than the placement.',
@@ -431,7 +408,6 @@ export const levelA1_5: LevelDefinition = {
       // the tray and reveals it to the Codex (codexEntryId). No placement
       // gate, no orb-chase to a placed piece.
       id: 'scanner-notice',
-      label: 'PIECE TRAY',
       targetRef: 'trayScanner',
       eyeState: 'amber',
       message: 'I see it. In the tray. Uncatalogued.',
@@ -440,21 +416,18 @@ export const levelA1_5: LevelDefinition = {
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
       id: 'scanner-reveal',
-      label: 'SCANNER',
       targetRef: 'trayScanner',
       eyeState: 'green',
       message: 'Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Catalogued. I may need a bigger archive.',
     },
     {
       id: 'scanner-teach',
-      label: 'SCANNER',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Scanner does not require configuration. Place it in the path. When the signal reaches it, it reads the IN value and transfers it to the Data Trail.',
     },
     {
       id: 'board-resume',
-      label: 'COMMUNICATION ARRAY',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'As I was saying. Scanner before the Config Node. Always. What it writes to the trail determines what the gate reads. Sequence is not a suggestion.',
@@ -503,14 +476,12 @@ export const levelA1_6: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'SENSOR GRID',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Multiple gates on this board. Each one reads the same data trail independently. If the trail value is wrong when the signal reaches any gate, that gate blocks. One Scanner. Several gates. The Scanner has to do its job before the signal reaches the first of them.',
     },
     {
       id: 'board-resume',
-      label: 'SENSOR GRID',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Place the Scanner early in the path. Every Config Node downstream reads what it wrote. One correct write. Multiple correct reads.',
@@ -559,7 +530,6 @@ export const levelA1_7: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'WEAPONS LOCK',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The weapons systems were locked deliberately. The lock is a gate with a condition. The condition has to be written to the trail before the signal checks it. There is a piece in the tray that writes. It has not been logged yet.',
@@ -569,7 +539,6 @@ export const levelA1_7: LevelDefinition = {
       // the tray and reveals it to the Codex (codexEntryId). No placement
       // gate, no orb-chase to a placed piece.
       id: 'transmitter-notice',
-      label: 'PIECE TRAY',
       targetRef: 'trayTransmitter',
       eyeState: 'amber',
       message: 'One more. The tray.',
@@ -578,7 +547,6 @@ export const levelA1_7: LevelDefinition = {
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
       id: 'transmitter-reveal',
-      label: 'TRANSMITTER',
       targetRef: 'trayTransmitter',
       eyeState: 'green',
       message: 'Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Five entries. The Codex is... it is becoming something.',
@@ -589,21 +557,18 @@ export const levelA1_7: LevelDefinition = {
       // standalone concept now that the Transmitter (which writes to it)
       // has been named, mirroring A1-5's input-tape-intro pattern.
       id: 'output-tape-intro',
-      label: 'OUTPUT TAPE',
       targetRef: 'outputTapeRow',
       eyeState: 'blue',
       message: 'This is the output tape. The Transmitter writes here — one cell per pulse, left to right. What the machine produces becomes visible the moment it produces it.',
     },
     {
       id: 'transmitter-teach',
-      label: 'TRANSMITTER',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The Transmitter reads the Data Trail and writes to the OUT tape. A piece that writes. Not sure how I feel about that.',
     },
     {
       id: 'board-resume',
-      label: 'WEAPONS LOCK',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'As I was saying. The Transmitter writes the result to the output tape. Place it after the gate. If the gate blocks, the Transmitter has nothing to write. Scanner reads. Gate decides. Transmitter records. That is the full pipeline.',
@@ -660,14 +625,12 @@ export const levelA1_8: LevelDefinition = {
   tutorialSteps: [
     {
       id: 'board-intro',
-      label: 'BRIDGE SYSTEMS',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'The bridge is the last system. The board is larger than anything the Engineer has worked on in this sector. All piece types are available. Physics pieces move the signal. Protocol pieces condition it. The methodology built across this sector applies here. There is nothing on this board that has not been seen before. The work is putting it together correctly.',
     },
     {
       id: 'board-resume',
-      label: 'BRIDGE SYSTEMS',
       targetRef: 'boardGrid',
       eyeState: 'blue',
       message: 'Plan the Protocol pieces first. They determine the logic. Route the Physics pieces around them. The path serves the logic, not the other way around.',
@@ -709,17 +672,17 @@ export const levelK1_1: LevelDefinition = {
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
-    { id: 'board-resume', label: 'CORRIDOR ENTRY', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps.' },
-    { id: 'store-intro', label: 'REQUISITION', targetRef: 'tray', eyeState: 'amber',
+    { id: 'store-intro', targetRef: 'tray', eyeState: 'amber',
       message: 'The supply manifest is below. Swipe up for the full REQUISITION store.' },
-    { id: 'store-tabs', label: 'REQUISITION', targetRef: 'tray', eyeState: 'amber',
+    { id: 'store-tabs', targetRef: 'tray', eyeState: 'amber',
       message: 'Three departments. Physics components. Protocol modules. Infrastructure capability. Budget accordingly.' },
-    { id: 'store-forfeiture', label: 'REQUISITION', targetRef: 'tray', eyeState: 'amber',
+    { id: 'store-forfeiture', targetRef: 'tray', eyeState: 'amber',
       message: 'Unused requisitioned components are forfeited on mission completion or failure. Requisition what is needed. Nothing more.' },
-    { id: 'store-window', label: 'REQUISITION', targetRef: 'tray', eyeState: 'amber',
+    { id: 'store-window', targetRef: 'tray', eyeState: 'amber',
       message: 'All requisitions must be placed before the mission begins. Plan the build. Then build the plan.' },
   ],
 };
@@ -746,9 +709,9 @@ export const levelK1_2: LevelDefinition = {
   difficultyBand: 'derivable',
   narrativeFrame: 'Relay chain built to last, outlived its maintainers. The signal must pass faithfully.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'RELAY SPLICE', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'The input tape feeds a mixed signal. Each value must pass through unchanged. The Scanner reads it. The Transmitter writes it. The path between them is yours to build.' },
-    { id: 'board-resume', label: 'RELAY SPLICE', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Scanner before Transmitter. The Data Trail carries the value between them. Every pulse must produce the correct output.' },
   ],
 };
@@ -775,12 +738,12 @@ export const levelK1_3: LevelDefinition = {
   difficultyBand: 'derivable',
   narrativeFrame: 'Junction 7 is a routing bottleneck. Eleven settlements feed through it. The routing decision must be stored and applied consistently.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'JUNCTION 7', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Junction 7. Eleven settlements feed through this point. The routing decision here must be stored and applied to every signal that passes through. The board has a piece that remembers. It has two modes. Placement determines which mode it uses.' },
-    { id: 'latch-collect', label: 'LATCH', targetRef: 'boardGrid', eyeState: 'amber',
+    { id: 'latch-collect', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'A storage unit. Two modes. Uncatalogued. This goes in the Codex immediately.',
       codexEntryId: 'latch' },
-    { id: 'board-resume', label: 'JUNCTION 7', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'As I was saying. Write mode captures the value. Read mode outputs what was captured. The order matters. Write before read. The junction depends on what was stored.' },
   ],
 };
@@ -831,12 +794,12 @@ export const levelK1_5: LevelDefinition = {
   difficultyBand: 'derivable',
   narrativeFrame: 'Resupply chain with four relay nodes, all degraded. Redundancy is the only option.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'RESUPPLY CHAIN', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'The resupply chain has four relay nodes. All degraded. One path may not be enough. The board splits the signal into two routes. Something downstream needs to bring them back together.' },
-    { id: 'merger-collect', label: 'MERGER', targetRef: 'boardGrid', eyeState: 'amber',
+    { id: 'merger-collect', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'Two inputs. One output. Either is sufficient. Logging this under redundancy infrastructure.',
       codexEntryId: 'merger' },
-    { id: 'board-resume', label: 'RESUPPLY CHAIN', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'As I was saying. The Merger accepts signal from either input. Both paths lead to the same destination. The resupply chain does not care which route the signal took. It cares that it arrived.' },
   ],
 };
@@ -887,12 +850,12 @@ export const levelK1_7: LevelDefinition = {
   difficultyBand: 'derivable',
   narrativeFrame: 'Ore processing relay still active despite no mining. Two signals that must not interfere.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'ORE PROCESSING', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two signals on this board. Both need to reach their destination. The board does not have room for both to go around each other. Something in the available pieces solves this without the signals being aware of it.' },
-    { id: 'bridge-collect', label: 'BRIDGE', targetRef: 'boardGrid', eyeState: 'amber',
+    { id: 'bridge-collect', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'Two paths. One cell. Neither interferes. I have been waiting for something like this to catalog.',
       codexEntryId: 'bridge' },
-    { id: 'board-resume', label: 'ORE PROCESSING', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'As I was saying. The Bridge allows two independent paths to share one cell. Neither signal is aware of the other. Both are correct. Place it where the paths cross.' },
   ],
 };
@@ -968,7 +931,7 @@ export const levelK1_10: LevelDefinition = {
   difficultyBand: 'abstract',
   narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure.',
   tutorialSteps: [
-    { id: 'board-intro', label: 'CENTRAL HUB', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'The Central Hub. Twelve columns. The largest board in this sector. The machine must compare each incoming pulse against what the Latch stored from the previous one. All pieces are available. Nothing here has not been seen before.' },
   ],
 };
