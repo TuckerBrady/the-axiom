@@ -654,6 +654,18 @@ function TutorialHUDOverlayComponent({
         // the gated A1-1 flow into a single tap-through tray step.
         const labelTop = box.top - 24;
         targetCy = labelTop - 6 - ORB_SIZE / 2;
+      } else if (
+        box &&
+        (s.targetRef === 'inputTapeRow' ||
+          s.targetRef === 'dataTrailRow' ||
+          s.targetRef === 'outputTapeRow')
+      ) {
+        // Tape rows sit at the very top of the screen and the '???'
+        // discovery caption is centered inside the highlight box. Drop the
+        // orb just below the box so it does not sit on top of the rectangle
+        // and the '???' (Tucker note 2026-06-13). Plenty of board space
+        // below the tape rows for the orb to occupy.
+        targetCy = box.top + box.height + 12 + ORB_SIZE / 2;
       }
       flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;

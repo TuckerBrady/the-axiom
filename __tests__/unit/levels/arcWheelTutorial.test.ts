@@ -245,4 +245,13 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     // The DATA STREAM badge label is wired in the component.
     expect(codexSrc).toContain("'DATA STREAM'");
   });
+
+  it('16: tape-row codex steps drop the orb below the highlight box (not over the ???)', () => {
+    // Tucker note 2026-06-13: on the top-of-screen tape rows the orb must sit
+    // below the highlight rectangle/??? caption, not centered on it.
+    expect(overlaySrc).toMatch(
+      /s\.targetRef === 'inputTapeRow'[\s\S]*?s\.targetRef === 'dataTrailRow'[\s\S]*?s\.targetRef === 'outputTapeRow'/,
+    );
+    expect(overlaySrc).toMatch(/targetCy = box\.top \+ box\.height \+ \d+ \+ ORB_SIZE \/ 2/);
+  });
 });

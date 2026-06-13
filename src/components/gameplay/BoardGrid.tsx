@@ -57,7 +57,7 @@ function BoardGridComponent({
         const iconColor = isSource
           ? '#F0B429'
           : isOutput
-            ? Colors.copper
+            ? '#00C48C' // Terminal green — matches the Codex + PieceIcon strokes
             : getPieceColor(piece.type);
         const ref = isSource
           ? sourceNodeRef
