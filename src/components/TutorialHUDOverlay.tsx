@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep, PieceType } from '../game/types';
 import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial';
 import { Colors, Fonts } from '../theme/tokens';
-import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
+import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 
@@ -654,6 +654,18 @@ function TutorialHUDOverlayComponent({
         // the gated A1-1 flow into a single tap-through tray step.
         const labelTop = box.top - 24;
         targetCy = labelTop - 6 - ORB_SIZE / 2;
+      } else if (
+        box &&
+        (s.targetRef === 'inputTapeRow' ||
+          s.targetRef === 'dataTrailRow' ||
+          s.targetRef === 'outputTapeRow')
+      ) {
+        // Tape rows sit at the very top of the screen and the '???'
+        // discovery caption is centered inside the highlight box. Drop the
+        // orb just below the box so it does not sit on top of the rectangle
+        // and the '???' (Tucker note 2026-06-13). Plenty of board space
+        // below the tape rows for the orb to occupy.
+        targetCy = box.top + box.height + 12 + ORB_SIZE / 2;
       }
       flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;
@@ -938,20 +950,13 @@ function TutorialHUDOverlayComponent({
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
 
-  // PROMPT_143: the '???' Codex-discovery caption. Restored after PROMPT_142's
-  // UX-02 fix removed the only renderer (the step.label sub-header). This is a
-  // separate render path that does NOT read step.label — it is derived purely
-  // from the step's codexEntryId plus monotonic discovery state, so it appears
-  // automatically for ANY undiscovered collectible piece (A1-1 conveyor AND the
-  // gear/configNode/scanner/transmitter PIECE TRAY steps in later levels), with
-  // no per-level hardcoding. Once collected (markDiscovered fires on confirm),
-  // a re-encountered step with the same codexEntryId no longer shows '???'.
-  // isCodexStep === !!step.codexEntryId, so the codexEntryId check is implicit;
-  // it is kept explicit here for the type narrow on the isDiscovered argument.
-  const showCodexDiscoveryCaption =
-    isCodexStep &&
-    !!step.codexEntryId &&
-    !useCodexStore.getState().isDiscovered(step.codexEntryId);
+  // Discovery caption: a label rendered above the highlight square that reads
+  // '???' on a notice beat and the piece/entity name on the reveal beat. Driven
+  // purely by the step's explicit `captionLabel` (set on every notice and
+  // reveal step), NOT by persisted discovery state — the tutorial is a
+  // re-enactment, so the caption must replay every session. Every piece is
+  // captured the same way: ??? -> name.
+  const captionText = step.captionLabel;
 
   // ── Spotlight ring positions (A1-1 only) ──
   const isBoardStep = step.targetRef === 'boardGrid';
@@ -1063,29 +1068,27 @@ function TutorialHUDOverlayComponent({
           only consumer also resolves UX-03 (off-center "???"/codex labels) as a
           side effect: nothing renders a label that could be off-center. */}
 
-      {/* PROMPT_143: '???' Codex-discovery caption. Centered over the highlight
-          square by matching the portal box geometry exactly (same animated
-          left/top/width/height + portalOpacity), so it tracks the square and
-          fades with it — and stays centered, avoiding the UX-03 off-center
-          regression the old step.label sub-header was raised against. Driven
-          solely by showCodexDiscoveryCaption (codexEntryId + !isDiscovered);
-          reuses the amber-mono caption styling the sub-header label used. */}
-      {showCodexDiscoveryCaption && phase !== 'flying' && phase !== 'idle' && portalBox && (
+      {/* Discovery caption label. Sits ABOVE the highlight square (box.top - 24),
+          horizontally centered on the box center, reading '???' on a notice beat
+          and the piece/entity name on the reveal beat. A fixed-width centered
+          container lets long names (e.g. TRANSMITTER, OUTPUT TAPE) overflow the
+          narrow piece highlight without clipping. Fades with portalOpacity.
+          Caption steps never target the board, so static portalBox geometry is
+          used (no animated portalLeft/Top branch needed). */}
+      {captionText && phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: isBoardStep ? portalLeft : portalBox.left,
-            top: isBoardStep ? portalTop : portalBox.top,
-            width: portalW,
-            height: portalH,
+            left: portalBox.left + portalBox.width / 2 - 100,
+            top: portalBox.top - 24,
+            width: 200,
             opacity: portalOpacity,
             alignItems: 'center',
-            justifyContent: 'center',
             zIndex: 151,
           }}
         >
-          <Text style={st.label}>???</Text>
+          <Text style={st.label} numberOfLines={1}>{captionText}</Text>
         </Animated.View>
       )}
 
@@ -1245,6 +1248,7 @@ function TutorialHUDOverlayComponent({
         >
           <CodexDetailView
             entry={codexEntry}
+            entryNumber={getCodexEntryNumber(codexEntry.id)}
             onUnderstood={handleCodexUnderstood}
             alsoCollected={codexAlsoCollected.length > 0 ? codexAlsoCollected : undefined}
           />

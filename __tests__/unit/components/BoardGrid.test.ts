@@ -33,6 +33,15 @@ describe('BoardGrid — wraps the per-piece map', () => {
     expect(gridSrc).toMatch(/onTap=\{onPieceTap\}/);
     expect(gridSrc).toMatch(/onLongPress=\{onPieceLongPress\}/);
   });
+
+  it('colors Source amber and Terminal green (matching the Codex), not copper', () => {
+    // Tucker note 2026-06-13: the board Terminal must read green (#00C48C),
+    // the same color the Codex entry and PieceIcon strokes use — it was
+    // rendering Colors.copper.
+    expect(gridSrc).toMatch(/isOutput\s*\n?\s*\?\s*'#00C48C'/);
+    expect(gridSrc).not.toMatch(/isOutput[\s\S]{0,40}Colors\.copper/);
+    expect(gridSrc).toMatch(/isSource\s*\n?\s*\?\s*'#F0B429'/);
+  });
 });
 
 describe('BoardPiece — per-piece prop isolation', () => {

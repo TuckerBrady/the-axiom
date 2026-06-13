@@ -43,17 +43,19 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       expect(a11?.[0]).not.toMatch(/id: 'codex-intro'/);
     });
 
-    it("adds source-collect step targeting the Source port with codexEntryId 'source'", () => {
+    it("adds source-notice step targeting the Source port with codexEntryId 'source'", () => {
+      // Standardized discovery (2026-06-13): the silent-catalogue codexEntryId
+      // lives on the source-notice (???) beat; source-reveal names it.
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'source-collect'[\s\S]*?targetRef: 'sourceNode'[\s\S]*?codexEntryId: 'source'/,
+        /id: 'source-notice'[\s\S]*?targetRef: 'sourceNode'[\s\S]*?codexEntryId: 'source'/,
       );
     });
 
-    it("adds terminal-collect step targeting the Output port with codexEntryId 'terminal'", () => {
+    it("adds terminal-notice step targeting the Output port with codexEntryId 'terminal'", () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a11?.[0]).toMatch(
-        /id: 'terminal-collect'[\s\S]*?targetRef: 'outputNode'[\s\S]*?codexEntryId: 'terminal'/,
+        /id: 'terminal-notice'[\s\S]*?targetRef: 'outputNode'[\s\S]*?codexEntryId: 'terminal'/,
       );
     });
 
@@ -79,24 +81,27 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
     });
 
     it('still introduces the input tape and data trail on A1-5', () => {
+      // CONTENT-01: the IN tape and Data Trail are now catalogued via the
+      // ??? -> Codex notice/reveal discovery flow (DATA STREAM entries),
+      // replacing the old single -intro narration step.
       const a15 = levelsSrc.match(/levelA1_5:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
-      expect(a15?.[0]).toMatch(/id: 'input-tape-intro'[\s\S]*?targetRef: 'inputTapeRow'/);
-      expect(a15?.[0]).toMatch(/id: 'data-trail-intro'[\s\S]*?targetRef: 'dataTrailRow'/);
+      expect(a15?.[0]).toMatch(/id: 'input-tape-notice'[\s\S]*?targetRef: 'inputTapeRow'/);
+      expect(a15?.[0]).toMatch(/id: 'data-trail-notice'[\s\S]*?targetRef: 'dataTrailRow'/);
     });
   });
 
-  describe('PROMPT_144 — A1-7 output-tape-intro added', () => {
+  describe('CONTENT-01 — A1-7 OUT tape catalogued via discovery flow', () => {
     it('introduces the output tape on A1-7, where the Transmitter first appears', () => {
       const a17 = levelsSrc.match(/levelA1_7:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       expect(a17).not.toBeNull();
-      expect(a17?.[0]).toMatch(/id: 'output-tape-intro'[\s\S]*?targetRef: 'outputTapeRow'/);
+      expect(a17?.[0]).toMatch(/id: 'output-tape-notice'[\s\S]*?targetRef: 'outputTapeRow'/);
     });
 
-    it('places output-tape-intro after transmitter-reveal and before transmitter-teach', () => {
+    it('places the OUT tape notice after transmitter-reveal and before transmitter-teach', () => {
       const a17 = levelsSrc.match(/levelA1_7:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       const src = a17?.[0] ?? '';
       const revealIdx = src.indexOf("id: 'transmitter-reveal'");
-      const outputIdx = src.indexOf("id: 'output-tape-intro'");
+      const outputIdx = src.indexOf("id: 'output-tape-notice'");
       const teachIdx = src.indexOf("id: 'transmitter-teach'");
       expect(revealIdx).toBeGreaterThan(-1);
       expect(outputIdx).toBeGreaterThan(-1);
@@ -105,7 +110,7 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       expect(outputIdx).toBeLessThan(teachIdx);
     });
 
-    it('does not add output-tape-intro to any other Axiom level', () => {
+    it('does not add the OUT tape notice to any other Axiom level', () => {
       const a11 = levelsSrc.match(/levelA1_1:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       const a12 = levelsSrc.match(/levelA1_2:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       const a13 = levelsSrc.match(/levelA1_3:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
@@ -115,7 +120,7 @@ describe('Prompt 92 — COGS dialogue + codex polish', () => {
       const a18 = levelsSrc.match(/levelA1_8:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
       for (const m of [a11, a12, a13, a14, a15, a16, a18]) {
         expect(m).not.toBeNull();
-        expect(m?.[0]).not.toMatch(/id: 'output-tape-intro'/);
+        expect(m?.[0]).not.toMatch(/id: 'output-tape-notice'/);
       }
     });
   });
