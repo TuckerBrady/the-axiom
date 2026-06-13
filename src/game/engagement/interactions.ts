@@ -152,12 +152,30 @@ export async function runTransmitterInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
-
+  // The Transmitter computes the OUT value, but the OUT cell does NOT fill
+  // here (Tucker 2026-06-13). The value reveal + arrival highlight are deferred
+  // to the moment the signal reaches the Terminal — runTerminalInteraction — so
+  // the OUT tape fills "the moment a signal completes the circuit." Here the
+  // Transmitter just flashes as the signal passes through it.
   flashPiece(ctx, stp.pieceId, color);
-  setHighlight(ctx, `out-${pulse}`, 'write');
-  ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
   await wait(300 * speed);
+}
+
+// Arrival fill (Tucker 2026-06-13). When a pulse's signal reaches the Terminal,
+// its OUT cell fills with the computed value and pulses — for ANY value (0 or
+// 1), not when the Transmitter fired and not keyed to value === 1. Blocked
+// pulses never reach the Terminal, so they keep the gate-block middle-dot set
+// by runConfigNodeInteraction. Levels without an OUT tape have no
+// visualOutputOverride and are skipped.
+export function runTerminalInteraction(
+  ctx: EngagementContext,
+  stp: ExecutionStep,
+): void {
+  if (!stp.success) return;
+  const pulse = ctx.currentPulseRef.current;
+  const outputTape = useGameStore.getState().machineState.outputTape;
+  if (!outputTape || outputTape[pulse] === undefined) return;
+  const written = outputTape[pulse];
 
   ctx.setVisualOutputOverride(prev => {
     if (!prev) return prev;
@@ -166,8 +184,8 @@ export async function runTransmitterInteraction(
     next[pulse] = written;
     return next;
   });
-
-  await wait(150 * speed);
+  ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
+  setHighlight(ctx, `out-${pulse}`, 'arrived');
 }
 
 // triggerPieceAnim runs the piece's flash + interaction. When called
@@ -217,5 +235,6 @@ export function triggerPieceAnim(
   if (stp.type === 'scanner') return runScannerInteraction(ctx, stp);
   if (stp.type === 'configNode') return runConfigNodeInteraction(ctx, stp);
   if (stp.type === 'transmitter') return runTransmitterInteraction(ctx, stp);
+  if (stp.type === 'terminal') { runTerminalInteraction(ctx, stp); return Promise.resolve(); }
   return Promise.resolve();
 }

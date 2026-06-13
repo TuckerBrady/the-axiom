@@ -64,6 +64,11 @@ function colorsForHighlight(h: TapeHighlight): { bg: string; border: string } {
       return { bg: 'rgba(0,212,255,0.18)', border: 'rgba(0,212,255,0.9)' };
     case 'gate-block':
       return { bg: 'rgba(255,59,59,0.18)', border: 'rgba(255,59,59,0.9)' };
+    case 'arrived':
+      // OUT cell arrival fill in the OUT tape's own color (#FF7D3F). Fires when
+      // the signal reaches the Terminal — the brief pulse on top of the static
+      // arrived fill below.
+      return { bg: 'rgba(255,125,63,0.30)', border: 'rgba(255,125,63,1)' };
     case 'departing':
       // The pre-99C 'departing' class did `opacity: 0.3` + a faded
       // cyan border on the cell itself. The overlay can't reproduce
@@ -187,17 +192,16 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
     );
   }
   // OUT tape
-  const { gatePassed, gateBlocked, hasValue, written } = props;
-  // Display rule (Prompt 106, Fix 1): if the Transmitter wrote a value
-  // (hasValue=true), always display the number. gatePassed/gateBlocked
-  // affect the cell's STYLING (border + background), not whether the
-  // value is shown. A Transmitter upstream of a Config Node writes
-  // before the gate evaluates — the value is on the tape regardless of
-  // whether the downstream gate later blocks. Pre-Prompt-106 the
-  // ternary fell through to '·' when hasValue=true && gateBlocked=true,
-  // hiding the written value entirely.
+  const { gateBlocked, hasValue, written } = props;
+  // Arrival fill (Tucker 2026-06-13): the OUT cell stays dim until its pulse's
+  // signal reaches the Terminal, at which point the value is revealed
+  // (visualOutputOverride set in runTerminalInteraction => hasValue flips true)
+  // and the cell fills in the OUT tape's own color — for ANY value, 0 or 1.
+  // The fill is driven by arrival (value present), NOT by the gate outcome, so
+  // a 0 that reaches the Terminal fills the same as a 1. Blocked pulses never
+  // arrive: they keep the red middle-dot from the gate-block highlight.
   const cellHasWrittenValue = !!hasValue;
-  const styleAsPassed = !!gatePassed && cellHasWrittenValue;
+  const styleAsArrived = cellHasWrittenValue;
   const styleAsBlocked = !!gateBlocked && !cellHasWrittenValue;
   return (
     <View style={styles.tapeCellWrap}>
@@ -207,7 +211,7 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         collapsable={false}
         style={[
           styles.tapeCell,
-          styleAsPassed && styles.tapeCellGatePassed,
+          styleAsArrived && styles.tapeCellArrived,
           styleAsBlocked && styles.tapeCellGateBlocked,
         ]}
       >
@@ -215,7 +219,7 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         <Text
           style={[
             styles.tapeCellText,
-            styleAsPassed && styles.tapeCellTextGatePassed,
+            styleAsArrived && styles.tapeCellTextArrived,
             styleAsBlocked && styles.tapeCellTextGateBlocked,
           ]}
         >
@@ -256,9 +260,9 @@ const styles = StyleSheet.create({
   tapeCellPast: {
     borderColor: 'rgba(139,92,246,0.3)',
   },
-  tapeCellGatePassed: {
-    borderColor: '#00FF87',
-    backgroundColor: 'rgba(0,255,135,0.14)',
+  tapeCellArrived: {
+    borderColor: '#FF7D3F',
+    backgroundColor: 'rgba(255,125,63,0.18)',
   },
   tapeCellGateBlocked: {
     borderColor: '#FF3B3B',
@@ -279,8 +283,8 @@ const styles = StyleSheet.create({
   tapeCellTextInPast: {
     color: 'rgba(191,255,63,0.4)',
   },
-  tapeCellTextGatePassed: {
-    color: '#00FF87',
+  tapeCellTextArrived: {
+    color: '#FFFFFF',
   },
   tapeCellTextGateBlocked: {
     color: '#FF3B3B',

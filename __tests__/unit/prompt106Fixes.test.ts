@@ -38,9 +38,11 @@ describe('Prompt 106 — Fix 1: OUT tape always shows the written value', () => 
     );
   });
 
-  it('green styling requires hasValue, not gatePassed alone', () => {
+  it('arrival fill requires hasValue (revealed on Terminal arrival)', () => {
+    // 2026-06-13: the fill is now driven by arrival (value revealed), not the
+    // gate outcome. styleAsArrived = cellHasWrittenValue.
     expect(tapeCellSrc).toMatch(
-      /styleAsPassed = !!gatePassed && cellHasWrittenValue/,
+      /styleAsArrived = cellHasWrittenValue/,
     );
   });
 

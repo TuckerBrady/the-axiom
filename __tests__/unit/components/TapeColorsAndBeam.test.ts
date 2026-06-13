@@ -40,11 +40,12 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(tapeCellSrc).toMatch(/styles\.tapeCellTextIn,\s*\n[\s\S]*?isActive && styles\.tapeCellTextInActive/);
     });
 
-    it('does NOT change TRAIL or OUT tape colors', () => {
+    it('TRAIL keeps its color; OUT uses arrival (orange) + blocked (red) styles', () => {
       // TRAIL still uses Colors.neonGreen for its inline text style (in TapeCell.tsx).
       expect(tapeCellSrc).toMatch(/styles\.tapeCellText, \{ color: Colors\.neonGreen \}/);
-      // OUT keeps the gate-passed / gate-blocked styles (in TapeCell.tsx).
-      expect(tapeCellSrc).toMatch(/tapeCellGatePassed:\s*\{[\s\S]*?borderColor:\s*'#00FF87'/);
+      // OUT arrival fill is the OUT tape's own orange (#FF7D3F); blocked stays red.
+      // (2026-06-13: the old green gate-passed fill became the orange arrival fill.)
+      expect(tapeCellSrc).toMatch(/tapeCellArrived:\s*\{[\s\S]*?borderColor:\s*'#FF7D3F'/);
       expect(tapeCellSrc).toMatch(/tapeCellGateBlocked:\s*\{[\s\S]*?borderColor:\s*'#FF3B3B'/);
     });
   });
