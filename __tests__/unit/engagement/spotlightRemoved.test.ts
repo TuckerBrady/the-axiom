@@ -66,12 +66,12 @@ describe('Prompt 88 — ghost spotlight removed', () => {
     });
 
     it('still calls flashPiece + wait — animation pacing is preserved', () => {
-      // Per the prompt, the wait() calls that surrounded spotlight calls
-      // pace the indicator bar animation and must not be removed.
+      // The wait() calls pace the indicator bar animation and must not be
+      // removed. (The wait(80) lift-off pause went away with the IN->TRAIL
+      // glow arc on 2026-06-13; the rest still pace Scanner/ConfigNode.)
       expect(src).toMatch(/await wait\(120 \* speed\)/);
       expect(src).toMatch(/await wait\(250 \* speed\)/);
       expect(src).toMatch(/await wait\(300 \* speed\)/);
-      expect(src).toMatch(/await wait\(80 \* speed\)/);
       expect(src).toMatch(/await wait\(150 \* speed\)/);
     });
   });

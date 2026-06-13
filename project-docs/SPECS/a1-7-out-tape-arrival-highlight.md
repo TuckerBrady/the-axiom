@@ -36,3 +36,13 @@ fills with the OUT tape's own color (`#FF7D3F`) and pulses — for any value.
   `tapeCellArrived` fill (orange), driven off arrival not gate.
 
 Levels without an OUT tape have no `visualOutputOverride` and are skipped.
+
+## Follow-up — single tape-to-tape animation (2026-06-13)
+
+Tucker: keep the OUT arrival fill as the **only** tape-to-tape animation. The
+Scanner's IN→TRAIL lift-off/arc glow travel (`runValueTravel`) was removed; the
+TRAIL cell now fills in place with the same arrival fill, in the TRAIL's own
+color (purple). The `'arrived'` highlight is tape-aware in `TapeCell`
+(`colorsForHighlight(h, tape)`): TRAIL purple, OUT orange. `runValueTravel`
+is no longer called from `interactions.ts` (the glow-traveler module/render is
+left in place, dormant).

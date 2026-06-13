@@ -50,7 +50,7 @@ function arePropsEqual(prev: Props, next: Props): boolean {
 // classes (Prompt 99C, Fix 3). Returning the visual values for the
 // overlay rather than baking them into static StyleSheet entries lets
 // the overlay fade in/out under a single native-driven Animated.Value.
-function colorsForHighlight(h: TapeHighlight): { bg: string; border: string } {
+function colorsForHighlight(h: TapeHighlight, tape: TapeRole): { bg: string; border: string } {
   switch (h) {
     case 'read':
       return { bg: 'rgba(0,229,255,0.18)', border: 'rgba(0,229,255,0.9)' };
@@ -64,11 +64,14 @@ function colorsForHighlight(h: TapeHighlight): { bg: string; border: string } {
       return { bg: 'rgba(0,212,255,0.18)', border: 'rgba(0,212,255,0.9)' };
     case 'gate-block':
       return { bg: 'rgba(255,59,59,0.18)', border: 'rgba(255,59,59,0.9)' };
-    case 'arrived':
-      // OUT cell arrival fill in the OUT tape's own color (#FF7D3F). Fires when
-      // the signal reaches the Terminal — the brief pulse on top of the static
-      // arrived fill below.
-      return { bg: 'rgba(255,125,63,0.30)', border: 'rgba(255,125,63,1)' };
+    case 'arrived': {
+      // The single tape-to-tape arrival fill: the destination cell pulses in
+      // its OWN tape color when the value lands — TRAIL purple (Scanner read),
+      // OUT orange (Terminal arrival). One animation, each in its tape's color.
+      const rgb =
+        tape === 'trail' ? '169,127,219' : tape === 'in' ? '191,255,63' : '255,125,63';
+      return { bg: `rgba(${rgb},0.30)`, border: `rgba(${rgb},1)` };
+    }
     case 'departing':
       // The pre-99C 'departing' class did `opacity: 0.3` + a faded
       // cyan border on the cell itself. The overlay can't reproduce
@@ -109,7 +112,7 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
   // project-docs/REPORTS/build21-sigsegv-investigation.md.
   useEffect(() => {
     if (highlight) {
-      lastColorsRef.current = colorsForHighlight(highlight);
+      lastColorsRef.current = colorsForHighlight(highlight, tape);
       Animated.timing(highlightOpacity, {
         toValue: 1,
         duration: HIGHLIGHT_FADE_IN_MS,
@@ -122,9 +125,9 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
         useNativeDriver: false,
       }).start();
     }
-  }, [highlight, highlightOpacity]);
+  }, [highlight, highlightOpacity, tape]);
 
-  const overlayColors = highlight ? colorsForHighlight(highlight) : lastColorsRef.current;
+  const overlayColors = highlight ? colorsForHighlight(highlight, tape) : lastColorsRef.current;
   const overlay = overlayColors ? (
     <Animated.View
       pointerEvents="none"

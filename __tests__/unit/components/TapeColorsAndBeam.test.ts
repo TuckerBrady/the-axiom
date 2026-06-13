@@ -164,15 +164,13 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(valueTravelSrc).not.toMatch(/setTimeout\(\s*\(\)\s*=>\s*\{\s*resolve\(\);\s*\},\s*700\s*\);/);
     });
 
-    it('Scanner interaction passes the trail-write highlight via the onArrive callback', () => {
-      // The setHighlight + setTapeBarState + setVisualTrailOverride calls
-      // live inside the onArrive lambda, defined before the runValueTravel
-      // call and passed as an argument (Phase 3 refactor, Prompt 109).
-      const onArriveBlock = interactionsSrc.match(/const onArrive = \(\) => \{[\s\S]*?\};/);
-      expect(onArriveBlock).not.toBeNull();
-      expect(onArriveBlock?.[0]).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'write'\)/);
-      expect(onArriveBlock?.[0]).toMatch(/setTapeBarState\(prev =>/);
-      expect(onArriveBlock?.[0]).toMatch(/setVisualTrailOverride\(prev =>/);
+    it('Scanner fills the TRAIL cell in place with the arrival fill (no glow arc)', () => {
+      // 2026-06-13: the IN->TRAIL lift-off/arc glow travel was removed in favor
+      // of the single tape-to-tape arrival fill. The Scanner now sets the trail
+      // 'arrived' highlight + value directly, and no longer calls runValueTravel.
+      expect(interactionsSrc).not.toMatch(/runValueTravel/);
+      expect(interactionsSrc).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'arrived'\)/);
+      expect(interactionsSrc).toMatch(/setVisualTrailOverride\(prev =>/);
     });
   });
 });

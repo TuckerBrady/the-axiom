@@ -25,21 +25,13 @@ describe('Fix 1 — null measurement cache', () => {
     expect(getTapeCellPosFromCache(null, 7)).toBeNull();
   });
 
-  it('glow traveler animation skip guard exists in runScannerInteraction', () => {
-    // After null check, Scanner skips runValueTravel but still calls onArrive.
-    expect(interactionsSrc).toMatch(/if \(inputCell && trailCellPos\)/);
-    expect(interactionsSrc).toMatch(/onArrive\(\)/);
-  });
-
-  it('onArrive callback is extracted before the null guard so state always updates', () => {
-    // The onArrive extraction must appear before the if/else guard so
-    // tape state (highlight, barState, visualTrailOverride) always fires
-    // regardless of whether positions were available.
-    const onArriveIdx = interactionsSrc.indexOf('const onArrive = ()');
-    const guardIdx = interactionsSrc.indexOf('if (inputCell && trailCellPos)');
-    expect(onArriveIdx).toBeGreaterThan(0);
-    expect(guardIdx).toBeGreaterThan(0);
-    expect(onArriveIdx).toBeLessThan(guardIdx);
+  it('Scanner no longer runs the glow traveler — the crash vector is removed', () => {
+    // 2026-06-13: the IN->TRAIL glow arc (runValueTravel) was replaced by the
+    // in-place arrival fill, so the null-measurement glow-travel crash vector
+    // no longer exists. The Scanner updates tape state directly.
+    expect(interactionsSrc).not.toMatch(/runValueTravel/);
+    expect(interactionsSrc).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'arrived'\)/);
+    expect(interactionsSrc).toMatch(/setVisualTrailOverride\(prev =>/);
   });
 });
 
