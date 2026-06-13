@@ -116,6 +116,7 @@ export const levelA1_1: LevelDefinition = {
       eyeState: 'amber',
       message: 'That piece is not in the Codex yet. It will be.',
       codexEntryId: 'conveyor',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat: COGS names the piece after the Codex reveal.
@@ -181,6 +182,7 @@ export const levelA1_2: LevelDefinition = {
       eyeState: 'amber',
       message: 'The tray. There is an uncatalogued piece sitting right there.',
       codexEntryId: 'gear',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -252,6 +254,7 @@ export const levelA1_3: LevelDefinition = {
       eyeState: 'amber',
       message: 'Another one. The tray is showing a piece I cannot identify from existing records.',
       codexEntryId: 'configNode',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -391,6 +394,7 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'There is a data stream feeding this board. I have not catalogued it.',
       codexEntryId: 'inputTape',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat after the Codex closes.
@@ -405,6 +409,7 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'Another stream. This one the machine writes to as it runs. Also uncatalogued.',
       codexEntryId: 'dataTrail',
+      unknownCaption: true,
     },
     {
       id: 'data-trail-reveal',
@@ -427,6 +432,7 @@ export const levelA1_5: LevelDefinition = {
       eyeState: 'amber',
       message: 'I see it. In the tray. Uncatalogued.',
       codexEntryId: 'scanner',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -558,6 +564,7 @@ export const levelA1_7: LevelDefinition = {
       eyeState: 'amber',
       message: 'One more. The tray.',
       codexEntryId: 'transmitter',
+      unknownCaption: true,
     },
     {
       // Named-reveal beat: targets the tray slot, not a placed piece.
@@ -575,6 +582,7 @@ export const levelA1_7: LevelDefinition = {
       eyeState: 'amber',
       message: 'One more stream. Where the results land. Not yet on record.',
       codexEntryId: 'outputTape',
+      unknownCaption: true,
     },
     {
       id: 'output-tape-reveal',
