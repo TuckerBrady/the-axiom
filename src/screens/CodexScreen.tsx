@@ -23,6 +23,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
 import { PieceIcon } from '../components/PieceIcon';
 import PieceSimulation from '../components/PieceSimulation';
+import { TapeGlyph, TapeFieldStrip, hexToRgba } from '../components/CodexDetailView';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useCodexStore } from '../store/codexStore';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
@@ -45,6 +46,12 @@ function getCodexPieceColor(pieceId: string): string {
     case 'counter':
     case 'latch':
       return '#8B5CF6'; // Protocol purple
+    case 'inputTape':
+      return '#BFFF3F'; // IN — neon green
+    case 'dataTrail':
+      return '#A97FDB'; // TRAIL — atomic purple
+    case 'outputTape':
+      return '#FF7D3F'; // OUT — fire orange
     default:
       return '#4a9eff'; // Physics blue
   }
@@ -52,7 +59,7 @@ function getCodexPieceColor(pieceId: string): string {
 
 // ─── Data ──────────────────────────────────────────────────────────────────────
 
-type PieceType = 'Physics' | 'Protocol';
+type PieceType = 'Physics' | 'Protocol' | 'Stream';
 type EntryStatus = 'unlocked' | 'redacted';
 
 export type PieceEntry = {
@@ -133,6 +140,37 @@ const PIECES: PieceEntry[] = [
     timesUsed: 7, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-3 Navigation Array',
     seenIn: ['Signal Drift', 'Ion Cascade'],
+  },
+  // ── Unlocked Data Streams (tapes) — CONTENT-01, copy approved 2026-06-12 ──
+  {
+    id: 'inputTape', name: 'Input Tape', type: 'Stream', status: 'unlocked',
+    description: 'A read-only sequence of bit values fed into the machine — one cell per pulse, left to right. The machine fires once per cell.',
+    function: 'Supplies one bit per pulse to the machine, in fixed order. Read-only; nothing the machine does can change it.',
+    importance: 'The input tape is the problem statement. Every run is the machine’s attempt to answer it.',
+    cogsNote: 'The input tape is the question. One bit at a time, in order, no second readings. The machine does not choose what it is asked. Only what it does about it.',
+    timesUsed: 0, levelsPlayed: 0, sectorsSeen: 1,
+    firstEncountered: 'THE AXIOM — A1-5 Communication Array',
+    seenIn: ['Communication Array'],
+  },
+  {
+    id: 'dataTrail', name: 'Data Trail', type: 'Stream', status: 'unlocked',
+    description: 'The machine’s working memory. Pieces write values here; pieces read them back. It persists across pulses within a single run.',
+    function: 'Holds bit values written by pieces (e.g. Scanner) and read by others (e.g. Config Node). Persists within one run; resets on machine reset.',
+    importance: 'Without the Data Trail every pulse is independent. With it, the machine can carry state forward and react to its own history.',
+    cogsNote: 'The Data Trail is what the machine remembers. Without it, every pulse is a stranger. With it, the machine carries a thought from one moment to the next. Unreasonably close to thinking.',
+    timesUsed: 0, levelsPlayed: 0, sectorsSeen: 1,
+    firstEncountered: 'THE AXIOM — A1-5 Communication Array',
+    seenIn: ['Communication Array'],
+  },
+  {
+    id: 'outputTape', name: 'Output Tape', type: 'Stream', status: 'unlocked',
+    description: 'Where results are recorded — one cell per pulse. A value appears the moment a signal completes the circuit at the Terminal.',
+    function: 'Receives the machine’s output, one cell per pulse. A cell fills when its pulse’s signal reaches the Terminal.',
+    importance: 'The output tape is the verdict. The machine’s answer is whatever lands here, compared against what was expected.',
+    cogsNote: 'The output tape is the answer. Everything upstream is opinion until a value lands here. Then it is fact. And it is yours.',
+    timesUsed: 0, levelsPlayed: 0, sectorsSeen: 1,
+    firstEncountered: 'THE AXIOM — A1-7 Weapons Lock',
+    seenIn: ['Weapons Lock'],
   },
   {
     id: 'scanner', name: 'Scanner', type: 'Protocol', status: 'unlocked',
@@ -373,7 +411,9 @@ function HomeView({ onSection }: { onSection: (id: string) => void }) {
 
 // ─── Section view (Pieces) ───────────────────────────────────────────────────
 
-type Filter = 'All' | 'Physics' | 'Protocol';
+type Filter = 'All' | 'Physics' | 'Protocol' | 'Stream';
+// Display label for each filter tab (Stream reads as "Tapes" to the player).
+const filterLabel = (f: Filter): string => (f === 'Stream' ? 'Tapes' : f);
 
 function EntryGridCard({
   entry,
@@ -382,16 +422,29 @@ function EntryGridCard({
   entry: PieceEntry;
   onPress: () => void;
 }) {
+  const isStream = entry.type === 'Stream';
+  const streamColor = getCodexPieceColor(entry.id);
   if (entry.status === 'redacted') {
     return (
       <View style={cs.gridCard}>
         <View style={cs.gridCardRedacted}>
-          <PieceIcon type={entry.id} size={36} color={getCodexPieceColor(entry.id)} />
+          {isStream
+            ? <TapeGlyph color={streamColor} />
+            : <PieceIcon type={entry.id} size={36} color={streamColor} />}
           <Text style={cs.gridCardClassified}>CLASSIFIED</Text>
         </View>
       </View>
     );
   }
+  // Type badge palette: Physics = copper, Protocol = circuit, Stream = tape color.
+  const badgeBg = entry.type === 'Physics'
+    ? 'rgba(200,121,65,0.15)'
+    : isStream ? hexToRgba(streamColor, 0.15) : 'rgba(167,139,250,0.15)';
+  const badgeBorder = entry.type === 'Physics'
+    ? 'rgba(200,121,65,0.4)'
+    : isStream ? hexToRgba(streamColor, 0.4) : 'rgba(167,139,250,0.4)';
+  const badgeText = entry.type === 'Physics'
+    ? Colors.copper : isStream ? streamColor : Colors.circuit;
   return (
     <TouchableOpacity style={cs.gridCard} onPress={onPress} activeOpacity={0.8}>
       <LinearGradient
@@ -401,28 +454,18 @@ function EntryGridCard({
         end={{ x: 0, y: 1 }}
       />
       <View style={cs.gridCardInner}>
-        <PieceIcon type={entry.id} size={38} color={getCodexPieceColor(entry.id)} />
+        {isStream
+          ? <TapeGlyph color={streamColor} />
+          : <PieceIcon type={entry.id} size={38} color={streamColor} />}
         <Text style={cs.gridCardName}>{entry.name}</Text>
         <View
           style={[
             cs.gridCardTypeBadge,
-            {
-              backgroundColor: entry.type === 'Physics'
-                ? 'rgba(200,121,65,0.15)'
-                : 'rgba(167,139,250,0.15)',
-              borderColor: entry.type === 'Physics'
-                ? 'rgba(200,121,65,0.4)'
-                : 'rgba(167,139,250,0.4)',
-            },
+            { backgroundColor: badgeBg, borderColor: badgeBorder },
           ]}
         >
-          <Text
-            style={[
-              cs.gridCardTypeText,
-              { color: entry.type === 'Physics' ? Colors.copper : Colors.circuit },
-            ]}
-          >
-            {entry.type.toUpperCase()}
+          <Text style={[cs.gridCardTypeText, { color: badgeText }]}>
+            {isStream ? 'STREAM' : entry.type.toUpperCase()}
           </Text>
         </View>
       </View>
@@ -438,7 +481,7 @@ function SectionView({
   onDetail: (entry: PieceEntry) => void;
 }) {
   const [filter, setFilter] = useState<Filter>('All');
-  const filters: Filter[] = ['All', 'Physics', 'Protocol'];
+  const filters: Filter[] = ['All', 'Physics', 'Protocol', 'Stream'];
   const discoveredIds = useCodexStore(s => s.discoveredIds);
   const discovered = new Set(discoveredIds);
 
@@ -469,7 +512,7 @@ function SectionView({
             onPress={() => setFilter(f)}
             activeOpacity={0.8}
           >
-            <Text style={[cs.filterTabText, filter === f && cs.filterTabTextActive]}>{f}</Text>
+            <Text style={[cs.filterTabText, filter === f && cs.filterTabTextActive]}>{filterLabel(f)}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -505,10 +548,17 @@ function DetailView({
   const reveal = useSharedValue(0);
 
   const isPhysics = entry.type === 'Physics';
-  const accent = isPhysics
-    ? { bg: 'rgba(240,180,41,0.08)', border: 'rgba(240,180,41,0.28)', text: Colors.amber }
-    : { bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.28)', text: '#00D4FF' };
-  const atmosphereColor = isPhysics ? 'rgba(240,180,41,0.06)' : 'rgba(0,212,255,0.06)';
+  const isStream = entry.type === 'Stream';
+  const streamColor = getCodexPieceColor(entry.id);
+  const accent = isStream
+    ? { bg: hexToRgba(streamColor, 0.08), border: hexToRgba(streamColor, 0.4), text: streamColor }
+    : isPhysics
+      ? { bg: 'rgba(240,180,41,0.08)', border: 'rgba(240,180,41,0.28)', text: Colors.amber }
+      : { bg: 'rgba(0,212,255,0.08)', border: 'rgba(0,212,255,0.28)', text: '#00D4FF' };
+  const atmosphereColor = isStream
+    ? hexToRgba(streamColor, 0.06)
+    : isPhysics ? 'rgba(240,180,41,0.06)' : 'rgba(0,212,255,0.06)';
+  const typeBadgeLabel = isStream ? 'DATA STREAM' : isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE';
 
   useEffect(() => {
     reveal.value = withTiming(1, { duration: 400 });
@@ -542,7 +592,9 @@ function DetailView({
               { backgroundColor: accent.bg, borderColor: accent.border },
             ]}
           >
-            <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />
+            {isStream
+              ? <TapeGlyph color={streamColor} />
+              : <PieceIcon type={entry.id} size={32} color={streamColor} />}
           </View>
           <Text style={cs.detailName}>{entry.name.toUpperCase()}</Text>
           <View
@@ -552,7 +604,7 @@ function DetailView({
             ]}
           >
             <Text style={[cs.detailTypeBadgeText, { color: accent.text }]}>
-              {isPhysics ? 'PHYSICS PIECE' : 'PROTOCOL PIECE'}
+              {typeBadgeLabel}
             </Text>
           </View>
         </View>
@@ -564,7 +616,9 @@ function DetailView({
         </View>
 
         {/* Field simulation */}
-        <PieceSimulation pieceType={entry.id} />
+        {isStream
+          ? <TapeFieldStrip id={entry.id} color={streamColor} />
+          : <PieceSimulation pieceType={entry.id} />}
 
         {/* C.O.G.S NOTES — teaching mode */}
         <View style={cs.dossierSections}>

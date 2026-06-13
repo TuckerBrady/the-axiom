@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep, PieceType } from '../game/types';
 import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial';
 import { Colors, Fonts } from '../theme/tokens';
-import CodexDetailView, { getCodexEntry, type PieceEntry } from './CodexDetailView';
+import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 
@@ -600,8 +600,6 @@ function TutorialHUDOverlayComponent({
       setTargetLayout(layout);
       const isCenter = s.targetRef === 'center';
       const box = isCenter ? null : computePortalBox(layout);
-      const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
-      const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
 
       // PROMPT_127 Fix 1: drive dim from the active step's target. Tray
       // steps dim 0.45; placedPiece (codex + tap) steps dim 0; any
@@ -628,14 +626,14 @@ function TutorialHUDOverlayComponent({
         dimAnim.start();
       }
 
-      // PROMPT_127 Fix 2: bottom-dock the orb above the (also
-      // bottom-docked) callout on allowPieceTap steps so the placed
-      // piece is fully tappable. PROMPT_127 Fix 3: hover the orb
-      // above the tray icon on awaitPlacement tray steps so the
-      // player can still see which piece to drag. Any other step
-      // uses the unmodified center.
-      let targetCx = centerX;
-      let targetCy = centerY;
+      // Presentation Mode (Tucker 2026-06-13): COGS stays centered on screen
+      // for every step — the "professor with a laser pointer". The orb does
+      // not chase the target; only the highlight (board outline / amber square),
+      // the '???'/name caption, and the dialogue card move to whatever COGS is
+      // pointing at. The one exception is allowPieceTap steps, where COGS steps
+      // aside (bottom-docked) so the player can tap the piece on the board.
+      let targetCx = SCREEN_W / 2;
+      let targetCy = SCREEN_H / 2;
       if (s.allowPieceTap) {
         const calloutLeft = Math.max(
           12,
@@ -644,16 +642,6 @@ function TutorialHUDOverlayComponent({
         const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
         targetCx = calloutLeft + CALLOUT_W / 2;
         targetCy = calloutTop - 10 - ORB_SIZE / 2;
-      } else if (box && s.targetRef?.startsWith('tray')) {
-        // PROMPT_129: orb sits above the PIECE TRAY label, which sits
-        // above the tray slot — stack reads orb / label / tray icon
-        // from top to bottom. The label renders at box.top - 24 (see
-        // label render block below), so orb bottom edge is 6px above
-        // the label top. Applies to every tray-targeted step (no
-        // longer gated by awaitPlacement) because PROMPT_129 collapsed
-        // the gated A1-1 flow into a single tap-through tray step.
-        const labelTop = box.top - 24;
-        targetCy = labelTop - 6 - ORB_SIZE / 2;
       }
       flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;
@@ -732,9 +720,12 @@ function TutorialHUDOverlayComponent({
   // PROMPT_128: tray-prefixed and placedPiece targets get the corner-bracket
   // square only — the filled glow circle was obscuring the piece icon. Port
   // and board-codex targets keep their glow circle.
-  const isSquareOnlyTarget =
-    !!step &&
-    (step.targetRef?.startsWith('tray') || step.targetRef === 'placedPiece');
+  // Presentation Mode (Tucker 2026-06-13): COGS stays centered, so the
+  // highlight is the amber corner-bracket square (or the board outline) only.
+  // The filled glow circle read as "the orb landed here" — which no longer
+  // happens. Suppress it for every spotlight target (was: tray/placedPiece
+  // only; the port discovery steps were the last to still show a glow).
+  const isSquareOnlyTarget = !!step && step.targetRef !== 'center';
   const showPieceGlow =
     !!step &&
     !SECTION_TARGETS.has(step.targetRef) &&
@@ -938,20 +929,13 @@ function TutorialHUDOverlayComponent({
 
   const codexEntry = step.codexEntryId ? getCodexEntry(step.codexEntryId) : null;
 
-  // PROMPT_143: the '???' Codex-discovery caption. Restored after PROMPT_142's
-  // UX-02 fix removed the only renderer (the step.label sub-header). This is a
-  // separate render path that does NOT read step.label — it is derived purely
-  // from the step's codexEntryId plus monotonic discovery state, so it appears
-  // automatically for ANY undiscovered collectible piece (A1-1 conveyor AND the
-  // gear/configNode/scanner/transmitter PIECE TRAY steps in later levels), with
-  // no per-level hardcoding. Once collected (markDiscovered fires on confirm),
-  // a re-encountered step with the same codexEntryId no longer shows '???'.
-  // isCodexStep === !!step.codexEntryId, so the codexEntryId check is implicit;
-  // it is kept explicit here for the type narrow on the isDiscovered argument.
-  const showCodexDiscoveryCaption =
-    isCodexStep &&
-    !!step.codexEntryId &&
-    !useCodexStore.getState().isDiscovered(step.codexEntryId);
+  // Discovery caption: a label rendered above the highlight square that reads
+  // '???' on a notice beat and the piece/entity name on the reveal beat. Driven
+  // purely by the step's explicit `captionLabel` (set on every notice and
+  // reveal step), NOT by persisted discovery state — the tutorial is a
+  // re-enactment, so the caption must replay every session. Every piece is
+  // captured the same way: ??? -> name.
+  const captionText = step.captionLabel;
 
   // ── Spotlight ring positions (A1-1 only) ──
   const isBoardStep = step.targetRef === 'boardGrid';
@@ -1063,29 +1047,27 @@ function TutorialHUDOverlayComponent({
           only consumer also resolves UX-03 (off-center "???"/codex labels) as a
           side effect: nothing renders a label that could be off-center. */}
 
-      {/* PROMPT_143: '???' Codex-discovery caption. Centered over the highlight
-          square by matching the portal box geometry exactly (same animated
-          left/top/width/height + portalOpacity), so it tracks the square and
-          fades with it — and stays centered, avoiding the UX-03 off-center
-          regression the old step.label sub-header was raised against. Driven
-          solely by showCodexDiscoveryCaption (codexEntryId + !isDiscovered);
-          reuses the amber-mono caption styling the sub-header label used. */}
-      {showCodexDiscoveryCaption && phase !== 'flying' && phase !== 'idle' && portalBox && (
+      {/* Discovery caption label. Sits ABOVE the highlight square (box.top - 24),
+          horizontally centered on the box center, reading '???' on a notice beat
+          and the piece/entity name on the reveal beat. A fixed-width centered
+          container lets long names (e.g. TRANSMITTER, OUTPUT TAPE) overflow the
+          narrow piece highlight without clipping. Fades with portalOpacity.
+          Caption steps never target the board, so static portalBox geometry is
+          used (no animated portalLeft/Top branch needed). */}
+      {captionText && phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
-            left: isBoardStep ? portalLeft : portalBox.left,
-            top: isBoardStep ? portalTop : portalBox.top,
-            width: portalW,
-            height: portalH,
+            left: portalBox.left + portalBox.width / 2 - 100,
+            top: portalBox.top - 24,
+            width: 200,
             opacity: portalOpacity,
             alignItems: 'center',
-            justifyContent: 'center',
             zIndex: 151,
           }}
         >
-          <Text style={st.label}>???</Text>
+          <Text style={st.label} numberOfLines={1}>{captionText}</Text>
         </Animated.View>
       )}
 
@@ -1245,6 +1227,7 @@ function TutorialHUDOverlayComponent({
         >
           <CodexDetailView
             entry={codexEntry}
+            entryNumber={getCodexEntryNumber(codexEntry.id)}
             onUnderstood={handleCodexUnderstood}
             alsoCollected={codexAlsoCollected.length > 0 ? codexAlsoCollected : undefined}
           />

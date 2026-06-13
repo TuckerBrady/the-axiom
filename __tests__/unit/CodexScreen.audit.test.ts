@@ -33,7 +33,9 @@ describe('CodexScreen — Physics/Protocol palette audit', () => {
     let accentBlock: string;
 
     beforeAll(() => {
-      const match = source.match(/const accent = isPhysics[\s\S]*?\};/);
+      // The accent ternary now leads with the isStream (DATA STREAM tape)
+      // branch before the Physics/Protocol split.
+      const match = source.match(/const accent = isStream[\s\S]*?\};/);
       accentBlock = match ? match[0] : '';
     });
 
@@ -62,7 +64,7 @@ describe('CodexScreen — Physics/Protocol palette audit', () => {
     let atmosphereLine: string;
 
     beforeAll(() => {
-      const match = source.match(/const atmosphereColor = isPhysics[^;]*;/);
+      const match = source.match(/const atmosphereColor = isStream[^;]*;/);
       atmosphereLine = match ? match[0] : '';
     });
 
