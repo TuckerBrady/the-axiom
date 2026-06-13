@@ -175,31 +175,37 @@ describe('Orb and callout positions on conveyor-teach (allowPieceTap)', () => {
 
 // ── Fix 3 ────────────────────────────────────────────────────────────────────
 
-describe('Orb hovers above tray icon on awaitPlacement tray steps', () => {
+describe('Presentation Mode — orb stays centered (Tucker 2026-06-13)', () => {
   let runStep: string;
 
   beforeAll(() => {
     runStep = extractRunStep(overlaySrc);
   });
 
-  it('runStep computes orb hover Y from box.top for any tray-targeted step (PROMPT_129 widened)', () => {
-    // PROMPT_129 collapsed A1-1's gated conveyor flow, so the tray-hover
-    // override now fires for ANY tray step (not gated on awaitPlacement).
-    // The orb sits above the label, which sits above the tray slot.
-    expect(runStep).toMatch(
-      /targetRef\??\.\s*startsWith\(\s*['"]tray['"]\s*\)[\s\S]*?box\.top\s*-/,
-    );
+  it('runStep centers the orb on screen for every step (no tray-hover / tape-below chase)', () => {
+    // COGS stays centered the whole time; only the highlight + caption + card
+    // move. The orb fly target defaults to screen center.
+    expect(runStep).toMatch(/let targetCx = SCREEN_W \/ 2;/);
+    expect(runStep).toMatch(/let targetCy = SCREEN_H \/ 2;/);
+    // The old tray-hover (box.top - 24) and tape-below overrides are gone.
+    expect(runStep).not.toMatch(/const labelTop = box\.top - 24/);
+    expect(runStep).not.toMatch(/box\.top \+ box\.height \+ 12 \+ ORB_SIZE/);
+  });
+
+  it('still steps the orb aside (bottom-dock) on allowPieceTap so the piece is tappable', () => {
+    expect(runStep).toMatch(/if \(s\.allowPieceTap\)/);
+    expect(runStep).toMatch(/targetCy = calloutTop - 10 - ORB_SIZE \/ 2/);
   });
 });
 
 // ── PROMPT_128 Fix 1: square highlight (no glow circle) on piece targets ──
 describe('PROMPT_128 -- glow circle suppressed on piece targets (square only)', () => {
-  it('defines a square-only-target flag keying off tray-prefix and placedPiece', () => {
-    // A single derived flag must mark tray-prefixed AND placedPiece targets
-    // as square-only, so it generalizes across every piece-teach step
-    // (conveyor, gear, configNode, scanner, transmitter) with no hardcoded ids.
+  it('marks every spotlight target as square-only (Presentation Mode, 2026-06-13)', () => {
+    // The orb is centered, so the glow circle is suppressed for ALL targets —
+    // the highlight is the amber square / board outline only. The flag is now
+    // simply "any non-center target".
     expect(overlaySrc).toMatch(
-      /isSquareOnlyTarget[\s\S]{0,160}?startsWith\(\s*['"]tray['"]\s*\)[\s\S]{0,80}?===\s*['"]placedPiece['"]/,
+      /const isSquareOnlyTarget = !!step && step\.targetRef !== 'center'/,
     );
   });
 
@@ -267,11 +273,10 @@ describe('PROMPT_128 -- board into focus on the awaitPlacement tray step', () =>
     expect(calloutPos).not.toMatch(/awaitPlacement/);
   });
 
-  it('orb still hovers above the tray icon on tray steps (PROMPT_129 raised above label)', () => {
-    // PROMPT_129 raised the orb to clear the PIECE TRAY label, so the
-    // formula now subtracts the label height too. The orb still uses
-    // box.top as its anchor and still subtracts ORB_SIZE/2 for centering.
-    expect(runStep).toMatch(/box\.top\s*-[\s\S]*?ORB_SIZE\s*\/\s*2/);
+  it('orb no longer hovers above the tray icon — it stays centered (Presentation Mode)', () => {
+    // 2026-06-13: COGS stays centered; the tray-hover override was removed.
+    expect(runStep).not.toMatch(/const labelTop = box\.top - 24/);
+    expect(runStep).toMatch(/let targetCy = SCREEN_H \/ 2;/);
   });
 });
 
@@ -397,13 +402,12 @@ describe('PROMPT_138 -- square renders on all targets, glow circle suppressed on
   });
 });
 
-describe('PROMPT_129 -- COGS orb sits above the PIECE TRAY label on tray steps', () => {
-  it('runStep positions the orb above the tray label on tray-targeted steps', () => {
+describe('Presentation Mode -- COGS stays centered on tray steps too (2026-06-13)', () => {
+  it('runStep no longer special-cases tray steps for orb position (orb centered)', () => {
     const runStep = extractRunStep(overlaySrc);
-    // Orb target Y for a tray step is computed above the label/portal box
-    // top (a negative offset from box.top). Accept the existing tray-hover
-    // form or an explicit label-relative offset.
-    expect(runStep).toMatch(/startsWith\(\s*['"]tray['"]\s*\)/);
-    expect(runStep).toMatch(/box\.top\s*-/);
+    // The tray-hover override was removed; the orb defaults to screen center
+    // for tray steps like every other spotlight step.
+    expect(runStep).not.toMatch(/const labelTop = box\.top - 24/);
+    expect(runStep).toMatch(/let targetCx = SCREEN_W \/ 2;/);
   });
 });

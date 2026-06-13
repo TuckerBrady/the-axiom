@@ -246,12 +246,12 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
     expect(codexSrc).toContain("'DATA STREAM'");
   });
 
-  it('16: tape-row codex steps drop the orb below the highlight box (not over the ???)', () => {
-    // Tucker note 2026-06-13: on the top-of-screen tape rows the orb must sit
-    // below the highlight rectangle/??? caption, not centered on it.
-    expect(overlaySrc).toMatch(
-      /s\.targetRef === 'inputTapeRow'[\s\S]*?s\.targetRef === 'dataTrailRow'[\s\S]*?s\.targetRef === 'outputTapeRow'/,
-    );
-    expect(overlaySrc).toMatch(/targetCy = box\.top \+ box\.height \+ \d+ \+ ORB_SIZE \/ 2/);
+  it('16: tape-row codex steps keep the orb centered (Presentation Mode), not on the ???', () => {
+    // Superseded 2026-06-13: COGS now stays centered for every spotlight step
+    // (the professor-with-a-laser-pointer model), so the tape-row orb no longer
+    // needs a below-the-box override — it is simply centered, clear of the
+    // top-of-screen tape highlight and its ??? caption.
+    expect(overlaySrc).toMatch(/let targetCy = SCREEN_H \/ 2;/);
+    expect(overlaySrc).not.toMatch(/targetCy = box\.top \+ box\.height \+ \d+ \+ ORB_SIZE \/ 2/);
   });
 });

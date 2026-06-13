@@ -600,8 +600,6 @@ function TutorialHUDOverlayComponent({
       setTargetLayout(layout);
       const isCenter = s.targetRef === 'center';
       const box = isCenter ? null : computePortalBox(layout);
-      const centerX = box ? box.left + box.width / 2 : layout.x + layout.width / 2;
-      const centerY = box ? box.top + box.height / 2 : layout.y + layout.height / 2;
 
       // PROMPT_127 Fix 1: drive dim from the active step's target. Tray
       // steps dim 0.45; placedPiece (codex + tap) steps dim 0; any
@@ -628,14 +626,14 @@ function TutorialHUDOverlayComponent({
         dimAnim.start();
       }
 
-      // PROMPT_127 Fix 2: bottom-dock the orb above the (also
-      // bottom-docked) callout on allowPieceTap steps so the placed
-      // piece is fully tappable. PROMPT_127 Fix 3: hover the orb
-      // above the tray icon on awaitPlacement tray steps so the
-      // player can still see which piece to drag. Any other step
-      // uses the unmodified center.
-      let targetCx = centerX;
-      let targetCy = centerY;
+      // Presentation Mode (Tucker 2026-06-13): COGS stays centered on screen
+      // for every step — the "professor with a laser pointer". The orb does
+      // not chase the target; only the highlight (board outline / amber square),
+      // the '???'/name caption, and the dialogue card move to whatever COGS is
+      // pointing at. The one exception is allowPieceTap steps, where COGS steps
+      // aside (bottom-docked) so the player can tap the piece on the board.
+      let targetCx = SCREEN_W / 2;
+      let targetCy = SCREEN_H / 2;
       if (s.allowPieceTap) {
         const calloutLeft = Math.max(
           12,
@@ -644,28 +642,6 @@ function TutorialHUDOverlayComponent({
         const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
         targetCx = calloutLeft + CALLOUT_W / 2;
         targetCy = calloutTop - 10 - ORB_SIZE / 2;
-      } else if (box && s.targetRef?.startsWith('tray')) {
-        // PROMPT_129: orb sits above the PIECE TRAY label, which sits
-        // above the tray slot — stack reads orb / label / tray icon
-        // from top to bottom. The label renders at box.top - 24 (see
-        // label render block below), so orb bottom edge is 6px above
-        // the label top. Applies to every tray-targeted step (no
-        // longer gated by awaitPlacement) because PROMPT_129 collapsed
-        // the gated A1-1 flow into a single tap-through tray step.
-        const labelTop = box.top - 24;
-        targetCy = labelTop - 6 - ORB_SIZE / 2;
-      } else if (
-        box &&
-        (s.targetRef === 'inputTapeRow' ||
-          s.targetRef === 'dataTrailRow' ||
-          s.targetRef === 'outputTapeRow')
-      ) {
-        // Tape rows sit at the very top of the screen and the '???'
-        // discovery caption is centered inside the highlight box. Drop the
-        // orb just below the box so it does not sit on top of the rectangle
-        // and the '???' (Tucker note 2026-06-13). Plenty of board space
-        // below the tape rows for the orb to occupy.
-        targetCy = box.top + box.height + 12 + ORB_SIZE / 2;
       }
       flyOrbTo(targetCx, targetCy, () => {
         if (!mountedRef.current) return;
@@ -744,9 +720,12 @@ function TutorialHUDOverlayComponent({
   // PROMPT_128: tray-prefixed and placedPiece targets get the corner-bracket
   // square only — the filled glow circle was obscuring the piece icon. Port
   // and board-codex targets keep their glow circle.
-  const isSquareOnlyTarget =
-    !!step &&
-    (step.targetRef?.startsWith('tray') || step.targetRef === 'placedPiece');
+  // Presentation Mode (Tucker 2026-06-13): COGS stays centered, so the
+  // highlight is the amber corner-bracket square (or the board outline) only.
+  // The filled glow circle read as "the orb landed here" — which no longer
+  // happens. Suppress it for every spotlight target (was: tray/placedPiece
+  // only; the port discovery steps were the last to still show a glow).
+  const isSquareOnlyTarget = !!step && step.targetRef !== 'center';
   const showPieceGlow =
     !!step &&
     !SECTION_TARGETS.has(step.targetRef) &&
