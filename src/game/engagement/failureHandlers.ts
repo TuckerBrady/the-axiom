@@ -1,15 +1,15 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { ExecutionStep, PlacedPiece } from './types';
+import type { ExecutionStep, OutputTapeValue, PlacedPiece } from './types';
 
 export interface WrongOutputParams {
   steps: ExecutionStep[];
-  expected: number[];
-  produced: number[];
+  expected: OutputTapeValue[];
+  produced: OutputTapeValue[];
   isAxiomLevel: boolean;
   findBlownPiece: (failureType: 'void' | 'wrongOutput', steps: ExecutionStep[]) => PlacedPiece | null;
   deletePiece: (id: string) => void;
   setBlownCells: Dispatch<SetStateAction<Set<string>>>;
-  setWrongOutputData: (data: { expected: number[]; produced: number[] } | null) => void;
+  setWrongOutputData: (data: { expected: OutputTapeValue[]; produced: OutputTapeValue[] } | null) => void;
   setShowWrongOutput: (show: boolean) => void;
   loseLife: () => void;
 }

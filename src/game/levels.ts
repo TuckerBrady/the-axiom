@@ -1,4 +1,5 @@
 import type { LevelDefinition, PlacedPiece } from './types';
+import { BLANK } from './types';
 import { getDefaultPorts, getPieceCategory } from './engine';
 
 // ─── Helper to create pre-placed pieces ───────────────────────────────────────
@@ -556,8 +557,19 @@ export const levelA1_7: LevelDefinition = {
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1],
   // Config Node configValue=1 passes the five 1-valued pulses
   // and blocks the three 0-valued pulses. Transmitter writes the
-  // passing pulses to the output tape.
-  expectedOutput: [1, 1, 1, 1, 1],
+  // passing pulses to the output tape; the three blocked pulses produce no
+  // output and stay BLANK.
+  //
+  // LIVE GATE (SE-TM-002, switched in by Tucker 2026-06-14). expectedOutput is
+  // a full-length, BLANK-aware tape — exact-match against outputTape is the
+  // success condition, because expectedOutput.length === inputTape.length. The
+  // three BLANK cells correspond to the blocked 0-valued pulses; they match the
+  // unwritten output cells under SE-TM-003 (BLANK === BLANK). This matches the
+  // confirmed OUT screenshot (1 1 _ 1 _ _ 1 1). A1-7 is now stricter than the
+  // old "5 of 8 pulses reach Terminal" gate: the precise pipeline ordering is
+  // required for an exact tape match.
+  expectedOutput: [1, 1, BLANK, 1, BLANK, BLANK, 1, 1],
+  // Documentary only (SE-TM-002) — expectedOutput is the live gate for A1-7+.
   requiredTerminalCount: 5,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 8,
@@ -658,10 +670,18 @@ export const levelA1_8: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1, 0, 1],
   // Capstone: Config Node configValue=0 passes the three 0-valued
-  // pulses. The five 1-valued pulses are blocked. expectedOutput covers
-  // all 8 pulses so OUT cells at blocked positions render red on
-  // mismatch (rather than defaulting to the beyond-range green path).
-  expectedOutput: [0, 0, 0, 0, 0, 0, 0, 0],
+  // pulses. The five 1-valued pulses are blocked and produce no output.
+  //
+  // LIVE GATE (SE-TM-002, switched in by Tucker 2026-06-14). expectedOutput is
+  // a full-length, BLANK-aware tape — exact-match is the success condition
+  // (expectedOutput.length === inputTape.length). The five BLANK cells
+  // correspond to the blocked 1-valued pulses, which produce no output. Under
+  // SE-TM-003 a blocked pulse producing BLANK is correct, not an error: those
+  // cells now MATCH (BLANK === BLANK) and render as a neutral dash rather than
+  // the old all-zeros red-on-mismatch design. The three 0 cells are the passing
+  // pulses the Transmitter writes.
+  expectedOutput: [BLANK, 0, BLANK, BLANK, 0, BLANK, 0, BLANK],
+  // Documentary only (SE-TM-002) — expectedOutput is the live gate for A1-7+.
   requiredTerminalCount: 3,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 11,

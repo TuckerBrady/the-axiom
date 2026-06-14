@@ -46,7 +46,7 @@ import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
-import { getPieceCost } from '../game/types';
+import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
 import { getOutputPorts, getInputPorts, evaluateRequiredPieces } from '../game/engine';
 import { buildRequiredPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
@@ -845,7 +845,7 @@ export default function GameplayScreen({ navigation }: Props) {
       tape.tapeSetters.setVisualTrailOverride([...level.dataTrail.cells]);
     }
     if (level.inputTape && level.inputTape.length > 0) {
-      tape.tapeSetters.setVisualOutputOverride(level.inputTape.map(() => -1));
+      tape.tapeSetters.setVisualOutputOverride(level.inputTape.map(() => BLANK));
     }
 
     // PHASE 1 — CHARGE
@@ -939,11 +939,26 @@ export default function GameplayScreen({ navigation }: Props) {
     // red wrong-output ring burst instead.
     const hasTape = !!(level.inputTape && level.expectedOutput);
     const storeOutputTape = useGameStore.getState().machineState.outputTape;
-    const tapeMatches = hasTape && !!storeOutputTape && !!level.expectedOutput &&
-      storeOutputTape.length === level.expectedOutput.length &&
-      storeOutputTape.every((v, i) => v === (level.expectedOutput as number[])[i]);
+    // BLANK-aware exact-match comparator (SE-TM-001/SE-TM-003). BLANK === BLANK
+    // holds (single canonical sentinel), so a pulse that legitimately produces
+    // no output matches an expectedOutput cell of BLANK.
+    const expected = level.expectedOutput;
+    const tapeMatches = hasTape && !!storeOutputTape && !!expected &&
+      storeOutputTape.length === expected.length &&
+      storeOutputTape.every((v, i) => v === expected[i]);
+    // SE-TM-002 discriminator: expectedOutput is the LIVE gate iff it is
+    // full-length (one cell per input pulse) — A1-7/A1-8. Short/documentary
+    // expectedOutput (A1-5/A1-6) keeps requiredTerminalCount as the live gate.
+    const expectedOutputIsLiveGate = hasTape && !!expected && !!level.inputTape &&
+      expected.length === level.inputTape.length;
     const reachedOutputEveryPulse = steps.filter(s => s.type === 'terminal' && s.success).length >= (pulses.length || 1);
-    const wrongOutput = hasTape && reachedOutputEveryPulse && !tapeMatches;
+    // Live-gate levels: ANY tape mismatch is a wrong output. Blocked pulses
+    // legitimately produce BLANK (part of expectedOutput under SE-TM-003), so
+    // we no longer require every pulse to reach Terminal. Documentary levels
+    // keep the old "all pulses reached Terminal but values are wrong" check.
+    const wrongOutput = expectedOutputIsLiveGate
+      ? hasTape && !tapeMatches
+      : hasTape && reachedOutputEveryPulse && !tapeMatches;
 
     // Count pulses that reached Terminal. Levels without a Transmitter
     // use this for their success condition via requiredTerminalCount.
@@ -951,7 +966,13 @@ export default function GameplayScreen({ navigation }: Props) {
       s => s.type === 'terminal' && s.success,
     ).length;
     const requiredCount = level.requiredTerminalCount ?? 1;
-    const metPulseRequirement = terminalSuccessCount >= requiredCount;
+    // Live-gate levels are governed entirely by tapeMatches; requiredTerminalCount
+    // is documentary for them, so the pulse-count requirement is satisfied by
+    // definition (a blocked BLANK pulse must not fail via a count it no longer
+    // answers to). Documentary levels keep the requiredTerminalCount gate.
+    const metPulseRequirement = expectedOutputIsLiveGate
+      ? true
+      : terminalSuccessCount >= requiredCount;
 
     if (wrongOutput) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');

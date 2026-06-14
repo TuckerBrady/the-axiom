@@ -16,6 +16,7 @@ import CogsAvatar from '../CogsAvatar';
 import { Button } from '../Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 import type { LevelDefinition, ScoringCategory } from '../../game/types';
+import { BLANK } from '../../game/types';
 import type { ScoreResult } from '../../game/scoring';
 import type { Discipline } from '../../store/playerStore';
 import { useEconomyStore } from '../../store/economyStore';
@@ -335,9 +336,12 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               <View style={styles.wrongOutputRow}>
                 {wrongOutputData.expected.map((v, i) => {
                   const match = wrongOutputData.produced[i] === v;
+                  // BLANK expected cell (SE-TM-003): this pulse must produce no
+                  // output. Render the dash glyph rather than the sentinel.
+                  const isBlank = v === BLANK;
                   return (
                     <View key={`exp-${i}`} style={[styles.wrongOutputCell, !match && styles.wrongOutputCellMismatch]}>
-                      <Text style={[styles.wrongOutputCellText, !match && { color: '#EF4444' }]}>{v}</Text>
+                      <Text style={[styles.wrongOutputCellText, !match && { color: '#EF4444' }]}>{isBlank ? '_' : v}</Text>
                     </View>
                   );
                 })}
@@ -348,7 +352,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               <View style={styles.wrongOutputRow}>
                 {wrongOutputData.produced.map((v, i) => {
                   const match = wrongOutputData.expected[i] === v;
-                  const isEmpty = v === -1;
+                  // BLANK (SE-TM-003) replaces the old -1 "unwritten" sentinel.
+                  const isEmpty = v === BLANK;
                   return (
                     <View key={`prod-${i}`} style={[styles.wrongOutputCell, !match && styles.wrongOutputCellMismatch]}>
                       <Text style={[styles.wrongOutputCellText, !match && { color: '#EF4444' }]}>

@@ -244,9 +244,11 @@ describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBa
     );
   });
 
-  it('hasValue excludes both -1 (empty) and -2 (blocked) sentinels', () => {
+  it('hasValue excludes both the BLANK (empty) and -2 (blocked) sentinels', () => {
+    // SE-TM-003: the empty-cell sentinel is now the typed BLANK constant
+    // (was the ad-hoc -1). The -2 blocked-cell marker is unchanged.
     expect(tapeBarShellSource).toMatch(
-      /written !== undefined && written !== -1 && written !== -2/,
+      /rawWritten !== undefined && rawWritten !== BLANK && rawWritten !== -2/,
     );
   });
 });

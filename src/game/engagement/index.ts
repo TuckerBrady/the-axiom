@@ -27,6 +27,12 @@ export { handleSuccess } from './successHandlers';
 export type { SuccessParams } from './successHandlers';
 export { handleWrongOutput, handleVoidFailure } from './failureHandlers';
 export type { WrongOutputParams, VoidFailureParams } from './failureHandlers';
+export {
+  detectTransmitterBeforeGateBlock,
+  splitStepsByPulse,
+  GATING_PIECE_TYPES,
+  TRANSMITTER_BEFORE_GATE_COGS_LINES,
+} from './transmitterPlacementDiagnostic';
 export type {
   EngagementContext,
   Pt,

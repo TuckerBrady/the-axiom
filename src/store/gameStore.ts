@@ -2,11 +2,13 @@ import { create } from 'zustand';
 import type {
   LevelDefinition,
   MachineState,
+  OutputTapeValue,
   PlacedPiece,
   PieceType,
   PortSide,
   ExecutionStep,
 } from '../game/types';
+import { BLANK } from '../game/types';
 import {
   autoConnectPhysicsPieces,
   executeMachine,
@@ -155,7 +157,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         currentSignalStep: 0,
         status: 'idle',
         inputTape: level.inputTape ? [...level.inputTape] : undefined,
-        outputTape: level.inputTape ? new Array(level.inputTape.length).fill(-1) : undefined,
+        // BLANK until a Transmitter writes a digit for that pulse (SE-TM-003).
+        outputTape: level.inputTape
+          ? (new Array(level.inputTape.length).fill(BLANK) as OutputTapeValue[])
+          : undefined,
       },
       selectedPieceFromTray: null,
       selectedPlacedPiece: null,
@@ -273,8 +278,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const inputTape = currentLevel?.inputTape;
     const expectedOutput = currentLevel?.expectedOutput;
-    const outputTape: number[] | undefined = inputTape
-      ? new Array(inputTape.length).fill(-1)
+    const outputTape: OutputTapeValue[] | undefined = inputTape
+      ? new Array(inputTape.length).fill(BLANK)
       : undefined;
 
     const stateWithConfig: MachineState = {
@@ -310,7 +315,20 @@ export const useGameStore = create<GameState>((set, get) => ({
         outputTape !== undefined &&
         outputTape.length === expectedOutput.length &&
         outputTape.every((v, i) => v === expectedOutput[i]);
-      succeeded = reachedOutputEveryPulse && tapeMatches;
+      // SE-TM-002 discriminator: expectedOutput is the LIVE gate iff it is
+      // full-length (one cell per input pulse) — A1-7/A1-8. Gate on exact tape
+      // match ALONE: a blocked pulse legitimately produces BLANK and matches
+      // expectedOutput[i] = BLANK, so it must not be failed by a terminal-count
+      // requirement. This makes the store's `succeeded` agree with
+      // GameplayScreen's win predicate for these levels (both reduce to
+      // tapeMatches). Short/documentary expectedOutput (A1-5/A1-6) keeps the
+      // original behavior — those levels are governed by requiredTerminalCount
+      // in GameplayScreen.
+      const expectedOutputIsLiveGate =
+        expectedOutput.length === inputTape.length;
+      succeeded = expectedOutputIsLiveGate
+        ? tapeMatches
+        : reachedOutputEveryPulse && tapeMatches;
     } else {
       succeeded = allSteps.some(s => s.type === 'terminal' && s.success);
     }
