@@ -40,11 +40,12 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(tapeCellSrc).toMatch(/styles\.tapeCellTextIn,\s*\n[\s\S]*?isActive && styles\.tapeCellTextInActive/);
     });
 
-    it('does NOT change TRAIL or OUT tape colors', () => {
+    it('TRAIL keeps its color; OUT uses arrival (orange) + blocked (red) styles', () => {
       // TRAIL still uses Colors.neonGreen for its inline text style (in TapeCell.tsx).
       expect(tapeCellSrc).toMatch(/styles\.tapeCellText, \{ color: Colors\.neonGreen \}/);
-      // OUT keeps the gate-passed / gate-blocked styles (in TapeCell.tsx).
-      expect(tapeCellSrc).toMatch(/tapeCellGatePassed:\s*\{[\s\S]*?borderColor:\s*'#00FF87'/);
+      // OUT arrival fill is the OUT tape's own orange (#FF7D3F); blocked stays red.
+      // (2026-06-13: the old green gate-passed fill became the orange arrival fill.)
+      expect(tapeCellSrc).toMatch(/tapeCellArrived:\s*\{[\s\S]*?borderColor:\s*'#FF7D3F'/);
       expect(tapeCellSrc).toMatch(/tapeCellGateBlocked:\s*\{[\s\S]*?borderColor:\s*'#FF3B3B'/);
     });
   });
@@ -163,15 +164,13 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(valueTravelSrc).not.toMatch(/setTimeout\(\s*\(\)\s*=>\s*\{\s*resolve\(\);\s*\},\s*700\s*\);/);
     });
 
-    it('Scanner interaction passes the trail-write highlight via the onArrive callback', () => {
-      // The setHighlight + setTapeBarState + setVisualTrailOverride calls
-      // live inside the onArrive lambda, defined before the runValueTravel
-      // call and passed as an argument (Phase 3 refactor, Prompt 109).
-      const onArriveBlock = interactionsSrc.match(/const onArrive = \(\) => \{[\s\S]*?\};/);
-      expect(onArriveBlock).not.toBeNull();
-      expect(onArriveBlock?.[0]).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'write'\)/);
-      expect(onArriveBlock?.[0]).toMatch(/setTapeBarState\(prev =>/);
-      expect(onArriveBlock?.[0]).toMatch(/setVisualTrailOverride\(prev =>/);
+    it('Scanner fills the TRAIL cell in place with the arrival fill (no glow arc)', () => {
+      // 2026-06-13: the IN->TRAIL lift-off/arc glow travel was removed in favor
+      // of the single tape-to-tape arrival fill. The Scanner now sets the trail
+      // 'arrived' highlight + value directly, and no longer calls runValueTravel.
+      expect(interactionsSrc).not.toMatch(/runValueTravel/);
+      expect(interactionsSrc).toMatch(/setHighlight\(ctx, `trail-\$\{pulse\}`, 'arrived'\)/);
+      expect(interactionsSrc).toMatch(/setVisualTrailOverride\(prev =>/);
     });
   });
 });

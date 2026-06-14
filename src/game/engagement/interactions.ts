@@ -1,6 +1,6 @@
 import type { EngagementContext, ExecutionStep } from './types';
 import { useGameStore } from '../../store/gameStore';
-import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
+import { getPulseSpeed } from '../bubbleMath';
 import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
 import {
   flashPiece,
@@ -8,7 +8,6 @@ import {
   wait,
   type FlashBatch,
 } from './bubbleHelpers';
-import { runValueTravel } from './valueTravelAnimation';
 import {
   updateActiveAnimations,
 } from './stateHelpers';
@@ -25,72 +24,36 @@ export async function runScannerInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const cachedInputCells = ctx.cacheRef.current.input;
-  const cachedTrailCells = ctx.cacheRef.current.trail;
-
   const tapeValue = ctx.inputTape?.[pulse];
-  const display = tapeValue === undefined ? '?' : String(tapeValue);
-
-  const inputCell = getTapeCellPosFromCache(cachedInputCells, pulse);
 
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
-
   await wait(250 * speed);
 
+  // Read the IN cell.
   setHighlight(ctx, `in-${pulse}`, 'read');
   ctx.setTapeBarState(prev => ({ ...prev, inIndex: pulse }));
   await wait(300 * speed);
 
-  await wait(80 * speed);
-
-  // Mark IN cell as 'departing' for the lift-off; cleared at end of
-  // the function alongside the existing read-highlight clear.
-  setHighlight(ctx, `in-${pulse}`, 'departing');
-
-  // Three-phase value travel: lift-off → arc → impact (~1.15s total
-  // after Prompt 91, Fix 6 — was ~1.6s). Glow traveler is positioned
-  // by its top-left corner; cell positions from the cache are
-  // centers, so subtract half-width/height (12).
-  // The TRAIL "accept" highlight + visual override fire via the
-  // onArrive callback so the handoff is synchronous with the
-  // landing, not gapped behind the impact fade-out.
-  const trailCellPos = getTapeCellPosFromCache(cachedTrailCells, pulse);
-
-  // onArrive fires either as the glow animation landing callback or
-  // synchronously when tape container positions are unavailable (null
-  // cache). Tape state always updates; only the visual glow is skipped.
-  const onArrive = () => {
-    setHighlight(ctx, `trail-${pulse}`, 'write');
-    ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
-    if (tapeValue !== undefined) {
-      ctx.setVisualTrailOverride(prev => {
-        if (!prev) return prev;
-        const next = [...prev];
-        next[pulse] = tapeValue;
-        return next;
-      });
-    }
-  };
-
-  if (inputCell && trailCellPos) {
-    await runValueTravel(
-      ctx,
-      ctx.valueTravelRefs,
-      inputCell.x - 12,
-      inputCell.y - 12,
-      trailCellPos.x - 12,
-      trailCellPos.y - 12,
-      display,
-      onArrive,
-    );
-  } else {
-    onArrive();
+  // Fill the TRAIL cell in place (Tucker 2026-06-13). This replaces the old
+  // lift-off → arc → impact glow travel from IN to TRAIL with the single
+  // tape-to-tape "arrival fill": the value lands in the destination cell with a
+  // pulse in that tape's own color — the same animation the OUT cell uses on
+  // Terminal arrival.
+  setHighlight(ctx, `trail-${pulse}`, 'arrived');
+  ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
+  if (tapeValue !== undefined) {
+    ctx.setVisualTrailOverride(prev => {
+      if (!prev) return prev;
+      const next = [...prev];
+      next[pulse] = tapeValue;
+      return next;
+    });
   }
+  await wait(300 * speed);
 
-  await wait(250 * speed);
-  // Clear the IN highlight (currently 'departing'). Trail-write stays
-  // so accumulated state persists across pulses (Prompt 76).
+  // Clear the IN read highlight. The trail fill persists across pulses
+  // (Prompt 76) until the Config Node overwrites it with the gate result.
   ctx.setTapeCellHighlights(prev => {
     const m = new Map(prev);
     m.delete(`in-${pulse}`);
@@ -152,12 +115,30 @@ export async function runTransmitterInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  const written = useGameStore.getState().machineState.outputTape?.[pulse] ?? 0;
-
+  // The Transmitter computes the OUT value, but the OUT cell does NOT fill
+  // here (Tucker 2026-06-13). The value reveal + arrival highlight are deferred
+  // to the moment the signal reaches the Terminal — runTerminalInteraction — so
+  // the OUT tape fills "the moment a signal completes the circuit." Here the
+  // Transmitter just flashes as the signal passes through it.
   flashPiece(ctx, stp.pieceId, color);
-  setHighlight(ctx, `out-${pulse}`, 'write');
-  ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
   await wait(300 * speed);
+}
+
+// Arrival fill (Tucker 2026-06-13). When a pulse's signal reaches the Terminal,
+// its OUT cell fills with the computed value and pulses — for ANY value (0 or
+// 1), not when the Transmitter fired and not keyed to value === 1. Blocked
+// pulses never reach the Terminal, so they keep the gate-block middle-dot set
+// by runConfigNodeInteraction. Levels without an OUT tape have no
+// visualOutputOverride and are skipped.
+export function runTerminalInteraction(
+  ctx: EngagementContext,
+  stp: ExecutionStep,
+): void {
+  if (!stp.success) return;
+  const pulse = ctx.currentPulseRef.current;
+  const outputTape = useGameStore.getState().machineState.outputTape;
+  if (!outputTape || outputTape[pulse] === undefined) return;
+  const written = outputTape[pulse];
 
   ctx.setVisualOutputOverride(prev => {
     if (!prev) return prev;
@@ -166,8 +147,8 @@ export async function runTransmitterInteraction(
     next[pulse] = written;
     return next;
   });
-
-  await wait(150 * speed);
+  ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
+  setHighlight(ctx, `out-${pulse}`, 'arrived');
 }
 
 // triggerPieceAnim runs the piece's flash + interaction. When called
@@ -217,5 +198,6 @@ export function triggerPieceAnim(
   if (stp.type === 'scanner') return runScannerInteraction(ctx, stp);
   if (stp.type === 'configNode') return runConfigNodeInteraction(ctx, stp);
   if (stp.type === 'transmitter') return runTransmitterInteraction(ctx, stp);
+  if (stp.type === 'terminal') { runTerminalInteraction(ctx, stp); return Promise.resolve(); }
   return Promise.resolve();
 }
