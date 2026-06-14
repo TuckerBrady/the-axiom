@@ -175,6 +175,13 @@ export const levelA1_2: LevelDefinition = {
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
   dataTrail: { cells: [], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
+  // SE-TM-035 topology SHALL (Spec Sheet data layer). A1-2's COGS states a
+  // genuine single-bend requirement ("using exactly one direction change" /
+  // "The signal needs to change direction once"). It is not enforced by a
+  // min_direction_changes objective, but the Source/Terminal misalignment makes
+  // at least one Gear geometrically necessary, so any winning solution already
+  // satisfies it — this field is additive Spec Sheet data, not a new gate.
+  topologyRequirements: { minDirectionChanges: 1 },
   optimalPieces: 5,
   systemRepaired: 'Life Support',
   budget: 10,
@@ -333,6 +340,12 @@ export const levelA1_4: LevelDefinition = {
   // two Gear-driven turns. Counted in the executed signal path at lock
   // (see src/game/objectives.ts, wired in gameStore.executeAndScore).
   objectives: [{ type: 'reach_output' }, { type: 'min_direction_changes', count: 2 }],
+  // SE-TM-035 topology SHALL (Spec Sheet data layer). Mirrors the already-live
+  // min_direction_changes objective above — the "Z-shaped path requiring two
+  // direction changes" / "Both corners need a Gear" requirement stated in this
+  // level's COGS. Additive: the objective remains the win/lose gate; this field
+  // exists so the Spec Sheet validator can surface the same requirement.
+  topologyRequirements: { minDirectionChanges: 2 },
   optimalPieces: 5,
   systemRepaired: 'Propulsion Core',
   budget: 20,

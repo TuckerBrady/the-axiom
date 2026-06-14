@@ -182,6 +182,30 @@ export type LevelDefinition = {
   // Kepler mechanics — not used in K1-1 but type is defined here
   damagedCells?: Array<{ gridX: number; gridY: number }>;
   requiredPieces?: Array<{ type: string; count: number; reason?: string }>;
+  // Board-topology requirements (SE-TM-035). Additive/documentary data the
+  // Spec Sheet surfaces and the topology validator evaluates. Independent of
+  // the output-tape comparator (SE-TM-001/002) — a level may have a topology
+  // requirement, an output requirement, both, or neither. Declaring this field
+  // does NOT by itself gate win/lose: A1-4 already enforces its two-bend
+  // requirement via a `min_direction_changes` objective, so its
+  // topologyRequirements mirror an already-live gate rather than adding one.
+  topologyRequirements?: TopologyRequirements;
+};
+
+// ─── Topology Requirements (SE-TM-035) ────────────────────────────────────────
+//
+// A board-topology SHALL: a structural condition the placed machine must meet,
+// expressed as facts about the pieces on the board (not the output tape). The
+// validator (src/game/spec/topologyValidator.ts) holds a predicate registry
+// keyed by these fields, so adding a future predicate type (e.g. corruption/
+// drift per Section 8 #1, Unit E) means adding a key here and an evaluator
+// there — no rewrite of the consumers.
+export type TopologyRequirements = {
+  // Minimum number of direction-change pieces (Gears) the machine must contain.
+  // The Gear is the only piece that redirects the signal (see engine.ts gear
+  // case / objectives.ts countDirectionChanges), so each placed Gear is one
+  // direction change.
+  minDirectionChanges?: number;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────
