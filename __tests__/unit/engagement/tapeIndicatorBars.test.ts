@@ -35,6 +35,7 @@ import {
   runScannerInteraction,
   runConfigNodeInteraction,
   runTransmitterInteraction,
+  runTerminalInteraction,
 } from '../../../src/game/engagement/interactions';
 import {
   TAPE_BAR_INITIAL,
@@ -129,10 +130,17 @@ describe('TapeIndicatorBarState', () => {
     expect(barState.value.outIndex).toBeNull();
   });
 
-  it('Transmitter interaction sets outIndex to the current pulse', async () => {
+  it('Transmitter interaction no longer moves the OUT bar (deferred to arrival)', async () => {
     const { ctx, barState } = buildCtx();
     ctx.currentPulseRef.current = 0;
     await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    expect(barState.value.outIndex).toBeNull();
+  });
+
+  it('Terminal interaction sets outIndex to the current pulse on arrival', () => {
+    const { ctx, barState } = buildCtx();
+    ctx.currentPulseRef.current = 0;
+    runTerminalInteraction(ctx, step('terminal', 'p-term', true));
     expect(barState.value.outIndex).toBe(0);
     expect(barState.value.inIndex).toBeNull();
     expect(barState.value.trailIndex).toBeNull();

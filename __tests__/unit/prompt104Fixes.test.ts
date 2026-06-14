@@ -99,19 +99,22 @@ describe('Fix 2 — gate-pass highlight uses blue, not green', () => {
 // neutral, not red). The CONTRACT — green styling requires that the
 // Transmitter actually wrote — is preserved.
 
-describe('Fix 3 — OUT cell green styling gated on hasValue (preserved through Prompt 106)', () => {
-  it('green styling derives from gatePassed AND cellHasWrittenValue', () => {
+describe('Fix 3 — OUT cell arrival fill gated on hasValue (preserved through 2026-06-13)', () => {
+  // The arrival fill (formerly the green gate-passed fill) only appears once the
+  // value has been revealed — i.e. on Terminal arrival (hasValue). It is no
+  // longer keyed to the gate outcome.
+  it('arrival fill derives from cellHasWrittenValue', () => {
     expect(tapeCellSrc).toMatch(
-      /styleAsPassed = !!gatePassed && cellHasWrittenValue/,
+      /styleAsArrived = cellHasWrittenValue/,
     );
     expect(tapeCellSrc).toMatch(
-      /styleAsPassed && styles\.tapeCellGatePassed/,
+      /styleAsArrived && styles\.tapeCellArrived/,
     );
   });
 
-  it('green text styling uses the same derived predicate', () => {
+  it('arrival text styling uses the same derived predicate', () => {
     expect(tapeCellSrc).toMatch(
-      /styleAsPassed && styles\.tapeCellTextGatePassed/,
+      /styleAsArrived && styles\.tapeCellTextArrived/,
     );
   });
 

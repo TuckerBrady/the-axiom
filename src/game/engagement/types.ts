@@ -24,7 +24,11 @@ export type TapeHighlight =
   | 'write'
   | 'gate-pass'
   | 'gate-block'
-  | 'departing';
+  | 'departing'
+  // OUT cell arrival fill: set when a signal reaches the Terminal (any value).
+  // The cell fills with the tape's own color and pulses. See interactions.ts
+  // runTerminalInteraction.
+  | 'arrived';
 
 export type TapeIndicatorBarState = {
   inIndex: number | null;      // active cell index for IN tape bar

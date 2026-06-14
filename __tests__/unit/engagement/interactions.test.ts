@@ -35,6 +35,7 @@ import {
   runScannerInteraction,
   runConfigNodeInteraction,
   runTransmitterInteraction,
+  runTerminalInteraction,
 } from '../../../src/game/engagement/interactions';
 import type {
   EngagementContext,
@@ -287,16 +288,43 @@ describe('runTransmitterInteraction', () => {
     return ctx;
   }
 
-  it('sets an out-${pulse} write highlight so the output cell lights up', async () => {
+  it('does NOT light the OUT cell itself — the reveal is deferred to Terminal arrival', () => {
+    // Arrival fill (2026-06-13): the Transmitter computes the value but the OUT
+    // cell does not fill until the signal reaches the Terminal.
     const ctx = buildTransmitterCtx();
     const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
     ctx.currentPulseRef.current = 1;
-    await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    void runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    expect(setTapeCellHighlights).not.toHaveBeenCalled();
+  });
+});
+
+describe('runTerminalInteraction', () => {
+  function buildTerminalCtx(): EngagementContext {
+    const { ctx } = buildCtx();
+    (ctx as unknown as { getPieceCenter: jest.Mock }).getPieceCenter = jest.fn(
+      () => ({ x: 10, y: 20 }),
+    );
+    return ctx;
+  }
+
+  it("sets an out-${pulse} 'arrived' highlight when the signal reaches the Terminal", () => {
+    const ctx = buildTerminalCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    ctx.currentPulseRef.current = 1;
+    runTerminalInteraction(ctx, step('terminal', 'p-term', true));
     let state = new Map<string, TapeHighlight>();
     for (const [arg] of setTapeCellHighlights.mock.calls) {
       state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
     }
-    expect(state.get('out-1')).toBe('write');
+    expect(state.get('out-1')).toBe('arrived');
+  });
+
+  it('does nothing when the signal did not reach the Terminal (success false)', () => {
+    const ctx = buildTerminalCtx();
+    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
+    runTerminalInteraction(ctx, step('terminal', 'p-term', false));
+    expect(setTapeCellHighlights).not.toHaveBeenCalled();
   });
 });
 
@@ -347,13 +375,15 @@ describe('highlight persistence across pulses', () => {
     await runScannerInteraction(ctx, step('scanner', 'p-s'));
     await runConfigNodeInteraction(ctx, step('configNode', 'p-c', true));
     await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    // Pulse 0 passes the gate and reaches the Terminal — OUT cell fills on arrival.
+    runTerminalInteraction(ctx, step('terminal', 'p-term', true));
 
     ctx.currentPulseRef.current = 1;
     await runScannerInteraction(ctx, step('scanner', 'p-s'));
     await runConfigNodeInteraction(ctx, step('configNode', 'p-c', false));
 
     expect(highlights.get('trail-0')).toBe('gate-pass');
-    expect(highlights.get('out-0')).toBe('write');
+    expect(highlights.get('out-0')).toBe('arrived');
     expect(highlights.get('trail-1')).toBe('gate-block');
     expect(highlights.has('in-0')).toBe(false);
     expect(highlights.has('in-1')).toBe(false);
@@ -449,9 +479,11 @@ describe('OUT cell persistence across pulses', () => {
     for (let p = 0; p < 4; p++) {
       ctx.currentPulseRef.current = p;
       await runTransmitterInteraction(ctx, step('transmitter', `p-t${p}`));
+      // The OUT cell fills on Terminal arrival, not on Transmitter fire.
+      runTerminalInteraction(ctx, step('terminal', `p-term${p}`, true));
     }
 
-    // All four cells received Transmitter writes.
+    // All four cells filled on arrival with their computed values.
     expect(visualOutputOverride.value).toEqual([1, 0, 1, 0]);
 
     // Pulse 0 and 2 wrote 1 into an expected-0 slot → red.
@@ -497,6 +529,7 @@ describe('OUT cell persistence across pulses', () => {
     for (let p = 0; p < 4; p++) {
       ctx.currentPulseRef.current = p;
       await runTransmitterInteraction(ctx, step('transmitter', `p-t${p}`));
+      runTerminalInteraction(ctx, step('terminal', `p-term${p}`, true));
     }
 
     // Simulate the post-run state where visualOutputOverride is null
