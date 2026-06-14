@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { LevelDefinition } from '../game/types';
+import type { LevelDefinition, OutputTapeValue } from '../game/types';
 import type { ScoreResult } from '../game/scoring';
 
 export type WrongOutputData = {
-  expected: number[];
-  produced: number[];
+  expected: OutputTapeValue[];
+  produced: OutputTapeValue[];
 } | null;
 
 export type PulseResultData = {

@@ -3,18 +3,19 @@ import { View, Text, StyleSheet, Animated as RNAnimated } from 'react-native';
 import TapeCell from './TapeCell';
 import { Colors, Fonts, Spacing } from '../../theme/tokens';
 import type { TapeHighlight, TapeIndicatorBarState, GateOutcome, SignalPhase } from '../../game/engagement';
+import { BLANK, type OutputTapeValue } from '../../game/types';
 
 interface Props {
   // Tape data
   inputTape: number[] | undefined;
   trailCells: (0 | 1 | null)[];
   trailHeadPosition: number;
-  outputTape?: number[];
-  expectedOutput?: number[];
+  outputTape?: OutputTapeValue[];
+  expectedOutput?: OutputTapeValue[];
   hasOutTape: boolean;
   // Visual overrides for progressive reveal
   visualTrailOverride: (number | null)[] | null;
-  visualOutputOverride: number[] | null;
+  visualOutputOverride: OutputTapeValue[] | null;
   // Per-cell highlights
   tapeCellHighlights: Map<string, TapeHighlight>;
   tapeBarState: TapeIndicatorBarState;
@@ -167,10 +168,15 @@ function TapeBarShellComponent({
               const rawWritten = visualOutputOverride
                 ? visualOutputOverride[i]
                 : outputTape?.[i];
-              const written = rawWritten;
+              // -2 is the gate-block visual marker (a different sentinel from
+              // BLANK, left intact). BLANK (SE-TM-003) means "no value written
+              // for this pulse" and renders as the dash glyph, same as before.
               const isBlocked = rawWritten === -2;
               const hasValue =
-                written !== undefined && written !== -1 && written !== -2;
+                rawWritten !== undefined && rawWritten !== BLANK && rawWritten !== -2;
+              // TapeCell renders a numeric digit; BLANK / undefined collapse to
+              // undefined so the dash/middle-dot glyph shows instead.
+              const written = typeof rawWritten === 'number' ? rawWritten : undefined;
               const outcome = gateOutcomesByIndex.get(i);
               const gatePassed = outcome === 'passed';
               const gateBlocked = outcome === 'blocked' || isBlocked;

@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction, MutableRefObject, RefObject } from 'react';
 import type { Animated, View } from 'react-native';
-import type { ExecutionStep, PlacedPiece, PieceType } from '../types';
+import type { ExecutionStep, OutputTapeValue, PlacedPiece, PieceType } from '../types';
 import type { TapeCellContainerMeasure } from '../bubbleMath';
 
 export type Pt = { x: number; y: number };
@@ -182,7 +182,9 @@ export interface EngagementContext {
   valueTravelRefs: ValueTravelRefs;
   gateOutcomes: MutableRefObject<GateOutcomeMap>;
   setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
-  setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
+  // Visual mirror of outputTape. Cells hold BLANK (unwritten, SE-TM-003),
+  // a written digit, or the -2 blocked-cell marker (gate-block visual only).
+  setVisualOutputOverride: Dispatch<SetStateAction<OutputTapeValue[] | null>>;
   setCurrentPulseIndex: (i: number) => void;
   currentPulseRef: MutableRefObject<number>;
 
@@ -266,4 +268,4 @@ export interface EngagementContext {
   currentRunIdRef: MutableRefObject<number>;
 }
 
-export type { ExecutionStep, PlacedPiece, PieceType };
+export type { ExecutionStep, OutputTapeValue, PlacedPiece, PieceType };

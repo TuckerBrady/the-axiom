@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import { Animated as RNAnimated, View } from 'react-native';
-import type { LevelDefinition } from '../game/types';
+import type { LevelDefinition, OutputTapeValue } from '../game/types';
 import {
   TAPE_BAR_INITIAL,
   GLOW_TRAVELER_INITIAL,
@@ -15,7 +15,7 @@ import {
 
 export interface UseGameplayTapeResult {
   visualTrailOverride: (number | null)[] | null;
-  visualOutputOverride: number[] | null;
+  visualOutputOverride: OutputTapeValue[] | null;
   tapeCellHighlights: Map<string, TapeHighlight>;
   tapeBarState: TapeIndicatorBarState;
   glowTravelerState: GlowTravelerState;
@@ -32,7 +32,7 @@ export interface UseGameplayTapeResult {
     setTapeBarState: Dispatch<SetStateAction<TapeIndicatorBarState>>;
     setGlowTravelerState: Dispatch<SetStateAction<GlowTravelerState>>;
     setVisualTrailOverride: Dispatch<SetStateAction<(number | null)[] | null>>;
-    setVisualOutputOverride: Dispatch<SetStateAction<number[] | null>>;
+    setVisualOutputOverride: Dispatch<SetStateAction<OutputTapeValue[] | null>>;
   };
   valueTravelRefs: ValueTravelRefs;
   resetTape: () => void;
@@ -42,7 +42,7 @@ export function useGameplayTape(
   _level: LevelDefinition | null,
 ): UseGameplayTapeResult {
   const [visualTrailOverride, setVisualTrailOverride] = useState<(number | null)[] | null>(null);
-  const [visualOutputOverride, setVisualOutputOverride] = useState<number[] | null>(null);
+  const [visualOutputOverride, setVisualOutputOverride] = useState<OutputTapeValue[] | null>(null);
   const [tapeCellHighlights, setTapeCellHighlights] = useState<Map<string, TapeHighlight>>(new Map());
   const [tapeBarState, setTapeBarState] = useState<TapeIndicatorBarState>(TAPE_BAR_INITIAL);
   const [glowTravelerState, setGlowTravelerState] = useState<GlowTravelerState>(GLOW_TRAVELER_INITIAL);

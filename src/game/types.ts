@@ -69,6 +69,25 @@ export type DataTrail = {
   headPosition: number;
 };
 
+// ─── Output Tape BLANK semantics (SE-TM-003) ──────────────────────────────────
+//
+// An output-tape cell is BLANK until a Transmitter writes a value to it for
+// that pulse. BLANK is a first-class tape symbol — distinct from the numeric
+// values 0 and 1 at the type level (not merely by the old `-1` convention),
+// so the comparator can treat "this pulse must produce no output" as a real
+// requirement rather than a sentinel hack.
+//
+// Representation: a string-literal const. It is `===`-comparable to itself
+// (so the `outputTape.every((v, i) => v === expectedOutput[i])` win check
+// works unchanged), survives any JSON round-trip a numeric/Symbol sentinel
+// would not, and can never collide with a legitimate 0/1 tape value.
+export const BLANK = '__BLANK__' as const;
+export type Blank = typeof BLANK;
+
+// A single output-tape cell: a written digit, or BLANK if no Transmitter
+// wrote to it on that pulse.
+export type OutputTapeValue = number | Blank;
+
 // ─── Machine State ────────────────────────────────────────────────────────────
 
 export type MachineStatus = 'idle' | 'running' | 'locked' | 'void';
@@ -85,7 +104,9 @@ export type MachineState = {
   // Turing tape — populated for tape-enabled levels. outputTape accumulates
   // across pulses; inputTape is read-only per pulse.
   inputTape?: number[];
-  outputTape?: number[];
+  // outputTape cells start as BLANK and are overwritten with a written
+  // digit when a Transmitter fires for that pulse (SE-TM-003).
+  outputTape?: OutputTapeValue[];
 };
 
 // ─── Level Definition ─────────────────────────────────────────────────────────
@@ -135,7 +156,10 @@ export type LevelDefinition = {
   // engine threads pulseIndex through protocol pieces. Single-pulse
   // levels leave both undefined.
   inputTape?: number[];
-  expectedOutput?: number[];
+  // expectedOutput may include BLANK (SE-TM-003): a level CAN require that a
+  // given pulse produce no output. The comparison is a plain `===` per cell,
+  // so BLANK in expectedOutput matches a BLANK (unwritten) output cell.
+  expectedOutput?: OutputTapeValue[];
   // Minimum number of pulses that must reach Terminal for the level
   // to pass. If omitted, defaults to 1 (any single successful pulse
   // is sufficient). For tape-enabled levels without a Transmitter,
