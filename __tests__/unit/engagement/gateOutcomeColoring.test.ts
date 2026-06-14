@@ -185,20 +185,19 @@ describe('GateOutcomeMap', () => {
 });
 
 describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBarShell in Prompt 99B)', () => {
-  it('green styling requires hasValue (Prompt 104 Fix 3 — preserved through Prompt 106)', () => {
-    // The green cell style must only appear when the Transmitter has
-    // physically written a value. A bare `gatePassed && styles.tapeCellGatePassed`
-    // would color the cell green at the Config Node step, which looks
-    // like "data printed at the gate" to the player.
+  it('arrival fill requires hasValue (only fills when the value is revealed at Terminal)', () => {
+    // Arrival fill (2026-06-13): the OUT cell fills only when the value has been
+    // revealed — which now happens on Terminal arrival (runTerminalInteraction
+    // sets visualOutputOverride => hasValue). It is driven by arrival, not by
+    // the gate outcome, so a value can't "print at the gate".
     expect(tapeCellSource).toMatch(
-      /styleAsPassed = !!gatePassed && cellHasWrittenValue/,
+      /styleAsArrived = cellHasWrittenValue/,
     );
     expect(tapeCellSource).toMatch(
-      /styleAsPassed && styles\.tapeCellGatePassed/,
+      /styleAsArrived && styles\.tapeCellArrived/,
     );
-    expect(tapeCellSource).not.toMatch(
-      /(?<!\()gatePassed && styles\.tapeCellGatePassed/,
-    );
+    // The fill must NOT key off the gate outcome.
+    expect(tapeCellSource).not.toMatch(/gatePassed && styles\./);
   });
 
   it('red blocked styling only applies when no value was written (Prompt 106 Fix 1)', () => {
