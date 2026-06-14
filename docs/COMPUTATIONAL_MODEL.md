@@ -305,6 +305,38 @@ piece-specific tap actions or none:
 - All other pieces: no tap action
 - Any placed piece: long press returns to tray directly
 
+### TWO-TIER CLASSIFICATION: TM-CORE vs. BOARD/PHYSICS
+
+Layered on top of the Physics/Protocol split below is a second
+classification that answers a different question: does this piece
+*compute*, or does it *route*? Per SE-TM-020 there is no piece
+roster gap — every Turing machine primitive (read head, write
+head, state register, transition function, halt) already has a
+corresponding piece. This is a framing fix, not new pieces.
+
+**TM-core** — pieces with a direct 1:1 correspondence to a
+Turing machine component or operation. These are the pieces that
+change *what the machine computes*: Scanner, Transmitter, Config
+Node, Latch, Inverter, Counter, Capacitor, Divergence Gate,
+Confluence Node, Navigator, Sequencer.
+
+**Board/physics** — pieces that route, time, or lay out signal
+on the physical board. Real engineering (signal routing, timing,
+fan-out/fan-in are genuine EE/CS topics) but the lesson is "how
+do you physically realize a computation," not "what is the
+computation": Conveyor, Gear, Splitter, Merger, Bridge, Relay,
+Threshold Relay, Junction.
+
+**Flagged as non-CS** — Amplifier. "Signal jumps across
+non-adjacent cells" has no TM or general-CS correspondence; it
+is a board-geometry workaround. It is framed as ship-systems
+infrastructure (a repeater/relay station), not as a taught
+concept. It MUST NOT appear in any "concept taught" field.
+
+Each per-piece entry below carries a one-line **TM
+correspondence** (or board/physics, or non-CS) tag using the
+language from SE-TM-021.
+
 ### PHYSICS PIECES
 
 CONVEYOR
@@ -313,6 +345,7 @@ Function: Passes signal input to output in a straight line.
 Teaches: Data movement. Information travels along a path with
   a direction.
 CS concept: A wire. A bus.
+TM correspondence: Board/physics — directional routing / wire.
 COGS: "It carries signal in a straight line. It does not think.
   Neither should you when placing it."
 
@@ -322,6 +355,8 @@ Function: Changes signal direction. Omnidirectional. The only
   Physics piece that turns a corner.
 Teaches: Routing. Changing direction requires a specific tool.
 CS concept: A bus junction. A signal router.
+TM correspondence: Board/physics — direction change, a physical
+  layout constraint.
 COGS: "Most Engineers underestimate how many problems a single
   Gear solves. Most problems are corners."
 
@@ -332,6 +367,7 @@ Function: One input, two simultaneous outputs. Signal is copied
 Teaches: Parallel paths. One piece of information in two places
   simultaneously.
 CS concept: A signal fork. A broadcast.
+TM correspondence: Board/physics — signal fan-out (copy).
 COGS: "Rarely optimal. Sometimes necessary."
 
 MERGER
@@ -340,6 +376,7 @@ Function: Accepts signal from two inputs. Either is sufficient.
   OR logic.
 Teaches: Redundancy. OR logic.
 CS concept: An OR gate at the physical level.
+TM correspondence: Board/physics — signal fan-in (OR-join).
 COGS: "Two paths returning to one. The machine remembers where
   it started even when the signal forgot."
 
@@ -350,6 +387,8 @@ Function: Two independent signal paths share one cell without
 Teaches: Independence. Two things can occupy the same space
   without affecting each other.
 CS concept: A crossover interconnect.
+TM correspondence: Board/physics — independent path crossing,
+  board-space multiplexing.
 COGS: "Two signals occupy the same cell. Neither is aware of
   this. Both are correct."
 
@@ -360,6 +399,8 @@ Function: Receives signal on one pulse, outputs on the next.
 Teaches: Timing. Buffering. When something happens matters as
   much as whether it happens.
 CS concept: A buffer register. A one-cycle delay element.
+TM correspondence: Board/physics — timing / synchronization
+  delay.
 COGS: "It holds. Then it releases. The difference between those
   two moments is the point."
 
@@ -370,6 +411,8 @@ Function: Passes signal when either input receives. OR-gated
 Teaches: Conditional timing. Multiple triggers for the same
   action.
 CS concept: An OR-gated buffer.
+TM correspondence: Board/physics — OR-gated delay, fault
+  tolerance via redundancy.
 COGS: "Two routes. One destination. Either will do. The
   Threshold Relay is how a machine survives a broken path. I
   consider this practical. I do not consider practical to be a
@@ -381,6 +424,14 @@ Function: Extends signal range across non-adjacent cells.
 Teaches: Signal degradation and amplification. Distance is
   a soluble problem.
 CS concept: A signal amplifier. A repeater.
+TM correspondence: NON-CS. "Signal jumps across non-adjacent
+  cells" has no TM or general-CS correspondence — it is a pure
+  board-geometry workaround. This piece does NOT teach a
+  computational concept. It is ship-systems infrastructure (a
+  repeater/relay station), not a taught concept, and MUST NOT
+  appear in any "concept taught" field. The CS concept line above
+  is the closest real-world analog (EE signal boosting), not a
+  claim that the piece teaches a CS concept.
 COGS: "The signal was going to stop. Now it is not. Distance
   is a soluble problem."
 
@@ -390,6 +441,7 @@ Function: Four-way signal intersection. Passes in arrival
   direction unless redirected by adjacent Gear.
 Teaches: Intersection management.
 CS concept: A crossbar switch.
+TM correspondence: Board/physics — pass-through intersection.
 COGS: "Four directions. One cell. The signal knows where it
   came from. It is less certain about where it is going. That
   is the Engineer's problem."
@@ -401,6 +453,16 @@ Function: Fires outputs in defined order rather than
 Teaches: Ordered execution. Timing and sequence are a form
   of logic.
 CS concept: A demultiplexer with sequential addressing.
+TM correspondence: TM-core — universal-computation enabler.
+  Arbitrary sequencing/looping is what makes the machine
+  Turing-complete (Deep Void). Resolved TM-core 2026-06-13
+  (SE-TM-022) — same category of claim as Navigator: it changes
+  what the machine *as a whole* can compute, not how signal
+  routes on the board. This is the most abstract TM-core
+  correspondence; TEACHING_PROGRESSION.md's Deep Void framing of
+  Sequencer as "universal computation arrives" was already
+  correct, and this is the piece that completes the TM both
+  narratively and computationally.
 COGS: "It does not decide what fires. It decides when. In
   sufficiently complex machines, those are the same decision."
 
@@ -413,6 +475,8 @@ Function: Reads Data Trail value at its board position. Gates
   signal on condition match.
 Teaches: Conditional logic. If-statements.
 CS concept: A conditional gate.
+TM correspondence: TM-core — state-dependent transition (reads
+  Data Trail, gates based on state).
 COGS: "The signal arrives. The condition is checked. The gate
   opens or it does not. The machine does not negotiate."
 
@@ -423,6 +487,8 @@ Function: Reads current input tape value, writes to Data Trail
 Teaches: Reading input. The relationship between external input
   and internal state.
 CS concept: An input register. A read operation.
+TM correspondence: TM-core — read head (Input Tape → Data
+  Trail).
 COGS: "It reads. What it reads determines what happens next.
   The Scanner is how the machine becomes aware of its own
   inputs."
@@ -434,6 +500,8 @@ Function: Writes current signal value to output tape at current
 Teaches: Writing output. Computation is not complete until the
   result is recorded.
 CS concept: An output register. A write operation.
+TM correspondence: TM-core — write head (signal value → Output
+  Tape).
 COGS: "The most powerful piece in the catalogue. Also the most
   dangerous to misplace. What it writes is what the machine
   claims as its answer."
@@ -445,6 +513,8 @@ Function: Reads current pulse bit value and flips it. Zero
   becomes one. One becomes zero. Signal continues through.
 Teaches: Logical negation. Transformation as computation.
 CS concept: A NOT gate. A bitwise inverter.
+TM correspondence: TM-core — logical NOT, a transition function
+  transformation.
 COGS: "It does not decide what the correct value is. It only
   knows what the current value is not."
 
@@ -455,6 +525,8 @@ Function: Counts incoming pulses. Passes signal when count
 Teaches: Counting and thresholds. Machines that accumulate
   evidence before acting.
 CS concept: A modulo-N counter. A threshold gate.
+TM correspondence: TM-core — bounded state accumulator,
+  threshold-based transition.
 COGS: "Patience encoded as hardware. It waits. Then it does
   not."
 
@@ -464,6 +536,8 @@ Function: Stores a single bit. WRITE mode captures incoming
   value. READ mode outputs stored value regardless of input.
 Teaches: Memory. Write and read are separate operations.
 CS concept: A 1-bit register. A flip-flop.
+TM correspondence: TM-core — state register (D flip-flop,
+  stores one bit across pulses).
 COGS: "Memory is the ability to be wrong later about what was
   true earlier. This piece has that ability."
 
@@ -474,6 +548,8 @@ Function: Takes snapshot of a Data Trail value at the moment
 Teaches: Persistent state versus dynamic state. Protecting
   values from being overwritten.
 CS concept: A latch register with snapshot capability.
+TM correspondence: TM-core — persistent state distinct from
+  Data Trail, extended memory.
 COGS: "The Data Trail is mutable. The Capacitor is not. What
   it captures, it keeps. The distinction matters when the trail
   has moved on."
@@ -485,6 +561,8 @@ Function: Passes signal when exactly one input is active. Not
   zero. Not both. Exactly one.
 Teaches: Exclusive conditions. XOR logic.
 CS concept: An XOR gate.
+TM correspondence: TM-core — logical branch (state-dependent
+  path selection).
 COGS: "It opens for the unexpected path and closes for the
   expected one. Engineers who approach it with conventional
   routing logic will find it uncooperative."
@@ -496,6 +574,8 @@ Function: Requires signal from two input ports simultaneously
 Teaches: AND logic. Some conditions require multiple things
   true at the same moment.
 CS concept: An AND gate.
+TM correspondence: TM-core — logical AND/join (multiple
+  conditions must be satisfied).
 COGS: "It requires both. Not one then the other. Both. Most
   Engineers attempt this with a single path and learn
   immediately why that does not work."
@@ -511,6 +591,8 @@ Teaches: Non-sequential computation. Head position is a
   variable not a constant. Some problems require two minds.
 CS concept: The Turing machine head controller. Universal
   computation.
+TM correspondence: TM-core — multi-tape head reassignment,
+  non-sequential head movement (Deep Void).
 Origin: Built by the Engineer during Deep Void recovery from
   COGS's parallel processing unit, the Axiom's signal relay
   array, and the Engineer's HUD interface hardware. The only

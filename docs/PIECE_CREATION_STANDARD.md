@@ -36,6 +36,11 @@ No piece ships without completing every item on this checklist.
 - [ ] cogsNote: one line, COGS voice. Tucker sign-off required.
       Tag [PROPOSED] until approved.
 - [ ] firstEncountered: "THE AXIOM — A1-X Level Name"
+- [ ] tmCorrespondence (optional): one line. TM-core pieces get their TM-component
+      correspondence (SE-TM-021). Board/physics pieces get their "what it actually
+      teaches" framing. Non-CS pieces (currently: Amplifier) get a factual note
+      that they're board-geometry infrastructure, not a taught concept. Source,
+      Terminal, and tape entries: leave unset.
 - [ ] fieldSimulation: PieceSimulation showing input and output behavior
 
 ## Tutorial
