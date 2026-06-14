@@ -198,7 +198,12 @@ function TutorialHUDOverlayComponent({
 
   const step = steps[currentStepIndex];
   const totalSteps = steps.length;
-  const eyeColor = eyeStateColor(step?.eyeState);
+  // Tucker 2026-06-13: while COGS is highlighting a piece BEFORE it is captured
+  // (the '???' notice beat), the orb reads green — same green as the named
+  // reveal beat that follows. Every other step follows its own eye state.
+  const eyeColor = step?.captionLabel === '???'
+    ? eyeStateColor('green')
+    : eyeStateColor(step?.eyeState);
   const isCodexStep = !!(step?.codexEntryId);
 
   // ── Hydration ──
@@ -1030,10 +1035,10 @@ function TutorialHUDOverlayComponent({
           }}
         >
           {/* Corner brackets — precision targeting brackets */}
-          <Animated.View style={[st.corner, { top: -3, left: -3, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
-          <Animated.View style={[st.corner, { top: -3, right: -3, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
-          <Animated.View style={[st.corner, { bottom: -3, left: -3, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
-          <Animated.View style={[st.corner, { bottom: -3, right: -3, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3, shadowColor: '#F0B429', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { top: -3, left: -3, borderTopWidth: 2.5, borderLeftWidth: 2.5, borderTopLeftRadius: 3, shadowColor: '#00D4FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { top: -3, right: -3, borderTopWidth: 2.5, borderRightWidth: 2.5, borderTopRightRadius: 3, shadowColor: '#00D4FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { bottom: -3, left: -3, borderBottomWidth: 2.5, borderLeftWidth: 2.5, borderBottomLeftRadius: 3, shadowColor: '#00D4FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
+          <Animated.View style={[st.corner, { bottom: -3, right: -3, borderBottomWidth: 2.5, borderRightWidth: 2.5, borderBottomRightRadius: 3, shadowColor: '#00D4FF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.3, shadowRadius: 4 }, { opacity: glowPulse.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }]} />
         </Animated.View>
       )}
 
@@ -1249,7 +1254,9 @@ const st = StyleSheet.create({
     position: 'absolute',
     width: 16,
     height: 16,
-    borderColor: '#F0B429',
+    // Tucker 2026-06-13: corner targeting brackets are blue; the main
+    // highlight rectangle stays amber.
+    borderColor: '#00D4FF',
   },
   label: {
     fontFamily: Fonts.spaceMono,
