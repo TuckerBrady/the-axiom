@@ -76,6 +76,13 @@ export type PieceEntry = {
   sectorsSeen: number;
   firstEncountered: string;
   seenIn: string[];
+  // SE-TM-021 two-tier classification. Additive factual field:
+  // TM-core pieces get their Turing-machine component correspondence,
+  // board/physics pieces get their "what it actually teaches" framing,
+  // and the non-CS piece (Amplifier) gets a factual board-geometry note.
+  // Left unset on Source, Terminal, and the tape entries (outside
+  // SE-TM-021's piece tables).
+  tmCorrespondence?: string;
 };
 
 const PIECES: PieceEntry[] = [
@@ -109,6 +116,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 14, levelsPlayed: 4, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['Boot Sequence T-1', 'First Contact', 'Signal Drift', 'Relay Breach'],
+    tmCorrespondence: 'Directional routing / wire.',
   },
   {
     id: 'gear', name: 'Gear', type: 'Physics', status: 'unlocked',
@@ -119,6 +127,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 9, levelsPlayed: 3, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-2 Life Support',
     seenIn: ['Relay Breach', 'Ion Cascade', 'Flux Resonance'],
+    tmCorrespondence: 'Direction change — physical layout constraint.',
   },
   {
     id: 'splitter', name: 'Splitter', type: 'Physics', status: 'unlocked',
@@ -129,6 +138,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 5, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-4 Propulsion Core',
     seenIn: ['Ion Cascade', 'Flux Resonance'],
+    tmCorrespondence: 'Signal fan-out (copy).',
   },
   // ── Unlocked Protocol ──
   {
@@ -140,6 +150,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 7, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-3 Navigation Array',
     seenIn: ['Signal Drift', 'Ion Cascade'],
+    tmCorrespondence: 'State-dependent transition (reads Data Trail, gates based on state).',
   },
   // ── Unlocked Data Streams (tapes) — CONTENT-01, copy approved 2026-06-12 ──
   {
@@ -181,6 +192,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 6, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-5 Communication Array',
     seenIn: ['Signal Drift', 'Relay Breach'],
+    tmCorrespondence: 'Read head (Input Tape → Data Trail).',
   },
   {
     id: 'transmitter', name: 'Transmitter', type: 'Protocol', status: 'unlocked',
@@ -191,6 +203,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 4, levelsPlayed: 2, sectorsSeen: 1,
     firstEncountered: 'THE AXIOM \u2014 A1-7 Weapons Lock',
     seenIn: ['Relay Breach', 'Ion Cascade'],
+    tmCorrespondence: 'Write head (signal value → Output Tape).',
   },
   // ── Unlocked Kepler Belt pieces (no levels yet — tray/tutorial deferred) ──
   {
@@ -202,6 +215,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0,
     firstEncountered: 'THE AXIOM \u2014 Kepler Belt',
     seenIn: [],
+    tmCorrespondence: 'Signal fan-in (OR-join).',
   },
   {
     id: 'bridge', name: 'Bridge', type: 'Physics', status: 'unlocked',
@@ -212,6 +226,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0,
     firstEncountered: 'THE AXIOM \u2014 Kepler Belt',
     seenIn: [],
+    tmCorrespondence: 'Independent path crossing \u2014 board-space multiplexing.',
   },
   {
     id: 'inverter', name: 'Inverter', type: 'Protocol', status: 'unlocked',
@@ -222,6 +237,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0,
     firstEncountered: 'THE AXIOM \u2014 Kepler Belt',
     seenIn: [],
+    tmCorrespondence: 'Logical NOT \u2014 transition function transformation.',
   },
   {
     id: 'counter', name: 'Counter', type: 'Protocol', status: 'unlocked',
@@ -232,6 +248,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0,
     firstEncountered: 'THE AXIOM \u2014 Kepler Belt',
     seenIn: [],
+    tmCorrespondence: 'Bounded state accumulator \u2014 threshold-based transition.',
   },
   {
     id: 'latch', name: 'Latch', type: 'Protocol', status: 'unlocked',
@@ -242,6 +259,7 @@ const PIECES: PieceEntry[] = [
     timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0,
     firstEncountered: 'THE AXIOM \u2014 Kepler Belt',
     seenIn: [],
+    tmCorrespondence: 'State register (D flip-flop \u2014 stores one bit across pulses).',
   },
   // ── Redacted ──
   { id: 'amplifier', name: 'Amplifier', type: 'Physics', status: 'redacted', description: '', function: '', importance: '', cogsNote: '', timesUsed: 0, levelsPlayed: 0, sectorsSeen: 0, firstEncountered: '', seenIn: [] },
