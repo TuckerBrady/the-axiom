@@ -11,6 +11,11 @@ import {
   getCOGSScoreComment,
   getTutorialCOGSComment,
 } from '../scoring';
+import {
+  evaluateMayConditions,
+  totalMayCreditBonus,
+  type MayEvalContext,
+} from '../spec/mayConditions';
 import { useProgressionStore } from '../../store/progressionStore';
 import { useRequisitionStore } from '../../store/requisitionStore';
 
@@ -28,6 +33,8 @@ export interface SuccessParams {
   setCogsScoreComment: (c: string) => void;
   setFirstTimeBonus: (b: boolean) => void;
   setElaborationMult: (m: number) => void;
+  // SE-TM-031a — surfaces the MAY bonus on the results card (null when none).
+  setMayBonus: (b: { credits: number; metDescriptions: string[] } | null) => void;
   setFlashColor: (c: string | null) => void;
   setShowSystemRestored: (s: string | null) => void;
   setShowCompletionScene: (b: boolean) => void;
@@ -62,6 +69,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     setCogsScoreComment,
     setFirstTimeBonus,
     setElaborationMult,
+    setMayBonus,
     setFlashColor,
     setShowSystemRestored,
     setShowCompletionScene,
@@ -120,6 +128,36 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     earnCredits(25);
     addLivesCredits(25);
   }
+
+  // SE-TM-031a — MAY bonus. Optional "above and beyond" goals pay a bonus ON
+  // TOP of the normal reward, but ONLY on a 3-star clear (the free-to-play
+  // guarantee keeps MAY out of the 3-star path itself). Axiom levels declare no
+  // MAY conditions, so this is a no-op there. Uses the real `result.stars`, not
+  // the tutorial-forced displayStars, so a tutorial 3-star display never pays a
+  // bonus it didn't earn.
+  if (result.stars === 3 && (level.mayConditions?.length ?? 0) > 0) {
+    const mayCtx: MayEvalContext = {
+      placedPieceCount: playerPieceCount,
+      usedProtocolPiece: pieces.some(
+        p => !p.isPrePlaced && p.category === 'protocol',
+      ),
+      elapsedSeconds: lockedElapsed,
+    };
+    const mayResults = evaluateMayConditions(level, mayCtx);
+    const bonus = totalMayCreditBonus(mayResults);
+    const metDescriptions = mayResults
+      .filter(r => r.met)
+      .map(r => r.condition.description);
+    if (metDescriptions.length > 0) {
+      if (bonus > 0) earnCredits(bonus);
+      setMayBonus({ credits: bonus, metDescriptions });
+    } else {
+      setMayBonus(null);
+    }
+  } else {
+    setMayBonus(null);
+  }
+
   triggerHints('onSuccess');
 
   setFlashColor(greenColor);

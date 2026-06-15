@@ -26,6 +26,7 @@ import PieceSimulation from '../components/PieceSimulation';
 import { TapeGlyph, TapeFieldStrip, hexToRgba } from '../components/CodexDetailView';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useCodexStore } from '../store/codexStore';
+import { CODEX_DIRECTIVES, type DirectiveEntry } from '../game/codexDirectives';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 const { width: W } = Dimensions.get('window');
@@ -304,6 +305,16 @@ function buildSectionsMeta(discovered: Set<string>): {
       ).length,
     },
     {
+      // SE-TM-034 — RFC-2119 directive vocabulary (SHALL/SHOULD/MAY/WILL/MUST/
+      // CAN) plus the Spec Sheet meta-entry. Not discovery-gated: these decode
+      // labels the player has already been reading on the Spec Sheet.
+      id: 'directives',
+      name: 'Directives',
+      description: 'The language of the specs. What each requirement word means.',
+      total: CODEX_DIRECTIVES.length,
+      unlocked: CODEX_DIRECTIVES.length,
+    },
+    {
       id: 'locations',
       name: 'Locations',
       description: 'Sectors, stations, and anomalies encountered on the voyage.',
@@ -346,7 +357,9 @@ function buildCogsHomeComment(discovered: Set<string>): string {
 type CodexView =
   | { type: 'home' }
   | { type: 'section'; sectionId: string }
-  | { type: 'detail'; entry: PieceEntry };
+  | { type: 'detail'; entry: PieceEntry }
+  | { type: 'directives' }
+  | { type: 'directiveDetail'; entry: DirectiveEntry };
 
 // ─── Home view ────────────────────────────────────────────────────────────────
 
@@ -397,6 +410,8 @@ function SectionCard({
   );
 }
 
+const CLICKABLE_SECTIONS = new Set(['pieces', 'directives']);
+
 function HomeView({ onSection }: { onSection: (id: string) => void }) {
   const discoveredIds = useCodexStore(s => s.discoveredIds);
   const discovered = new Set(discoveredIds);
@@ -419,7 +434,7 @@ function HomeView({ onSection }: { onSection: (id: string) => void }) {
             key={sec.id}
             section={sec}
             index={i}
-            onPress={() => sec.id === 'pieces' ? onSection(sec.id) : undefined}
+            onPress={() => CLICKABLE_SECTIONS.has(sec.id) ? onSection(sec.id) : undefined}
           />
         ))}
       </View>
@@ -658,6 +673,121 @@ function DetailView({
   );
 }
 
+// ─── Directives section (SE-TM-034) ────────────────────────────────────────────
+
+const DIRECTIVE_ACCENT = '#00D4FF'; // COGS cyan — these are COGS's own manual.
+
+function DirectivesSectionView({
+  onBack,
+  onDetail,
+}: {
+  onBack: () => void;
+  onDetail: (entry: DirectiveEntry) => void;
+}) {
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={cs.subHeader}>
+        <BackButton onPress={onBack} />
+        <Text style={cs.subHeaderTitle}>DIRECTIVES</Text>
+        <View style={{ width: 36 }} />
+      </View>
+      <ScrollView
+        contentContainerStyle={cs.directiveList}
+        showsVerticalScrollIndicator={false}
+      >
+        {CODEX_DIRECTIVES.map(d => (
+          <TouchableOpacity
+            key={d.id}
+            style={cs.directiveCard}
+            onPress={() => onDetail(d)}
+            activeOpacity={0.85}
+          >
+            <View style={cs.directiveCardTop}>
+              <Text style={cs.directiveTerm}>{d.term.toUpperCase()}</Text>
+              <View style={cs.directiveKindBadge}>
+                <Text style={cs.directiveKindText}>
+                  {d.kind === 'meta' ? 'PANEL' : 'DIRECTIVE'}
+                </Text>
+              </View>
+            </View>
+            <Text style={cs.directiveOneLine}>{d.oneLine}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function DirectiveDetailView({
+  entry,
+  onBack,
+}: {
+  entry: DirectiveEntry;
+  onBack: () => void;
+}) {
+  const reveal = useSharedValue(0);
+  useEffect(() => {
+    reveal.value = withTiming(1, { duration: 400 });
+  }, []);
+  const screenStyle = useAnimatedStyle(() => ({ opacity: reveal.value }));
+
+  return (
+    <Animated.View style={[{ flex: 1 }, screenStyle]}>
+      <LinearGradient
+        colors={[hexToRgba(DIRECTIVE_ACCENT, 0.06), 'transparent']}
+        style={cs.atmosphereGradient}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        pointerEvents="none"
+      />
+      <ScrollView contentContainerStyle={cs.detailScroll} showsVerticalScrollIndicator={false}>
+        <View style={cs.detailBackBtn}>
+          <BackButton onPress={onBack} />
+          <Text style={cs.detailBackText}>DIRECTIVES</Text>
+        </View>
+
+        <View style={cs.detailHero}>
+          <Text style={cs.detailName}>{entry.term.toUpperCase()}</Text>
+          <View
+            style={[
+              cs.detailTypeBadge,
+              {
+                backgroundColor: hexToRgba(DIRECTIVE_ACCENT, 0.08),
+                borderColor: hexToRgba(DIRECTIVE_ACCENT, 0.4),
+              },
+            ]}
+          >
+            <Text style={[cs.detailTypeBadgeText, { color: DIRECTIVE_ACCENT }]}>
+              {entry.kind === 'meta' ? 'SPEC SHEET' : 'REQUIREMENT WORD'}
+            </Text>
+          </View>
+          <Text style={cs.directiveDetailOneLine}>{entry.oneLine}</Text>
+        </View>
+
+        <View style={cs.firstEncountered}>
+          <Text style={cs.firstEncLabel}>FIRST ENCOUNTERED</Text>
+          <Text style={cs.firstEncValue}>{entry.firstEncountered}</Text>
+        </View>
+
+        <View style={cs.dossierSections}>
+          <View style={[cs.dossierCard, cs.cogsTeachCard]}>
+            <View style={cs.cogsTeachHeader}>
+              <View style={cs.cogsAIOrbIcon}>
+                <View style={cs.cogsAIOrbDot} />
+              </View>
+              <Text style={cs.cogsTeachLabel}>C.O.G.S NOTES</Text>
+              <View style={cs.teachBadge}>
+                <Text style={cs.teachBadgeText}>TEACHING</Text>
+              </View>
+            </View>
+            <Text style={cs.cogsTeachText}>{entry.cogsNote}</Text>
+          </View>
+        </View>
+      </ScrollView>
+    </Animated.View>
+  );
+}
+
 // ─── Main CodexScreen ─────────────────────────────────────────────────────────
 
 export default function CodexScreen() {
@@ -682,7 +812,27 @@ export default function CodexScreen() {
 
         {/* Content */}
         {view.type === 'home' && (
-          <HomeView onSection={id => setView({ type: 'section', sectionId: id })} />
+          <HomeView
+            onSection={id =>
+              setView(
+                id === 'directives'
+                  ? { type: 'directives' }
+                  : { type: 'section', sectionId: id },
+              )
+            }
+          />
+        )}
+        {view.type === 'directives' && (
+          <DirectivesSectionView
+            onBack={() => setView({ type: 'home' })}
+            onDetail={entry => setView({ type: 'directiveDetail', entry })}
+          />
+        )}
+        {view.type === 'directiveDetail' && (
+          <DirectiveDetailView
+            entry={view.entry}
+            onBack={() => setView({ type: 'directives' })}
+          />
         )}
         {view.type === 'section' && (
           <SectionView
@@ -926,6 +1076,63 @@ const cs = StyleSheet.create({
     color: Colors.dim,
     letterSpacing: 1,
     textAlign: 'center',
+  },
+
+  // Directives (SE-TM-034)
+  directiveList: {
+    padding: Spacing.lg,
+    gap: Spacing.md,
+    paddingBottom: Spacing.xxl,
+  },
+  directiveCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.18)',
+    backgroundColor: 'rgba(0,212,255,0.04)',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.sm,
+  },
+  directiveCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  directiveTerm: {
+    fontFamily: Fonts.orbitron,
+    fontSize: FontSizes.lg,
+    fontWeight: 'bold',
+    color: Colors.starWhite,
+    letterSpacing: 3,
+  },
+  directiveKindBadge: {
+    borderWidth: 1,
+    borderColor: 'rgba(0,212,255,0.4)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  directiveKindText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 7,
+    color: '#00D4FF',
+    letterSpacing: 1,
+  },
+  directiveOneLine: {
+    fontFamily: Fonts.exo2,
+    fontSize: FontSizes.sm,
+    color: Colors.muted,
+    lineHeight: 18,
+  },
+  directiveDetailOneLine: {
+    fontFamily: Fonts.exo2,
+    fontSize: FontSizes.md,
+    color: Colors.muted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
   },
 
   // Detail

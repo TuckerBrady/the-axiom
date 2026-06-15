@@ -82,6 +82,7 @@ function makeParams(overrides: Partial<SuccessParams> = {}): SuccessParams {
     setCogsScoreComment: jest.fn(),
     setFirstTimeBonus: jest.fn(),
     setElaborationMult: jest.fn(),
+    setMayBonus: jest.fn(),
     setFlashColor: jest.fn(),
     setShowSystemRestored: jest.fn(),
     setShowCompletionScene: jest.fn(),

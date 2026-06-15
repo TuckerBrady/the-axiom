@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
+import { InfoIcon } from '../icons';
 
 interface Props {
   sectorBadge: string;
@@ -9,6 +10,11 @@ interface Props {
   timerText: string | null;
   pulseCounterText: string | null;
   onPause: () => void;
+  // SE-TM-030 — opens the Spec Sheet panel. The right-hand info icon was
+  // dormant (removed because it did nothing); it now routes the per-level
+  // specification feed. Must be useCallback-stabilized in the parent so the
+  // React.memo below holds.
+  onOpenSpecSheet: () => void;
 }
 
 // React.memo with default shallow comparison. The pause callback must
@@ -25,6 +31,7 @@ function HUDChromeComponent({
   timerText,
   pulseCounterText,
   onPause,
+  onOpenSpecSheet,
 }: Props) {
   return (
     <View style={styles.topBar}>
@@ -47,7 +54,15 @@ function HUDChromeComponent({
           <Text style={styles.pulseCounterText}>{pulseCounterText}</Text>
         )}
       </View>
-      <View style={{ width: 36 }} />
+      <TouchableOpacity
+        style={styles.specSheetBtn}
+        activeOpacity={0.7}
+        onPress={onOpenSpecSheet}
+        accessibilityRole="button"
+        accessibilityLabel="Open Spec Sheet"
+      >
+        <InfoIcon size={20} color="#00D4FF" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -69,6 +84,9 @@ const styles = StyleSheet.create({
   },
   pauseBar: {
     width: 3, height: 10, backgroundColor: '#00D4FF', opacity: 0.7, borderRadius: 1,
+  },
+  specSheetBtn: {
+    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
   },
   topBarCenter: { flex: 1, alignItems: 'center' },
   sectorTag: {

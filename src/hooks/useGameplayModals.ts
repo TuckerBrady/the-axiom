@@ -14,6 +14,14 @@ export type PulseResultData = {
   achieved: number;
 } | null;
 
+// SE-TM-031a — MAY bonus surfaced on the results card. credits is the total
+// bonus CR awarded; metDescriptions are the [PROPOSED] condition lines that
+// were satisfied. null when no MAY condition was met (or the level has none).
+export type MayBonusData = {
+  credits: number;
+  metDescriptions: string[];
+} | null;
+
 export interface UseGameplayModalsResult {
   showPauseModal: boolean;
   setShowPauseModal: React.Dispatch<React.SetStateAction<boolean>>;
@@ -59,6 +67,13 @@ export interface UseGameplayModalsResult {
   showTeachCard: string[] | null;
   setShowTeachCard: React.Dispatch<React.SetStateAction<string[] | null>>;
 
+  // SE-TM-030 — Spec Sheet panel visibility, and the one-time A1-1 activation
+  // hook (COGS line pointing at the revived info icon).
+  showSpecSheet: boolean;
+  setShowSpecSheet: React.Dispatch<React.SetStateAction<boolean>>;
+  showSpecSheetHook: boolean;
+  setShowSpecSheetHook: React.Dispatch<React.SetStateAction<boolean>>;
+
   scoreResult: ScoreResult | null;
   setScoreResult: React.Dispatch<React.SetStateAction<ScoreResult | null>>;
   cogsScoreComment: string;
@@ -67,6 +82,8 @@ export interface UseGameplayModalsResult {
   setFirstTimeBonus: React.Dispatch<React.SetStateAction<boolean>>;
   elaborationMult: number;
   setElaborationMult: React.Dispatch<React.SetStateAction<number>>;
+  mayBonus: MayBonusData;
+  setMayBonus: React.Dispatch<React.SetStateAction<MayBonusData>>;
 
   anyModalOpen: boolean;
 }
@@ -91,16 +108,31 @@ export function useGameplayModals(
   const [showDisciplineCard, setShowDisciplineCard] = useState(false);
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
 
+  const [showSpecSheet, setShowSpecSheet] = useState(false);
+  const [showSpecSheetHook, setShowSpecSheetHook] = useState(false);
+
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [cogsScoreComment, setCogsScoreComment] = useState('');
   const [firstTimeBonus, setFirstTimeBonus] = useState(false);
   const [elaborationMult, setElaborationMult] = useState(1);
+  const [mayBonus, setMayBonus] = useState<MayBonusData>(null);
 
   // Economy intro on first non-Axiom level (moved from GameplayScreen).
   useEffect(() => {
     if (!level || level.sector === 'axiom') return;
     AsyncStorage.getItem('axiom_economy_intro_seen').then(seen => {
       if (!seen) setShowEconomyIntro(true);
+    });
+  }, [level?.id]);
+
+  // SE-TM-033 — Spec Sheet activation hook. The first time the player loads
+  // A1-1, COGS speaks the one-time line that points at the (revived) info icon.
+  // Framed as routing a feed that was always on file, not new instrumentation.
+  // Monotonic seen-flag, mirroring the economy-intro pattern above.
+  useEffect(() => {
+    if (!level || level.id !== 'A1-1') return;
+    AsyncStorage.getItem('axiom_spec_sheet_hook_seen').then(seen => {
+      if (!seen) setShowSpecSheetHook(true);
     });
   }, [level?.id]);
 
@@ -131,10 +163,13 @@ export function useGameplayModals(
     completionText, setCompletionText,
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
+    showSpecSheet, setShowSpecSheet,
+    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
     elaborationMult, setElaborationMult,
+    mayBonus, setMayBonus,
     anyModalOpen,
   };
 }

@@ -190,6 +190,10 @@ export type LevelDefinition = {
   // requirement via a `min_direction_changes` objective, so its
   // topologyRequirements mirror an already-live gate rather than adding one.
   topologyRequirements?: TopologyRequirements;
+  // MAY conditions (SE-TM-031a) — optional "above and beyond" goals that pay a
+  // bonus on a 3-star clear. Never required for completion or 3 stars. Surfaced
+  // on the Spec Sheet MAY section. Absent on Axiom levels by design.
+  mayConditions?: MayCondition[];
 };
 
 // ─── Topology Requirements (SE-TM-035) ────────────────────────────────────────
@@ -206,6 +210,46 @@ export type TopologyRequirements = {
   // case / objectives.ts countDirectionChanges), so each placed Gear is one
   // direction change.
   minDirectionChanges?: number;
+};
+
+// ─── MAY conditions (SE-TM-031a) ───────────────────────────────────────────
+//
+// The "above and beyond" incentive track. A MAY condition is OPTIONAL — it
+// never gates stars or completion (CLAUDE.md Design Principle 10, free-to-play
+// guarantee: a MAY must never be required for 3 stars, and a MAY-gated reward
+// must never be the only path to anything needed for free completion). Meeting
+// one alongside a 3-star clear pays a bonus ON TOP of the normal CR reward.
+//
+// Per the discovery spec these are effectively absent in the Axiom sector
+// (Spec Sheets there are simple/guaranteed-by-passing) and become meaningful
+// from Kepler, where variable inputs + the expanding tray give "above and
+// beyond" room to exist. The data model ships now so Kepler levels can declare
+// them without engine changes.
+
+// A post-run predicate over the completed machine. Evaluated only on success.
+export type MayPredicate =
+  // Solved using no more than `max` player-placed pieces.
+  | { type: 'underPieceCount'; max: number }
+  // Solved without placing any Protocol-category piece.
+  | { type: 'noProtocolPieces' }
+  // Locked within `max` seconds of engaging.
+  | { type: 'underSeconds'; max: number };
+
+// What meeting a MAY condition pays out. `credits` is additive to the level's
+// normal reward. `powerup` is a STUB reward type only — no power-up system
+// exists yet (SE-TM-031a); it is recorded but not granted until that system
+// lands. Surfaced so level data can be authored ahead of the feature.
+export type MayReward =
+  | { type: 'credits'; amount: number }
+  | { type: 'powerup'; powerupId: string };
+
+export type MayCondition = {
+  id: string;
+  // [PROPOSED] COGS-voice line describing the optional goal. Must describe the
+  // goal, never leak the solution. Surfaced as the MAY section on the Spec Sheet.
+  description: string;
+  predicate: MayPredicate;
+  reward: MayReward;
 };
 
 // ─── Ship Systems ────────────────────────────────────────────────────────

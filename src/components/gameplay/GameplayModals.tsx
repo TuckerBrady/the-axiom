@@ -20,7 +20,7 @@ import { BLANK } from '../../game/types';
 import type { ScoreResult } from '../../game/scoring';
 import type { Discipline } from '../../store/playerStore';
 import { useEconomyStore } from '../../store/economyStore';
-import type { WrongOutputData, PulseResultData } from '../../hooks/useGameplayModals';
+import type { WrongOutputData, PulseResultData, MayBonusData } from '../../hooks/useGameplayModals';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -98,6 +98,7 @@ export interface GameplayModalsProps {
   cogsScoreComment: string;
   firstTimeBonus: boolean;
   elaborationMult: number;
+  mayBonus: MayBonusData;
 
   // Failure state (from useGameplayFailure)
   blownCells: Set<string>;
@@ -155,7 +156,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     showCompletionScene, completionText,
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
-    scoreResult, cogsScoreComment, firstTimeBonus, elaborationMult,
+    scoreResult, cogsScoreComment, firstTimeBonus, elaborationMult, mayBonus,
     blownCells, setBlownCells,
     getBlownCellCOGSLine,
     lives, livesCredits, discipline, credits,
@@ -283,6 +284,20 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                   ? 'COMPONENT FORFEITED'
                   : 'COMPONENTS FORFEITED'}
               </Text>
+            )}
+
+            {/* MAY bonus — above-and-beyond payout (SE-TM-031a) */}
+            {mayBonus && (
+              <View style={styles.mayBonusWrap}>
+                <Text style={styles.mayBonusHeader}>
+                  {mayBonus.credits > 0
+                    ? `MAY · +${mayBonus.credits} CR`
+                    : 'MAY · ABOVE AND BEYOND'}
+                </Text>
+                {mayBonus.metDescriptions.map((d, i) => (
+                  <Text key={i} style={styles.mayBonusLine}>{d}</Text>
+                ))}
+              </View>
             )}
 
             <View style={styles.cogsResultRow}>
@@ -966,6 +981,32 @@ const styles = StyleSheet.create({
     fontSize: 5,
     color: Colors.dim,
     letterSpacing: 0.5,
+  },
+
+  // MAY bonus (SE-TM-031a)
+  mayBonusWrap: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: 'rgba(78,203,141,0.3)',
+    backgroundColor: 'rgba(78,203,141,0.06)',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginBottom: Spacing.md,
+    gap: 4,
+  },
+  mayBonusHeader: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    color: '#4ecb8d',
+    letterSpacing: 2,
+  },
+  mayBonusLine: {
+    fontFamily: Fonts.exo2,
+    fontSize: 11,
+    color: Colors.muted,
+    fontStyle: 'italic',
+    lineHeight: 16,
   },
 
   // Forfeiture notice
