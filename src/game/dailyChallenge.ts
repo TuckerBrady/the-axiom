@@ -53,9 +53,12 @@ function selectSender(rng: SeededRandom, pirateActive: boolean): ChallengeSender
 
 // ─── COGS tag-based presentation ─────────────────────────────────────────────
 
-function getTagPresentation(tags: string[]): string {
-  if (tags.includes('protocol_required')) return 'This transmission requires Protocol knowledge. The sender was specific about that.';
-  if (tags.includes('trail_write')) return 'This involves writing to the Data Trail. The Transmitter is not optional here.';
+// isTapeLevel gates the protocol/trail claims: a bounty only describes itself as
+// a Protocol job when it actually shipped as a tape level (the generator can
+// degrade a tape template to a routing puzzle if its solution writes no output).
+function getTagPresentation(tags: string[], isTapeLevel: boolean): string {
+  if (isTapeLevel && tags.includes('trail_write')) return 'This involves writing to the Output Tape. The Transmitter is not optional here.';
+  if (isTapeLevel && tags.includes('protocol_required')) return 'This transmission requires Protocol knowledge. The sender was specific about that.';
   if (tags.includes('double_bend')) return 'Non-linear routing. Multiple direction changes required. Plan before placing.';
   if (tags.includes('bend')) return 'Non-linear routing. Direction changes required. Plan before placing.';
   if (tags.includes('straight')) return 'Straightforward routing problem. The sender apologised for the simplicity. I told them not to.';
@@ -107,7 +110,7 @@ export function generateDailyChallenge(
 
     if (result.solvable) {
       const sender = selectSender(new SeededRandom(baseSeed + 100), pirateConsequenceActive);
-      const tagLine = getTagPresentation(template.tags);
+      const tagLine = getTagPresentation(template.tags, !!level.inputTape);
       const senderLine = COGS_PRESENTATIONS[sender.id] ?? 'Incoming transmission. Sender verified.';
 
       level.cogsLine = tagLine;
