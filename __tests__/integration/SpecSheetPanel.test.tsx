@@ -77,6 +77,38 @@ describe('Spec Sheet — HUD + screen wiring', () => {
   });
 });
 
+describe('Spec Sheet — A1-1 hook uses the orb-highlight dialog (SE-TM-033)', () => {
+  it('GameplayScreen renders the SpecSheetHook anchored to the HUD button ref', () => {
+    expect(screenSrc).toMatch(/<SpecSheetHook/);
+    expect(screenSrc).toMatch(/specSheetBtnRef/);
+    expect(hudSrc).toMatch(/ref=\{specSheetBtnRef\}/);
+  });
+
+  it('the hook measures the button and shows a dialog (not a full-screen card)', () => {
+    const hookSrc = read('src/components/gameplay/SpecSheetHook.tsx');
+    expect(hookSrc).toMatch(/measureInWindow/);
+    expect(hookSrc).toMatch(/CogsAvatar/);
+  });
+});
+
+describe('Topology SHALL is graded at win time (SE-TM-035)', () => {
+  it('GameplayScreen evaluates the topology gate and folds it into success', () => {
+    expect(screenSrc).toMatch(/evaluateTopologyGate\(level, steps\)/);
+    expect(screenSrc).toMatch(/!wrongOutput && metPulseRequirement && topoGate\.met/);
+  });
+
+  it('a correct output that violates topology shows the spec diagnostic, not a win', () => {
+    expect(screenSrc).toMatch(/!topoGate\.met/);
+    expect(screenSrc).toMatch(/setShowSpecNotMet\(true\)/);
+  });
+
+  it('A1-4 declares both the executed-path objective and the Spec Sheet topology field', () => {
+    const levelsSrc = read('src/game/levels.ts');
+    expect(levelsSrc).toMatch(/min_direction_changes['"]?,?\s*count:\s*2/);
+    expect(levelsSrc).toMatch(/topologyRequirements:\s*\{\s*minDirectionChanges:\s*2/);
+  });
+});
+
 describe('Spec Sheet — MAY bonus surfaced on results', () => {
   it('results modal renders the MAY bonus block', () => {
     const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');

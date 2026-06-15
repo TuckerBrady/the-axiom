@@ -29,6 +29,7 @@ describe('GameplayModals — flag-gated rendering', () => {
     ['Results overlay',     /\{showResults && \(/],
     ['Wrong output',        /\{showWrongOutput && wrongOutputData && \(/],
     ['Insufficient pulses', /\{showInsufficientPulses && pulseResultData && \(/],
+    ['Specification not met', /\{showSpecNotMet && specNotMetData && \(/],
     ['Out of lives',        /\{showOutOfLives && \(/],
     ['Economy intro',       /\{showEconomyIntro && \(/],
     ['System restored',     /\{showSystemRestored && \(/],

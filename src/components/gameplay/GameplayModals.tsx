@@ -20,7 +20,7 @@ import { BLANK } from '../../game/types';
 import type { ScoreResult } from '../../game/scoring';
 import type { Discipline } from '../../store/playerStore';
 import { useEconomyStore } from '../../store/economyStore';
-import type { WrongOutputData, PulseResultData, MayBonusData } from '../../hooks/useGameplayModals';
+import type { WrongOutputData, PulseResultData, MayBonusData, SpecNotMetData } from '../../hooks/useGameplayModals';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -83,6 +83,10 @@ export interface GameplayModalsProps {
   setShowInsufficientPulses: React.Dispatch<React.SetStateAction<boolean>>;
   pulseResultData: PulseResultData;
   setPulseResultData: React.Dispatch<React.SetStateAction<PulseResultData>>;
+  showSpecNotMet: boolean;
+  setShowSpecNotMet: React.Dispatch<React.SetStateAction<boolean>>;
+  specNotMetData: SpecNotMetData;
+  setSpecNotMetData: React.Dispatch<React.SetStateAction<SpecNotMetData>>;
   showOutOfLives: boolean;
   setShowOutOfLives: React.Dispatch<React.SetStateAction<boolean>>;
   showEconomyIntro: boolean;
@@ -150,6 +154,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     wrongOutputData, setWrongOutputData,
     showInsufficientPulses, setShowInsufficientPulses,
     pulseResultData, setPulseResultData,
+    showSpecNotMet, setShowSpecNotMet,
+    specNotMetData, setSpecNotMetData,
     showOutOfLives, setShowOutOfLives,
     showEconomyIntro, setShowEconomyIntro,
     showSystemRestored,
@@ -466,6 +472,42 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 setShowInsufficientPulses(false);
                 setPulseResultData(null);
                 handleReset();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Specification Not Met (topology SHALL violated — SE-TM-035) ── */}
+      {showSpecNotMet && specNotMetData && (
+        <Animated.View style={styles.completionCardWrap} entering={FadeIn.duration(300)}>
+          <View style={styles.wrongOutputCard}>
+            <Text style={styles.wrongOutputTitle}>SPECIFICATION NOT MET</Text>
+            <Text style={styles.insufficientSubtext}>
+              {specNotMetData.requirementText}
+            </Text>
+            <Text style={styles.specNotMetReadout}>
+              SIGNAL PATH: {specNotMetData.actual} of {specNotMetData.required} required direction changes
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              <CogsAvatar size="small" state="damaged" />
+              <Text style={styles.wrongOutputCogsText}>
+                {`"The output was correct. The build was not to specification. Meeting the answer is not the same as meeting the spec. Read it again — every SHALL is mandatory."`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.wrongOutputRetryBtn}
+              onPress={() => {
+                setShowSpecNotMet(false);
+                setSpecNotMetData(null);
+                if (lives <= 0) {
+                  setShowOutOfLives(true);
+                } else {
+                  handleReset();
+                }
               }}
               activeOpacity={0.7}
             >
@@ -1201,6 +1243,15 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
     marginBottom: 12,
+    letterSpacing: 1,
+  },
+  // Specification not met (SE-TM-035)
+  specNotMetReadout: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: Colors.amber,
+    textAlign: 'center',
+    marginBottom: 4,
     letterSpacing: 1,
   },
   pulseResultsRow: {

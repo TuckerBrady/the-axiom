@@ -14,6 +14,15 @@ export type PulseResultData = {
   achieved: number;
 } | null;
 
+// SE-TM-035 — topology SHALL not met. The machine produced the right output
+// but its signal path violated a stated board-topology requirement. Drives the
+// "specification not met" diagnostic modal.
+export type SpecNotMetData = {
+  required: number;
+  actual: number;
+  requirementText: string;
+} | null;
+
 // SE-TM-031a — MAY bonus surfaced on the results card. credits is the total
 // bonus CR awarded; metDescriptions are the [PROPOSED] condition lines that
 // were satisfied. null when no MAY condition was met (or the level has none).
@@ -46,6 +55,11 @@ export interface UseGameplayModalsResult {
   setShowInsufficientPulses: React.Dispatch<React.SetStateAction<boolean>>;
   pulseResultData: PulseResultData;
   setPulseResultData: React.Dispatch<React.SetStateAction<PulseResultData>>;
+
+  showSpecNotMet: boolean;
+  setShowSpecNotMet: React.Dispatch<React.SetStateAction<boolean>>;
+  specNotMetData: SpecNotMetData;
+  setSpecNotMetData: React.Dispatch<React.SetStateAction<SpecNotMetData>>;
 
   showOutOfLives: boolean;
   setShowOutOfLives: React.Dispatch<React.SetStateAction<boolean>>;
@@ -100,6 +114,8 @@ export function useGameplayModals(
   const [wrongOutputData, setWrongOutputData] = useState<WrongOutputData>(null);
   const [showInsufficientPulses, setShowInsufficientPulses] = useState(false);
   const [pulseResultData, setPulseResultData] = useState<PulseResultData>(null);
+  const [showSpecNotMet, setShowSpecNotMet] = useState(false);
+  const [specNotMetData, setSpecNotMetData] = useState<SpecNotMetData>(null);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showSystemRestored, setShowSystemRestored] = useState<string | null>(null);
@@ -142,6 +158,7 @@ export function useGameplayModals(
     showResults ||
     showWrongOutput ||
     showInsufficientPulses ||
+    showSpecNotMet ||
     showOutOfLives ||
     showEconomyIntro ||
     showCompletionCard;
@@ -156,6 +173,8 @@ export function useGameplayModals(
     wrongOutputData, setWrongOutputData,
     showInsufficientPulses, setShowInsufficientPulses,
     pulseResultData, setPulseResultData,
+    showSpecNotMet, setShowSpecNotMet,
+    specNotMetData, setSpecNotMetData,
     showOutOfLives, setShowOutOfLives,
     showEconomyIntro, setShowEconomyIntro,
     showSystemRestored, setShowSystemRestored,
