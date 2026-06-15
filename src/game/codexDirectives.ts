@@ -7,11 +7,11 @@
 // Per canon (SE-TM-031), COGS has a working manual before the player boots up;
 // these are pre-existing reference entries, not concepts discovered together.
 //
-// ── [PROPOSED] ──────────────────────────────────────────────────────────────
-// Every `oneLine` and `cogsNote` string here is COGS dialogue and is subject to
-// Tucker sign-off (CLAUDE.md Design Principle 2). Treat as provisional until
-// approved. "Systems engineering" is never named — the formal register carries
-// it, same as every other concept in the game.
+// ── COGS copy ───────────────────────────────────────────────────────────────
+// Every `oneLine` and `cogsNote` string here is COGS dialogue. Approved by
+// Tucker 2026-06-14 (CLAUDE.md Design Principle 2); any future wording change
+// needs fresh sign-off. "Systems engineering" is never named — the formal
+// register carries it, same as every other concept in the game.
 
 export type DirectiveKind = 'directive' | 'meta';
 

@@ -5,9 +5,10 @@
 // SECOND framing of the same problem — it never touches scoring, win condition,
 // or game state. Opened from the dormant-now-revived top-right info icon.
 //
-// All sentence copy is [PROPOSED] (CLAUDE.md Design Principle 2) and comes from
-// the pure derive + copy layers (src/game/spec/*). This component only lays the
-// statements out; it computes nothing about the puzzle itself.
+// All sentence copy is COGS dialogue, approved by Tucker 2026-06-14 (CLAUDE.md
+// Design Principle 2), and comes from the pure derive + copy layers
+// (src/game/spec/*). This component only lays the statements out; it computes
+// nothing about the puzzle itself.
 
 import React from 'react';
 import {

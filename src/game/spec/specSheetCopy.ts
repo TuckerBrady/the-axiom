@@ -6,8 +6,8 @@
 // this module produces the sentence BODY for each statement.
 //
 // ── Two hard rules ──────────────────────────────────────────────────────────
-// 1. [PROPOSED] copy. Every string here is COGS dialogue and is subject to
-//    Tucker sign-off (CLAUDE.md Design Principle 2). Treat as provisional.
+// 1. COGS copy. Approved by Tucker 2026-06-14 (CLAUDE.md Design Principle 2).
+//    Any future wording change needs fresh sign-off.
 // 2. NEVER leak the answer. A `literalOutputMatch` SHALL knows the exact
 //    expected tape, but the copy must describe the REQUIREMENT ("match the
 //    expected result"), never print the expected values. The Spec Sheet is a
@@ -68,7 +68,7 @@ export function shallStatementToCopy(s: ShallStatement): string {
 // locked (Efficiency 30, Protocol Precision 25, ...), so the copy describes the
 // behaviour the category rewards, not a number.
 const SHOULD_COPY: Record<ScoringCategory, string> = {
-  efficiency: 'The machine SHOULD reach the Terminal with as few pieces as the design allows.',
+  efficiency: 'The machine SHOULD route cleanly, without pieces that do nothing.',
   protocolPrecision: 'Protocol pieces SHOULD activate only when the data requires it.',
   chainIntegrity: 'Every placed piece SHOULD participate in the signal chain.',
   disciplineBonus: 'The solution SHOULD reflect the discipline you trained in.',
@@ -82,9 +82,10 @@ export function shouldStatementToCopy(s: ShouldStatement): string {
 
 // ─── A1-1 activation hook (SE-TM-033) ───────────────────────────────────────
 //
-// [PROPOSED] — the one-time COGS line shown the first time A1-1 loads, framed
-// as routing a feed that was always on file, NOT new instrumentation. Pointed
-// at the (re-enabled) top-right Spec Sheet icon.
+// The one-time COGS line shown the first time A1-1 loads, framed as routing a
+// feed that was always on file, NOT new instrumentation. Pointed at the
+// (re-enabled) top-right Spec Sheet icon. Approved by Tucker 2026-06-14 —
+// the literal "top right" 4th-wall nod is intentional (player-benefit).
 export const SPEC_SHEET_ACTIVATION_HOOK: string[] = [
   'I am routing the job’s tasking to your console.',
   'The specifications were always on file. You simply had no reason to read them.',
