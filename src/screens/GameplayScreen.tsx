@@ -29,6 +29,8 @@ import BeamOverlay from '../components/gameplay/BeamOverlay';
 import PieceTray from '../components/gameplay/PieceTray';
 import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
+import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
+import CogsAvatar from '../components/CogsAvatar';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
 import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
@@ -56,6 +58,7 @@ import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
+import { SPEC_SHEET_ACTIVATION_HOOK } from '../game/spec/specSheetCopy';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -315,10 +318,13 @@ export default function GameplayScreen({ navigation }: Props) {
     completionText, setCompletionText,
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
+    showSpecSheet, setShowSpecSheet,
+    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
     elaborationMult, setElaborationMult,
+    mayBonus, setMayBonus,
   } = modals;
 
   // Phase 2 extraction — tutorial state, hint queue, all measurement refs.
@@ -653,6 +659,11 @@ export default function GameplayScreen({ navigation }: Props) {
   // ── Pause modal opener (stable ref so HUDChrome memo holds) ──
   const handlePauseOpen = useCallback(() => {
     setShowPauseModal(true);
+  }, []);
+
+  // ── Spec Sheet opener (stable ref so HUDChrome memo holds — SE-TM-030) ──
+  const handleSpecSheetOpen = useCallback(() => {
+    setShowSpecSheet(true);
   }, []);
 
   // ── REQUISITION confirm ──
@@ -1093,6 +1104,7 @@ export default function GameplayScreen({ navigation }: Props) {
         setCogsScoreComment,
         setFirstTimeBonus,
         setElaborationMult,
+        setMayBonus,
         setFlashColor,
         setShowSystemRestored,
         setShowCompletionScene,
@@ -1236,6 +1248,7 @@ export default function GameplayScreen({ navigation }: Props) {
               : null
           }
           onPause={handlePauseOpen}
+          onOpenSpecSheet={handleSpecSheetOpen}
         />
 
         {/* ── Turing Tape Display ── */}
@@ -1622,6 +1635,7 @@ export default function GameplayScreen({ navigation }: Props) {
         cogsScoreComment={cogsScoreComment}
         firstTimeBonus={firstTimeBonus}
         elaborationMult={elaborationMult}
+        mayBonus={mayBonus}
         blownCells={blownCells}
         setBlownCells={setBlownCells}
         failCount={failCount}
@@ -1647,6 +1661,41 @@ export default function GameplayScreen({ navigation }: Props) {
         setShowRequiredNotEngaged={setShowRequiredNotEngaged}
         requiredNotEngagedLine={requiredNotEngagedLine}
       />
+
+      {/* ── Spec Sheet panel (SE-TM-030) — read-only requirement reference ── */}
+      <SpecSheetPanel
+        level={level}
+        visible={showSpecSheet}
+        onClose={() => setShowSpecSheet(false)}
+      />
+
+      {/* ── Spec Sheet A1-1 activation hook (SE-TM-033) — one-time COGS line ── */}
+      {showSpecSheetHook && (
+        <Animated.View style={styles.specHookOverlay} entering={FadeIn.duration(400)}>
+          <LinearGradient
+            colors={['rgba(6,9,15,0.97)', 'rgba(10,22,40,0.99)']}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.specHookContent}>
+            <CogsAvatar size="medium" state="online" />
+            <View style={styles.specHookLines}>
+              {SPEC_SHEET_ACTIVATION_HOOK.map((line, i) => (
+                <Text key={i} style={styles.specHookText}>{line}</Text>
+              ))}
+            </View>
+            <TouchableOpacity
+              style={styles.specHookDismiss}
+              onPress={() => {
+                AsyncStorage.setItem('axiom_spec_sheet_hook_seen', '1');
+                setShowSpecSheetHook(false);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.specHookDismissText}>UNDERSTOOD</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
 
       {/* ── HUD Tutorial Overlay ── */}
       {/* Gated on !isExecuting so measure() calls don't race beam-animation
@@ -1699,6 +1748,38 @@ export default function GameplayScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
   safeArea: { flex: 1 },
+  // Spec Sheet A1-1 activation hook overlay (SE-TM-033).
+  specHookOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 240,
+  },
+  specHookContent: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.xxxl,
+    width: '100%',
+  },
+  specHookLines: {
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
+    maxWidth: 320,
+  },
+  specHookText: {
+    fontFamily: Fonts.exo2,
+    fontSize: 13,
+    fontStyle: 'italic',
+    color: Colors.starWhite,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  specHookDismiss: { marginTop: Spacing.xl },
+  specHookDismissText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.dim,
+    letterSpacing: 3,
+  },
   errorText: {
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.muted,
     textAlign: 'center', marginTop: Spacing.xxxl,
