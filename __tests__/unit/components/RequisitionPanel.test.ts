@@ -62,6 +62,18 @@ describe('RequisitionPanel — source contract', () => {
     expect(panelSrc).toMatch(/isPreAssigned/);
   });
 
+  it('offers only the discovery-gated purchasable set, not the full roster', () => {
+    // Reads the store's gated list and filters categories by it, rather than
+    // mapping the raw PHYSICS/PROTOCOL constants directly into rows.
+    expect(panelSrc).toMatch(/_availablePieceTypes/);
+    expect(panelSrc).toMatch(/purchasableTypes/);
+    expect(panelSrc).toMatch(/purchasableTypes\.includes\(/);
+  });
+
+  it('shows an empty-state when a category has no catalogued pieces', () => {
+    expect(panelSrc).toMatch(/catalogued yet/);
+  });
+
   it('GameplayScreen imports and renders <RequisitionPanel />', () => {
     expect(screenSrc).toMatch(/import RequisitionPanel/);
     expect(screenSrc).toMatch(/<RequisitionPanel/);

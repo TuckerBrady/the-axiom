@@ -9,6 +9,8 @@ import {
   arcWheelSortKey,
   NIBBLE_PRICE,
 } from '../game/piecePrices';
+import { useCodexStore } from './codexStore';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,12 +90,26 @@ function newInventoryId(): string {
   return `inv-${++inventoryCounter}`;
 }
 
-function buildPieceTypesForLevel(level: LevelDefinition): PieceType[] {
-  // All physics and protocol types that have a price are candidates.
-  // The store shows what the level makes available — currently all known
-  // purchasable types (codex gating is applied at the UI layer).
+/**
+ * The piece types the player may PURCHASE for this level. A candidate must be
+ * priced and not already pre-assigned, AND — the gate Tucker asked for — must
+ * have been introduced/catalogued: its id is in the Codex discovery set. You
+ * cannot requisition a piece you have never seen. `showDev` (testflight/dev
+ * builds) bypasses the discovery gate so testers see the full catalogue, the
+ * same escape hatch the Codex grid uses. `discoveredIds` is passed in (not read
+ * from the store here) so this stays a pure, unit-testable function.
+ */
+export function buildPieceTypesForLevel(
+  level: LevelDefinition,
+  discoveredIds: string[],
+  showDev: boolean,
+): PieceType[] {
+  const discovered = new Set(discoveredIds);
   return [...PHYSICS_PIECE_TYPES, ...PROTOCOL_PIECE_TYPES].filter(
-    pt => (PIECE_PRICES[pt] ?? 0) > 0 && !level.availablePieces.includes(pt),
+    pt =>
+      (PIECE_PRICES[pt] ?? 0) > 0 &&
+      !level.availablePieces.includes(pt) &&
+      (showDev || discovered.has(pt)),
   );
 }
 
@@ -168,7 +184,11 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   initRequisition: (level, discipline) => {
     const creditBudget = level.creditBudget ?? 0;
-    const purchasable = buildPieceTypesForLevel(level);
+    const purchasable = buildPieceTypesForLevel(
+      level,
+      useCodexStore.getState().discoveredIds,
+      SHOW_DEV_TOOLS,
+    );
     set({
       phase: creditBudget > 0 ? 'requisition' : 'placement',
       requisition: {

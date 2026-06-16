@@ -1,4 +1,4 @@
-import { useRequisitionStore, buildInventoryForLevel } from '../../src/store/requisitionStore';
+import { useRequisitionStore, buildInventoryForLevel, buildPieceTypesForLevel } from '../../src/store/requisitionStore';
 import type { LevelDefinition } from '../../src/game/types';
 import { NIBBLE_PRICE } from '../../src/game/piecePrices';
 
@@ -32,6 +32,39 @@ beforeEach(() => {
     selectedInventoryId: null,
     _availablePieceTypes: [],
     _discipline: null,
+  });
+});
+
+describe('buildPieceTypesForLevel — Codex discovery gating', () => {
+  it('offers nothing the player has not catalogued (empty discovery)', () => {
+    const level = makeLevel({ availablePieces: ['conveyor'] });
+    expect(buildPieceTypesForLevel(level, [], false)).toEqual([]);
+  });
+
+  it('offers only discovered, priced, non-pre-assigned pieces', () => {
+    const level = makeLevel({ availablePieces: ['conveyor'] });
+    const result = buildPieceTypesForLevel(level, ['gear', 'splitter', 'scanner'], false);
+    // gear/splitter/scanner are discovered + priced + not pre-assigned.
+    expect(result).toEqual(expect.arrayContaining(['gear', 'splitter', 'scanner']));
+    // conveyor is pre-assigned -> never purchasable.
+    expect(result).not.toContain('conveyor');
+  });
+
+  it('never offers an undiscovered piece', () => {
+    const level = makeLevel({ availablePieces: [] });
+    const result = buildPieceTypesForLevel(level, ['gear'], false);
+    expect(result).toEqual(['gear']);
+    expect(result).not.toContain('latch');
+    expect(result).not.toContain('transmitter');
+  });
+
+  it('showDev bypasses the gate (testers see the full catalogue)', () => {
+    const level = makeLevel({ availablePieces: ['conveyor'] });
+    const gated = buildPieceTypesForLevel(level, [], false);
+    const dev = buildPieceTypesForLevel(level, [], true);
+    expect(gated).toEqual([]);
+    expect(dev.length).toBeGreaterThan(0);
+    expect(dev).not.toContain('conveyor'); // still excludes pre-assigned
   });
 });
 

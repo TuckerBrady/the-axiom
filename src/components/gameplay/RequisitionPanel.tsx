@@ -209,6 +209,11 @@ export default function RequisitionPanel({
     canAffordMore,
   } = useRequisitionStore();
 
+  // Discovery-gated purchasable types (computed in the store at initRequisition;
+  // excludes pre-assigned and anything COGS has not catalogued). The panel only
+  // ever offers from this set — never the full piece roster.
+  const purchasableTypes = useRequisitionStore(s => s._availablePieceTypes);
+
   const budgetRemaining = getBudgetRemaining();
   const { totalSpend, creditBudget } = requisition;
   const canAffordRequisition = creditBalance >= totalSpend;
@@ -275,44 +280,43 @@ export default function RequisitionPanel({
     }).start(() => onConfirm());
   }, [dismissing, slideOutAnim, onConfirm]);
 
+  // Rows for a piece category = the level's pre-assigned pieces of that
+  // category (shown INCLUDED) plus the discovery-gated purchasable types. A
+  // piece the player has never seen never appears (Tucker: only introduced /
+  // collected pieces are requisitionable).
+  function categoryRows(categoryTypes: PieceType[]): PieceType[] {
+    const preAssigned = categoryTypes.filter(t => preAssignedPieces.includes(t));
+    const purchasable = categoryTypes.filter(
+      t => purchasableTypes.includes(t) && !preAssignedPieces.includes(t),
+    );
+    return [...preAssigned, ...purchasable];
+  }
+
   // ── Render tab content ──
   function renderTabContent() {
-    if (activeTab === 'PHYSICS') {
-      const pieces = PHYSICS_PIECE_TYPES;
-      return pieces.map(type => {
-        const isPreAssigned = preAssignedPieces.includes(type);
+    if (activeTab === 'PHYSICS' || activeTab === 'PROTOCOL') {
+      const rows = categoryRows(activeTab === 'PHYSICS' ? PHYSICS_PIECE_TYPES : PROTOCOL_PIECE_TYPES);
+      if (rows.length === 0) {
         return (
-          <PieceRow
-            key={type}
-            type={type}
-            discipline={discipline}
-            isPreAssigned={isPreAssigned}
-            quantity={getQuantityForPiece(type)}
-            onIncrement={() => handleIncrement(type)}
-            onDecrement={() => handleDecrement(type)}
-            budgetRemaining={budgetRemaining}
-          />
+          <View style={styles.emptyTab}>
+            <Text style={styles.emptyTabText}>
+              No {activeTab === 'PHYSICS' ? 'Physics' : 'Protocol'} pieces catalogued yet.
+            </Text>
+          </View>
         );
-      });
-    }
-
-    if (activeTab === 'PROTOCOL') {
-      const pieces = PROTOCOL_PIECE_TYPES;
-      return pieces.map(type => {
-        const isPreAssigned = preAssignedPieces.includes(type);
-        return (
-          <PieceRow
-            key={type}
-            type={type}
-            discipline={discipline}
-            isPreAssigned={isPreAssigned}
-            quantity={getQuantityForPiece(type)}
-            onIncrement={() => handleIncrement(type)}
-            onDecrement={() => handleDecrement(type)}
-            budgetRemaining={budgetRemaining}
-          />
-        );
-      });
+      }
+      return rows.map(type => (
+        <PieceRow
+          key={type}
+          type={type}
+          discipline={discipline}
+          isPreAssigned={preAssignedPieces.includes(type)}
+          quantity={getQuantityForPiece(type)}
+          onIncrement={() => handleIncrement(type)}
+          onDecrement={() => handleDecrement(type)}
+          budgetRemaining={budgetRemaining}
+        />
+      ));
     }
 
     if (activeTab === 'DATA') {
