@@ -1,7 +1,8 @@
-import type { LevelDefinition, PlacedPiece, PieceType } from './types';
+import type { LevelDefinition, PlacedPiece, PieceType, OutputTapeValue } from './types';
 import type { PuzzleTemplate } from './challengeTemplates';
 import { SeededRandom } from './seededRandom';
 import { getDefaultPorts, getPieceCategory } from './engine';
+import { runSolution } from './puzzleVerifier';
 
 let pieceCounter = 5000;
 
@@ -140,18 +141,26 @@ function buildSolutionPath(
   }
 }
 
-// ─── Data trail generation ───────────────────────────────────────────────────
+// ─── Transmitter insertion (makes a tape bounty actually produce output) ─────
 
-function generateDataTrail(rng: SeededRandom, length: number, needsCorrectValues: boolean): (0 | 1)[] {
-  const trail: (0 | 1)[] = [];
-  for (let i = 0; i < length; i++) {
-    trail.push(rng.nextInt(0, 1) as 0 | 1);
+// Convert the rightmost conveyor feeding the Terminal horizontally into a
+// Transmitter, so the intended solution writes an output tape (the engine only
+// writes outputTape on a Transmitter fire). Returns null when no horizontal
+// approach conveyor exists — the caller then ships a routing bounty instead.
+function insertTransmitter(path: SolPiece[], ox: number, oy: number): SolPiece[] | null {
+  let bestIdx = -1;
+  let bestX = -1;
+  for (let i = 0; i < path.length; i++) {
+    const p = path[i];
+    if (p.type === 'conveyor' && p.y === oy && p.x < ox && p.x > bestX) {
+      bestX = p.x;
+      bestIdx = i;
+    }
   }
-  // Ensure at least one '1' for configNode to pass
-  if (needsCorrectValues && !trail.includes(1)) {
-    (trail as (0 | 1)[])[0] = 1;
-  }
-  return trail;
+  if (bestIdx === -1) return null;
+  const copy = path.map(p => ({ ...p }));
+  copy[bestIdx] = { ...copy[bestIdx], type: 'transmitter', rotation: 0 };
+  return copy;
 }
 
 // ─── Tape generation (for challenges with tape-interacting pieces) ───────────
@@ -216,54 +225,77 @@ export function generatePuzzleFromTemplate(
     makePiece('terminal', ox, oy, true),
   ];
 
-  // 4. Convert solution to PlacedPiece[] (for verification)
-  const solutionPieces = solPath.map(sp => makePiece(sp.type, sp.x, sp.y, false, sp.rotation));
+  // 4. Budget
+  const budget = rng.nextInt(template.budgetRange[0], template.budgetRange[1]);
 
-  // 5. Available pieces from pool
+  // 5. Decide tape vs routing. A template "wants" a tape level when its pool
+  // offers tape-interacting pieces. But a bounty is only a HONEST tape level if
+  // its intended solution can actually WRITE an output tape — which requires a
+  // Transmitter on the signal path (the engine writes outputTape only on a
+  // Transmitter fire). The physics-only solution builders can't, so we insert a
+  // Transmitter into the path and DERIVE expectedOutput from running it. If that
+  // doesn't yield real output (e.g. the insertion didn't land on the path), the
+  // bounty degrades to a verified routing puzzle rather than shipping an
+  // unsolvable tape level. (Was: expectedOutput = [...inputTape] assumed, with
+  // no Transmitter — unsolvable, see puzzleVerifier rewrite.)
+  const TAPE_PIECE_TYPES: PieceType[] = ['scanner', 'transmitter', 'configNode'];
+  const poolWantsTape = piecePool.some(e => TAPE_PIECE_TYPES.includes(e.type));
+
+  let solPathFinal: SolPiece[] = solPath;
+  let inputTape: number[] | undefined;
+  let expectedOutput: OutputTapeValue[] | undefined;
+  let dataTrail: { cells: (0 | 1)[]; headPosition: number } = { cells: [], headPosition: 0 };
+
+  if (poolWantsTape) {
+    const [minLen, maxLen] = TAPE_LENGTHS[template.difficulty] ?? [4, 5];
+    const tapeLength = rng.nextInt(minLen, maxLen);
+    const candidateInput = generateInputTape(tapeLength, rng);
+    const candidatePath = insertTransmitter(solPath, ox, oy);
+
+    if (candidatePath) {
+      const candidateTrail = { cells: new Array(gw).fill(0) as (0 | 1)[], headPosition: 0 };
+      const candidateSolution = candidatePath.map(sp => makePiece(sp.type, sp.x, sp.y, false, sp.rotation));
+      // Provisional level shell — runSolution only reads prePlaced/inputTape/
+      // dataTrail/grid, not expectedOutput.
+      const provisional = {
+        prePlacedPieces: prePlaced,
+        inputTape: candidateInput,
+        dataTrail: candidateTrail,
+        gridWidth: gw,
+        gridHeight: gh,
+      } as unknown as LevelDefinition;
+      const run = runSolution(provisional, candidateSolution);
+      const hasReal = !!run.outputTape && run.outputTape.some(v => v === 0 || v === 1);
+      if (run.reachedEveryPulse && hasReal) {
+        // Genuine tape bounty: expectedOutput is what the verified solution
+        // actually produces (solvable by construction).
+        inputTape = candidateInput;
+        expectedOutput = run.outputTape!;
+        dataTrail = candidateTrail;
+        solPathFinal = candidatePath;
+      }
+    }
+  }
+
+  // 6. Convert (final) solution to PlacedPiece[] for verification.
+  const solutionPieces = solPathFinal.map(sp => makePiece(sp.type, sp.x, sp.y, false, sp.rotation));
+
+  // 7. Available pieces from pool, then ensure the solution pieces are covered.
   const available: PieceType[] = [];
   for (const entry of piecePool) {
     const count = rng.nextInt(entry.countRange[0], entry.countRange[1]);
     for (let i = 0; i < count; i++) available.push(entry.type);
   }
-  // Ensure solution pieces are covered
   const solCounts: Partial<Record<PieceType, number>> = {};
-  for (const sp of solPath) solCounts[sp.type] = (solCounts[sp.type] ?? 0) + 1;
+  for (const sp of solPathFinal) solCounts[sp.type] = (solCounts[sp.type] ?? 0) + 1;
   for (const [type, needed] of Object.entries(solCounts)) {
     const have = available.filter(p => p === type).length;
     for (let i = have; i < (needed as number); i++) available.push(type as PieceType);
   }
 
-  // 6. Budget
-  const budget = rng.nextInt(template.budgetRange[0], template.budgetRange[1]);
-
-  // 7. Data trail (if Protocol pieces in solution)
-  const hasProtocol = solPath.some(sp => ['configNode', 'scanner', 'transmitter'].includes(sp.type));
-  const dataTrail = hasProtocol
-    ? { cells: generateDataTrail(rng, gw, true), headPosition: 0 }
-    : { cells: [] as (0 | 1)[], headPosition: 0 };
-
-  // 8. Generate tape for challenges with tape-interacting pieces
-  const TAPE_PIECE_TYPES = ['scanner', 'transmitter', 'configNode'];
-  const hasTapePieces = solPath.some(sp => TAPE_PIECE_TYPES.includes(sp.type)) ||
-    available.some(pt => TAPE_PIECE_TYPES.includes(pt));
-
-  let inputTape: number[] | undefined;
-  let expectedOutput: number[] | undefined;
-
-  if (hasTapePieces) {
-    const [minLen, maxLen] = TAPE_LENGTHS[template.difficulty] ?? [4, 5];
-    const tapeLength = rng.nextInt(minLen, maxLen);
-    inputTape = generateInputTape(tapeLength, rng);
-    // For most challenges: pass-through. The correct machine routes
-    // each input value to the output tape unchanged.
-    expectedOutput = [...inputTape];
-    // Ensure Data Trail is initialized to all 0s with enough cells
-    if (dataTrail.cells.length === 0) {
-      dataTrail.cells = new Array(gw).fill(0) as (0 | 1)[];
-    }
-  }
-
-  // 9. Build LevelDefinition
+  // 8. Build LevelDefinition. isTapeLevel reflects what actually shipped, so
+  // downstream (COGS copy, Spec Sheet) describes the real puzzle.
+  const isTapeLevel = inputTape !== undefined && expectedOutput !== undefined;
   const level: LevelDefinition = {
     id: `daily_${dateString}`,
     name: `${template.name} — Daily Bounty`,
@@ -278,7 +310,9 @@ export function generatePuzzleFromTemplate(
     objectives: [{ type: 'reach_output' }],
     optimalPieces: pattern.optimalPieceCount,
     budget,
-    scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
+    scoringCategoriesVisible: isTapeLevel
+      ? ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus']
+      : ['efficiency', 'chainIntegrity', 'disciplineBonus', 'speedBonus'],
     inputTape,
     expectedOutput,
   };

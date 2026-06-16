@@ -190,21 +190,22 @@ export default function HubScreen({ navigation }: Props) {
           {/* ── CONTENT ── */}
           <Animated.View style={[st.content, contentStyle]}>
 
-            {/* Amber COGS card — mission guidance */}
-            <CogsHubCard
-              color="AMBER"
-              role="MISSION BRIEFING"
-              cta={nextLevelId ? `${nextLevelId} →` : 'Complete'}
-              body={nextLevel
-                ? nextLevel.cogsLine || `${nextLevel.name} is the next objective.`
-                : 'All Axiom systems are operational.'}
-              onPress={() => {
-                if (nextLevelId && nextLevel) {
+            {/* Amber COGS card — mission guidance. Removed once every Axiom
+                level is complete: by then the Engineer knows the game and can
+                navigate via the sector grid below, so a dead "Complete" card
+                would just be noise (Tucker 2026-06-15). */}
+            {nextLevelId && nextLevel && (
+              <CogsHubCard
+                color="AMBER"
+                role="MISSION BRIEFING"
+                cta={`${nextLevelId} →`}
+                body={nextLevel.cogsLine || `${nextLevel.name} is the next objective.`}
+                onPress={() => {
                   setLevel(nextLevel);
                   navigation.navigate('Gameplay');
-                }
-              }}
-            />
+                }}
+              />
+            )}
 
             {/* Blue COGS card — bounty (hidden if no active bounty,
                 also gated until all 8 Axiom levels are complete). */}

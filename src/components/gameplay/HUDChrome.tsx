@@ -15,6 +15,9 @@ interface Props {
   // specification feed. Must be useCallback-stabilized in the parent so the
   // React.memo below holds.
   onOpenSpecSheet: () => void;
+  // SE-TM-033 — ref on the Spec Sheet button so the A1-1 activation hook can
+  // measure and anchor its highlight + dialog to the live icon position.
+  specSheetBtnRef?: React.RefObject<View | null>;
 }
 
 // React.memo with default shallow comparison. The pause callback must
@@ -32,6 +35,7 @@ function HUDChromeComponent({
   pulseCounterText,
   onPause,
   onOpenSpecSheet,
+  specSheetBtnRef,
 }: Props) {
   return (
     <View style={styles.topBar}>
@@ -55,6 +59,7 @@ function HUDChromeComponent({
         )}
       </View>
       <TouchableOpacity
+        ref={specSheetBtnRef}
         style={styles.specSheetBtn}
         activeOpacity={0.7}
         onPress={onOpenSpecSheet}
