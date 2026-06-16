@@ -78,6 +78,22 @@ describe('ArcWheel — source contract', () => {
     expect(wheelSrc).toMatch(/onDragCancel/);
   });
 
+  it('groups inventory by type (count badge) rather than one node per instance', () => {
+    expect(wheelSrc).toMatch(/groupPieces/);
+    expect(wheelSrc).toMatch(/CountBadge/);
+    expect(wheelSrc).toMatch(/group\.count/);
+  });
+
+  it('has an overview/expand mode that lists all groups by category', () => {
+    expect(wheelSrc).toMatch(/renderOverview/);
+    expect(wheelSrc).toMatch(/\bexpanded\b/);
+    expect(wheelSrc).toMatch(/CATEGORY_LABEL/);
+  });
+
+  it('keeps all animations on the JS driver (useNativeDriver: false — crash class)', () => {
+    expect(wheelSrc).not.toMatch(/useNativeDriver:\s*true/);
+  });
+
   it('GameplayScreen imports ArcWheel', () => {
     expect(screenSrc).toMatch(/import ArcWheel/);
   });
