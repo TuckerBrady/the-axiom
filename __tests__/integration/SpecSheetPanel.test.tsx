@@ -109,11 +109,12 @@ describe('Topology SHALL is graded at win time (SE-TM-035)', () => {
   });
 });
 
-describe('Spec Sheet — MAY bonus surfaced on results', () => {
-  it('results modal renders the MAY bonus block', () => {
+describe('Spec Sheet — results checklist + MAY', () => {
+  it('results modal builds the spec checklist (incl. MAY) from the run', () => {
     const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');
-    expect(modalsSrc).toMatch(/mayBonus &&/);
+    expect(modalsSrc).toMatch(/buildSpecChecklist\(/);
     expect(modalsSrc).toMatch(/metDescriptions/);
+    expect(modalsSrc).toMatch(/SPECIFICATION/);
   });
 
   it('successHandler only awards MAY on a 3-star clear', () => {
