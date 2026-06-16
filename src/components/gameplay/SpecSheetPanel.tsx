@@ -23,11 +23,13 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import CogsAvatar from '../CogsAvatar';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
-import type { LevelDefinition } from '../../game/types';
+import type { LevelDefinition, OutputTapeValue } from '../../game/types';
+import { BLANK } from '../../game/types';
 import {
   deriveWillStatements,
   deriveShallStatements,
   deriveShouldStatements,
+  expectedOutputIsLiveGate,
 } from '../../game/spec/specSheet';
 import {
   willStatementToCopy,
@@ -79,6 +81,25 @@ function Section({ label, lines }: { label: SectionLabel; lines: string[] }) {
   );
 }
 
+// One labeled tape row of cells. BLANK renders as the dash glyph, matching the
+// in-game tape bar.
+function TapeStrip({ label, values, color }: { label: string; values: OutputTapeValue[]; color: string }) {
+  return (
+    <View style={styles.tapeStripRow}>
+      <Text style={[styles.tapeStripLabel, { color }]}>{label}</Text>
+      <View style={styles.tapeStripCells}>
+        {values.map((v, i) => (
+          <View key={i} style={[styles.tapeStripCell, { borderColor: `${color}55` }]}>
+            <Text style={[styles.tapeStripCellText, { color: Colors.starWhite }]}>
+              {v === BLANK ? '_' : v}
+            </Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
   if (!visible) return null;
 
@@ -87,6 +108,13 @@ function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
   const should = deriveShouldStatements(level).map(shouldStatementToCopy);
   // MAY copy is authored per-condition on the level (SE-TM-031a), not derived.
   const may = (level.mayConditions ?? []).map(c => c.description);
+
+  // For a live output-tape gate (A1-7/A1-8), the SHALL says "match the expected
+  // result" but the player needs to SEE what that result is — so show the
+  // required IN → OUT mapping (Tucker 2026-06-16). The input is a given (also
+  // visible on the board); the expected output is the target, shown plainly.
+  const showExpectedOutput =
+    expectedOutputIsLiveGate(level) && !!level.inputTape && !!level.expectedOutput;
 
   return (
     <Animated.View style={styles.overlay} entering={PANEL_ENTER}>
@@ -120,6 +148,15 @@ function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
         >
           <Section label="WILL" lines={will} />
           <Section label="SHALL" lines={shall} />
+
+          {showExpectedOutput && (
+            <View style={styles.expectedBlock}>
+              <Text style={styles.expectedLabel}>REQUIRED OUTPUT</Text>
+              <TapeStrip label="IN" values={level.inputTape as OutputTapeValue[]} color="#BFFF3F" />
+              <TapeStrip label="OUT" values={level.expectedOutput as OutputTapeValue[]} color="#FF7D3F" />
+            </View>
+          )}
+
           <Section label="SHOULD" lines={should} />
           <Section label="MAY" lines={may} />
 
@@ -230,6 +267,50 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: Colors.starWhite,
     lineHeight: 20,
+  },
+  // Expected IN -> OUT tape spec (live-gate tape levels)
+  expectedBlock: {
+    marginBottom: Spacing.lg,
+    marginLeft: Spacing.lg,
+    gap: 6,
+  },
+  expectedLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    color: Colors.dim,
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  tapeStripRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  tapeStripLabel: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 9,
+    letterSpacing: 1,
+    width: 28,
+  },
+  tapeStripCells: {
+    flexDirection: 'row',
+    gap: 3,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  tapeStripCell: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(8,14,28,0.8)',
+  },
+  tapeStripCellText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    fontWeight: '700',
   },
   cogsRow: {
     flexDirection: 'row',

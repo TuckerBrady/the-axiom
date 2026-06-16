@@ -42,6 +42,14 @@ describe('SpecSheetPanel — renders the four RFC-2119 sections', () => {
   it('reads MAY copy from the level conditions, not a derive function', () => {
     expect(panelSrc).toMatch(/mayConditions/);
   });
+
+  it('shows the expected IN -> OUT tape for a live output-gate level (Tucker 2026-06-16)', () => {
+    // The output-match SHALL is abstract; the panel also shows the actual
+    // required output tape so the player knows the target.
+    expect(panelSrc).toMatch(/expectedOutputIsLiveGate\(level\)/);
+    expect(panelSrc).toMatch(/REQUIRED OUTPUT/);
+    expect(panelSrc).toMatch(/<TapeStrip[\s\S]*?label="OUT"[\s\S]*?level\.expectedOutput/);
+  });
 });
 
 describe('SpecSheetPanel — read-only contract', () => {
