@@ -23,8 +23,7 @@ import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
 import EngineerIcon from '../components/icons/EngineerIcon';
 import { WireToggle } from '../components/WireToggle';
-import { RankInsignia, RANK_NAMES } from '../components/RankInsignia';
-import { Button } from '../components/Button';
+import { RankInsignia } from '../components/RankInsignia';
 import { usePlayerStore, DISCIPLINE_LABELS } from '../store/playerStore';
 import {
   NotificationIcon,
@@ -276,7 +275,9 @@ export default function SettingsScreen({ navigation }: Props) {
     hapticsEnabled, setHapticsEnabled,
     cogsHintsEnabled, setCogsHintsEnabled,
     notificationsEnabled, setNotificationsEnabled,
+    devForceRequisitionGate, setDevForceRequisitionGate,
   } = useSettingsStore();
+  const credits = useEconomyStore(s => s.credits);
   const [forceShowTutorial, setForceShowTutorial] = useState(false);
 
   const sectorGroups = useMemo(() => {
@@ -343,11 +344,10 @@ export default function SettingsScreen({ navigation }: Props) {
             <Text style={styles.profileName}>Commander</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
               <R04Insignia size={18} />
-              <Text style={styles.profileSub}>R04 Mechanic · 4,250 CR</Text>
+              <Text style={styles.profileSub}>R04 Mechanic · {credits.toLocaleString()} CR</Text>
             </View>
             <DisciplineLabel />
           </View>
-          <Button variant="secondary" label="EDIT" onPress={() => {}} style={styles.editBtn} />
         </Animated.View>
 
         {/* Rank progression */}
@@ -404,6 +404,15 @@ export default function SettingsScreen({ navigation }: Props) {
             <ToggleRow icon={<NotificationIcon size={18} color={Colors.amber} />} label="Push Notifications" value={notificationsEnabled} onChange={setNotificationsEnabled} delay={600} />
             {SHOW_DEV_TOOLS && (
               <>
+                <View style={styles.divider} />
+                <ToggleRow
+                  icon={<Text style={{ color: Colors.amber, fontSize: 14, fontWeight: 'bold' }}>▤</Text>}
+                  label="Force Requisition Gating (Dev)"
+                  sub="Hide undiscovered pieces in the store — verify prod gating"
+                  value={devForceRequisitionGate}
+                  onChange={setDevForceRequisitionGate}
+                  delay={710}
+                />
                 <View style={styles.divider} />
                 <TapRow
                   icon={<Text style={{ color: Colors.red, fontSize: 14, fontWeight: 'bold' }}>!</Text>}
@@ -796,7 +805,6 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(74,158,255,0.12)',
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backArrow: { fontFamily: Fonts.orbitron, fontSize: 20, color: Colors.muted },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerLabel: {
     fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, letterSpacing: 2,
@@ -833,7 +841,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profileAvatarEmoji: { fontSize: 24 },
   profileInfo: { flex: 1 },
   profileName: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
@@ -842,11 +849,6 @@ const styles = StyleSheet.create({
   profileSub: {
     fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted,
     letterSpacing: 0.5, marginTop: 2,
-  },
-  editBtn: {
-    minHeight: 32,
-    paddingVertical: 4,
-    paddingHorizontal: Spacing.sm,
   },
   rankSection: {
     marginHorizontal: Spacing.lg,
@@ -982,7 +984,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxl,
     gap: Spacing.md,
   },
-  cogsCredEmoji: { fontSize: 20 },
   cogsCredText: {
     fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.dim,
     letterSpacing: 0.5, lineHeight: 16,

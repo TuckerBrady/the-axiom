@@ -9,6 +9,7 @@ beforeEach(async () => {
     hapticsEnabled: true,
     cogsHintsEnabled: true,
     notificationsEnabled: false,
+    devForceRequisitionGate: false,
   });
 });
 
@@ -72,6 +73,14 @@ describe('settingsStore', () => {
     expect(state.hapticsEnabled).toBe(false);
     expect(state.cogsHintsEnabled).toBe(false);
     expect(state.notificationsEnabled).toBe(true);
+  });
+
+  it('devForceRequisitionGate defaults to false, sets, and persists', async () => {
+    expect(useSettingsStore.getState().devForceRequisitionGate).toBe(false);
+    useSettingsStore.getState().setDevForceRequisitionGate(true);
+    expect(useSettingsStore.getState().devForceRequisitionGate).toBe(true);
+    const raw = await AsyncStorage.getItem('axiom_settings');
+    expect(JSON.parse(raw!).devForceRequisitionGate).toBe(true);
   });
 
   it('hydrate uses defaults for missing fields', async () => {

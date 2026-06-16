@@ -10,6 +10,7 @@ import {
   NIBBLE_PRICE,
 } from '../game/piecePrices';
 import { useCodexStore } from './codexStore';
+import { useSettingsStore } from './settingsStore';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -184,10 +185,13 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   initRequisition: (level, discipline) => {
     const creditBudget = level.creditBudget ?? 0;
+    // The dev toggle (settings) forces the discovery gate ON even in dev builds
+    // so the gated production behavior can be verified on device.
+    const showDev = SHOW_DEV_TOOLS && !useSettingsStore.getState().devForceRequisitionGate;
     const purchasable = buildPieceTypesForLevel(
       level,
       useCodexStore.getState().discoveredIds,
-      SHOW_DEV_TOOLS,
+      showDev,
     );
     set({
       phase: creditBudget > 0 ? 'requisition' : 'placement',
