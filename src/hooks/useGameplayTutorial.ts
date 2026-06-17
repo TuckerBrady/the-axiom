@@ -44,6 +44,8 @@ export interface UseGameplayTutorialResult {
   traySplitterRef: React.RefObject<View | null>;
   trayScannerRef: React.RefObject<View | null>;
   trayTransmitterRef: React.RefObject<View | null>;
+  // Kepler+ Arc Wheel selected-node ref (targetRef 'arcWheelMain').
+  arcWheelMainRef: React.RefObject<View | null>;
   // Bundled TutorialTrayRefs object for forwarding to <PieceTray>.
   tutorialTrayRefs: TutorialTrayRefs;
   placedPieceRef: React.RefObject<View | null>;
@@ -86,6 +88,9 @@ export function useGameplayTutorial(
   const traySplitterRef = useRef<View>(null);
   const trayScannerRef = useRef<View>(null);
   const trayTransmitterRef = useRef<View>(null);
+  // Kepler+ Arc Wheel: the selected wheel node, for wheel-onboarding tutorial
+  // steps (targetRef 'arcWheelMain'). Forwarded to ArcWheel's mainNodeRef.
+  const arcWheelMainRef = useRef<View>(null);
   // placedPieceRef is attached to a zero-size invisible View rendered at
   // the placed piece's board position so TutorialHUDOverlay can measure it.
   const placedPieceRef = useRef<View>(null);
@@ -123,6 +128,7 @@ export function useGameplayTutorial(
       traySplitter: traySplitterRef,
       trayScanner: trayScannerRef,
       trayTransmitter: trayTransmitterRef,
+      arcWheelMain: arcWheelMainRef,
       placedPiece: placedPieceRef,
     }),
     [],
@@ -186,9 +192,11 @@ export function useGameplayTutorial(
     setLastTappedTrigger(null);
   }, [level?.id]);
 
-  // HUD tutorial overlay hydration
+  // HUD tutorial overlay hydration. Sector-agnostic: any level with
+  // tutorialSteps persists its complete/skipped flags so the overlay does not
+  // replay across sessions (Kepler tutorials render too, not just Axiom).
   useEffect(() => {
-    if (!level || !isAxiomLevel || isLevelPreviouslyCompleted) return;
+    if (!level || isLevelPreviouslyCompleted) return;
     if (!level.tutorialSteps || level.tutorialSteps.length === 0) return;
     (async () => {
       try {
@@ -292,6 +300,7 @@ export function useGameplayTutorial(
     traySplitterRef,
     trayScannerRef,
     trayTransmitterRef,
+    arcWheelMainRef,
     tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,

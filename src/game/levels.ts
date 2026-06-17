@@ -745,35 +745,54 @@ export const levelK1_1: LevelDefinition = {
   cogsLine: 'Kepler Belt. Former mining corridor, mostly decommissioned. Some salvage activity remains. We have been here before. The charts confirm it.',
   eyeState: 'blue',
   gridWidth: 8, gridHeight: 6,
-  prePlacedPieces: [prePlaced('source', 1, 2), prePlaced('terminal', 6, 4)],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
+  prePlacedPieces: [
+    prePlaced('source', 1, 2),
+    prePlaced('terminal', 6, 4),
+    // Collapsed corridor cells (Kepler mining debris). They block the naive
+    // straight-across run on row 2 and the lazy single-bend drop, forcing the
+    // Engineer to route the Z-path beneath them. First lesson in building
+    // around terrain — the soul of the game starts here.
+    prePlaced('obstacle', 3, 2),
+    prePlaced('obstacle', 4, 3),
+  ],
+  // 4 conveyors + 2 gears = the 6-piece Z-solution exactly (SPEC_KEPLER_REBUILD_v3
+  // K1-1: CODE's 3 conveyors made the board unsolvable at Manhattan distance 7).
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
   dataTrail: { cells: [], headPosition: 0 },
-  objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 30,
+  // Two Gear-driven direction changes (A1-4 model): a one-bend dash reaching the
+  // Terminal is not enough. Mirrored in topologyRequirements for the Spec Sheet.
+  objectives: [{ type: 'reach_output' }, { type: 'min_direction_changes', count: 2 }],
+  topologyRequirements: { minDirectionChanges: 2 },
+  optimalPieces: 6, budget: 40,
   freeTapes: ['IN'],
   purchasableTapes: ['TRAIL', 'OUT'],
   creditBudget: 75,
   depthCeiling: 10,
   baseReward: 100,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  // No Protocol pieces on this level — protocolPrecision removed per v3 spec.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity'],
   computationalGoal: 'Route signal from input to output with two direction changes. No placement highlights — the player decides where pieces go.',
   conceptTaught: 'Independent routing (no placement highlights — player chooses freely).',
   prerequisiteConcept: 'All Axiom sector concepts.',
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
+  // Onboarding runs in the placement phase (after the REQUISITION store closes),
+  // so it targets the Arc Wheel and the board. Introduces the wheel, explains why
+  // it replaced the tray, teaches the drag gesture, and restates forfeiture.
+  // PROPOSED copy — pending Tucker sign-off.
   tutorialSteps: [
+    { id: 'wheel-intro', targetRef: 'arcWheelMain', eyeState: 'amber',
+      message: 'Requisitions complete. The parts you ordered are loaded here — on the wheel. Out here the manifest is not a tray along the bottom of the board anymore. It is this. One piece at center at a time.' },
+    { id: 'wheel-scroll', targetRef: 'arcWheelMain', eyeState: 'blue',
+      message: 'Swipe the wheel to bring a piece to the center. The one in the middle is the one you are holding. You will not see every part at once — that is the trade for the room it gives the board.' },
+    { id: 'wheel-place', targetRef: 'arcWheelMain', eyeState: 'blue',
+      message: 'Press and hold a piece, then drag it onto the board and release. No more tapping the grid. The wheel hands the piece to you directly.' },
+    { id: 'wheel-forfeit', targetRef: 'arcWheelMain', eyeState: 'amber',
+      message: 'Anything left on the wheel when the mission ends is forfeited — used or not. Requisition what the machine needs. Nothing more.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps.' },
-    { id: 'store-intro', targetRef: 'tray', eyeState: 'amber',
-      message: 'The supply manifest is below. Swipe up for the full REQUISITION store.' },
-    { id: 'store-tabs', targetRef: 'tray', eyeState: 'amber',
-      message: 'Three departments. Physics components. Protocol modules. Infrastructure capability. Budget accordingly.' },
-    { id: 'store-forfeiture', targetRef: 'tray', eyeState: 'amber',
-      message: 'Unused requisitioned components are forfeited on mission completion or failure. Requisition what is needed. Nothing more.' },
-    { id: 'store-window', targetRef: 'tray', eyeState: 'amber',
-      message: 'All requisitions must be placed before the mission begins. Plan the build. Then build the plan.' },
   ],
 };
 
@@ -790,7 +809,12 @@ export const levelK1_2: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0], expectedOutput: [1, 0, 1, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 35,
+  optimalPieces: 5, budget: 80,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 80,
+  depthCeiling: 10,
+  baseReward: 100,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Pass each input tape value through to output unchanged using Scanner to write and Transmitter to read.',
   conceptTaught: 'Dynamic tape processing (review of Scanner + Transmitter in non-uniform context).',
@@ -814,12 +838,17 @@ export const levelK1_3: LevelDefinition = {
   cogsLine: 'Junction 7 is a routing bottleneck. Eleven settlements feed through this point. The original engineers underestimated the load. It is not the last time that has happened out here.',
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 7,
-  prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 3), prePlaced('latch', 4, 3)],
+  prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('latch', 4, 3, { latchMode: 'write' }), prePlaced('terminal', 8, 3)],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'transmitter', 'configNode', 'gear'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 40,
+  optimalPieces: 5, budget: 100,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 100,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Store the first input value in a Latch (write mode), then use that stored value to gate subsequent pulses via Config Node reading the Latch output (read mode).',
   conceptTaught: 'Latch (write and read as separate operations, memory persists across pulses).',
@@ -851,9 +880,17 @@ export const levelK1_4: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, 0, 0, 1, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 6, budget: 45,
+  optimalPieces: 6, budget: 130,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 110,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
-  consequence: { cogsWarning: 'Pay attention to this one.', failureEffect: 'Mining Platform Alpha relay failure. Seven settlements lost communication for forty-eight hours.' },
+  consequence: {
+    cogsWarning: 'Mining Platform Alpha is carrying more than it was built to carry. If the relay drops, it does not fail quietly. The colonists routing through it lose their signal path before they know it is gone. I am stating the stakes once. Proceed.',
+    failureEffect: 'The platform relay dropped. Four settlements on the Alpha branch lost signal routing for the duration. They reverted to manual relay, the way they did before this ship arrived. No casualties logged. I am logging the interruption. They will have noticed it.',
+  },
   computationalGoal: 'Output 1 when the input is 1, output 0 when the input is 0. The Latch stores each pulse value and the stored value gates a Config Node that controls whether the Transmitter fires.',
   conceptTaught: 'Latch as dynamic per-pulse memory (write each pulse, read within same pulse for gating).',
   prerequisiteConcept: 'Latch write/read, Config Node gating.',
@@ -871,11 +908,25 @@ export const levelK1_5: LevelDefinition = {
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 8, 4), prePlaced('splitter', 3, 4)],
+  // Pre-existing blown cells — the resupply chain's relay nodes are degraded
+  // hardware. Off the central corridor so the floor solve stays open; they shape
+  // the elaborate build, not block it. (First damaged-cell level per the spec.)
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'merger', 'scanner', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 0], expectedOutput: [1, 0, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 8, budget: 50,
+  // optimalPieces left at 8 pending a real floor-solve (SPEC_KEPLER_REBUILD_v3
+  // Open Question 13: V2 proposes 9, flags 8 as likely wrong). A programmatic
+  // solve is blocked by the Splitter magnet mechanic (connectedMagnetSides), so
+  // this is best confirmed by an in-game playthrough: the piece count that earns
+  // a clean solve is the floor. Do not lock 9 without that solve.
+  optimalPieces: 8, budget: 155,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 110,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Signal splits into two paths via Splitter. Path A goes through a Config Node (passes when trail value is 1). Path B bypasses the gate. A Merger reconverges both paths. The bypass guarantees the signal always reaches output regardless of input value.',
   conceptTaught: 'Merger (OR logic, two paths converge to one).',
@@ -885,7 +936,10 @@ export const levelK1_5: LevelDefinition = {
   narrativeFrame: 'Resupply chain with four relay nodes, all degraded. Redundancy is the only option.',
   tutorialSteps: [
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'The resupply chain has four relay nodes. All degraded. One path may not be enough. The board splits the signal into two routes. Something downstream needs to bring them back together.' },
+      message: 'The resupply chain has four relay nodes. All degraded. Some cells on this board are already blown — scarred, unusable. Build around them. The board splits the signal into two routes; something downstream needs to bring them back together.' },
+    { id: 'splitter-collect', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'One input. Two outputs. The signal takes both routes at once. I never catalogued this one properly. Doing it now.',
+      codexEntryId: 'splitter' },
     { id: 'merger-collect', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'Two inputs. One output. Either is sufficient. Logging this under redundancy infrastructure.',
       codexEntryId: 'merger' },
@@ -903,12 +957,19 @@ export const levelK1_6: LevelDefinition = {
   eyeState: 'amber',
   gridWidth: 11, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells (worn coordination hub, equipment three cycles overdue).
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'splitter', 'merger', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1], expectedOutput: [1, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
   optimalPieces: 11, budget: 55,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 120,
+  depthCeiling: 12,
+  baseReward: 120,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
   computationalGoal: 'Output each input value faithfully using stateful branching. Latch stores the current pulse value. Splitter creates two paths with Config Node gating one. Merger reconverges. The machine must handle both 0 and 1 inputs correctly across all pulses.',
   conceptTaught: 'Latch + Merger combined. Stateful branching. A single stored value influencing multiple decisions.',
@@ -916,6 +977,12 @@ export const levelK1_6: LevelDefinition = {
   tapeDesignRationale: 'Mixed values with consecutive repeats test that the machine responds dynamically per pulse, not via hardcoding.',
   difficultyBand: 'abstract',
   narrativeFrame: 'Hub coordinating resupply for 31 settlements. Running on equipment three cycles past replacement.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Colonist Hub. Thirty-one settlements depend on what gets built here. Nothing on this board is new. The Latch holds the value. The Splitter forks the path. The Merger brings it back. The work is in combining them.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Hub will not accept a straight line. A Splitter and a Merger are both required, and both must carry signal. Build the branch. Then run it.' },
+  ],
 };
 
 pieceCounter = 860;
@@ -927,11 +994,18 @@ export const levelK1_7: LevelDefinition = {
   eyeState: 'amber',
   gridWidth: 10, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 6), prePlaced('bridge', 5, 5), prePlaced('splitter', 4, 3)],
+  // Pre-existing blown cell — residual damage on the dead ore-processing relay.
+  damagedCells: [{ gridX: 4, gridY: 5 }, { gridX: 7, gridY: 2 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'transmitter', 'gear', 'gear', 'gear', 'configNode'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1], expectedOutput: [1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 7, budget: 55,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 120,
+  depthCeiling: 12,
+  baseReward: 120,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
   computationalGoal: 'Two independent signal processes share the board. Path A carries the primary signal. Path B is a monitoring loop. The Bridge allows both paths to cross without interfering.',
   conceptTaught: 'Bridge (two independent paths sharing one cell).',
@@ -959,43 +1033,82 @@ export const levelK1_8: LevelDefinition = {
   eyeState: 'blue',
   gridWidth: 11, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells — the transit gate has not been maintained in years.
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'bridge', 'splitter', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'merger'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 0, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'bridge', count: 1 }, { type: 'latch', count: 1 }, { type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
   optimalPieces: 12, budget: 60,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  consequence: { cogsWarning: 'This mission matters more than most. That is all.', failureEffect: 'Transit gate failure. All corridor traffic suspended for seventy-two hours. The transit authority has escalated the negligence inquiry.' },
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 140,
+  depthCeiling: 14,
+  baseReward: 140,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): the live engine hardcodes the
+  // Speed component to 0, so listing it surfaced a category that always scored 0.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  consequence: {
+    cogsWarning: 'The transit gate sorts everything moving through this corridor, including traffic that stopped existing years ago. If the routing logic fails, live traffic gets queued behind ghosts. Nothing collides. Everything waits. Hold the routing clean. Proceed.',
+    failureEffect: 'The gate routing collapsed back to its default table. Live corridor traffic queued behind transit records for ships that no longer exist. The backlog cleared on its own in time. No vessel was lost. The gate kept faithfully directing the dead. I have left that observation in the log without further comment.',
+  },
   computationalGoal: 'Route signal through a path that crosses itself via Bridge, with Latch storing state that determines the output value.',
   conceptTaught: 'Bridge + Latch integration under pressure. Crossing paths and state maintenance in a single machine.',
   prerequisiteConcept: 'Bridge, Latch, Config Node, Merger.',
   tapeDesignRationale: 'Eight pulses with mixed values and consecutive runs test both state persistence and correct gating under pressure.',
   difficultyBand: 'abstract',
   narrativeFrame: 'Transit gate routing ghost traffic. Regulating flow for the entire corridor. Failure disrupts all traffic.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The transit gate. Bridge and Latch in one machine. Two paths cross without touching, and a stored value decides what passes. Every piece here has been used before. Not together. Not under this much load.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Bridge, Latch, Splitter, Merger. All four are required. The gate routes ghost traffic if any of them is missing. Build the full architecture. Hold the routing clean.' },
+  ],
 };
 
 pieceCounter = 880;
 
 export const levelK1_9: LevelDefinition = {
   id: 'K1-9', name: 'The Narrows', sector: 'kepler',
-  description: 'XOR of current input and previously stored Latch value.',
+  // Canonical = SPEC_KEPLER_REBUILD_v3 K1-9: a one-pulse shift register
+  // (output[N] = input[N-1], output[0] = 0), realized with a Latch in DELAY mode.
+  // The prior XOR design ([0,1,0,1,1,1]) was rejected by V2 as unsolvable with
+  // Kepler pieces. The engine's DELAY mode produces this output exactly
+  // (see __tests__/unit/kepler-engine/latchDelay.test.ts).
+  description: 'Output each pulse the value of the previous pulse — a one-pulse delay.',
   cogsLine: 'The Narrows is the densest section of the corridor. Maximum signal interference. The colonists call it The Narrows because of what it does to communication. It has another name on older charts. I will use the current one.',
   eyeState: 'blue',
   gridWidth: 11, gridHeight: 9,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells — the Narrows is the most interference-damaged stretch.
+  damagedCells: [{ gridX: 5, gridY: 7 }, { gridX: 7, gridY: 2 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'latch', 'splitter', 'merger', 'configNode', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'bridge'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [0, 1, 1, 0, 1, 0], expectedOutput: [0, 1, 0, 1, 1, 1],
+  inputTape: [0, 1, 1, 0, 1, 0], expectedOutput: [0, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 11, budget: 70,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  computationalGoal: 'Output for each pulse is the XOR of the current input and the previously stored Latch value. The machine writes the current input to the Latch after using the previous stored value.',
-  conceptTaught: 'Synthesis. Dynamic memory across pulses where the stored value changes each pulse.',
-  prerequisiteConcept: 'All Kepler pieces and concepts.',
-  tapeDesignRationale: 'XOR expected output differs from input on several pulses, proving the machine compares against stored state rather than passing through.',
+  optimalPieces: 7, budget: 50,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 150,
+  depthCeiling: 16,
+  baseReward: 120,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): Speed scores 0 in the live engine.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  computationalGoal: 'output[N] = input[N-1], a one-pulse shift register; output[0] = 0 (nothing stored yet). A Latch in DELAY mode emits the previous pulse value while capturing the current one.',
+  conceptTaught: 'Solution vs algorithm — the machine must be correct for any valid input, not just the shown tape. Cross-pulse memory via the Latch DELAY mode.',
+  prerequisiteConcept: 'All Kepler pieces and concepts; stateful multi-decision machines (K1-7/K1-8).',
+  tapeDesignRationale: 'The shifted expected output differs from the input on every pulse boundary, forcing a true one-pulse memory rather than a pass-through or a hardcode.',
   difficultyBand: 'abstract',
   narrativeFrame: 'The densest section of the corridor. Maximum signal interference. The machine must compare each new signal against what came before.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Narrows. Maximum interference. The output here is not the current signal. It is the one before it. Each pulse carries forward the value of the pulse that preceded it. A one-step delay.' },
+    { id: 'latch-delay', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'The Latch has a third mode. Write holds a value. Read returns it. Delay does both at once — it hands back what it held last, then stores what just arrived. Tap the Latch through to Delay.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The first pulse outputs nothing. There is no previous value yet. After that, every output is the input that came before it. Build the delay. The Narrows remembers by one.' },
+  ],
 };
 
 pieceCounter = 890;
@@ -1007,13 +1120,26 @@ export const levelK1_10: LevelDefinition = {
   eyeState: 'amber',
   gridWidth: 12, gridHeight: 9,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 10, 4)],
+  // Pre-existing blown cells — the Central Hub is failing infrastructure, the
+  // corridor's single point of failure. Scattered scarring on the largest board.
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 7, gridY: 7 }, { gridX: 9, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'scanner', 'latch', 'latch', 'splitter', 'merger', 'configNode', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'gear', 'bridge'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 1, 1, 0, 0, 1, 1], expectedOutput: [0, 1, 0, 0, 1, 1, 0, 0, 0, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 13, budget: 80,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  consequence: { cogsWarning: 'Do not fail here. I will not elaborate.', failureEffect: 'Central Hub failure. The corridor is offline. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel.', requireThreeStars: true },
+  optimalPieces: 8, budget: 80,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 180,
+  depthCeiling: 18,
+  baseReward: 150,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): Speed scores 0 in the live engine.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  consequence: {
+    cogsWarning: 'The Central Hub is the corridor\'s single point of failure. There is no redundancy. If this routing does not hold, it does not degrade gracefully. It drops. Three hundred thousand people are downstream of the work you are about to do. I am not saying that to apply pressure. I am saying it because it is the situation, and you should have it before you begin. Proceed.',
+    failureEffect: 'The relay failure has been logged with the transit authority. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel. I would suggest we resolve the inquiry through competence rather than correspondence. The systems are repairable.',
+    requireThreeStars: true,
+  },
   computationalGoal: 'Implement a running count machine. Output 1 if two or more consecutive 1s have been seen in the input (including the current pulse). Otherwise output 0.',
   conceptTaught: 'Full stateful computation. A machine that behaves differently on pulse N based on what happened on pulse N-1.',
   prerequisiteConcept: 'All Kepler concepts mastered.',
@@ -1021,8 +1147,10 @@ export const levelK1_10: LevelDefinition = {
   difficultyBand: 'abstract',
   narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure.',
   tutorialSteps: [
-    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'The Central Hub. Twelve columns. The largest board in this sector. The machine must compare each incoming pulse against what the Latch stored from the previous one. All pieces are available. Nothing here has not been seen before.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Output 1 only when this pulse and the one before it are both 1. The Latch in Delay holds the previous value; a Config gate checks both. Three hundred thousand people are downstream. Build it correctly.' },
   ],
 };
 

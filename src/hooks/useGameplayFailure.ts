@@ -15,6 +15,19 @@ export interface UseGameplayFailureResult {
   getBlownCellCOGSLine: (count: number) => string | null;
 }
 
+/**
+ * Pre-existing blown cells (craters) a level ships with. Kepler is a worn-out
+ * mining belt — its boards are well-used hardware that arrive already damaged,
+ * so some cells are blown before the Engineer ever touches them. These seed the
+ * SAME `blownCells` set as failure craters, so pre-existing and player-caused
+ * damage render and reject placement identically. Wires the long-defined but
+ * previously unused `LevelDefinition.damagedCells` field (kepler-belt-levels.md
+ * "damagedCells": reject placement when the target cell is in the array).
+ */
+export function seedBlownCells(level: LevelDefinition | null): Set<string> {
+  return new Set((level?.damagedCells ?? []).map(c => `${c.gridX},${c.gridY}`));
+}
+
 // Reserved for future Axiom-level-specific failure handling. Phase 1
 // does not branch on `isAxiomLevel` but the public surface keeps it for
 // parity with the other useGameplay* hooks (Phase 2+).
@@ -22,16 +35,17 @@ export function useGameplayFailure(
   level: LevelDefinition | null,
   isAxiomLevel: boolean,
 ): UseGameplayFailureResult {
-  const [blownCells, setBlownCells] = useState<Set<string>>(new Set());
+  const [blownCells, setBlownCells] = useState<Set<string>>(() => seedBlownCells(level));
   const [failCount, setFailCount] = useState(0);
-  const blownCellsRef = useRef<Set<string>>(new Set());
+  const blownCellsRef = useRef<Set<string>>(seedBlownCells(level));
 
   useEffect(() => {
     blownCellsRef.current = blownCells;
   }, [blownCells]);
 
   useEffect(() => {
-    setBlownCells(new Set());
+    // Re-seed pre-existing craters on level change; failures then add to them.
+    setBlownCells(seedBlownCells(level));
     setFailCount(0);
   }, [level?.id]);
 

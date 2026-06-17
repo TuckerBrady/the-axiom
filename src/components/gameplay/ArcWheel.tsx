@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,11 @@ import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import type { InventoryPiece } from '../../store/requisitionStore';
 import { Colors, Fonts } from '../../theme/tokens';
+import {
+  groupArcWheelPieces,
+  type ArcWheelPiece,
+  type PieceGroup,
+} from './arcWheelGrouping';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -41,9 +46,9 @@ const SOURCE_COLORS: Record<InventoryPiece['source'], string> = {
 };
 const TAPE_COLOR = '#8B5CF6';
 
-function getNodeBorderColor(piece: InventoryPiece, isTape: boolean): string {
+function getNodeBorderColor(source: InventoryPiece['source'], isTape: boolean): string {
   if (isTape) return TAPE_COLOR;
-  return SOURCE_COLORS[piece.source];
+  return SOURCE_COLORS[source];
 }
 
 const PIECE_LABELS: Record<PieceType, string> = {
@@ -55,16 +60,16 @@ const PIECE_LABELS: Record<PieceType, string> = {
   obstacle: '',
 };
 
+// Matches BoardGrid/PieceTray: Protocol pieces purple, everything else the
+// canonical blue (NOT the amber source-accent used for node borders).
 function getPieceColor(type: PieceType): string {
   const protocol: PieceType[] = ['configNode', 'scanner', 'transmitter', 'inverter', 'counter', 'latch'];
-  return protocol.includes(type) ? '#8B5CF6' : '#F0B429';
+  return protocol.includes(type) ? '#8B5CF6' : Colors.blue;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface ArcWheelPiece extends InventoryPiece {
-  isTape?: boolean;
-}
+export type { ArcWheelPiece, PieceGroup };
 
 export interface DragState {
   active: boolean;
@@ -105,15 +110,16 @@ export default function ArcWheel({
   const [dismissed, setDismissed] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
+
+  // Collapse the flat inventory into one node per type (+ count badge).
+  const groups = useMemo(() => groupArcWheelPieces(pieces), [pieces]);
+  // Per-node handlers below read the live group list through this ref.
+  const groupsRef = useRef(groups);
+  groupsRef.current = groups;
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const idleAnim = useRef(new Animated.Value(IDLE_OPACITY)).current;
   const activeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const dragPieceIndex = useRef(-1);
-  const isDraggingRef = useRef(false);
 
   // ── Entrance animation (REQ-68): 0.8s staggered, alternating above/below ──
   const entranceY = useRef(
@@ -125,7 +131,7 @@ export default function ArcWheel({
   const entranceFired = useRef(false);
 
   useEffect(() => {
-    if (entranceFired.current || pieces.length === 0) return;
+    if (entranceFired.current || groups.length === 0) return;
     entranceFired.current = true;
 
     const ENTRY_DIST = NODE_SLOT_H * 1.5;
@@ -160,11 +166,11 @@ export default function ArcWheel({
   // Snap selectedIndex to match selectedId from parent
   useEffect(() => {
     if (!selectedId) return;
-    const idx = pieces.findIndex(p => p.id === selectedId);
+    const idx = groups.findIndex(g => g.repId === selectedId);
     if (idx !== -1 && idx !== selectedIndex) {
       setSelectedIndex(idx);
     }
-  }, [selectedId, pieces]);
+  }, [selectedId, groups]);
 
   // Dismiss/recall animation
   const dismissSlide = useCallback(() => {
@@ -207,101 +213,48 @@ export default function ArcWheel({
 
   useEffect(() => () => {
     if (activeTimer.current) clearTimeout(activeTimer.current);
-    if (dragHoldTimer.current) clearTimeout(dragHoldTimer.current);
   }, []);
 
-  // ── Scroll pan responder (vertical swipe to scroll) ──
-  const scrollDelta = useRef(0);
-  const scrollPan = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => !disabled && !isDraggingRef.current,
-      onMoveShouldSetPanResponder: (_, gs) => !disabled && !isDraggingRef.current && Math.abs(gs.dy) > 6,
-      onPanResponderGrant: (_, gs) => {
-        activateWheel();
-        scrollDelta.current = 0;
-        dragStartPos.current = { x: gs.moveX, y: gs.moveY };
-      },
-      onPanResponderMove: (_, gs) => {
-        if (isDraggingRef.current) return;
-        const delta = gs.dy;
-        const steps = Math.round((scrollDelta.current - delta) / NODE_SLOT_H);
-        if (steps !== 0) {
-          scrollDelta.current = delta;
-          setSelectedIndex(prev => {
-            const next = prev + steps;
-            if (pieces.length === 0) return 0;
-            const wrapped = ((next % pieces.length) + pieces.length) % pieces.length;
-            return wrapped;
-          });
-          hapticLight();
-        }
-      },
-      onPanResponderRelease: () => { scrollDelta.current = 0; },
-    }),
-  ).current;
-
-  // ── Per-node press / long-press ──
-  const handleNodePressIn = useCallback((idx: number, screenX: number, screenY: number) => {
-    activateWheel();
-    dragPieceIndex.current = idx;
-    dragStartPos.current = { x: screenX, y: screenY };
-    dragHoldTimer.current = setTimeout(() => {
-      if (dragPieceIndex.current !== idx) return;
-      const piece = pieces[idx];
-      if (!piece) return;
-      isDraggingRef.current = true;
-      setIsDragging(true);
-      onDragStart({
-        active: true,
-        pieceId: piece.id,
-        type: piece.type,
-        x: screenX,
-        y: screenY,
-      });
-    }, DRAG_HOLD_MS);
-  }, [activateWheel, pieces, onDragStart]);
-
-  const handleNodePressOut = useCallback(() => {
-    if (dragHoldTimer.current) {
-      clearTimeout(dragHoldTimer.current);
-      dragHoldTimer.current = null;
-    }
+  // ── Node gesture callbacks (each WheelNode owns its own PanResponder) ──
+  const handleScrollSteps = useCallback((steps: number) => {
+    setSelectedIndex(prev => {
+      const len = groupsRef.current.length;
+      if (len === 0) return 0;
+      const next = prev + steps;
+      return ((next % len) + len) % len;
+    });
+    hapticLight();
   }, []);
 
-  const handleNodeTap = useCallback((idx: number) => {
-    if (isDraggingRef.current) return;
-    const piece = pieces[idx];
-    if (!piece) return;
+  const handleTapSelect = useCallback((idx: number) => {
+    const group = groupsRef.current[idx];
+    if (!group) return;
     setSelectedIndex(idx);
-    onSelect(piece.id);
+    onSelect(group.repId);
     hapticLight();
     activateWheel();
-  }, [pieces, onSelect, activateWheel]);
+  }, [onSelect, activateWheel]);
 
-  // ── Dismiss pan responder ──
-  const dismissPan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dx) > 10,
-      onPanResponderMove: (_, gs) => {
-        if (side === 'right' && gs.dx > 0 && !dismissed) {
-          slideAnim.setValue(Math.min(gs.dx, WHEEL_WIDTH));
-        } else if (side === 'left' && gs.dx < 0 && !dismissed) {
-          slideAnim.setValue(Math.max(gs.dx, -WHEEL_WIDTH));
-        }
-      },
-      onPanResponderRelease: (_, gs) => {
-        const dist = side === 'right' ? gs.dx : -gs.dx;
-        if (dist > DISMISS_THRESHOLD) {
-          dismissSlide();
-        } else {
-          Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false }).start();
-        }
-      },
-    }),
-  ).current;
+  const handleDismissMove = useCallback((dx: number) => {
+    if (dismissed) return;
+    if (side === 'right' && dx > 0) {
+      slideAnim.setValue(Math.min(dx, WHEEL_WIDTH));
+    } else if (side === 'left' && dx < 0) {
+      slideAnim.setValue(Math.max(dx, -WHEEL_WIDTH));
+    }
+  }, [side, slideAnim, dismissed]);
+
+  const handleDismissRelease = useCallback((dx: number) => {
+    const dist = side === 'right' ? dx : -dx;
+    if (dist > DISMISS_THRESHOLD) {
+      dismissSlide();
+    } else {
+      Animated.spring(slideAnim, { toValue: 0, useNativeDriver: false }).start();
+    }
+  }, [side, slideAnim, dismissSlide]);
 
   // ── Render nodes ──
-  function renderNode(piece: ArcWheelPiece, idx: number, relIdx: number) {
+  function renderNode(group: PieceGroup, idx: number, relIdx: number) {
     const distance = idx - selectedIndex;
     const absDistance = Math.abs(distance);
     const maxVisible = Math.floor(VISIBLE_NODES / 2);
@@ -311,15 +264,16 @@ export default function ArcWheel({
     const scaleFactor = 1 - (absDistance / (maxVisible + 1)) * 0.45;
     const nodeSize = NODE_SIZE_MAX * scaleFactor;
     const distanceOpacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
-    const isSelected = piece.id === selectedId || idx === selectedIndex;
-    const borderColor = getNodeBorderColor(piece, piece.isTape ?? false);
-    const color = getPieceColor(piece.type);
+    const isSelected = group.repId === selectedId || idx === selectedIndex;
+    const borderColor = getNodeBorderColor(group.source, group.isTape);
+    const color = getPieceColor(group.type);
     const eY = entranceY[relIdx] ?? new Animated.Value(0);
     const eOp = entranceOpacity[relIdx] ?? new Animated.Value(1);
 
     return (
       <Animated.View
-        key={piece.id}
+        key={group.key}
+        pointerEvents="box-none"
         style={{
           opacity: eOp,
           transform: [{ translateY: eY }],
@@ -328,6 +282,7 @@ export default function ArcWheel({
         <View
           ref={isSelected ? mainNodeRef : undefined}
           collapsable={false}
+          pointerEvents="box-none"
           style={[
             styles.nodeWrapper,
             {
@@ -339,36 +294,27 @@ export default function ArcWheel({
             },
           ]}
         >
-          <TouchableOpacity
-            onPressIn={(e) => handleNodePressIn(idx, e.nativeEvent.pageX, e.nativeEvent.pageY)}
-            onPressOut={handleNodePressOut}
-            onPress={() => handleNodeTap(idx)}
-            activeOpacity={0.8}
-            style={[
-              styles.node,
-              {
-                width: nodeSize,
-                height: nodeSize,
-                borderColor: isSelected ? borderColor : `${borderColor}60`,
-                borderWidth: isSelected ? 2 : 1,
-                backgroundColor: isSelected ? `${borderColor}18` : 'rgba(8,14,28,0.9)',
-              },
-            ]}
-            accessibilityLabel={`${PIECE_LABELS[piece.type]}, ${piece.source === 'requisitioned' ? 'purchased' : 'pre-assigned'}`}
-          >
-            <PieceIcon type={piece.type} size={nodeSize * 0.45} color={color} />
-            {isSelected && (
-              <>
-                <View style={[styles.cornerTL, { borderColor }]} />
-                <View style={[styles.cornerTR, { borderColor }]} />
-                <View style={[styles.cornerBL, { borderColor }]} />
-                <View style={[styles.cornerBR, { borderColor }]} />
-              </>
-            )}
-          </TouchableOpacity>
+          <WheelNode
+            index={idx}
+            group={group}
+            isSelected={isSelected}
+            nodeSize={nodeSize}
+            borderColor={borderColor}
+            iconColor={color}
+            disabled={disabled}
+            activateWheel={activateWheel}
+            onTapSelect={handleTapSelect}
+            onScrollSteps={handleScrollSteps}
+            onDragStart={onDragStart}
+            onDragMove={onDragMove}
+            onDragEnd={onDragEnd}
+            onDragCancel={onDragCancel}
+            onDismissMove={handleDismissMove}
+            onDismissRelease={handleDismissRelease}
+          />
           {isSelected && (
             <Text style={[styles.nodeLabel, { color: borderColor }]} numberOfLines={1}>
-              {PIECE_LABELS[piece.type]}
+              {PIECE_LABELS[group.type]}
             </Text>
           )}
         </View>
@@ -379,14 +325,15 @@ export default function ArcWheel({
   const isRight = side === 'right';
 
   // The pill track offset — we show a slice centered on the selected index
-  const visiblePieces = pieces.slice(
+  const visibleGroups = groups.slice(
     Math.max(0, selectedIndex - 2),
-    Math.min(pieces.length, selectedIndex + 3),
+    Math.min(groups.length, selectedIndex + 3),
   );
   const startIdx = Math.max(0, selectedIndex - 2);
 
   return (
     <Animated.View
+      pointerEvents="box-none"
       style={[
         styles.container,
         isRight ? styles.containerRight : styles.containerLeft,
@@ -408,22 +355,171 @@ export default function ArcWheel({
 
       {!dismissed && (
         <Animated.View
+          pointerEvents="box-none"
           style={[styles.pill, { opacity: isActive ? 1 : idleAnim }]}
-          {...(isDragging ? {} : scrollPan.panHandlers)}
-          {...(isDragging ? {} : dismissPan.panHandlers)}
         >
           {/* Empty state */}
-          {pieces.length === 0 && (
+          {groups.length === 0 && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>——</Text>
             </View>
           )}
 
-          {/* Piece nodes */}
-          {visiblePieces.map((piece, relIdx) => renderNode(piece, startIdx + relIdx, relIdx))}
+          {/* Piece nodes — one per type, count badge for duplicates */}
+          {visibleGroups.map((group, relIdx) => renderNode(group, startIdx + relIdx, relIdx))}
         </Animated.View>
       )}
     </Animated.View>
+  );
+}
+
+// ─── WheelNode ──────────────────────────────────────────────────────────────
+// One interactive node. Its PanResponder resolves a single gesture into
+// exactly one of: tap (select), hold-to-drag (start/move/end/cancel),
+// vertical scroll (change selection), or horizontal swipe (dismiss). The
+// responder is created once; latest props reach it through propsRef. This is
+// the same hold-to-drag pattern proven in PieceTray.TrayItemDraggable, plus
+// scroll/dismiss so the node can fully own the gesture (the pill itself is
+// box-none so board cells behind the wheel stay tappable).
+interface WheelNodeProps {
+  index: number;
+  group: PieceGroup;
+  isSelected: boolean;
+  nodeSize: number;
+  borderColor: string;
+  iconColor: string;
+  disabled: boolean;
+  activateWheel: () => void;
+  onTapSelect: (index: number) => void;
+  onScrollSteps: (steps: number) => void;
+  onDragStart: (drag: DragState) => void;
+  onDragMove: (x: number, y: number) => void;
+  onDragEnd: (x: number, y: number) => void;
+  onDragCancel: () => void;
+  onDismissMove: (dx: number) => void;
+  onDismissRelease: (dx: number) => void;
+}
+
+function WheelNode(props: WheelNodeProps) {
+  const { group, isSelected, nodeSize, borderColor, iconColor } = props;
+
+  const propsRef = useRef(props);
+  useEffect(() => { propsRef.current = props; });
+
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const modeRef = useRef<'idle' | 'drag' | 'scroll' | 'dismiss'>('idle');
+  const startPos = useRef({ x: 0, y: 0 });
+  const scrollAccum = useRef(0);
+
+  useEffect(() => () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+  }, []);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => !propsRef.current.disabled,
+      onMoveShouldSetPanResponder: () => !propsRef.current.disabled,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: (e) => {
+        const p = propsRef.current;
+        modeRef.current = 'idle';
+        scrollAccum.current = 0;
+        startPos.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY };
+        p.activateWheel();
+        if (holdTimer.current) clearTimeout(holdTimer.current);
+        holdTimer.current = setTimeout(() => {
+          if (modeRef.current !== 'idle') return;
+          modeRef.current = 'drag';
+          p.onDragStart({
+            active: true,
+            pieceId: p.group.repId,
+            type: p.group.type,
+            x: startPos.current.x,
+            y: startPos.current.y,
+          });
+        }, DRAG_HOLD_MS);
+      },
+      onPanResponderMove: (e, gs) => {
+        const p = propsRef.current;
+        if (modeRef.current === 'drag') {
+          p.onDragMove(e.nativeEvent.pageX, e.nativeEvent.pageY);
+          return;
+        }
+        if (modeRef.current === 'idle') {
+          // First meaningful movement decides scroll vs dismiss and cancels
+          // the pending hold-to-drag.
+          if (Math.abs(gs.dy) > 8 && Math.abs(gs.dy) >= Math.abs(gs.dx)) {
+            modeRef.current = 'scroll';
+            scrollAccum.current = gs.dy;
+          } else if (Math.abs(gs.dx) > 10) {
+            modeRef.current = 'dismiss';
+          } else {
+            return;
+          }
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+        }
+        if (modeRef.current === 'scroll') {
+          const steps = Math.round((scrollAccum.current - gs.dy) / NODE_SLOT_H);
+          if (steps !== 0) {
+            scrollAccum.current = gs.dy;
+            p.onScrollSteps(steps);
+          }
+        } else if (modeRef.current === 'dismiss') {
+          p.onDismissMove(gs.dx);
+        }
+      },
+      onPanResponderRelease: (e, gs) => {
+        const p = propsRef.current;
+        if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+        const mode = modeRef.current;
+        modeRef.current = 'idle';
+        if (mode === 'drag') {
+          p.onDragEnd(e.nativeEvent.pageX, e.nativeEvent.pageY);
+        } else if (mode === 'dismiss') {
+          p.onDismissRelease(gs.dx);
+        } else if (mode === 'idle') {
+          p.onTapSelect(p.index);
+        }
+      },
+      onPanResponderTerminate: () => {
+        const p = propsRef.current;
+        if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+        if (modeRef.current === 'drag') p.onDragCancel();
+        modeRef.current = 'idle';
+      },
+    }),
+  ).current;
+
+  return (
+    <View
+      {...pan.panHandlers}
+      style={[
+        styles.node,
+        {
+          width: nodeSize,
+          height: nodeSize,
+          borderColor: isSelected ? borderColor : `${borderColor}60`,
+          borderWidth: isSelected ? 2 : 1,
+          backgroundColor: isSelected ? `${borderColor}18` : 'rgba(8,14,28,0.9)',
+        },
+      ]}
+      accessibilityLabel={`${PIECE_LABELS[group.type]}, ${group.count} available`}
+    >
+      <PieceIcon type={group.type} size={nodeSize * 0.45} color={iconColor} />
+      {group.count > 1 && (
+        <View style={[styles.countBadge, { backgroundColor: borderColor }]}>
+          <Text style={styles.countBadgeText}>{group.count}</Text>
+        </View>
+      )}
+      {isSelected && (
+        <>
+          <View style={[styles.cornerTL, { borderColor }]} />
+          <View style={[styles.cornerTR, { borderColor }]} />
+          <View style={[styles.cornerBL, { borderColor }]} />
+          <View style={[styles.cornerBR, { borderColor }]} />
+        </>
+      )}
+    </View>
   );
 }
 
@@ -482,6 +578,25 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginTop: 2,
     textAlign: 'center',
+  },
+
+  // Count badge for grouped nodes (top-right corner of the node).
+  countBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countBadgeText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: Colors.void,
   },
 
   emptyState: {

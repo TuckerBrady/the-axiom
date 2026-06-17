@@ -1,6 +1,7 @@
 import {
   ALL_CONSEQUENCES,
   KEPLER_BOSS_CONSEQUENCE,
+  KEPLER_TRANSIT_GATE_CONSEQUENCE,
   NOVA_BOSS_CONSEQUENCE,
   RIFT_BOSS_CONSEQUENCE,
   DEEP_VOID_BOSS_CONSEQUENCE,
@@ -10,8 +11,8 @@ import {
 } from '../../src/game/consequences';
 
 describe('ALL_CONSEQUENCES', () => {
-  it('contains exactly 4 consequences', () => {
-    expect(ALL_CONSEQUENCES).toHaveLength(4);
+  it('contains exactly 5 consequences', () => {
+    expect(ALL_CONSEQUENCES).toHaveLength(5);
   });
 
   it('each has required fields', () => {
@@ -28,6 +29,26 @@ describe('ALL_CONSEQUENCES', () => {
   it('unique IDs', () => {
     const ids = ALL_CONSEQUENCES.map(c => c.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('KEPLER_TRANSIT_GATE_CONSEQUENCE (K1-8, mid-sector)', () => {
+  it('is keyed to K1-8 and fires on failure', () => {
+    expect(KEPLER_TRANSIT_GATE_CONSEQUENCE.triggerLevelId).toBe('K1-8');
+    expect(KEPLER_TRANSIT_GATE_CONSEQUENCE.triggerCondition).toBe('fail');
+    const c = getTriggeredConsequence('K1-8', false, 0);
+    expect(c?.id).toBe('kepler_transit_gate_consequence');
+  });
+
+  it('does not fire on a successful K1-8 run', () => {
+    expect(getTriggeredConsequence('K1-8', true, 1)).toBeNull();
+  });
+
+  it('stays below boss weight: damages comms only, no sector-wide piece reduction', () => {
+    expect(KEPLER_TRANSIT_GATE_CONSEQUENCE.mechanicalEffects).toEqual([
+      { type: 'damage_system', system: 'communicationArray' },
+    ]);
+    expect(KEPLER_TRANSIT_GATE_CONSEQUENCE.narrativeEffects).toEqual([]);
   });
 });
 

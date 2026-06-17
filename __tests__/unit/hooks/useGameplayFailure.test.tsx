@@ -13,7 +13,7 @@ const TestRenderer: {
     el: React.ReactElement,
   ) => { update: (el: React.ReactElement) => void; unmount: () => void };
 } = require('react-test-renderer');
-import { useGameplayFailure } from '../../../src/hooks/useGameplayFailure';
+import { useGameplayFailure, seedBlownCells } from '../../../src/hooks/useGameplayFailure';
 import { useGameStore } from '../../../src/store/gameStore';
 import type { LevelDefinition, PlacedPiece, ExecutionStep } from '../../../src/game/types';
 
@@ -83,7 +83,50 @@ describe('useGameplayFailure', () => {
     });
   });
 
+  describe('seedBlownCells (pre-existing craters from level.damagedCells)', () => {
+    it('returns an empty set when the level has no damagedCells', () => {
+      expect(seedBlownCells(makeLevel('A1-1')).size).toBe(0);
+      expect(seedBlownCells(null).size).toBe(0);
+    });
+
+    it('maps each damaged cell to a "gx,gy" key', () => {
+      const level = { ...makeLevel('K1-5'), damagedCells: [{ gridX: 3, gridY: 2 }, { gridX: 5, gridY: 4 }] };
+      const seeded = seedBlownCells(level);
+      expect(seeded.has('3,2')).toBe(true);
+      expect(seeded.has('5,4')).toBe(true);
+      expect(seeded.size).toBe(2);
+    });
+
+    it('seeds blownCells on mount so pre-existing craters reject placement', () => {
+      const level = { ...makeLevel('K1-6'), damagedCells: [{ gridX: 4, gridY: 1 }] };
+      TestRenderer.act(() => {
+        TestRenderer.create(
+          React.createElement(Harness, { level, isAxiomLevel: false }),
+        );
+      });
+      expect(captured!.blownCells.has('4,1')).toBe(true);
+      expect(captured!.blownCellsRef.current.has('4,1')).toBe(true);
+    });
+  });
+
   describe('reset on level change', () => {
+    it('re-seeds craters from the new level when level.id changes', () => {
+      let renderer!: { update: (el: React.ReactElement) => void; unmount: () => void };
+      const damaged = { ...makeLevel('K1-7'), damagedCells: [{ gridX: 2, gridY: 2 }] };
+      TestRenderer.act(() => {
+        renderer = TestRenderer.create(
+          React.createElement(Harness, { level: makeLevel('A1-1'), isAxiomLevel: true }),
+        );
+      });
+      expect(captured!.blownCells.size).toBe(0);
+
+      TestRenderer.act(() => {
+        renderer.update(React.createElement(Harness, { level: damaged, isAxiomLevel: false }));
+      });
+      expect(captured!.blownCells.has('2,2')).toBe(true);
+      expect(captured!.failCount).toBe(0);
+    });
+
     it('clears blownCells and failCount when level.id changes', () => {
       let renderer!: { update: (el: React.ReactElement) => void; unmount: () => void };
       TestRenderer.act(() => {

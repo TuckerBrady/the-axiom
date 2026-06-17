@@ -757,6 +757,26 @@ export function resetRunState(arg: PlacedPiece[] | MachineState): void {
 }
 
 /**
+ * The Latch tap-cycle (REQ-LATCH-MODE-1): write -> read -> delay -> write.
+ * A tapped Latch with no mode set is treated as 'write' (the deterministic
+ * default), so the first tap advances it to 'read'. The third mode, 'delay'
+ * (D flip-flop), is the cross-pulse memory required by K1-9/K1-10 and is
+ * unreachable without this three-state cycle.
+ */
+export function nextLatchMode(
+  mode: PlacedPiece['latchMode'],
+): 'write' | 'read' | 'delay' {
+  switch (mode ?? 'write') {
+    case 'write':
+      return 'read';
+    case 'read':
+      return 'delay';
+    default:
+      return 'write';
+  }
+}
+
+/**
  * Resolve a run state's `pieceId` to the piece TYPE used for requiredPieces
  * matching (REQ-REQPIECES-MAP-1, SPEC_KEPLER_ENGINE.md §3.4).
  *

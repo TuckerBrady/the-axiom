@@ -49,6 +49,12 @@ describe('ArcWheel — source contract', () => {
     expect(wheelSrc).toMatch(/#8B5CF6/);  // purple — tape
   });
 
+  it('groups pieces by type with a count badge (one node per type)', () => {
+    expect(wheelSrc).toMatch(/groupArcWheelPieces/);
+    expect(wheelSrc).toMatch(/countBadge/);
+    expect(wheelSrc).toMatch(/group\.count > 1/);
+  });
+
   it('renders corner brackets on the selected piece', () => {
     expect(wheelSrc).toMatch(/cornerTL/);
     expect(wheelSrc).toMatch(/cornerTR/);

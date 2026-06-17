@@ -209,6 +209,18 @@ describe('buildInventoryForLevel', () => {
     expect(inv.pieces.some(p => p.type === 'gear' && p.source === 'preAssigned')).toBe(true);
   });
 
+  it('stacks requisitioned copies on top of an included (pre-assigned) type', () => {
+    // Soul of the game: the Engineer buys MORE of a core piece that the level
+    // already includes for free. Both sets must land in the inventory.
+    const level = makeLevel({ availablePieces: ['conveyor', 'conveyor'] });
+    const purchases = [{ type: 'conveyor' as const, quantity: 2, unitPrice: 10, totalPrice: 20 }];
+    const inv = buildInventoryForLevel(level, purchases);
+    const conveyors = inv.pieces.filter(p => p.type === 'conveyor');
+    expect(conveyors).toHaveLength(4);
+    expect(conveyors.filter(p => p.source === 'preAssigned')).toHaveLength(2);
+    expect(conveyors.filter(p => p.source === 'requisitioned')).toHaveLength(2);
+  });
+
   it('includes requisitioned pieces from purchases', () => {
     const level = makeLevel({ availablePieces: [] });
     const purchases = [{ type: 'scanner' as const, quantity: 2, unitPrice: 20, totalPrice: 40 }];
