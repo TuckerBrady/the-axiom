@@ -1206,6 +1206,53 @@ export const repairHyperdrive: LevelDefinition = {
   systemRepaired: 'Propulsion Core',
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTOR 2: NOVA FRINGE
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// 10 levels (NF-1..NF-10). Theme: input-independence + logic gates. Tape
+// visibility reduces across the sector. New pieces: Inverter (built), Capacitor,
+// Confluence Node (AND), Divergence Gate (XOR). See SPEC_NOVA_FRINGE.md.
+// NF-3+ are blocked on the three missing pieces; NF-1/NF-2 use the Inverter only.
+
+pieceCounter = 920;
+
+export const levelNF_1: LevelDefinition = {
+  id: 'NF-1', name: 'Outer Marker', sector: 'nova',
+  description: 'Output the logical inverse of each input value using an Inverter.',
+  cogsLine: 'Nova Fringe. This is where the official charts stop. We have supplementary charts. They are not official. I do not know who made them. They are accurate.',
+  eyeState: 'blue',
+  gridWidth: 9, gridHeight: 7,
+  // Offset Source/Terminal (rows 2 -> 4) so the path bends — not a straight line.
+  prePlacedPieces: [prePlaced('source', 1, 2), prePlaced('terminal', 7, 4)],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'inverter', 'transmitter', 'gear', 'gear', 'gear'],
+  dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
+  inputTape: [1, 0, 1, 1, 0], expectedOutput: [0, 1, 0, 0, 1],
+  objectives: [{ type: 'reach_output' }],
+  optimalPieces: 7, budget: 90,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 90,
+  depthCeiling: 10,
+  baseReward: 110,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  computationalGoal: 'output[N] = NOT input[N]. The Inverter flips each carried bit; the Transmitter writes the inverse.',
+  conceptTaught: 'Logical negation (Inverter) — transformation as computation, distinct from routing.',
+  prerequisiteConcept: 'Scanner/Transmitter pipeline (Axiom); stateful machines (Kepler).',
+  tapeDesignRationale: 'Mixed 1s and 0s prove the machine flips every bit rather than emitting a constant; the inverse differs from the input on every pulse.',
+  difficultyBand: 'intuitive',
+  narrativeFrame: 'Arrival past the official charts. The first repair in unregistered space.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Nova Fringe. The objective here is not to pass the signal through. It is to flip it. Every 1 becomes a 0. Every 0 becomes a 1. The board has a piece that does exactly that.' },
+    { id: 'inverter-collect', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'A logic gate. It does not decide what the correct value is. It only knows what the current value is not. Cataloguing it.',
+      codexEntryId: 'inverter' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Inverter flips the bit. The Transmitter writes the inverse. Route the path from the Source through both to the Terminal.' },
+  ],
+};
+
 // ─── All levels ───────────────────────────────────────────────────────────────
 
 export const AXIOM_LEVELS: LevelDefinition[] = [
@@ -1218,9 +1265,13 @@ export const KEPLER_LEVELS: LevelDefinition[] = [
   levelK1_6, levelK1_7, levelK1_8, levelK1_9, levelK1_10,
 ];
 
+// Nova Fringe (Sector 2) — under construction; NF-1 (Inverter) is the first
+// playable level. NF-2..NF-10 land as the three missing pieces are built.
+export const NOVA_LEVELS: LevelDefinition[] = [levelNF_1];
+
 export const REPAIR_LEVELS: LevelDefinition[] = [repairPropulsionSurge, repairHyperdrive];
 
-export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS, ...REPAIR_LEVELS];
+export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS, ...NOVA_LEVELS, ...REPAIR_LEVELS];
 
 export function getLevelById(id: string): LevelDefinition | undefined {
   return ALL_LEVELS.find(l => l.id === id);
