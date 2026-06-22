@@ -78,24 +78,25 @@ describe('Spec Sheet — HUD + screen wiring', () => {
     expect(screenSrc).toMatch(/<SpecSheetPanel/);
   });
 
-  it('A1-1 activation hook is one-time (AsyncStorage seen-flag) and points at the icon', () => {
-    expect(modalsHookSrc).toMatch(/axiom_spec_sheet_hook_seen/);
-    expect(modalsHookSrc).toMatch(/level\.id !== 'A1-1'/);
-    expect(screenSrc).toMatch(/SPEC_SHEET_ACTIVATION_HOOK/);
+  it('A1-1 introduces the Spec Sheet as the FINAL tutorial step, pointing at the icon', () => {
+    const levelsSrc = read('src/game/levels.ts');
+    expect(levelsSrc).toMatch(/id: 'spec-sheet'/);
+    expect(levelsSrc).toMatch(/targetRef: 'specSheetBtn'/);
+    // The retired one-time hook + its seen-flag must be gone.
+    expect(modalsHookSrc).not.toMatch(/axiom_spec_sheet_hook_seen/);
+    expect(screenSrc).not.toMatch(/SPEC_SHEET_ACTIVATION_HOOK/);
   });
 });
 
-describe('Spec Sheet — A1-1 hook uses the orb-highlight dialog (SE-TM-033)', () => {
-  it('GameplayScreen renders the SpecSheetHook anchored to the HUD button ref', () => {
-    expect(screenSrc).toMatch(/<SpecSheetHook/);
-    expect(screenSrc).toMatch(/specSheetBtnRef/);
-    expect(hudSrc).toMatch(/ref=\{specSheetBtnRef\}/);
+describe('Spec Sheet — A1-1 intro is a tutorial step, not a standalone card (SE-TM-033)', () => {
+  it('the standalone SpecSheetHook card is no longer rendered', () => {
+    expect(screenSrc).not.toMatch(/<SpecSheetHook/);
   });
 
-  it('the hook measures the button and shows a dialog (not a full-screen card)', () => {
-    const hookSrc = read('src/components/gameplay/SpecSheetHook.tsx');
-    expect(hookSrc).toMatch(/measureInWindow/);
-    expect(hookSrc).toMatch(/CogsAvatar/);
+  it('the HUD info button is wired as the tutorial target specSheetBtn', () => {
+    const tutHookSrc = read('src/hooks/useGameplayTutorial.ts');
+    expect(tutHookSrc).toMatch(/specSheetBtn: specSheetBtnRef/);
+    expect(hudSrc).toMatch(/ref=\{specSheetBtnRef\}/);
   });
 });
 

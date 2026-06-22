@@ -154,6 +154,15 @@ export const levelA1_1: LevelDefinition = {
       eyeState: 'blue',
       message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
     },
+    {
+      // Final beat: the Spec Sheet (job tasking / requirements) lives on the HUD
+      // info button. Replaces the old standalone SpecSheetHook card — this is now
+      // the last thing COGS shows before the Engineer begins. (SE-TM-033.)
+      id: 'spec-sheet',
+      targetRef: 'specSheetBtn',
+      eyeState: 'blue',
+      message: 'I am routing the job’s tasking to your console. The specifications were always on file. You simply had no reason to read them. Now you do. Top right, when you want them.',
+    },
   ],
 };
 

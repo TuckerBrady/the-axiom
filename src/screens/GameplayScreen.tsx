@@ -30,7 +30,6 @@ import PieceTray from '../components/gameplay/PieceTray';
 import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
-import SpecSheetHook from '../components/gameplay/SpecSheetHook';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
 import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
@@ -59,7 +58,7 @@ import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
-import { SPEC_SHEET_ACTIVATION_HOOK, shallStatementToCopy } from '../game/spec/specSheetCopy';
+import { shallStatementToCopy } from '../game/spec/specSheetCopy';
 import { evaluateTopologyGate } from '../game/objectives';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -323,7 +322,6 @@ export default function GameplayScreen({ navigation }: Props) {
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
     showSpecSheet, setShowSpecSheet,
-    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
@@ -351,6 +349,7 @@ export default function GameplayScreen({ navigation }: Props) {
     outputTapeRowRef,
     dataTrailRowRef,
     arcWheelMainRef,
+    specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,
@@ -693,13 +692,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleSpecSheetOpen = useCallback(() => {
     setShowSpecSheet(true);
   }, []);
-  // Ref on the HUD Spec Sheet button so the A1-1 activation hook can anchor to
-  // it (SE-TM-033).
-  const specSheetBtnRef = useRef<View>(null);
-  const handleSpecSheetHookDismiss = useCallback(() => {
-    AsyncStorage.setItem('axiom_spec_sheet_hook_seen', '1');
-    setShowSpecSheetHook(false);
-  }, []);
+  // The HUD Spec Sheet button ref now comes from useGameplayTutorial so the
+  // A1-1 final tutorial step (targetRef 'specSheetBtn') can anchor to it.
 
   // ── REQUISITION confirm ──
   const handleRequisitionConfirm = useCallback(() => {
@@ -1754,15 +1748,6 @@ export default function GameplayScreen({ navigation }: Props) {
         level={level}
         visible={showSpecSheet}
         onClose={() => setShowSpecSheet(false)}
-      />
-
-      {/* ── Spec Sheet A1-1 activation hook (SE-TM-033) — orb highlights the
-          info button, copy in a dialog anchored beneath it ── */}
-      <SpecSheetHook
-        visible={showSpecSheetHook}
-        lines={SPEC_SHEET_ACTIVATION_HOOK}
-        targetRef={specSheetBtnRef}
-        onDismiss={handleSpecSheetHookDismiss}
       />
 
       {/* ── HUD Tutorial Overlay ── */}

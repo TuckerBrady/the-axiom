@@ -46,6 +46,8 @@ export interface UseGameplayTutorialResult {
   trayTransmitterRef: React.RefObject<View | null>;
   // Kepler+ Arc Wheel selected-node ref (targetRef 'arcWheelMain').
   arcWheelMainRef: React.RefObject<View | null>;
+  // HUD Spec Sheet button ref (targetRef 'specSheetBtn').
+  specSheetBtnRef: React.RefObject<View | null>;
   // Bundled TutorialTrayRefs object for forwarding to <PieceTray>.
   tutorialTrayRefs: TutorialTrayRefs;
   placedPieceRef: React.RefObject<View | null>;
@@ -91,6 +93,9 @@ export function useGameplayTutorial(
   // Kepler+ Arc Wheel: the selected wheel node, for wheel-onboarding tutorial
   // steps (targetRef 'arcWheelMain'). Forwarded to ArcWheel's mainNodeRef.
   const arcWheelMainRef = useRef<View>(null);
+  // HUD Spec Sheet (info) button, for the A1-1 final tutorial step
+  // (targetRef 'specSheetBtn'). Forwarded to HUDChrome.
+  const specSheetBtnRef = useRef<View>(null);
   // placedPieceRef is attached to a zero-size invisible View rendered at
   // the placed piece's board position so TutorialHUDOverlay can measure it.
   const placedPieceRef = useRef<View>(null);
@@ -129,6 +134,7 @@ export function useGameplayTutorial(
       trayScanner: trayScannerRef,
       trayTransmitter: trayTransmitterRef,
       arcWheelMain: arcWheelMainRef,
+      specSheetBtn: specSheetBtnRef,
       placedPiece: placedPieceRef,
     }),
     [],
@@ -301,6 +307,7 @@ export function useGameplayTutorial(
     trayScannerRef,
     trayTransmitterRef,
     arcWheelMainRef,
+    specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,
