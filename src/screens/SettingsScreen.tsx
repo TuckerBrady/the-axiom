@@ -16,8 +16,11 @@ import Animated, {
   withTiming,
   withDelay,
 } from 'react-native-reanimated';
+import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { TabParamList } from '../navigation/TabNavigator';
+import type { RootStackParamList } from '../navigation/RootNavigator';
 import Svg, { Circle, Rect, Line, Path } from 'react-native-svg';
 import StarField from '../components/StarField';
 import CogsAvatar from '../components/CogsAvatar';
@@ -33,7 +36,8 @@ import {
 import { useSettingsStore } from '../store/settingsStore';
 import { useEconomyStore } from '../store/economyStore';
 import { useLivesStore } from '../store/livesStore';
-import { ALL_LEVELS } from '../game/levels';
+import { ALL_LEVELS, getLevelById } from '../game/levels';
+import { useGameStore } from '../store/gameStore';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { BUILD_INFO } from '../buildInfo';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
@@ -41,7 +45,10 @@ import Constants from 'expo-constants';
 import { getDevCodename } from '../utils/devCodename';
 
 type Props = {
-  navigation: BottomTabNavigationProp<TabParamList, 'Settings'>;
+  navigation: CompositeNavigationProp<
+    BottomTabNavigationProp<TabParamList, 'Settings'>,
+    NativeStackNavigationProp<RootStackParamList>
+  >;
 };
 
 // ─── Icon background wrapper ────────────────────────────────────────────────
@@ -278,6 +285,30 @@ export default function SettingsScreen({ navigation }: Props) {
     notificationsEnabled, setNotificationsEnabled,
   } = useSettingsStore();
   const [forceShowTutorial, setForceShowTutorial] = useState(false);
+  const setLevel = useGameStore(s => s.setLevel);
+
+  // Player-facing "Replay Tutorial": re-arm the opening A1-1 walkthrough and jump
+  // straight into it. Sets the force-show flag so the overlay runs even though
+  // A1-1 is already complete; the player's progress is untouched.
+  const handleReplayTutorial = () => {
+    Alert.alert(
+      'Replay Tutorial',
+      'Run through the opening tutorial again? Your progress will not be affected.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Replay',
+          onPress: async () => {
+            const a11 = getLevelById('A1-1');
+            if (!a11) return;
+            await AsyncStorage.setItem('axiom_tutorial_force_show', '1');
+            setLevel(a11);
+            navigation.navigate('Gameplay');
+          },
+        },
+      ],
+    );
+  };
 
   const sectorGroups = useMemo(() => {
     const sectorMap = new Map<string, { id: string; sector: string }[]>();
@@ -396,6 +427,14 @@ export default function SettingsScreen({ navigation }: Props) {
           <SectionHeader title="GAMEPLAY" delay={300} />
           <View style={styles.settingGroup}>
             <ToggleRow icon={<CogsHintsIcon />} label="Cogs Hints" sub="Show COGS hints during levels" value={cogsHintsEnabled} onChange={setCogsHintsEnabled} delay={350} />
+            <View style={styles.divider} />
+            <TapRow
+              icon={<Text style={{ color: Colors.blue, fontSize: 14, fontWeight: 'bold' }}>↺</Text>}
+              label="Replay Tutorial"
+              sub="Walk through the opening tutorial again"
+              delay={400}
+              onPress={handleReplayTutorial}
+            />
           </View>
 
           {/* Account */}

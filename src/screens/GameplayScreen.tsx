@@ -291,6 +291,19 @@ export default function GameplayScreen({ navigation }: Props) {
   const isDailyChallenge = level?.sector === 'daily';
   const isLevelPreviouslyCompleted = level ? isLevelDone(level.id) : false;
 
+  // Replay-tutorial override (player-facing "Replay Tutorial" setting). It sets
+  // axiom_tutorial_force_show, which lets the tutorial overlay run even on a
+  // level the player has already completed — without wiping their progress.
+  // Read once per level; cleared when the overlay ends.
+  const [forceTutorial, setForceTutorial] = useState(false);
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem('axiom_tutorial_force_show').then(v => {
+      if (active && v === '1') setForceTutorial(true);
+    });
+    return () => { active = false; };
+  }, [level?.id]);
+
   // Phase 1 extraction — failure state (blownCells, failCount, helpers).
   const {
     blownCells, setBlownCells,
@@ -1758,7 +1771,7 @@ export default function GameplayScreen({ navigation }: Props) {
           placement phase, after the REQUISITION store closes — that is when the
           board and Arc Wheel are mounted, so 'boardGrid'/'arcWheelMain' measure
           reliably (the requisition-phase store screen is not a tutorial target). */}
-      {!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted &&
+      {(forceTutorial || (!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted)) &&
         !isExecuting && (level?.tutorialSteps?.length ?? 0) > 0 &&
         (level?.sector === 'axiom' ||
           (!isAxiomLevel && requisitionPhase === 'placement')) && (
@@ -1768,8 +1781,8 @@ export default function GameplayScreen({ navigation }: Props) {
           targetRefs={tutorialTargetRefs}
           spotlightCells={tutorialSpotlightCells}
           spotlightCellSize={CELL_SIZE}
-          onComplete={() => setTutorialComplete(true)}
-          onSkip={() => setTutorialSkipped(true)}
+          onComplete={() => { setTutorialComplete(true); setForceTutorial(false); }}
+          onSkip={() => { setTutorialSkipped(true); setForceTutorial(false); }}
           isBeamActive={beamState.phase !== 'idle'}
           lastPlacedTrigger={lastPlacedTrigger}
           lastTappedTrigger={lastTappedTrigger}
