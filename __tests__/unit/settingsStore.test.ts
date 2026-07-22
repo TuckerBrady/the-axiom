@@ -9,6 +9,7 @@ beforeEach(async () => {
     hapticsEnabled: true,
     cogsHintsEnabled: true,
     notificationsEnabled: false,
+    devForceRequisitionGate: false,
   });
 });
 
@@ -91,5 +92,13 @@ describe('settingsStore', () => {
     const state = useSettingsStore.getState();
     expect(state.sfxEnabled).toBe(true);
     expect(state.notificationsEnabled).toBe(false);
+  });
+
+  it('devForceRequisitionGate defaults to false, sets, and persists', async () => {
+    expect(useSettingsStore.getState().devForceRequisitionGate).toBe(false);
+    useSettingsStore.getState().setDevForceRequisitionGate(true);
+    expect(useSettingsStore.getState().devForceRequisitionGate).toBe(true);
+    const raw = await AsyncStorage.getItem('axiom_settings');
+    expect(JSON.parse(raw!).devForceRequisitionGate).toBe(true);
   });
 });

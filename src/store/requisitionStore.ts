@@ -10,6 +10,7 @@ import {
   NIBBLE_PRICE,
 } from '../game/piecePrices';
 import { useCodexStore } from './codexStore';
+import { useSettingsStore } from './settingsStore';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -90,16 +91,23 @@ function newInventoryId(): string {
   return `inv-${++inventoryCounter}`;
 }
 
-function buildPieceTypesForLevel(
+/**
+ * Piece types the player may purchase for this level. A candidate must be priced
+ * and not already pre-assigned. `showDev` (true in testflight/dev builds unless
+ * the dev toggle forces the gate on) bypasses the Codex discovery filter so
+ * testers see the full catalogue. Pass `discoveredIds` from the Codex store —
+ * kept as a parameter so the function is pure and unit-testable.
+ */
+export function buildPieceTypesForLevel(
   level: LevelDefinition,
   discoveredIds: string[],
+  showDev: boolean,
 ): PieceType[] {
-  // Only offer pieces the Engineer has already discovered (collected in the Codex).
-  // Dev/testflight builds bypass the gate so testers see the full catalogue.
+  const discovered = new Set(discoveredIds);
   return [...PHYSICS_PIECE_TYPES, ...PROTOCOL_PIECE_TYPES].filter(pt => {
-    if ((PIECE_PRICES[pt] ?? 0) === 0) return false;          // no price → not buyable
-    if (level.availablePieces.includes(pt)) return false;     // already in base set
-    if (!SHOW_DEV_TOOLS && !discoveredIds.includes(pt)) return false; // not yet discovered
+    if ((PIECE_PRICES[pt] ?? 0) === 0) return false;
+    if (level.availablePieces.includes(pt)) return false;
+    if (!showDev && !discovered.has(pt)) return false;
     return true;
   });
 }
@@ -175,8 +183,14 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   initRequisition: (level, discipline) => {
     const creditBudget = level.creditBudget ?? 0;
-    const discoveredIds = useCodexStore.getState().discoveredIds;
-    const purchasable = buildPieceTypesForLevel(level, discoveredIds);
+    // Dev toggle forces the discovery gate ON in testflight builds so the
+    // gated production view can be verified without building a production binary.
+    const showDev = SHOW_DEV_TOOLS && !useSettingsStore.getState().devForceRequisitionGate;
+    const purchasable = buildPieceTypesForLevel(
+      level,
+      useCodexStore.getState().discoveredIds,
+      showDev,
+    );
     set({
       phase: creditBudget > 0 ? 'requisition' : 'placement',
       requisition: {
