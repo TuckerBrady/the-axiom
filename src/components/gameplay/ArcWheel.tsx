@@ -3,6 +3,7 @@ import {
   View,
   Text,
   TouchableOpacity,
+  ScrollView,
   StyleSheet,
   Animated,
   Easing,
@@ -26,7 +27,6 @@ const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 export const WHEEL_WIDTH = 72;
 const NODE_SIZE_MAX = 52;
-const NODE_SIZE_MIN = 28;
 const NODE_GAP = 8;
 const VISIBLE_NODES = 5;
 const IDLE_OPACITY = 0.55;
@@ -46,10 +46,7 @@ const SOURCE_COLORS: Record<InventoryPiece['source'], string> = {
 };
 const TAPE_COLOR = '#8B5CF6';
 
-function getNodeBorderColor(source: InventoryPiece['source'], isTape: boolean): string {
-  if (isTape) return TAPE_COLOR;
-  return SOURCE_COLORS[source];
-}
+const PROTOCOL_TYPES: PieceType[] = ['configNode', 'scanner', 'transmitter', 'inverter', 'counter', 'latch'];
 
 const PIECE_LABELS: Record<PieceType, string> = {
   source: 'IN', terminal: 'OUT',
@@ -63,13 +60,24 @@ const PIECE_LABELS: Record<PieceType, string> = {
 // Matches BoardGrid/PieceTray: Protocol pieces purple, everything else the
 // canonical blue (NOT the amber source-accent used for node borders).
 function getPieceColor(type: PieceType): string {
-  const protocol: PieceType[] = ['configNode', 'scanner', 'transmitter', 'inverter', 'counter', 'latch'];
-  return protocol.includes(type) ? '#8B5CF6' : Colors.blue;
+  return PROTOCOL_TYPES.includes(type) ? '#8B5CF6' : '#F0B429';
 }
+
+type CategoryKey = 'PHYSICS' | 'PROTOCOL' | 'DATA';
+function categoryOf(group: PieceGroup): CategoryKey {
+  if (group.isTape) return 'DATA';
+  return PROTOCOL_TYPES.includes(group.type) ? 'PROTOCOL' : 'PHYSICS';
+}
+const CATEGORY_LABEL: Record<CategoryKey, string> = {
+  PHYSICS: 'PHYSICS',
+  PROTOCOL: 'PROTOCOL',
+  DATA: 'DATA',
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type { ArcWheelPiece, PieceGroup };
+
 
 export interface DragState {
   active: boolean;
@@ -89,7 +97,8 @@ interface Props {
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDragCancel: () => void;
-  // Tutorial: ref attached to the center/selected node for COGS orb targeting
+  // Tutorial: ref attached to the center/selected node for COGS orb targeting.
+  // Vestigial now (Axiom tutorial uses the PieceTray) but kept for compatibility.
   mainNodeRef?: React.RefObject<View | null>;
 }
 
@@ -110,6 +119,8 @@ export default function ArcWheel({
   const [dismissed, setDismissed] = useState(false);
   const [isActive, setIsActive] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   // Collapse the flat inventory into one node per type (+ count badge).
   const groups = useMemo(() => groupArcWheelPieces(pieces), [pieces]);
@@ -121,94 +132,77 @@ export default function ArcWheel({
   const idleAnim = useRef(new Animated.Value(IDLE_OPACITY)).current;
   const scrollOffsetAnim = useRef(new Animated.Value(0)).current;
   const activeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragHoldTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragStartPos = useRef({ x: 0, y: 0 });
+  const dragGroupIndex = useRef(-1);
+  const isDraggingRef = useRef(false);
 
-  // ── Entrance animation (REQ-68): 0.8s staggered, alternating above/below ──
+  // Keep selectedIndex in range as groups shrink (e.g. last of a type placed).
+  useEffect(() => {
+    if (groups.length === 0) return;
+    if (selectedIndex > groups.length - 1) setSelectedIndex(groups.length - 1);
+  }, [groups.length, selectedIndex]);
+
+  // Sync selectedIndex to the parent's selected instance id (which maps to a
+  // group via its representative / membership).
+  useEffect(() => {
+    if (!selectedId) return;
+    const idx = groups.findIndex(g => g.repId === selectedId);
+    if (idx !== -1 && idx !== selectedIndex) setSelectedIndex(idx);
+  }, [selectedId, groups]);
+
+  // ── Entrance animation (REQ-68): staggered, alternating above/below ──
   const entranceY = useRef(
-    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0))
+    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0)),
   ).current;
   const entranceOpacity = useRef(
-    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0))
+    Array.from({ length: VISIBLE_NODES }, () => new Animated.Value(0)),
   ).current;
   const entranceFired = useRef(false);
 
   useEffect(() => {
     if (entranceFired.current || groups.length === 0) return;
     entranceFired.current = true;
-
     const ENTRY_DIST = NODE_SLOT_H * 1.5;
     const STAGGER_MS = 80;
     const ITEM_MS = 500;
-
-    entranceY.forEach((anim, i) => {
-      anim.setValue(i % 2 === 0 ? -ENTRY_DIST : ENTRY_DIST);
-    });
+    entranceY.forEach((anim, i) => anim.setValue(i % 2 === 0 ? -ENTRY_DIST : ENTRY_DIST));
     entranceOpacity.forEach(a => a.setValue(0));
-
     const animations = entranceY.map((yAnim, i) =>
       Animated.parallel([
         Animated.timing(yAnim, {
-          toValue: 0,
-          duration: ITEM_MS,
-          delay: i * STAGGER_MS,
-          easing: Easing.bezier(0.16, 1, 0.3, 1),
-          useNativeDriver: false,
+          toValue: 0, duration: ITEM_MS, delay: i * STAGGER_MS,
+          easing: Easing.bezier(0.16, 1, 0.3, 1), useNativeDriver: false,
         }),
         Animated.timing(entranceOpacity[i], {
-          toValue: 1,
-          duration: Math.round(ITEM_MS * 0.6),
-          delay: i * STAGGER_MS,
+          toValue: 1, duration: Math.round(ITEM_MS * 0.6), delay: i * STAGGER_MS,
           useNativeDriver: false,
         }),
-      ])
+      ]),
     );
     Animated.parallel(animations).start();
   }, []);
 
-  // Snap selectedIndex to match selectedId from parent
-  useEffect(() => {
-    if (!selectedId) return;
-    const idx = groups.findIndex(g => g.repId === selectedId);
-    if (idx !== -1 && idx !== selectedIndex) {
-      setSelectedIndex(idx);
-    }
-  }, [selectedId, groups]);
-
-  // Dismiss/recall animation
+  // ── Dismiss / recall ──
   const dismissSlide = useCallback(() => {
     const toValue = side === 'right' ? WHEEL_WIDTH - RECALL_STRIP_W : -(WHEEL_WIDTH - RECALL_STRIP_W);
-    Animated.timing(slideAnim, {
-      toValue,
-      duration: 380,
-      useNativeDriver: false,
-    }).start(() => setDismissed(true));
+    Animated.timing(slideAnim, { toValue, duration: 380, useNativeDriver: false }).start(() => setDismissed(true));
   }, [side, slideAnim]);
 
   const recallSlide = useCallback(() => {
     setDismissed(false);
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 380,
-      useNativeDriver: false,
-    }).start();
+    Animated.timing(slideAnim, { toValue: 0, duration: 380, useNativeDriver: false }).start();
   }, [slideAnim]);
 
-  // Active state management
+  // ── Active state management ──
   const activateWheel = useCallback(() => {
     if (disabled) return;
     setIsActive(true);
-    Animated.timing(idleAnim, {
-      toValue: 1,
-      duration: 0,
-      useNativeDriver: false,
-    }).start();
+    idleAnim.setValue(1);
     if (activeTimer.current) clearTimeout(activeTimer.current);
     activeTimer.current = setTimeout(() => {
       setIsActive(false);
-      Animated.timing(idleAnim, {
-        toValue: IDLE_OPACITY,
-        duration: 400,
-        useNativeDriver: false,
-      }).start();
+      Animated.timing(idleAnim, { toValue: IDLE_OPACITY, duration: 400, useNativeDriver: false }).start();
     }, ACTIVE_TIMEOUT_MS);
   }, [disabled, idleAnim]);
 
@@ -221,8 +215,6 @@ export default function ArcWheel({
     const len = groupsRef.current.length;
     if (len === 0) return;
 
-    // Slide animation: jump to "before" offset then animate to final position.
-    // steps > 0 = scroll up (pieces slide up), steps < 0 = scroll down.
     scrollOffsetAnim.stopAnimation();
     scrollOffsetAnim.setValue(steps * NODE_SLOT_H);
     Animated.timing(scrollOffsetAnim, {
@@ -267,19 +259,40 @@ export default function ArcWheel({
     }
   }, [side, slideAnim, dismissSlide]);
 
+  // ── Overview drag initiation (long-press an overview item) ──
+  const beginDrag = useCallback((groupIdx: number, screenX: number, screenY: number) => {
+    activateWheel();
+    dragGroupIndex.current = groupIdx;
+    dragStartPos.current = { x: screenX, y: screenY };
+    dragHoldTimer.current = setTimeout(() => {
+      if (dragGroupIndex.current !== groupIdx) return;
+      const group = groupsRef.current[groupIdx];
+      if (!group) return;
+      isDraggingRef.current = true;
+      setIsDragging(true);
+      setExpanded(false);
+      onDragStart({ active: true, pieceId: group.repId, type: group.type, x: screenX, y: screenY });
+    }, DRAG_HOLD_MS);
+  }, [activateWheel, onDragStart]);
+
+  const endDragHold = useCallback(() => {
+    if (dragHoldTimer.current) { clearTimeout(dragHoldTimer.current); dragHoldTimer.current = null; }
+  }, []);
+
+  const isRight = side === 'right';
+
   // ── Render nodes ──
   function renderNode(group: PieceGroup, idx: number, relIdx: number) {
     const distance = idx - selectedIndex;
     const absDistance = Math.abs(distance);
     const maxVisible = Math.floor(VISIBLE_NODES / 2);
-
     if (absDistance > maxVisible) return null;
 
     const scaleFactor = 1 - (absDistance / (maxVisible + 1)) * 0.45;
     const nodeSize = NODE_SIZE_MAX * scaleFactor;
     const distanceOpacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
     const isSelected = group.repId === selectedId || idx === selectedIndex;
-    const borderColor = getNodeBorderColor(group.source, group.isTape);
+    const borderColor = group.isTape ? TAPE_COLOR : SOURCE_COLORS[group.source];
     const color = getPieceColor(group.type);
     const eY = entranceY[relIdx] ?? new Animated.Value(0);
     const eOp = entranceOpacity[relIdx] ?? new Animated.Value(1);
@@ -336,14 +349,59 @@ export default function ArcWheel({
     );
   }
 
-  const isRight = side === 'right';
+  // ── Overview (expanded) — all groups at once, grouped by category ──
+  function renderOverview() {
+    const sections: { key: CategoryKey; groups: { group: PieceGroup; idx: number }[] }[] = [];
+    const order: CategoryKey[] = ['PHYSICS', 'PROTOCOL', 'DATA'];
+    for (const key of order) {
+      const inCat = groups
+        .map((group, idx) => ({ group, idx }))
+        .filter(({ group }) => categoryOf(group) === key);
+      if (inCat.length > 0) sections.push({ key, groups: inCat });
+    }
 
-  // The pill track offset — we show a slice centered on the selected index
-  const visibleGroups = groups.slice(
-    Math.max(0, selectedIndex - 2),
-    Math.min(groups.length, selectedIndex + 3),
-  );
+    return (
+      <View style={[styles.overviewPanel, isRight ? styles.overviewRight : styles.overviewLeft]}>
+        <TouchableOpacity style={styles.overviewClose} onPress={() => setExpanded(false)} activeOpacity={0.7} accessibilityLabel="Collapse inventory">
+          <Text style={styles.overviewCloseText}>{isRight ? '›' : '‹'} CLOSE</Text>
+        </TouchableOpacity>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.overviewScroll}>
+          {sections.map(section => (
+            <View key={section.key} style={styles.overviewSection}>
+              <Text style={styles.overviewHeader}>{CATEGORY_LABEL[section.key]}</Text>
+              {section.groups.map(({ group, idx }) => {
+                const borderColor = group.isTape ? TAPE_COLOR : SOURCE_COLORS[group.source];
+                const color = getPieceColor(group.type);
+                const isSelected = idx === selectedIndex;
+                return (
+                  <TouchableOpacity
+                    key={group.key}
+                    onPressIn={(e) => beginDrag(idx, e.nativeEvent.pageX, e.nativeEvent.pageY)}
+                    onPressOut={endDragHold}
+                    onPress={() => { handleTapSelect(idx); setExpanded(false); }}
+                    activeOpacity={0.8}
+                    style={[styles.overviewItem, { borderColor: isSelected ? borderColor : `${borderColor}40` }]}
+                    accessibilityLabel={`${PIECE_LABELS[group.type]}, ${group.count} available`}
+                  >
+                    <View style={[styles.overviewIcon, { borderColor: `${borderColor}60` }]}>
+                      <PieceIcon type={group.type} size={20} color={color} />
+                    </View>
+                    <Text style={[styles.overviewLabel, { color: isSelected ? borderColor : Colors.starWhite }]} numberOfLines={1}>
+                      {PIECE_LABELS[group.type]}
+                    </Text>
+                    <Text style={[styles.overviewCount, { color: borderColor }]}>×{group.count}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  }
+
   const startIdx = Math.max(0, selectedIndex - 2);
+  const visibleGroups = groups.slice(startIdx, Math.min(groups.length, selectedIndex + 3));
 
   return (
     <Animated.View
@@ -357,22 +415,35 @@ export default function ArcWheel({
       {/* Recall strip (visible when dismissed) */}
       {dismissed && (
         <TouchableOpacity
-          style={[
-            styles.recallStrip,
-            isRight ? styles.recallStripRight : styles.recallStripLeft,
-          ]}
+          style={[styles.recallStrip, isRight ? styles.recallStripRight : styles.recallStripLeft]}
           onPress={recallSlide}
           activeOpacity={0.7}
           accessibilityLabel="Recall piece selector"
         />
       )}
 
-      {!dismissed && (
+      {!dismissed && expanded && renderOverview()}
+
+      {!dismissed && !expanded && (
         <Animated.View
           pointerEvents="box-none"
           style={[styles.pill, { opacity: isActive ? 1 : idleAnim }]}
         >
-          {/* Scroll-up chevron — two stacked ∧ for clear double-chevron look */}
+          {/* Overview toggle — tap to bloom all groups by category */}
+          {groups.length > 0 && (
+            <TouchableOpacity
+              style={styles.expandBtn}
+              onPress={() => { setExpanded(true); activateWheel(); }}
+              activeOpacity={0.7}
+              accessibilityLabel="Show all pieces"
+            >
+              <View style={styles.expandDot} />
+              <View style={styles.expandDot} />
+              <View style={styles.expandDot} />
+            </TouchableOpacity>
+          )}
+
+          {/* Scroll-up chevron */}
           {groups.length > 1 && (
             <TouchableOpacity
               onPress={() => handleScrollSteps(-1)}
@@ -392,9 +463,7 @@ export default function ArcWheel({
             </View>
           )}
 
-          {/* Piece nodes — one per type, count badge for duplicates.
-              scrollOffsetAnim drives the slot-machine slide: nodes start offset
-              in the scroll direction and animate to 0 so pieces visually move. */}
+          {/* Piece nodes — one per type, count badge for duplicates. */}
           <Animated.View
             pointerEvents="box-none"
             style={{ transform: [{ translateY: scrollOffsetAnim }] }}
@@ -415,7 +484,7 @@ export default function ArcWheel({
             </TouchableOpacity>
           )}
 
-          {/* Dismiss handle — 3 dots on the inward face hints at horizontal swipe */}
+          {/* Dismiss handle — 3 dots on the inward face */}
           <View
             style={[
               styles.dismissHandle,
@@ -589,8 +658,7 @@ const CORNER_SIZE = 6;
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
+    top: 0, bottom: 0,
     width: WHEEL_WIDTH,
     justifyContent: 'center',
     zIndex: 10,
@@ -599,21 +667,15 @@ const styles = StyleSheet.create({
   containerLeft: { left: 0 },
 
   recallStrip: {
-    position: 'absolute',
-    top: '30%',
-    height: '40%',
-    width: RECALL_STRIP_W,
-    backgroundColor: 'rgba(74,158,255,0.25)',
-    borderRadius: 3,
+    position: 'absolute', top: '30%', height: '40%', width: RECALL_STRIP_W,
+    backgroundColor: 'rgba(74,158,255,0.25)', borderRadius: 3,
   },
   recallStripRight: { right: 0 },
   recallStripLeft: { left: 0 },
 
   pill: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    alignItems: 'center', justifyContent: 'center',
+    paddingVertical: 12, paddingHorizontal: 8,
     backgroundColor: 'rgba(6,10,20,0.85)',
     borderRadius: 36,
     borderWidth: 1,
@@ -623,41 +685,23 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 
+  expandBtn: {
+    position: 'absolute', top: 4, alignSelf: 'center',
+    flexDirection: 'row', gap: 3, padding: 6, zIndex: 2,
+  },
+  expandDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(74,158,255,0.6)' },
+
   nodeWrapper: {},
+  node: { borderRadius: 12, alignItems: 'center', justifyContent: 'center', position: 'relative' },
+  nodeLabel: { fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5, marginTop: 2, textAlign: 'center' },
 
-  node: {
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-
-  nodeLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 7,
-    letterSpacing: 0.5,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-
-  // Count badge for grouped nodes (top-right corner of the node).
   countBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: 'absolute', top: -5, right: -5,
+    minWidth: 16, height: 16, paddingHorizontal: 3, borderRadius: 8,
+    borderWidth: 1, backgroundColor: 'rgba(6,10,20,0.95)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  countBadgeText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: Colors.void,
-  },
+  countBadgeText: { fontFamily: Fonts.spaceMono, fontSize: 9, fontWeight: '700' },
 
   emptyState: {
     height: WHEEL_H,
@@ -705,24 +749,38 @@ const styles = StyleSheet.create({
   },
 
   // Corner brackets for selected piece
-  cornerTL: {
-    position: 'absolute', top: -1, left: -1,
-    width: CORNER_SIZE, height: CORNER_SIZE,
-    borderTopWidth: 2, borderLeftWidth: 2,
+  cornerTL: { position: 'absolute', top: -1, left: -1, width: CORNER_SIZE, height: CORNER_SIZE, borderTopWidth: 2, borderLeftWidth: 2 },
+  cornerTR: { position: 'absolute', top: -1, right: -1, width: CORNER_SIZE, height: CORNER_SIZE, borderTopWidth: 2, borderRightWidth: 2 },
+  cornerBL: { position: 'absolute', bottom: -1, left: -1, width: CORNER_SIZE, height: CORNER_SIZE, borderBottomWidth: 2, borderLeftWidth: 2 },
+  cornerBR: { position: 'absolute', bottom: -1, right: -1, width: CORNER_SIZE, height: CORNER_SIZE, borderBottomWidth: 2, borderRightWidth: 2 },
+
+  // ── Overview (expanded) ──
+  overviewPanel: {
+    position: 'absolute', top: 0, bottom: 0, width: 150,
+    backgroundColor: 'rgba(6,10,20,0.97)',
+    borderColor: 'rgba(74,158,255,0.2)',
+    paddingTop: 12,
   },
-  cornerTR: {
-    position: 'absolute', top: -1, right: -1,
-    width: CORNER_SIZE, height: CORNER_SIZE,
-    borderTopWidth: 2, borderRightWidth: 2,
+  overviewRight: { right: 0, borderLeftWidth: 1 },
+  overviewLeft: { left: 0, borderRightWidth: 1 },
+  overviewClose: { paddingHorizontal: 12, paddingVertical: 8, alignSelf: 'flex-end' },
+  overviewCloseText: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, letterSpacing: 1.5 },
+  overviewScroll: { paddingHorizontal: 8, paddingBottom: 24, gap: 4 },
+  overviewSection: { marginBottom: 10 },
+  overviewHeader: {
+    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim,
+    letterSpacing: 2, marginBottom: 4, marginLeft: 4,
   },
-  cornerBL: {
-    position: 'absolute', bottom: -1, left: -1,
-    width: CORNER_SIZE, height: CORNER_SIZE,
-    borderBottomWidth: 2, borderLeftWidth: 2,
+  overviewItem: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 6, paddingHorizontal: 6,
+    borderWidth: 1, borderRadius: 8, marginBottom: 4,
+    backgroundColor: 'rgba(8,14,28,0.8)',
   },
-  cornerBR: {
-    position: 'absolute', bottom: -1, right: -1,
-    width: CORNER_SIZE, height: CORNER_SIZE,
-    borderBottomWidth: 2, borderRightWidth: 2,
+  overviewIcon: {
+    width: 32, height: 32, borderRadius: 6, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
+  overviewLabel: { flex: 1, fontFamily: Fonts.spaceMono, fontSize: 10, letterSpacing: 0.5 },
+  overviewCount: { fontFamily: Fonts.spaceMono, fontSize: 11, fontWeight: '700' },
 });
