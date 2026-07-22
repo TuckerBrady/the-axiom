@@ -9,6 +9,8 @@ import {
   arcWheelSortKey,
   NIBBLE_PRICE,
 } from '../game/piecePrices';
+import { useCodexStore } from './codexStore';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,13 +90,18 @@ function newInventoryId(): string {
   return `inv-${++inventoryCounter}`;
 }
 
-function buildPieceTypesForLevel(level: LevelDefinition): PieceType[] {
-  // All physics and protocol types that have a price are candidates.
-  // The store shows what the level makes available — currently all known
-  // purchasable types (codex gating is applied at the UI layer).
-  return [...PHYSICS_PIECE_TYPES, ...PROTOCOL_PIECE_TYPES].filter(
-    pt => (PIECE_PRICES[pt] ?? 0) > 0 && !level.availablePieces.includes(pt),
-  );
+function buildPieceTypesForLevel(
+  level: LevelDefinition,
+  discoveredIds: string[],
+): PieceType[] {
+  // Only offer pieces the Engineer has already discovered (collected in the Codex).
+  // Dev/testflight builds bypass the gate so testers see the full catalogue.
+  return [...PHYSICS_PIECE_TYPES, ...PROTOCOL_PIECE_TYPES].filter(pt => {
+    if ((PIECE_PRICES[pt] ?? 0) === 0) return false;          // no price → not buyable
+    if (level.availablePieces.includes(pt)) return false;     // already in base set
+    if (!SHOW_DEV_TOOLS && !discoveredIds.includes(pt)) return false; // not yet discovered
+    return true;
+  });
 }
 
 function buildInventoryFromLevel(
@@ -168,7 +175,8 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   initRequisition: (level, discipline) => {
     const creditBudget = level.creditBudget ?? 0;
-    const purchasable = buildPieceTypesForLevel(level);
+    const discoveredIds = useCodexStore.getState().discoveredIds;
+    const purchasable = buildPieceTypesForLevel(level, discoveredIds);
     set({
       phase: creditBudget > 0 ? 'requisition' : 'placement',
       requisition: {

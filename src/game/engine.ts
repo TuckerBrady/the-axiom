@@ -757,6 +757,26 @@ export function resetRunState(arg: PlacedPiece[] | MachineState): void {
 }
 
 /**
+ * The Latch tap-cycle (REQ-LATCH-MODE-1): write -> read -> delay -> write.
+ * A tapped Latch with no mode set is treated as 'write' (the deterministic
+ * default), so the first tap advances it to 'read'. The third mode, 'delay'
+ * (D flip-flop), is the cross-pulse memory required by K1-9/K1-10 and is
+ * unreachable without this three-state cycle.
+ */
+export function nextLatchMode(
+  mode: PlacedPiece['latchMode'],
+): 'write' | 'read' | 'delay' {
+  switch (mode ?? 'write') {
+    case 'write':
+      return 'read';
+    case 'read':
+      return 'delay';
+    default:
+      return 'write';
+  }
+}
+
+/**
  * Resolve a run state's `pieceId` to the piece TYPE used for requiredPieces
  * matching (REQ-REQPIECES-MAP-1, SPEC_KEPLER_ENGINE.md §3.4).
  *
@@ -801,4 +821,25 @@ export function evaluateRequiredPieces(
 
   if (missing.length === 0) return { result: 'satisfied' };
   return { result: 'requiredPiecesNotEngaged', missing };
+}
+
+/**
+ * Evaluate the minPieces hard floor: a completing run must engage at least
+ * `level.minPieces` player-placed pieces. Pre-placed pieces (Source, Terminal,
+ * Resonator, etc.) are excluded, as are pieces that never fired during the run.
+ * Pushes the Engineer toward elaborate machines rather than minimal wires.
+ *
+ * Returns the active count, the required floor, and whether the floor is met.
+ * A level with no minPieces (undefined or <= 0) always returns met: true.
+ */
+export function evaluateMinPieces(
+  level: LevelDefinition,
+  placedPieces: PlacedPiece[],
+): { met: boolean; active: number; required: number } {
+  const active = placedPieces.filter(
+    p => !p.isPrePlaced && p.firedDuringRun === true,
+  ).length;
+  const required = level.minPieces ?? 0;
+  if (required <= 0) return { met: true, active, required: 0 };
+  return { met: active >= required, active, required };
 }

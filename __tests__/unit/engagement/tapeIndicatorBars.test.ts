@@ -130,20 +130,20 @@ describe('TapeIndicatorBarState', () => {
     expect(barState.value.outIndex).toBeNull();
   });
 
-  it('Transmitter interaction no longer moves the OUT bar (deferred to arrival)', async () => {
+  it('Transmitter interaction moves the OUT bar to the current pulse (fill at Transmitter)', async () => {
     const { ctx, barState } = buildCtx();
     ctx.currentPulseRef.current = 0;
     await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
-    expect(barState.value.outIndex).toBeNull();
-  });
-
-  it('Terminal interaction sets outIndex to the current pulse on arrival', () => {
-    const { ctx, barState } = buildCtx();
-    ctx.currentPulseRef.current = 0;
-    runTerminalInteraction(ctx, step('terminal', 'p-term', true));
     expect(barState.value.outIndex).toBe(0);
     expect(barState.value.inIndex).toBeNull();
     expect(barState.value.trailIndex).toBeNull();
+  });
+
+  it('Terminal interaction no longer moves the OUT bar (fill moved to the Transmitter)', () => {
+    const { ctx, barState } = buildCtx();
+    ctx.currentPulseRef.current = 0;
+    runTerminalInteraction(ctx, step('terminal', 'p-term', true));
+    expect(barState.value.outIndex).toBeNull();
   });
 
   it('resetting to TAPE_BAR_INITIAL clears all indices', () => {

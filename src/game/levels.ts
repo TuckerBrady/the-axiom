@@ -154,6 +154,15 @@ export const levelA1_1: LevelDefinition = {
       eyeState: 'blue',
       message: 'One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it.',
     },
+    {
+      // Final beat: the Spec Sheet (job tasking / requirements) lives on the HUD
+      // info button. Replaces the old standalone SpecSheetHook card — this is now
+      // the last thing COGS shows before the Engineer begins. (SE-TM-033.)
+      id: 'spec-sheet',
+      targetRef: 'specSheetBtn',
+      eyeState: 'blue',
+      message: 'I am routing the job’s tasking to your console. The specifications were always on file. You simply had no reason to read them. Now you do. Top right, when you want them.',
+    },
   ],
 };
 
@@ -745,35 +754,54 @@ export const levelK1_1: LevelDefinition = {
   cogsLine: 'Kepler Belt. Former mining corridor, mostly decommissioned. Some salvage activity remains. We have been here before. The charts confirm it.',
   eyeState: 'blue',
   gridWidth: 8, gridHeight: 6,
-  prePlacedPieces: [prePlaced('source', 1, 2), prePlaced('terminal', 6, 4)],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
+  prePlacedPieces: [
+    prePlaced('source', 1, 2),
+    prePlaced('terminal', 6, 4),
+    // Collapsed corridor cells (Kepler mining debris). They block the naive
+    // straight-across run on row 2 and the lazy single-bend drop, forcing the
+    // Engineer to route the Z-path beneath them. First lesson in building
+    // around terrain — the soul of the game starts here.
+    prePlaced('obstacle', 3, 2),
+    prePlaced('obstacle', 4, 3),
+  ],
+  // 4 conveyors + 2 gears = the 6-piece Z-solution exactly (SPEC_KEPLER_REBUILD_v3
+  // K1-1: CODE's 3 conveyors made the board unsolvable at Manhattan distance 7).
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
   dataTrail: { cells: [], headPosition: 0 },
-  objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 30,
+  // Two Gear-driven direction changes (A1-4 model): a one-bend dash reaching the
+  // Terminal is not enough. Mirrored in topologyRequirements for the Spec Sheet.
+  objectives: [{ type: 'reach_output' }, { type: 'min_direction_changes', count: 2 }],
+  topologyRequirements: { minDirectionChanges: 2 },
+  optimalPieces: 6, budget: 40,
   freeTapes: ['IN'],
   purchasableTapes: ['TRAIL', 'OUT'],
   creditBudget: 75,
   depthCeiling: 10,
   baseReward: 100,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  // No Protocol pieces on this level — protocolPrecision removed per v3 spec.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity'],
   computationalGoal: 'Route signal from input to output with two direction changes. No placement highlights — the player decides where pieces go.',
   conceptTaught: 'Independent routing (no placement highlights — player chooses freely).',
   prerequisiteConcept: 'All Axiom sector concepts.',
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
+  // Onboarding runs in the placement phase (after the REQUISITION store closes),
+  // so it targets the Arc Wheel and the board. Introduces the wheel, explains why
+  // it replaced the tray, teaches the drag gesture, and restates forfeiture.
+  // PROPOSED copy — pending Tucker sign-off.
   tutorialSteps: [
+    { id: 'wheel-intro', targetRef: 'arcWheelMain', eyeState: 'amber',
+      message: 'Requisitions complete. The parts you ordered are loaded here — on the wheel. Out here the manifest is not a tray along the bottom of the board anymore. It is this. One piece at center at a time.' },
+    { id: 'wheel-scroll', targetRef: 'arcWheelMain', eyeState: 'blue',
+      message: 'Swipe the wheel to bring a piece to the center. The one in the middle is the one you are holding. You will not see every part at once — that is the trade for the room it gives the board.' },
+    { id: 'wheel-place', targetRef: 'arcWheelMain', eyeState: 'blue',
+      message: 'Press and hold a piece, then drag it onto the board and release. No more tapping the grid. The wheel hands the piece to you directly.' },
+    { id: 'wheel-forfeit', targetRef: 'arcWheelMain', eyeState: 'amber',
+      message: 'Anything left on the wheel when the mission ends is forfeited — used or not. Requisition what the machine needs. Nothing more.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps.' },
-    { id: 'store-intro', targetRef: 'tray', eyeState: 'amber',
-      message: 'The supply manifest is below. Swipe up for the full REQUISITION store.' },
-    { id: 'store-tabs', targetRef: 'tray', eyeState: 'amber',
-      message: 'Three departments. Physics components. Protocol modules. Infrastructure capability. Budget accordingly.' },
-    { id: 'store-forfeiture', targetRef: 'tray', eyeState: 'amber',
-      message: 'Unused requisitioned components are forfeited on mission completion or failure. Requisition what is needed. Nothing more.' },
-    { id: 'store-window', targetRef: 'tray', eyeState: 'amber',
-      message: 'All requisitions must be placed before the mission begins. Plan the build. Then build the plan.' },
   ],
 };
 
@@ -790,7 +818,12 @@ export const levelK1_2: LevelDefinition = {
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0], expectedOutput: [1, 0, 1, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 35,
+  optimalPieces: 5, budget: 80,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 80,
+  depthCeiling: 10,
+  baseReward: 100,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Pass each input tape value through to output unchanged using Scanner to write and Transmitter to read.',
   conceptTaught: 'Dynamic tape processing (review of Scanner + Transmitter in non-uniform context).',
@@ -814,12 +847,17 @@ export const levelK1_3: LevelDefinition = {
   cogsLine: 'Junction 7 is a routing bottleneck. Eleven settlements feed through this point. The original engineers underestimated the load. It is not the last time that has happened out here.',
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 7,
-  prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 3), prePlaced('latch', 4, 3)],
+  prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('latch', 4, 3, { latchMode: 'write' }), prePlaced('terminal', 8, 3)],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'transmitter', 'configNode', 'gear'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 5, budget: 40,
+  optimalPieces: 5, budget: 100,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 100,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Store the first input value in a Latch (write mode), then use that stored value to gate subsequent pulses via Config Node reading the Latch output (read mode).',
   conceptTaught: 'Latch (write and read as separate operations, memory persists across pulses).',
@@ -842,24 +880,55 @@ pieceCounter = 830;
 
 export const levelK1_4: LevelDefinition = {
   id: 'K1-4', name: 'Mining Platform Alpha', sector: 'kepler',
-  description: 'Output each input value using Latch as dynamic per-pulse memory.',
+  // PROPOSED copy (pending Tucker sign-off). Fun-pass rebuild: was an identity
+  // pass-through (output === input — a wire), which made the Latch and Config Node
+  // decorative and the level un-failable. Now a true BLANK-masking gate: the relay
+  // only forwards the ACTIVE pulses (1s); idle pulses (0s) do not propagate and
+  // leave the output dark. Output visibly differs from input, and the gate is
+  // load-bearing — omit the Config and the 0-pulses leak through as literal 0s and
+  // the relay fails. (Same masking shape as A1-7, but the gate here reads the
+  // LATCH's carried value, not the Scanner trail — reinforcing K1-3's Latch.)
+  description: 'Relay only the active pulses. The Latch stores each pulse and a Config gate forwards it only when it carries signal; idle pulses stay dark.',
   cogsLine: 'Mining Platform Alpha has been decommissioned for six years. The colonists use it as a signal relay. It was not designed for this purpose. It is doing the job anyway.',
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 7,
   prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 3)],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'configNode', 'transmitter', 'gear', 'gear'],
+  // Scanner removed: the Latch (WRITE) carries the pulse value into the Config gate
+  // directly (carriesLatchValue), so the masking solution is Latch -> Config ->
+  // Transmitter + routing. Verified solvable in keplerK14Masking.test.ts.
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'latch', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, 0, 0, 1, 1, 0],
+  // BLANK-masking live gate (SE-TM-003): Config configValue=1 forwards the three
+  // 1-pulses and blocks the three 0-pulses, which produce no output and stay BLANK.
+  // expectedOutput is full-length and BLANK-aware — exact match against outputTape
+  // is the success condition. A naive build that omits the gate writes literal 0s
+  // on the idle pulses and fails (0 !== BLANK). Proven in keplerK14Masking.test.ts.
+  inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, BLANK, BLANK, 1, 1, BLANK],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 6, budget: 45,
+  optimalPieces: 6, budget: 130,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 110,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
-  consequence: { cogsWarning: 'Pay attention to this one.', failureEffect: 'Mining Platform Alpha relay failure. Seven settlements lost communication for forty-eight hours.' },
-  computationalGoal: 'Output 1 when the input is 1, output 0 when the input is 0. The Latch stores each pulse value and the stored value gates a Config Node that controls whether the Transmitter fires.',
-  conceptTaught: 'Latch as dynamic per-pulse memory (write each pulse, read within same pulse for gating).',
-  prerequisiteConcept: 'Latch write/read, Config Node gating.',
-  tapeDesignRationale: 'Three consecutive same values (positions 1-2 and 3-4) test that the machine is not just alternating.',
+  consequence: {
+    cogsWarning: 'Mining Platform Alpha is carrying more than it was built to carry. If the relay drops, it does not fail quietly. The colonists routing through it lose their signal path before they know it is gone. I am stating the stakes once. Proceed.',
+    failureEffect: 'The platform relay dropped. Four settlements on the Alpha branch lost signal routing for the duration. They reverted to manual relay, the way they did before this ship arrived. No casualties logged. I am logging the interruption. They will have noticed it.',
+  },
+  computationalGoal: 'Forward only the active pulses. The Latch (write mode) stores each pulse value and carries it into a Config Node (configValue 1); the gate passes when the carried value is 1 so the Transmitter writes 1, and blocks on 0-pulses, which leave the output dark (BLANK).',
+  conceptTaught: 'Masking via Latch-carried gating: the output is a filtered subset of the input, not a faithful copy. The Config Node is load-bearing — without it the idle pulses leak through.',
+  prerequisiteConcept: 'Latch write/read (K1-3), Config Node gating, BLANK-masked output (A1-7).',
+  tapeDesignRationale: 'Mixed 1s and 0s with consecutive runs (1-2 and 3-4) force the machine to mask dynamically per pulse: a build that always passes writes 0s where BLANK is expected and fails. The 0-pulses must be dropped, not echoed.',
   difficultyBand: 'derivable',
   narrativeFrame: 'Decommissioned platform repurposed as signal relay. Failure affects colonist communication.',
+  // PROPOSED (pending in-game floor-solve sign-off): require the masking-gate
+  // architecture (Latch + Config Node) and floor the build at 5 active player
+  // pieces. availablePieces carries exactly 1 latch + 1 configNode, so both must
+  // be engaged; the verified masking solve is ~6 player pieces, so a floor of 5
+  // is safely achievable while still rejecting a minimal wire.
+  requiredPieces: [{ type: 'latch', count: 1 }, { type: 'configNode', count: 1 }],
+  minPieces: 5,
 };
 
 pieceCounter = 840;
@@ -871,11 +940,25 @@ export const levelK1_5: LevelDefinition = {
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 8, 4), prePlaced('splitter', 3, 4)],
+  // Pre-existing blown cells — the resupply chain's relay nodes are degraded
+  // hardware. Off the central corridor so the floor solve stays open; they shape
+  // the elaborate build, not block it. (First damaged-cell level per the spec.)
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'merger', 'scanner', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 0], expectedOutput: [1, 0, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 8, budget: 50,
+  // optimalPieces left at 8 pending a real floor-solve (SPEC_KEPLER_REBUILD_v3
+  // Open Question 13: V2 proposes 9, flags 8 as likely wrong). A programmatic
+  // solve is blocked by the Splitter magnet mechanic (connectedMagnetSides), so
+  // this is best confirmed by an in-game playthrough: the piece count that earns
+  // a clean solve is the floor. Do not lock 9 without that solve.
+  optimalPieces: 8, budget: 155,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 100,
+  depthCeiling: 10,
+  baseReward: 110,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
   computationalGoal: 'Signal splits into two paths via Splitter. Path A goes through a Config Node (passes when trail value is 1). Path B bypasses the gate. A Merger reconverges both paths. The bypass guarantees the signal always reaches output regardless of input value.',
   conceptTaught: 'Merger (OR logic, two paths converge to one).',
@@ -885,7 +968,10 @@ export const levelK1_5: LevelDefinition = {
   narrativeFrame: 'Resupply chain with four relay nodes, all degraded. Redundancy is the only option.',
   tutorialSteps: [
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'The resupply chain has four relay nodes. All degraded. One path may not be enough. The board splits the signal into two routes. Something downstream needs to bring them back together.' },
+      message: 'The resupply chain has four relay nodes. All degraded. Some cells on this board are already blown — scarred, unusable. Build around them. The board splits the signal into two routes; something downstream needs to bring them back together.' },
+    { id: 'splitter-collect', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'One input. Two outputs. The signal takes both routes at once. I never catalogued this one properly. Doing it now.',
+      codexEntryId: 'splitter' },
     { id: 'merger-collect', targetRef: 'boardGrid', eyeState: 'amber',
       message: 'Two inputs. One output. Either is sufficient. Logging this under redundancy infrastructure.',
       codexEntryId: 'merger' },
@@ -903,12 +989,19 @@ export const levelK1_6: LevelDefinition = {
   eyeState: 'amber',
   gridWidth: 11, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells (worn coordination hub, equipment three cycles overdue).
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'splitter', 'merger', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1], expectedOutput: [1, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
   optimalPieces: 11, budget: 55,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 120,
+  depthCeiling: 12,
+  baseReward: 120,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
   computationalGoal: 'Output each input value faithfully using stateful branching. Latch stores the current pulse value. Splitter creates two paths with Config Node gating one. Merger reconverges. The machine must handle both 0 and 1 inputs correctly across all pulses.',
   conceptTaught: 'Latch + Merger combined. Stateful branching. A single stored value influencing multiple decisions.',
@@ -916,6 +1009,12 @@ export const levelK1_6: LevelDefinition = {
   tapeDesignRationale: 'Mixed values with consecutive repeats test that the machine responds dynamically per pulse, not via hardcoding.',
   difficultyBand: 'abstract',
   narrativeFrame: 'Hub coordinating resupply for 31 settlements. Running on equipment three cycles past replacement.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Colonist Hub. Thirty-one settlements depend on what gets built here. Nothing on this board is new. The Latch holds the value. The Splitter forks the path. The Merger brings it back. The work is in combining them.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Hub will not accept a straight line. A Splitter and a Merger are both required, and both must carry signal. Build the branch. Then run it.' },
+  ],
 };
 
 pieceCounter = 860;
@@ -927,11 +1026,18 @@ export const levelK1_7: LevelDefinition = {
   eyeState: 'amber',
   gridWidth: 10, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 6), prePlaced('bridge', 5, 5), prePlaced('splitter', 4, 3)],
+  // Pre-existing blown cell — residual damage on the dead ore-processing relay.
+  damagedCells: [{ gridX: 4, gridY: 5 }, { gridX: 7, gridY: 2 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'transmitter', 'gear', 'gear', 'gear', 'configNode'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1], expectedOutput: [1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 7, budget: 55,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 120,
+  depthCeiling: 12,
+  baseReward: 120,
   scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
   computationalGoal: 'Two independent signal processes share the board. Path A carries the primary signal. Path B is a monitoring loop. The Bridge allows both paths to cross without interfering.',
   conceptTaught: 'Bridge (two independent paths sharing one cell).',
@@ -959,70 +1065,152 @@ export const levelK1_8: LevelDefinition = {
   eyeState: 'blue',
   gridWidth: 11, gridHeight: 8,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells — the transit gate has not been maintained in years.
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 6, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'bridge', 'splitter', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'merger'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 0, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'bridge', count: 1 }, { type: 'latch', count: 1 }, { type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
   optimalPieces: 12, budget: 60,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  consequence: { cogsWarning: 'This mission matters more than most. That is all.', failureEffect: 'Transit gate failure. All corridor traffic suspended for seventy-two hours. The transit authority has escalated the negligence inquiry.' },
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 140,
+  depthCeiling: 14,
+  baseReward: 140,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): the live engine hardcodes the
+  // Speed component to 0, so listing it surfaced a category that always scored 0.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  consequence: {
+    cogsWarning: 'The transit gate sorts everything moving through this corridor, including traffic that stopped existing years ago. If the routing logic fails, live traffic gets queued behind ghosts. Nothing collides. Everything waits. Hold the routing clean. Proceed.',
+    failureEffect: 'The gate routing collapsed back to its default table. Live corridor traffic queued behind transit records for ships that no longer exist. The backlog cleared on its own in time. No vessel was lost. The gate kept faithfully directing the dead. I have left that observation in the log without further comment.',
+  },
   computationalGoal: 'Route signal through a path that crosses itself via Bridge, with Latch storing state that determines the output value.',
   conceptTaught: 'Bridge + Latch integration under pressure. Crossing paths and state maintenance in a single machine.',
   prerequisiteConcept: 'Bridge, Latch, Config Node, Merger.',
   tapeDesignRationale: 'Eight pulses with mixed values and consecutive runs test both state persistence and correct gating under pressure.',
   difficultyBand: 'abstract',
   narrativeFrame: 'Transit gate routing ghost traffic. Regulating flow for the entire corridor. Failure disrupts all traffic.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The transit gate. Bridge and Latch in one machine. Two paths cross without touching, and a stored value decides what passes. Every piece here has been used before. Not together. Not under this much load.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Bridge, Latch, Splitter, Merger. All four are required. The gate routes ghost traffic if any of them is missing. Build the full architecture. Hold the routing clean.' },
+  ],
 };
 
 pieceCounter = 880;
 
 export const levelK1_9: LevelDefinition = {
   id: 'K1-9', name: 'The Narrows', sector: 'kepler',
-  description: 'XOR of current input and previously stored Latch value.',
+  // Canonical = SPEC_KEPLER_REBUILD_v3 K1-9: a one-pulse shift register
+  // (output[N] = input[N-1], output[0] = 0), realized with a Latch in DELAY mode.
+  // The prior XOR design ([0,1,0,1,1,1]) was rejected by V2 as unsolvable with
+  // Kepler pieces. The engine's DELAY mode produces this output exactly
+  // (see __tests__/unit/kepler-engine/latchDelay.test.ts).
+  description: 'Output each pulse the value of the previous pulse — a one-pulse delay.',
   cogsLine: 'The Narrows is the densest section of the corridor. Maximum signal interference. The colonists call it The Narrows because of what it does to communication. It has another name on older charts. I will use the current one.',
   eyeState: 'blue',
   gridWidth: 11, gridHeight: 9,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 9, 4)],
+  // Pre-existing blown cells — the Narrows is the most interference-damaged stretch.
+  damagedCells: [{ gridX: 5, gridY: 7 }, { gridX: 7, gridY: 2 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'latch', 'splitter', 'merger', 'configNode', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'bridge'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [0, 1, 1, 0, 1, 0], expectedOutput: [0, 1, 0, 1, 1, 1],
+  inputTape: [0, 1, 1, 0, 1, 0], expectedOutput: [0, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 11, budget: 70,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  computationalGoal: 'Output for each pulse is the XOR of the current input and the previously stored Latch value. The machine writes the current input to the Latch after using the previous stored value.',
-  conceptTaught: 'Synthesis. Dynamic memory across pulses where the stored value changes each pulse.',
-  prerequisiteConcept: 'All Kepler pieces and concepts.',
-  tapeDesignRationale: 'XOR expected output differs from input on several pulses, proving the machine compares against stored state rather than passing through.',
+  optimalPieces: 7, budget: 50,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 150,
+  depthCeiling: 16,
+  baseReward: 120,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): Speed scores 0 in the live engine.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  computationalGoal: 'output[N] = input[N-1], a one-pulse shift register; output[0] = 0 (nothing stored yet). A Latch in DELAY mode emits the previous pulse value while capturing the current one.',
+  conceptTaught: 'Solution vs algorithm — the machine must be correct for any valid input, not just the shown tape. Cross-pulse memory via the Latch DELAY mode.',
+  prerequisiteConcept: 'All Kepler pieces and concepts; stateful multi-decision machines (K1-7/K1-8).',
+  tapeDesignRationale: 'The shifted expected output differs from the input on every pulse boundary, forcing a true one-pulse memory rather than a pass-through or a hardcode.',
   difficultyBand: 'abstract',
   narrativeFrame: 'The densest section of the corridor. Maximum signal interference. The machine must compare each new signal against what came before.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Narrows. Maximum interference. The output here is not the current signal. It is the one before it. Each pulse carries forward the value of the pulse that preceded it. A one-step delay.' },
+    { id: 'latch-delay', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'The Latch has a third mode. Write holds a value. Read returns it. Delay does both at once — it hands back what it held last, then stores what just arrived. Tap the Latch through to Delay.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The first pulse outputs nothing. There is no previous value yet. After that, every output is the input that came before it. Build the delay. The Narrows remembers by one.' },
+  ],
 };
 
 pieceCounter = 890;
 
 export const levelK1_10: LevelDefinition = {
   id: 'K1-10', name: 'Central Hub', sector: 'kepler',
-  description: 'Running count machine: output 1 when two or more consecutive 1s seen.',
+  // PROPOSED copy (pending Tucker sign-off). Fun-pass rebuild + CRITICAL BUG FIX:
+  // the old boss was a temporal-AND consecutive-1s detector (output [0,1,0,0,1,1,0,
+  // 0,0,1] with literal 0s). That is UNSOLVABLE with the Kepler piece set — there is
+  // no AND combinator (Merger is OR-only) and no NOT (Inverter withheld), and a
+  // blocked pulse produces BLANK, never 0. Because K1-10 gates the sector
+  // (requireThreeStars), the entire Kepler sector was un-completable. Re-scoped to
+  // temporal-OR (out[N] = in[N] OR in[N-1]), the computable dual: it synthesizes the
+  // sector's pieces (Splitter forks the signal, a DELAY Latch carries the previous
+  // pulse, a Merger ORs them) and produces real 0/1 output. Verified solvable in
+  // keplerK110TemporalOr.test.ts.
+  description: 'Hold the signal. Output 1 if the current pulse OR the one before it carried signal — the routing must not drop a pulse the instant it ends.',
   cogsLine: 'The Central Hub. Everything in this corridor routes through here. If it holds, the corridor holds. Three hundred thousand people depend on infrastructure that runs through a single point. That is not good design. It is, however, the current situation.',
   eyeState: 'amber',
   gridWidth: 12, gridHeight: 9,
   prePlacedPieces: [prePlaced('source', 1, 4), prePlaced('terminal', 10, 4)],
+  // Pre-existing blown cells — the Central Hub is failing infrastructure, the
+  // corridor's single point of failure. Scattered scarring on the largest board.
+  damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 7, gridY: 7 }, { gridX: 9, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'scanner', 'latch', 'latch', 'splitter', 'merger', 'configNode', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'gear', 'bridge'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [1, 1, 0, 1, 1, 1, 0, 0, 1, 1], expectedOutput: [0, 1, 0, 0, 1, 1, 0, 0, 0, 1],
+  // Temporal-OR: out[N] = in[N] OR in[N-1]; out[0] = in[0] (DELAY Latch emits 0 on
+  // the first pulse). Tape has isolated 1s and 0-runs so the output diverges from a
+  // pass-through (e.g. index 2/5: a 0 becomes 1 because the previous pulse was 1) and
+  // a hardcode fails. A 0 only survives where two consecutive 0s occur. Verified by
+  // keplerK110TemporalOr.test.ts.
+  inputTape: [0, 1, 0, 0, 1, 0, 0, 0, 1, 1], expectedOutput: [0, 1, 1, 0, 1, 1, 0, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 13, budget: 80,
-  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus'],
-  consequence: { cogsWarning: 'Do not fail here. I will not elaborate.', failureEffect: 'Central Hub failure. The corridor is offline. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel.', requireThreeStars: true },
-  computationalGoal: 'Implement a running count machine. Output 1 if two or more consecutive 1s have been seen in the input (including the current pulse). Otherwise output 0.',
-  conceptTaught: 'Full stateful computation. A machine that behaves differently on pulse N based on what happened on pulse N-1.',
-  prerequisiteConcept: 'All Kepler concepts mastered.',
-  tapeDesignRationale: 'Ten pulses with multiple runs of consecutive 1s, isolated 1s, and consecutive 0s test all state transitions of the consecutive detection algorithm.',
+  // The boss forces the full temporal-OR architecture (no degenerate wire solve).
+  requiredPieces: [{ type: 'splitter', count: 1 }, { type: 'latch', count: 1 }, { type: 'merger', count: 1 }],
+  // PROPOSED (pending in-game floor-solve sign-off): floor the build at 8 active
+  // player pieces — the full temporal-OR machine (Splitter + DELAY Latch + Merger
+  // + Transmitter plus bypass routing) on the 12-wide board. Matches the
+  // optimalPieces estimate below; revisit alongside the same in-game playthrough.
+  minPieces: 8,
+  // optimalPieces is the computational core (Splitter + DELAY Latch + Merger +
+  // Transmitter = 4) plus the bypass routing across a 12-wide board. Estimated 8
+  // pending an in-game floor-solve on the real magnet board (the Splitter needs >=2
+  // connected sides). Do not lock the 3-star threshold until that playthrough — this
+  // boss is requireThreeStars-gated, so an over-tight optimalPieces would re-block
+  // the sector. See [[kepler-engine-transform-constraints]].
+  optimalPieces: 8, budget: 80,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 180,
+  depthCeiling: 18,
+  baseReward: 150,
+  // speedBonus dropped (SPEC_KEPLER_REBUILD_v3 Q2): Speed scores 0 in the live engine.
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus'],
+  consequence: {
+    cogsWarning: 'The Central Hub is the corridor\'s single point of failure. There is no redundancy. If this routing does not hold, it does not degrade gracefully. It drops. Three hundred thousand people are downstream of the work you are about to do. I am not saying that to apply pressure. I am saying it because it is the situation, and you should have it before you begin. Proceed.',
+    failureEffect: 'The relay failure has been logged with the transit authority. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel. I would suggest we resolve the inquiry through competence rather than correspondence. The systems are repairable.',
+    requireThreeStars: true,
+  },
+  computationalGoal: 'Temporal-OR. Output 1 when the current pulse OR the immediately preceding pulse carried signal; output 0 only across two consecutive idle pulses. A Splitter forks the live signal, a Latch in Delay carries the previous pulse forward, and a Merger ORs the two paths into the Transmitter.',
+  conceptTaught: 'Kepler synthesis capstone: cross-pulse memory (Latch Delay) combined with parallel-path convergence (Splitter + Merger) into a single stateful machine.',
+  prerequisiteConcept: 'Latch Delay (K1-9), Splitter + Merger (K1-5/K1-6), all Kepler routing.',
+  tapeDesignRationale: 'Ten pulses with isolated 1s and 0-runs. The output diverges from the input wherever a 1 is followed by a 0 (the 0 becomes 1, carried by the previous pulse), so a pass-through or a hardcode fails. A 0 survives only where two idle pulses sit adjacent.',
   difficultyBand: 'abstract',
-  narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure.',
+  narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure. The routing must not drop a signal the instant a pulse ends.',
   tutorialSteps: [
-    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'The Central Hub. Twelve columns. The largest board in this sector. The machine must compare each incoming pulse against what the Latch stored from the previous one. All pieces are available. Nothing here has not been seen before.' },
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'The Central Hub. Twelve columns. The largest board in this sector. The routing here cannot drop a signal the moment a pulse ends — it has to hold one step. Everything you have learned in this corridor is on the manifest. Nothing here is new.' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Output carries signal if this pulse OR the one before it did. Split the signal: one path forward, one path through a Latch in Delay to hold the previous pulse. A Merger brings them back together. Three hundred thousand people are downstream. Build it correctly.' },
   ],
 };
 
@@ -1078,6 +1266,53 @@ export const repairHyperdrive: LevelDefinition = {
   systemRepaired: 'Propulsion Core',
 };
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTOR 2: NOVA FRINGE
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// 10 levels (NF-1..NF-10). Theme: input-independence + logic gates. Tape
+// visibility reduces across the sector. New pieces: Inverter (built), Capacitor,
+// Confluence Node (AND), Divergence Gate (XOR). See SPEC_NOVA_FRINGE.md.
+// NF-3+ are blocked on the three missing pieces; NF-1/NF-2 use the Inverter only.
+
+pieceCounter = 920;
+
+export const levelNF_1: LevelDefinition = {
+  id: 'NF-1', name: 'Outer Marker', sector: 'nova',
+  description: 'Output the logical inverse of each input value using an Inverter.',
+  cogsLine: 'Nova Fringe. This is where the official charts stop. We have supplementary charts. They are not official. I do not know who made them. They are accurate.',
+  eyeState: 'blue',
+  gridWidth: 9, gridHeight: 7,
+  // Offset Source/Terminal (rows 2 -> 4) so the path bends — not a straight line.
+  prePlacedPieces: [prePlaced('source', 1, 2), prePlaced('terminal', 7, 4)],
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'inverter', 'transmitter', 'gear', 'gear', 'gear'],
+  dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
+  inputTape: [1, 0, 1, 1, 0], expectedOutput: [0, 1, 0, 0, 1],
+  objectives: [{ type: 'reach_output' }],
+  optimalPieces: 7, budget: 90,
+  freeTapes: ['IN', 'TRAIL', 'OUT'],
+  purchasableTapes: [],
+  creditBudget: 90,
+  depthCeiling: 10,
+  baseReward: 110,
+  scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'protocolPrecision'],
+  computationalGoal: 'output[N] = NOT input[N]. The Inverter flips each carried bit; the Transmitter writes the inverse.',
+  conceptTaught: 'Logical negation (Inverter) — transformation as computation, distinct from routing.',
+  prerequisiteConcept: 'Scanner/Transmitter pipeline (Axiom); stateful machines (Kepler).',
+  tapeDesignRationale: 'Mixed 1s and 0s prove the machine flips every bit rather than emitting a constant; the inverse differs from the input on every pulse.',
+  difficultyBand: 'intuitive',
+  narrativeFrame: 'Arrival past the official charts. The first repair in unregistered space.',
+  tutorialSteps: [
+    { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Nova Fringe. The objective here is not to pass the signal through. It is to flip it. Every 1 becomes a 0. Every 0 becomes a 1. The board has a piece that does exactly that.' },
+    { id: 'inverter-collect', targetRef: 'boardGrid', eyeState: 'amber',
+      message: 'A logic gate. It does not decide what the correct value is. It only knows what the current value is not. Cataloguing it.',
+      codexEntryId: 'inverter' },
+    { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'The Inverter flips the bit. The Transmitter writes the inverse. Route the path from the Source through both to the Terminal.' },
+  ],
+};
+
 // ─── All levels ───────────────────────────────────────────────────────────────
 
 export const AXIOM_LEVELS: LevelDefinition[] = [
@@ -1090,9 +1325,13 @@ export const KEPLER_LEVELS: LevelDefinition[] = [
   levelK1_6, levelK1_7, levelK1_8, levelK1_9, levelK1_10,
 ];
 
+// Nova Fringe (Sector 2) — under construction; NF-1 (Inverter) is the first
+// playable level. NF-2..NF-10 land as the three missing pieces are built.
+export const NOVA_LEVELS: LevelDefinition[] = [levelNF_1];
+
 export const REPAIR_LEVELS: LevelDefinition[] = [repairPropulsionSurge, repairHyperdrive];
 
-export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS, ...REPAIR_LEVELS];
+export const ALL_LEVELS: LevelDefinition[] = [...AXIOM_LEVELS, ...KEPLER_LEVELS, ...NOVA_LEVELS, ...REPAIR_LEVELS];
 
 export function getLevelById(id: string): LevelDefinition | undefined {
   return ALL_LEVELS.find(l => l.id === id);

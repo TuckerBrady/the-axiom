@@ -182,6 +182,12 @@ export type LevelDefinition = {
   // Kepler mechanics — not used in K1-1 but type is defined here
   damagedCells?: Array<{ gridX: number; gridY: number }>;
   requiredPieces?: Array<{ type: string; count: number; reason?: string }>;
+  // Hard floor on the number of player-placed pieces that fire during a run. A
+  // completing run with fewer active player pieces is rejected (consumes a
+  // life), pushing the Engineer toward elaborate machines rather than minimal
+  // wires. Distinct from optimalPieces (a depth-ceiling/target seed, not an
+  // efficiency cap).
+  minPieces?: number;
   // Board-topology requirements (SE-TM-035). Additive/documentary data the
   // Spec Sheet surfaces and the topology validator evaluates. Independent of
   // the output-tape comparator (SE-TM-001/002) — a level may have a topology

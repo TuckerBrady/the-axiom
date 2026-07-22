@@ -1,4 +1,5 @@
 import { useRequisitionStore, buildInventoryForLevel } from '../../src/store/requisitionStore';
+import { useCodexStore } from '../../src/store/codexStore';
 import type { LevelDefinition } from '../../src/game/types';
 import { NIBBLE_PRICE } from '../../src/game/piecePrices';
 
@@ -209,6 +210,18 @@ describe('buildInventoryForLevel', () => {
     expect(inv.pieces.some(p => p.type === 'gear' && p.source === 'preAssigned')).toBe(true);
   });
 
+  it('stacks requisitioned copies on top of an included (pre-assigned) type', () => {
+    // Soul of the game: the Engineer buys MORE of a core piece that the level
+    // already includes for free. Both sets must land in the inventory.
+    const level = makeLevel({ availablePieces: ['conveyor', 'conveyor'] });
+    const purchases = [{ type: 'conveyor' as const, quantity: 2, unitPrice: 10, totalPrice: 20 }];
+    const inv = buildInventoryForLevel(level, purchases);
+    const conveyors = inv.pieces.filter(p => p.type === 'conveyor');
+    expect(conveyors).toHaveLength(4);
+    expect(conveyors.filter(p => p.source === 'preAssigned')).toHaveLength(2);
+    expect(conveyors.filter(p => p.source === 'requisitioned')).toHaveLength(2);
+  });
+
   it('includes requisitioned pieces from purchases', () => {
     const level = makeLevel({ availablePieces: [] });
     const purchases = [{ type: 'scanner' as const, quantity: 2, unitPrice: 20, totalPrice: 40 }];
@@ -241,6 +254,49 @@ describe('buildInventoryForLevel', () => {
     const ids = inv.pieces.map(p => p.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
+  });
+});
+
+describe('useRequisitionStore — codex discovery gating', () => {
+  beforeEach(() => {
+    // Reset codex to empty between tests.
+    useCodexStore.setState({ discoveredIds: [] });
+  });
+
+  it('excludes undiscovered piece types from the purchasable list', () => {
+    // In a prod build (SHOW_DEV_TOOLS = false in test env) only discovered
+    // pieces appear in the requisition store. A fresh codex => nothing purchasable.
+    const level = makeLevel({ availablePieces: ['conveyor', 'gear'], creditBudget: 100 });
+    useRequisitionStore.getState().initRequisition(level, null);
+    // No discoveries → _availablePieceTypes should be empty.
+    expect(useRequisitionStore.getState()._availablePieceTypes).toHaveLength(0);
+  });
+
+  it('includes a piece type once it is discovered in the Codex', () => {
+    useCodexStore.getState().markDiscovered('latch');
+    const level = makeLevel({ availablePieces: ['conveyor'], creditBudget: 100 });
+    useRequisitionStore.getState().initRequisition(level, null);
+    const types = useRequisitionStore.getState()._availablePieceTypes;
+    expect(types).toContain('latch');
+  });
+
+  it('does not surface a piece that is already in the base set even if discovered', () => {
+    useCodexStore.getState().markDiscovered('conveyor');
+    const level = makeLevel({ availablePieces: ['conveyor'], creditBudget: 100 });
+    useRequisitionStore.getState().initRequisition(level, null);
+    // conveyor is pre-assigned; still excluded from the purchasable list.
+    const types = useRequisitionStore.getState()._availablePieceTypes;
+    expect(types).not.toContain('conveyor');
+  });
+
+  it('surfaces multiple discovered types at once', () => {
+    useCodexStore.getState().markDiscovered('latch');
+    useCodexStore.getState().markDiscovered('scanner');
+    const level = makeLevel({ availablePieces: ['conveyor'], creditBudget: 100 });
+    useRequisitionStore.getState().initRequisition(level, null);
+    const types = useRequisitionStore.getState()._availablePieceTypes;
+    expect(types).toContain('latch');
+    expect(types).toContain('scanner');
   });
 });
 

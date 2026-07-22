@@ -16,6 +16,7 @@ import {
   executeMachine,
   autoConnectPhysicsPieces,
   getDefaultPorts,
+  nextLatchMode,
 } from '../../../src/game/engine';
 
 const DELAY: PlacedPiece['latchMode'] = 'delay';
@@ -63,7 +64,19 @@ function makeState(pieces: PlacedPiece[], overrides?: Partial<MachineState>): Ma
 // engine execution path, so it is encoded as a behavioral stub here.
 
 describe('Latch mode cycle (3.1.1)', () => {
-  it.todo('[REQ-LATCH-MODE-1] tapping a placed Latch cycles latchMode write -> read -> delay -> write');
+  it('[REQ-LATCH-MODE-1] nextLatchMode cycles write -> read -> delay -> write', () => {
+    expect(nextLatchMode('write')).toBe('read');
+    expect(nextLatchMode('read')).toBe('delay');
+    expect(nextLatchMode('delay')).toBe('write');
+  });
+
+  it('[REQ-LATCH-MODE-1] an unset mode is treated as write, so the first tap yields read', () => {
+    expect(nextLatchMode(undefined)).toBe('read');
+  });
+
+  it('[REQ-LATCH-MODE-1] three taps return to the starting mode', () => {
+    expect(nextLatchMode(nextLatchMode(nextLatchMode('write')))).toBe('write');
+  });
 });
 
 // ── 3.1.2 / 3.1.3 / 3.1.5 — DELAY emits the previous pulse value, shift register ─

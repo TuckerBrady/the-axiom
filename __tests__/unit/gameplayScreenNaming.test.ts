@@ -20,12 +20,15 @@ describe('GameplayScreen naming', () => {
     expect(gameplayScreenSource).not.toMatch(/\bisReplay\b/);
   });
 
-  it('tutorial overlay mount is gated on both isLevelPreviouslyCompleted AND !isExecuting', () => {
+  it('tutorial overlay mount is gated on isLevelPreviouslyCompleted AND !isExecuting (force-replay aside)', () => {
     // The overlay must unmount during beam execution to prevent the
-    // measure-vs-setState render storm identified in TestFlight A1-7.
+    // measure-vs-setState render storm identified in TestFlight A1-7, and the
+    // previously-completed suppression must remain — overridable only by the
+    // explicit forceTutorial replay flag (Replay Tutorial setting).
     const overlayGateRe =
-      /!tutorialComplete\s+&&\s+!tutorialSkipped\s+&&\s+!isLevelPreviouslyCompleted\s+&&\s*\n?\s+!isExecuting\s+&&/;
+      /!isLevelPreviouslyCompleted\)\)\s+&&\s*\n?\s+!isExecuting\s+&&/;
     expect(gameplayScreenSource).toMatch(overlayGateRe);
+    expect(gameplayScreenSource).toMatch(/forceTutorial \|\| \(!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted\)/);
   });
 
   it('wraps the root return in GameplayErrorBoundary and passes handleReset', () => {
