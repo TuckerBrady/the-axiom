@@ -127,4 +127,19 @@ describe('PieceTray — extracted parts tray component', () => {
       // present — it is no longer a marker for the removed Axiom block.
     });
   });
+
+  describe('static during drag', () => {
+    it('disables ScrollView scrolling while a piece is being dragged', () => {
+      // The tray must not slide left/right under the drag (Tucker 2026-06-15).
+      expect(traySrc).toMatch(/scrollEnabled=\{!dragActive\}/);
+      expect(traySrc).toMatch(/onDragActiveChange/);
+    });
+
+    it('freezes on drag start and unfreezes on release and terminate', () => {
+      expect(traySrc).toMatch(/dac\(true\)/);
+      // both the release and terminate paths re-enable scrolling
+      const offCalls = (traySrc.match(/onDragActiveChange\(false\)/g) ?? []).length;
+      expect(offCalls).toBeGreaterThanOrEqual(2);
+    });
+  });
 });
