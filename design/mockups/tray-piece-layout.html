@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Axiom -- Tray Piece Layout Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0a0a1a;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 24px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .category-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin: 20px 0 12px;
+    padding-left: 8px;
+  }
+  .category-label.physics { color: #F0B429; }
+  .category-label.protocol { color: #8B5CF6; }
+  .tray {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: flex-start;
+    padding: 12px 8px;
+  }
+  .piece {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 72px;
+  }
+  .circle {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #0a0a1a;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+  }
+  .circle:hover {
+    transform: scale(1.08);
+  }
+  .circle.physics {
+    background: #F0B429;
+    box-shadow: 0 0 12px rgba(240, 180, 41, 0.3);
+  }
+  .circle.physics:hover {
+    box-shadow: 0 0 20px rgba(240, 180, 41, 0.5);
+  }
+  .circle.protocol {
+    background: #8B5CF6;
+    box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
+  }
+  .circle.protocol:hover {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+  .piece-name {
+    font-size: 9px;
+    color: #94a3b8;
+    text-align: center;
+    margin-top: 6px;
+    line-height: 1.2;
+    max-width: 72px;
+    word-wrap: break-word;
+  }
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #334155, transparent);
+    margin: 8px 0;
+  }
+  .meta {
+    font-size: 10px;
+    color: #475569;
+    text-align: center;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid #1e293b;
+  }
+</style>
+</head>
+<body>
+  <h1>Piece Tray -- Codex Layout</h1>
+
+  <div class="category-label physics">Physics Pieces (Amber Beam)</div>
+  <div class="tray">
+    <div class="piece">
+      <div class="circle physics">C</div>
+      <div class="piece-name">Conveyor</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">G</div>
+      <div class="piece-name">Gear</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">S</div>
+      <div class="piece-name">Splitter</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">M</div>
+      <div class="piece-name">Merger</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">B</div>
+      <div class="piece-name">Bridge</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">R</div>
+      <div class="piece-name">Relay</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">TR</div>
+      <div class="piece-name">Threshold Relay</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">A</div>
+      <div class="piece-name">Amplifier</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">J</div>
+      <div class="piece-name">Junction</div>
+    </div>
+    <div class="piece">
+      <div class="circle physics">Sq</div>
+      <div class="piece-name">Sequencer</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="category-label protocol">Protocol Pieces (Blue Beam)</div>
+  <div class="tray">
+    <div class="piece">
+      <div class="circle protocol">CN</div>
+      <div class="piece-name">Config Node</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Sc</div>
+      <div class="piece-name">Scanner</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Tx</div>
+      <div class="piece-name">Transmitter</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Iv</div>
+      <div class="piece-name">Inverter</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Ct</div>
+      <div class="piece-name">Counter</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Lt</div>
+      <div class="piece-name">Latch</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Ca</div>
+      <div class="piece-name">Capacitor</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">DG</div>
+      <div class="piece-name">Divergence Gate</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Cf</div>
+      <div class="piece-name">Confluence Node</div>
+    </div>
+    <div class="piece">
+      <div class="circle protocol">Nv</div>
+      <div class="piece-name">Navigator</div>
+    </div>
+  </div>
+
+  <div class="meta">
+    Sprint 18 -- UX/UI Department -- Tray Piece Layout Mockup<br>
+    Purple (#8B5CF6) = Protocol | Amber (#F0B429) = Physics | Labels centered below
+  </div>
+</body>
+</html>

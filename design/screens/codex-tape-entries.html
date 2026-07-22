@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>The Axiom — Codex Tape Entries (CONTENT-01)</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700&family=Exo+2:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --void:   #050c14;
+    --blue:   #4a9eff;
+    --amber:  #f0b429;
+    --green:  #4ecb8d;
+    --red:    #e05555;
+    --copper: #c87941;
+    --muted:  #4a6070;
+    --star:   #e8f4ff;
+    --dim:    #1a2a38;
+    --protocol: #00D4FF;
+
+    /* Locked tape colors — CLAUDE.md */
+    --tape-in:    #7FC8E8; /* Ice Blue */
+    --tape-trail: #A97FDB; /* Atomic Purple */
+    --tape-out:   #FF7D3F; /* Fire Orange */
+  }
+
+  html, body {
+    width: 100%; min-height: 100%;
+    background: #020810; color: var(--star);
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  body {
+    display: flex; flex-wrap: wrap; gap: 24px;
+    padding: 24px; justify-content: center; align-items: flex-start;
+  }
+
+  .panel-label {
+    width: 390px; margin-bottom: 8px;
+    font-family: 'Orbitron', sans-serif; font-size: 11px; letter-spacing: 3px;
+    color: var(--muted); text-align: center;
+  }
+  .panel-label b { color: var(--star); }
+
+  .col { display: flex; flex-direction: column; align-items: center; }
+
+  .screen {
+    width: 390px; height: 844px; position: relative;
+    background: var(--void); overflow: hidden; border-radius: 4px;
+    border: 1px solid rgba(74,158,255,.15);
+  }
+
+  /* ───────── shared atmosphere ───────── */
+  .atmo {
+    position: absolute; top: 0; left: 0; right: 0; height: 30%;
+    pointer-events: none;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     SCREEN 1 — CodexScreen Pieces grid, DATA INFRASTRUCTURE row
+     ═══════════════════════════════════════════════════════ */
+
+  .sub-header {
+    display: flex; align-items: center; padding: 56px 20px 14px;
+    border-bottom: 1px solid rgba(74,158,255,.12);
+  }
+  .back-arrow { font-family: 'Orbitron', sans-serif; font-size: 18px; color: var(--muted); width: 36px; }
+  .sub-title {
+    flex: 1; text-align: center; font-family: 'Orbitron', sans-serif;
+    font-size: 16px; font-weight: 700; letter-spacing: 3px; color: var(--star);
+  }
+
+  .filter-row {
+    display: flex; gap: 8px; padding: 10px 20px;
+    border-bottom: 1px solid rgba(74,158,255,.08);
+  }
+  .filter-tab {
+    padding: 5px 14px; border-radius: 12px; border: 1px solid rgba(74,158,255,.2);
+    font-size: 10px; letter-spacing: 1px; color: var(--muted);
+  }
+  .filter-tab.active { background: var(--blue); border-color: var(--blue); color: var(--star); }
+
+  .section-divider {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 20px 8px;
+  }
+  .section-divider .line { flex: 1; height: 1px; background: rgba(74,158,255,.1); }
+  .section-divider .label {
+    font-size: 9px; letter-spacing: 2.5px; color: var(--muted);
+  }
+
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+    padding: 10px 14px 20px;
+  }
+  .grid-card {
+    min-height: 110px; border-radius: 12px; border: 1px solid rgba(74,158,255,.15);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 6px; padding: 10px; position: relative; overflow: hidden;
+  }
+  .grid-card .bg {
+    position: absolute; inset: 0; opacity: .35; z-index: 0;
+  }
+  .grid-card .content { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .grid-card .icon-mark {
+    width: 38px; height: 26px; border-radius: 3px; position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .grid-card .icon-mark .cells { display: flex; gap: 2px; }
+  .grid-card .icon-mark .cell { width: 6px; height: 6px; border-radius: 1px; }
+  .grid-card .name {
+    font-size: 9px; color: var(--star); letter-spacing: 0.5px; text-align: center;
+  }
+  .type-badge {
+    border: 1px solid; border-radius: 8px; padding: 2px 6px;
+    font-size: 7px; letter-spacing: 0.5px;
+  }
+
+  /* tape card backgrounds (subtle, mirrors gridCard gradients used for Physics/Protocol) */
+  .bg-in    { background: linear-gradient(180deg, rgba(127,200,232,.16), rgba(10,18,30,.9)); }
+  .bg-trail { background: linear-gradient(180deg, rgba(169,127,219,.16), rgba(10,18,30,.9)); }
+  .bg-out   { background: linear-gradient(180deg, rgba(255,125,63,.16), rgba(10,18,30,.9)); }
+
+  .badge-in    { border-color: rgba(127,200,232,.4); color: var(--tape-in); background: rgba(127,200,232,.12); }
+  .badge-trail { border-color: rgba(169,127,219,.4); color: var(--tape-trail); background: rgba(169,127,219,.12); }
+  .badge-out   { border-color: rgba(255,125,63,.4); color: var(--tape-out); background: rgba(255,125,63,.12); }
+
+  /* ═══════════════════════════════════════════════════════
+     SCREEN 2 — CodexDetailView, OUT (Output Tape) entry
+     ═══════════════════════════════════════════════════════ */
+
+  .corner { position: absolute; width: 18px; height: 18px; z-index: 20; }
+  .corner::before, .corner::after { content: ''; position: absolute; background: rgba(255,125,63,.32); }
+  .corner::before { height: 1.5px; width: 100%; }
+  .corner::after { width: 1.5px; height: 100%; }
+  .corner.tl { top: 8px; left: 8px; } .corner.tl::before{top:0;left:0;} .corner.tl::after{top:0;left:0;}
+  .corner.tr { top: 8px; right: 8px; } .corner.tr::before{top:0;right:0;left:auto;} .corner.tr::after{top:0;right:0;left:auto;}
+  .corner.bl { bottom: 8px; left: 8px; } .corner.bl::before{bottom:0;top:auto;left:0;} .corner.bl::after{bottom:0;top:auto;left:0;}
+  .corner.br { bottom: 8px; right: 8px; } .corner.br::before{bottom:0;top:auto;right:0;left:auto;} .corner.br::after{bottom:0;top:auto;right:0;left:auto;}
+
+  .chrome-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 56px 20px 10px; border-bottom: 1px solid rgba(255,125,63,.14);
+  }
+  .chrome-left { display: flex; align-items: center; gap: 8px; }
+  .chrome-dot { width: 8px; height: 8px; border-radius: 4px; background: var(--tape-out); }
+  .chrome-label, .chrome-right { font-size: 10px; letter-spacing: 2px; }
+  .chrome-label { color: var(--tape-out); }
+  .chrome-right { color: var(--muted); }
+
+  .detail-scroll { padding-bottom: 90px; }
+
+  .hero { display: flex; flex-direction: column; align-items: center; padding: 22px 0 28px; gap: 12px; }
+  .icon-box {
+    width: 60px; height: 60px; border-radius: 14px; border: 1.5px solid;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-box.out { background: rgba(255,125,63,.10); border-color: rgba(255,125,63,.32); }
+  .icon-box .tape-icon { display: flex; gap: 3px; }
+  .icon-box .tape-icon .seg { width: 7px; height: 22px; border-radius: 1px; }
+
+  .hero-name {
+    font-family: 'Orbitron', sans-serif; font-size: 22px; font-weight: 700;
+    letter-spacing: 4px; color: var(--star); margin-top: 6px;
+  }
+  .type-pill {
+    border: 1px solid; border-radius: 20px; padding: 5px 18px; font-size: 10px; letter-spacing: 2px;
+  }
+  .type-pill.out { border-color: rgba(255,125,63,.32); background: rgba(255,125,63,.10); color: var(--tape-out); }
+
+  .first-enc {
+    display: flex; align-items: center; gap: 10px; margin: 0 20px 16px;
+    background: rgba(78,203,141,.06); border: 1px solid rgba(78,203,141,.2);
+    border-radius: 10px; padding: 10px 14px;
+  }
+  .first-enc-label { font-size: 8px; color: var(--green); letter-spacing: 1px; }
+  .first-enc-value { font-size: 9px; color: var(--star); }
+
+  /* mini tape simulation strip */
+  .tape-sim {
+    margin: 0 20px 18px; border: 1px solid rgba(255,125,63,.18); border-radius: 12px;
+    background: rgba(10,22,40,.6); padding: 14px;
+  }
+  .tape-sim-label { font-size: 8px; letter-spacing: 2px; color: var(--tape-out); margin-bottom: 10px; }
+  .tape-row { display: flex; gap: 5px; }
+  .tape-cell {
+    flex: 1; height: 28px; border: 1px solid rgba(255,125,63,.3); border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: var(--star); background: rgba(255,125,63,.05);
+  }
+  .tape-cell.written { background: rgba(255,125,63,.22); border-color: var(--tape-out); color: var(--star); font-weight: bold; }
+  .tape-cell.empty { color: var(--dim); }
+  .tape-cap { font-size: 7px; color: var(--muted); letter-spacing: 1px; text-align: center; margin-top: 6px; }
+
+  .cogs-card {
+    margin: 0 20px; background: rgba(10,22,40,.7);
+    border: 1px solid rgba(255,125,63,.2); border-radius: 12px; padding: 14px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .cogs-header { display: flex; align-items: center; gap: 8px; }
+  .cogs-orb {
+    width: 20px; height: 20px; border-radius: 10px; border: 1.5px solid var(--tape-out);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cogs-orb-dot { width: 6px; height: 6px; border-radius: 3px; background: var(--tape-out); }
+  .cogs-label { flex: 1; font-size: 9px; letter-spacing: 2px; color: var(--amber); }
+  .teach-badge {
+    border: 1px solid var(--tape-out); border-radius: 6px; padding: 2px 6px;
+    font-size: 8px; letter-spacing: 1px; color: var(--tape-out);
+  }
+  .cogs-desc {
+    font-family: 'Exo 2', sans-serif; font-size: 13px; color: var(--muted); line-height: 1.6;
+  }
+  .cogs-text {
+    font-family: 'Exo 2', sans-serif; font-size: 13.5px; font-style: italic;
+    color: rgba(232,240,255,.8); line-height: 1.65;
+  }
+
+  /* accent legend */
+  .legend {
+    margin: 18px 20px 0; border: 1px solid rgba(74,158,255,.14); border-radius: 10px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .legend-title { font-size: 8px; letter-spacing: 2px; color: var(--muted); margin-bottom: 2px; }
+  .legend-row { display: flex; align-items: center; gap: 10px; font-size: 9px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; border: 1.5px solid; flex-shrink: 0; }
+  .swatch.physics { background: rgba(240,180,41,.10); border-color: rgba(240,180,41,.32); }
+  .swatch.protocol { background: rgba(0,212,255,.10); border-color: rgba(0,212,255,.32); }
+  .swatch.in { background: rgba(127,200,232,.10); border-color: var(--tape-in); }
+  .swatch.trail { background: rgba(169,127,219,.10); border-color: var(--tape-trail); }
+  .swatch.out { background: rgba(255,125,63,.10); border-color: var(--tape-out); }
+  .legend-row span.tag { color: var(--star); }
+  .legend-row span.dim { color: var(--muted); }
+
+  .action-bar {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px 32px; background: rgba(2,5,14,.96);
+    border-top: 1px solid rgba(255,125,63,.16);
+  }
+  .action-label { font-size: 9px; letter-spacing: 2px; color: var(--muted); }
+  .understood-btn {
+    border: 1px solid var(--tape-out); background: rgba(255,125,63,.12);
+    border-radius: 8px; padding: 9px 22px; font-size: 11px; letter-spacing: 2px; color: var(--tape-out);
+  }
+</style>
+</head>
+<body>
+
+  <!-- ═══════════ SCREEN 1 — CodexScreen, Pieces section, DATA INFRASTRUCTURE row ═══════════ -->
+  <div class="col">
+    <div class="panel-label">1 / CODEX → PIECES — <b>new "DATA INFRASTRUCTURE" row</b></div>
+    <div class="screen">
+      <div class="sub-header">
+        <span class="back-arrow">‹</span>
+        <span class="sub-title">PIECES</span>
+        <span style="width:36px"></span>
+      </div>
+      <div class="filter-row">
+        <div class="filter-tab active">All</div>
+        <div class="filter-tab">Physics</div>
+        <div class="filter-tab">Protocol</div>
+        <div class="filter-tab">Tape</div>
+      </div>
+
+      <!-- existing pieces (collapsed sample row) -->
+      <div class="section-divider"><span class="label">PIECES</span><div class="line"></div></div>
+      <div class="grid">
+        <div class="grid-card">
+          <div class="bg bg-in" style="background:linear-gradient(180deg, rgba(26,58,92,.6), rgba(10,18,30,.9));"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells"><div class="cell" style="background:#4a9eff"></div><div class="cell" style="background:#4a9eff"></div><div class="cell" style="background:#4a9eff"></div></div></div>
+            <div class="name">CONVEYOR</div>
+            <div class="type-badge" style="border-color:rgba(200,121,65,.4); color:#c87941; background:rgba(200,121,65,.15);">PHYSICS</div>
+          </div>
+        </div>
+        <div class="grid-card">
+          <div class="bg" style="background:linear-gradient(180deg, rgba(26,58,92,.6), rgba(10,18,30,.9));"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells"><div class="cell" style="background:#8B5CF6"></div><div class="cell" style="background:#8B5CF6"></div></div></div>
+            <div class="name">SCANNER</div>
+            <div class="type-badge" style="border-color:rgba(167,139,250,.4); color:#A78BFA; background:rgba(167,139,250,.15);">PROTOCOL</div>
+          </div>
+        </div>
+        <div class="grid-card">
+          <div class="bg" style="background:linear-gradient(180deg, rgba(26,58,92,.6), rgba(10,18,30,.9));"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells"><div class="cell" style="background:#F0B429"></div><div class="cell" style="background:#F0B429"></div></div></div>
+            <div class="name">TRANSMITTER</div>
+            <div class="type-badge" style="border-color:rgba(167,139,250,.4); color:#A78BFA; background:rgba(167,139,250,.15);">PROTOCOL</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- new tape section -->
+      <div class="section-divider"><span class="label">DATA INFRASTRUCTURE</span><div class="line"></div></div>
+      <div class="grid">
+        <div class="grid-card">
+          <div class="bg bg-in"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells">
+              <div class="cell" style="background:var(--tape-in)"></div>
+              <div class="cell" style="background:var(--tape-in)"></div>
+              <div class="cell" style="background:rgba(127,200,232,.25)"></div>
+            </div></div>
+            <div class="name">INPUT TAPE</div>
+            <div class="type-badge badge-in">TAPE</div>
+          </div>
+        </div>
+        <div class="grid-card">
+          <div class="bg bg-trail"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells">
+              <div class="cell" style="background:rgba(169,127,219,.25)"></div>
+              <div class="cell" style="background:var(--tape-trail)"></div>
+              <div class="cell" style="background:rgba(169,127,219,.25)"></div>
+            </div></div>
+            <div class="name">DATA TRAIL</div>
+            <div class="type-badge badge-trail">TAPE</div>
+          </div>
+        </div>
+        <div class="grid-card">
+          <div class="bg bg-out"></div>
+          <div class="content">
+            <div class="icon-mark"><div class="cells">
+              <div class="cell" style="background:var(--tape-out)"></div>
+              <div class="cell" style="background:rgba(255,125,63,.25)"></div>
+              <div class="cell" style="background:rgba(255,125,63,.25)"></div>
+            </div></div>
+            <div class="name">OUTPUT TAPE</div>
+            <div class="type-badge badge-out">TAPE</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ SCREEN 2 — CodexDetailView, OUT (Output Tape) entry ═══════════ -->
+  <div class="col">
+    <div class="panel-label">2 / CODEX DETAIL — <b>OUT entry, Fire Orange accent</b></div>
+    <div class="screen">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="atmo" style="background:linear-gradient(180deg, rgba(255,125,63,.07), transparent);"></div>
+
+      <div class="chrome-bar">
+        <div class="chrome-left">
+          <div class="chrome-dot"></div>
+          <span class="chrome-label">C.O.G.S</span>
+        </div>
+        <span class="chrome-right">ENTRY 014</span>
+      </div>
+
+      <div class="detail-scroll">
+        <div class="hero">
+          <div class="icon-box out">
+            <div class="tape-icon">
+              <div class="seg" style="background:var(--tape-out)"></div>
+              <div class="seg" style="background:rgba(255,125,63,.25)"></div>
+              <div class="seg" style="background:rgba(255,125,63,.25)"></div>
+            </div>
+          </div>
+          <div class="hero-name">OUTPUT TAPE</div>
+          <div class="type-pill out">TAPE</div>
+        </div>
+
+        <div class="first-enc">
+          <span class="first-enc-label">FIRST ENCOUNTERED</span>
+          <span class="first-enc-value">THE AXIOM — A1-7 Weapons Lock</span>
+        </div>
+
+        <!-- mini tape simulation, mirrors PieceSimulation slot -->
+        <div class="tape-sim">
+          <div class="tape-sim-label">OUTPUT TAPE — LIVE</div>
+          <div class="tape-row">
+            <div class="tape-cell written">1</div>
+            <div class="tape-cell written">0</div>
+            <div class="tape-cell written">1</div>
+            <div class="tape-cell empty">·</div>
+            <div class="tape-cell empty">·</div>
+          </div>
+          <div class="tape-cap">TRANSMITTER WRITES LEFT TO RIGHT, ONE CELL PER PULSE</div>
+        </div>
+
+        <div class="cogs-card">
+          <div class="cogs-header">
+            <div class="cogs-orb"><div class="cogs-orb-dot"></div></div>
+            <span class="cogs-label">C.O.G.S NOTES</span>
+            <div class="teach-badge">TEACHING</div>
+          </div>
+          <p class="cogs-desc">Records what the circuit produces, one cell per pulse, left to right. Write-only from the circuit's perspective. The Transmitter is the only piece that writes to it.</p>
+          <p class="cogs-text">This is the part other people read. Everything upstream of this tape is the machine's business. This tape is everyone else's.</p>
+        </div>
+
+        <!-- three-way accent legend -->
+        <div class="legend">
+          <div class="legend-title">CODEXPIECETYPE — THREE-WAY ACCENT (NEW)</div>
+          <div class="legend-row"><div class="swatch physics"></div><span class="tag">Physics</span><span class="dim">— amber #F0B429 (unchanged)</span></div>
+          <div class="legend-row"><div class="swatch protocol"></div><span class="tag">Protocol</span><span class="dim">— cyan #00D4FF (unchanged)</span></div>
+          <div class="legend-row"><div class="swatch in"></div><span class="tag">Tape · IN</span><span class="dim">— Ice Blue #7FC8E8</span></div>
+          <div class="legend-row"><div class="swatch trail"></div><span class="tag">Tape · TRAIL</span><span class="dim">— Atomic Purple #A97FDB</span></div>
+          <div class="legend-row"><div class="swatch out"></div><span class="tag">Tape · OUT</span><span class="dim">— Fire Orange #FF7D3F (this entry)</span></div>
+        </div>
+      </div>
+
+      <div class="action-bar">
+        <span class="action-label">ENTRY LOGGED</span>
+        <div class="understood-btn">UNDERSTOOD</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

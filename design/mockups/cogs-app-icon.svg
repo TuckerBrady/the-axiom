@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <filter id="orbGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="45" result="blur"/>
+      <feColorMatrix in="blur" type="matrix"
+        values="0 0 0 0 0.29
+                0 0 0 0 0.87
+                0 0 0 0 0.50
+                0 0 0 0.5 0" result="greenBlur"/>
+      <feMerge>
+        <feMergeNode in="greenBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <radialGradient id="orbGradient" cx="50%" cy="45%" r="40%">
+      <stop offset="0%" stop-color="#8FFFB0"/>
+      <stop offset="50%" stop-color="#4ADE80"/>
+      <stop offset="100%" stop-color="#22C55E"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#0a0a1a"/>
+
+  <!-- The orb -->
+  <circle cx="512" cy="512" r="160" fill="url(#orbGradient)" filter="url(#orbGlow)"/>
+
+  <!-- Single ring -->
+  <circle cx="512" cy="512" r="260" fill="none" stroke="#4ADE80" stroke-opacity="0.35" stroke-width="2.5"/>
+
+  <!-- HUD corner brackets — amber #F0B429 matching in-game -->
+  <!-- Top-left -->
+  <path d="M 80,80 L 80,160" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+  <path d="M 80,80 L 160,80" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+
+  <!-- Top-right -->
+  <path d="M 944,80 L 944,160" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+  <path d="M 944,80 L 864,80" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+
+  <!-- Bottom-left -->
+  <path d="M 80,944 L 80,864" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+  <path d="M 80,944 L 160,944" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+
+  <!-- Bottom-right -->
+  <path d="M 944,944 L 944,864" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+  <path d="M 944,944 L 864,944" fill="none" stroke="#F0B429" stroke-width="3" stroke-opacity="0.7"/>
+</svg>
