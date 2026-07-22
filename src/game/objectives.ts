@@ -6,7 +6,7 @@
 // direction changes ("we begin teaching the soul of the game"). These
 // helpers evaluate those extra objectives against the executed path.
 
-import type { ExecutionStep, LevelObjective } from './types';
+import type { ExecutionStep, LevelObjective, LevelDefinition } from './types';
 
 /**
  * Count Gear-driven direction changes in an executed signal path.
@@ -43,4 +43,32 @@ export function meetsDirectionObjectives(
     }
   }
   return true;
+}
+
+// ─── Topology SHALL gate (SE-TM-035) ──────────────────────────────────────────
+
+export interface TopologyGateResult {
+  required: number;
+  actual: number;
+  met: boolean;
+}
+
+/**
+ * Grade an executed run against the level's board-topology SHALL — the same
+ * `topologyRequirements.minDirectionChanges` the Spec Sheet surfaces. A machine
+ * that produces the correct output but routes the signal through fewer direction
+ * changes than required has NOT met the level's full SHALL set (SE-TM-035): the
+ * Spec Sheet says "the signal path SHALL change direction at least N times," so
+ * the gate measures the EXECUTED path (Gear steps the signal actually took),
+ * matching the copy.
+ *
+ * Levels without a topology requirement return { required: 0, met: true }.
+ */
+export function evaluateTopologyGate(
+  level: Pick<LevelDefinition, 'topologyRequirements'>,
+  steps: ExecutionStep[],
+): TopologyGateResult {
+  const required = level.topologyRequirements?.minDirectionChanges ?? 0;
+  const actual = countDirectionChanges(steps);
+  return { required, actual, met: actual >= required };
 }

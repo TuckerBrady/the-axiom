@@ -30,7 +30,7 @@ import PieceTray from '../components/gameplay/PieceTray';
 import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
-import CogsAvatar from '../components/CogsAvatar';
+import SpecSheetHook from '../components/gameplay/SpecSheetHook';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
 import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
@@ -58,7 +58,8 @@ import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
-import { SPEC_SHEET_ACTIVATION_HOOK } from '../game/spec/specSheetCopy';
+import { SPEC_SHEET_ACTIVATION_HOOK, shallStatementToCopy } from '../game/spec/specSheetCopy';
+import { evaluateTopologyGate } from '../game/objectives';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -311,6 +312,8 @@ export default function GameplayScreen({ navigation }: Props) {
     wrongOutputData, setWrongOutputData,
     showInsufficientPulses, setShowInsufficientPulses,
     pulseResultData, setPulseResultData,
+    showSpecNotMet, setShowSpecNotMet,
+    specNotMetData, setSpecNotMetData,
     showOutOfLives, setShowOutOfLives,
     showEconomyIntro,
     showSystemRestored, setShowSystemRestored,
@@ -665,6 +668,13 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleSpecSheetOpen = useCallback(() => {
     setShowSpecSheet(true);
   }, []);
+  // Ref on the HUD Spec Sheet button so the A1-1 activation hook can anchor to
+  // it (SE-TM-033).
+  const specSheetBtnRef = useRef<View>(null);
+  const handleSpecSheetHookDismiss = useCallback(() => {
+    AsyncStorage.setItem('axiom_spec_sheet_hook_seen', '1');
+    setShowSpecSheetHook(false);
+  }, []);
 
   // ── REQUISITION confirm ──
   const handleRequisitionConfirm = useCallback(() => {
@@ -985,6 +995,12 @@ export default function GameplayScreen({ navigation }: Props) {
       ? true
       : terminalSuccessCount >= requiredCount;
 
+    // SE-TM-035: grade the executed signal path against the level's board-
+    // topology SHALL (the same requirement the Spec Sheet surfaces). A machine
+    // that produces the right output but routes through too few direction
+    // changes has not met the full SHALL set — a legitimate failure.
+    const topoGate = evaluateTopologyGate(level, steps);
+
     if (wrongOutput) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
@@ -1034,8 +1050,10 @@ export default function GameplayScreen({ navigation }: Props) {
       return;
     }
 
-    // PHASE 3 — LOCK (400ms) — only on success (and matching tape if tape level)
-    const succeededFinal = !wrongOutput && metPulseRequirement;
+    // PHASE 3 — LOCK (400ms) — only on success (and matching tape if tape level
+    // and the topology SHALL is met, so the green lock never plays on a build
+    // that failed spec)
+    const succeededFinal = !wrongOutput && metPulseRequirement && topoGate.met;
     if (succeededFinal) {
       const outputPiece = machineState.pieces.find(p => p.type === 'terminal');
       if (outputPiece) {
@@ -1065,6 +1083,26 @@ export default function GameplayScreen({ navigation }: Props) {
       return;
     }
 
+    // Topology SHALL enforcement (SE-TM-035): the output is correct (or the
+    // level has no output gate) and the pulses landed, but the signal path
+    // violated a stated board-topology requirement. Graded against the Spec
+    // Sheet — a real failure, not a completion. Shows the spec diagnostic.
+    if (!wrongOutput && metPulseRequirement && !topoGate.met) {
+      setBeamState(prev => ({ ...prev, phase: 'idle' }));
+      if (!isAxiomLevel) loseLife();
+      setSpecNotMetData({
+        required: topoGate.required,
+        actual: topoGate.actual,
+        requirementText: shallStatementToCopy({
+          type: 'topology',
+          predicate: 'minDirectionChanges',
+          value: topoGate.required,
+        }),
+      });
+      setShowSpecNotMet(true);
+      return;
+    }
+
     // Required-pieces enforcement (A3a flavor: run completes, then
     // evaluate. If any required piece was not engaged, consume a life
     // and show the COGS rejection modal. REQ-RP-5: same life-cost as
@@ -1088,7 +1126,7 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
 
-    const succeeded = !wrongOutput && metPulseRequirement;
+    const succeeded = !wrongOutput && metPulseRequirement && topoGate.met;
     if (succeeded) {
       const engageDurationMs = Date.now() - engageStartTime;
       const routed = await handleSuccess({
@@ -1249,6 +1287,7 @@ export default function GameplayScreen({ navigation }: Props) {
           }
           onPause={handlePauseOpen}
           onOpenSpecSheet={handleSpecSheetOpen}
+          specSheetBtnRef={specSheetBtnRef}
         />
 
         {/* ── Turing Tape Display ── */}
@@ -1620,6 +1659,10 @@ export default function GameplayScreen({ navigation }: Props) {
         setShowInsufficientPulses={setShowInsufficientPulses}
         pulseResultData={pulseResultData}
         setPulseResultData={setPulseResultData}
+        showSpecNotMet={showSpecNotMet}
+        setShowSpecNotMet={setShowSpecNotMet}
+        specNotMetData={specNotMetData}
+        setSpecNotMetData={setSpecNotMetData}
         showOutOfLives={showOutOfLives}
         setShowOutOfLives={setShowOutOfLives}
         showEconomyIntro={showEconomyIntro}
@@ -1669,33 +1712,14 @@ export default function GameplayScreen({ navigation }: Props) {
         onClose={() => setShowSpecSheet(false)}
       />
 
-      {/* ── Spec Sheet A1-1 activation hook (SE-TM-033) — one-time COGS line ── */}
-      {showSpecSheetHook && (
-        <Animated.View style={styles.specHookOverlay} entering={FadeIn.duration(400)}>
-          <LinearGradient
-            colors={['rgba(6,9,15,0.97)', 'rgba(10,22,40,0.99)']}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.specHookContent}>
-            <CogsAvatar size="medium" state="online" />
-            <View style={styles.specHookLines}>
-              {SPEC_SHEET_ACTIVATION_HOOK.map((line, i) => (
-                <Text key={i} style={styles.specHookText}>{line}</Text>
-              ))}
-            </View>
-            <TouchableOpacity
-              style={styles.specHookDismiss}
-              onPress={() => {
-                AsyncStorage.setItem('axiom_spec_sheet_hook_seen', '1');
-                setShowSpecSheetHook(false);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.specHookDismissText}>UNDERSTOOD</Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
+      {/* ── Spec Sheet A1-1 activation hook (SE-TM-033) — orb highlights the
+          info button, copy in a dialog anchored beneath it ── */}
+      <SpecSheetHook
+        visible={showSpecSheetHook}
+        lines={SPEC_SHEET_ACTIVATION_HOOK}
+        targetRef={specSheetBtnRef}
+        onDismiss={handleSpecSheetHookDismiss}
+      />
 
       {/* ── HUD Tutorial Overlay ── */}
       {/* Gated on !isExecuting so measure() calls don't race beam-animation
@@ -1748,38 +1772,6 @@ export default function GameplayScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
   safeArea: { flex: 1 },
-  // Spec Sheet A1-1 activation hook overlay (SE-TM-033).
-  specHookOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 240,
-  },
-  specHookContent: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.xxxl,
-    width: '100%',
-  },
-  specHookLines: {
-    gap: Spacing.md,
-    marginTop: Spacing.xl,
-    maxWidth: 320,
-  },
-  specHookText: {
-    fontFamily: Fonts.exo2,
-    fontSize: 13,
-    fontStyle: 'italic',
-    color: Colors.starWhite,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  specHookDismiss: { marginTop: Spacing.xl },
-  specHookDismissText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    color: Colors.dim,
-    letterSpacing: 3,
-  },
   errorText: {
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.muted,
     textAlign: 'center', marginTop: Spacing.xxxl,
