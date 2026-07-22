@@ -323,14 +323,19 @@ describe('Prompt 86B — remaining screen button migrations', () => {
 
   describe('SettingsScreen', () => {
     const src = read('src/screens/SettingsScreen.tsx');
-    it('imports the shared Button component', () => {
-      expect(src).toMatch(/from '\.\.\/components\/Button'/);
+    // The dead, no-op profile "EDIT" Button was removed as bloat;
+    // with it gone, SettingsScreen no longer imports Button.
+    it('no longer renders the dead EDIT Button', () => {
+      expect(src).not.toMatch(/label="EDIT"/);
+      expect(src).not.toMatch(/onPress=\{\(\) => \{\}\}/);
     });
-    it('renders EDIT as a secondary Button', () => {
-      expect(src).toMatch(/variant="secondary"[\s\S]*?label="EDIT"/);
-    });
-    it('drops the deprecated editBtn text style', () => {
+    it('drops the deprecated editBtn style', () => {
+      expect(src).not.toMatch(/^\s+editBtn:/m);
       expect(src).not.toMatch(/^\s+editBtnText:/m);
+    });
+    it('shows real credits in the profile (not a hardcoded figure)', () => {
+      expect(src).toMatch(/credits\.toLocaleString\(\)/);
+      expect(src).not.toMatch(/4,250 CR/);
     });
   });
 

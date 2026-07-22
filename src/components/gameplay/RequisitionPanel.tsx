@@ -222,6 +222,10 @@ export default function RequisitionPanel({
     canAffordMore,
   } = useRequisitionStore();
 
+  // Discovery-gated purchasable types (computed in the store at initRequisition).
+  // The panel only offers from this set — undiscovered pieces never appear.
+  const purchasableTypes = useRequisitionStore(s => s._availablePieceTypes);
+
   const budgetRemaining = getBudgetRemaining();
   const { totalSpend, creditBudget } = requisition;
   const canAffordRequisition = creditBalance >= totalSpend;
@@ -295,27 +299,31 @@ export default function RequisitionPanel({
     }).start(() => onConfirm());
   }, [dismissing, slideOutAnim, onConfirm]);
 
+  // Rows for a category = level's pre-assigned pieces (INCLUDED) plus
+  // discovery-gated purchasable types. Undiscovered pieces never appear.
+  function categoryRows(categoryTypes: PieceType[]): PieceType[] {
+    const preAssigned = categoryTypes.filter(t => preAssignedPieces.includes(t));
+    const purchasable = categoryTypes.filter(
+      t => purchasableTypes.includes(t) && !preAssignedPieces.includes(t),
+    );
+    return [...preAssigned, ...purchasable];
+  }
+
   // ── Render tab content ──
   function renderTabContent() {
-    if (activeTab === 'PHYSICS') {
-      const pieces = PHYSICS_PIECE_TYPES;
-      return pieces.map(type => (
-        <PieceRow
-          key={type}
-          type={type}
-          discipline={discipline}
-          includedCount={countIncluded(type)}
-          quantity={getQuantityForPiece(type)}
-          onIncrement={() => handleIncrement(type)}
-          onDecrement={() => handleDecrement(type)}
-          budgetRemaining={budgetRemaining}
-        />
-      ));
-    }
-
-    if (activeTab === 'PROTOCOL') {
-      const pieces = PROTOCOL_PIECE_TYPES;
-      return pieces.map(type => (
+    if (activeTab === 'PHYSICS' || activeTab === 'PROTOCOL') {
+      const allOfCategory = activeTab === 'PHYSICS' ? PHYSICS_PIECE_TYPES : PROTOCOL_PIECE_TYPES;
+      const rows = categoryRows(allOfCategory);
+      if (rows.length === 0) {
+        return (
+          <View style={styles.emptyTab}>
+            <Text style={styles.emptyTabText}>
+              No {activeTab === 'PHYSICS' ? 'Physics' : 'Protocol'} pieces catalogued yet.
+            </Text>
+          </View>
+        );
+      }
+      return rows.map(type => (
         <PieceRow
           key={type}
           type={type}
