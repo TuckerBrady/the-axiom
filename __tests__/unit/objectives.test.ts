@@ -8,6 +8,7 @@ import {
   evaluateTopologyGate,
 } from '../../src/game/objectives';
 import type { ExecutionStep, LevelDefinition } from '../../src/game/types';
+import { levelA1_4 } from '../../src/game/levels';
 
 function step(pieceId: string, type: string, success = true): ExecutionStep {
   return { pieceId, type, timestamp: 0, success };
@@ -63,5 +64,27 @@ describe('evaluateTopologyGate (SE-TM-035)', () => {
   it('a level without a topology requirement always passes (required 0)', () => {
     const gate = evaluateTopologyGate(levelWith(undefined), []);
     expect(gate).toEqual({ required: 0, actual: 0, met: true });
+  });
+});
+
+// Regression: A1-4 reported as completable with a SINGLE bend despite its
+// two-bend SHALL (the player was on a pre-fix build). Lock the real level data
+// so a one-gear A1-4 solution can never count as met, and a two-gear one does.
+describe('A1-4 two-bend SHALL — graded against real level data', () => {
+  it('declares a 2-direction-change topology requirement', () => {
+    expect(levelA1_4.topologyRequirements?.minDirectionChanges).toBe(2);
+  });
+
+  it('a single-bend (one gear) run does NOT meet A1-4 — must fail to pass', () => {
+    const oneGear = [step('g1', 'gear'), step('c1', 'conveyor'), step('term', 'terminal')];
+    const gate = evaluateTopologyGate(levelA1_4, oneGear);
+    expect(gate.required).toBe(2);
+    expect(gate.actual).toBe(1);
+    expect(gate.met).toBe(false);
+  });
+
+  it('a two-bend (two gears) run meets A1-4', () => {
+    const twoGears = [step('g1', 'gear'), step('c1', 'conveyor'), step('g2', 'gear'), step('term', 'terminal')];
+    expect(evaluateTopologyGate(levelA1_4, twoGears).met).toBe(true);
   });
 });

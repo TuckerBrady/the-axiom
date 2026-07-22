@@ -115,27 +115,21 @@ export async function runTransmitterInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
-  // The Transmitter computes the OUT value, but the OUT cell does NOT fill
-  // here (Tucker 2026-06-13). The value reveal + arrival highlight are deferred
-  // to the moment the signal reaches the Terminal — runTerminalInteraction — so
-  // the OUT tape fills "the moment a signal completes the circuit." Here the
-  // Transmitter just flashes as the signal passes through it.
   flashPiece(ctx, stp.pieceId, color);
+  // The OUT cell fills HERE — the moment the signal hits the Transmitter, the
+  // piece that actually writes the output (Tucker 2026-06-16; supersedes the
+  // 2026-06-13 Terminal-arrival fill). Mirrors the Scanner → trail write.
+  if (stp.success) revealOutputCell(ctx, pulse);
   await wait(300 * speed);
 }
 
-// Arrival fill (Tucker 2026-06-13). When a pulse's signal reaches the Terminal,
-// its OUT cell fills with the computed value and pulses — for ANY value (0 or
-// 1), not when the Transmitter fired and not keyed to value === 1. Blocked
-// pulses never reach the Terminal, so they keep the gate-block middle-dot set
-// by runConfigNodeInteraction. Levels without an OUT tape have no
+// Reveal a pulse's OUT cell with the value the engine already wrote
+// (machineState.outputTape) and pulse its highlight — for ANY value (0 or 1).
+// Called from the Transmitter interaction. Blocked pulses never reach a
+// Transmitter, so they keep the gate-block middle-dot set by
+// runConfigNodeInteraction. Levels without an OUT tape have no
 // visualOutputOverride and are skipped.
-export function runTerminalInteraction(
-  ctx: EngagementContext,
-  stp: ExecutionStep,
-): void {
-  if (!stp.success) return;
-  const pulse = ctx.currentPulseRef.current;
+function revealOutputCell(ctx: EngagementContext, pulse: number): void {
   const outputTape = useGameStore.getState().machineState.outputTape;
   if (!outputTape || outputTape[pulse] === undefined) return;
   const written = outputTape[pulse];
@@ -149,6 +143,16 @@ export function runTerminalInteraction(
   });
   ctx.setTapeBarState(prev => ({ ...prev, outIndex: pulse }));
   setHighlight(ctx, `out-${pulse}`, 'arrived');
+}
+
+// OUT tape now fills at the Transmitter (revealOutputCell). The Terminal no
+// longer populates it; retained as a no-op hook for any future terminal-arrival
+// visual and so existing call sites/tests keep a stable import.
+export function runTerminalInteraction(
+  _ctx: EngagementContext,
+  _stp: ExecutionStep,
+): void {
+  /* no-op — OUT fill moved to the Transmitter (Tucker 2026-06-16) */
 }
 
 // triggerPieceAnim runs the piece's flash + interaction. When called

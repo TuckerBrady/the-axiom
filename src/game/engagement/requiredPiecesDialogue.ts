@@ -60,3 +60,20 @@ export function buildRequiredPiecesCogsLine(
   }
   return `${listPieces(missingNames)} were not engaged during this run. The required architecture was not built.`;
 }
+
+/**
+ * COGS line for a minPieces hard-floor rejection: the output was correct but
+ * the machine was too sparse. Pushes the Engineer toward elaborate builds.
+ *
+ * [PROPOSED] — player-facing copy pending Tucker sign-off. Dry COGS voice,
+ * never praises. `active`/`required` are accepted so the line can become
+ * data-driven later; the current copy intentionally does not surface raw
+ * counts (matches the requiredPieces lines, which describe rather than tally).
+ */
+export function buildMinPiecesCogsLine(
+  _levelId: string,
+  _active: number,
+  _required: number,
+): string {
+  return 'It works. It is also barely a machine. The corridor does not reward the minimum out here. It survives on the parts you add because you understand the load. Build something that could take a fault and keep routing. Then run it again.';
+}

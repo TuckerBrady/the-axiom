@@ -57,9 +57,14 @@ describe('RequisitionPanel — source contract', () => {
     expect(panelSrc).toMatch(/getBudgetRemaining/);
   });
 
-  it('shows pre-assigned pieces with INCLUDED label, not +/- controls', () => {
-    expect(panelSrc).toMatch(/INCLUDED/);
-    expect(panelSrc).toMatch(/isPreAssigned/);
+  it('labels included pieces with an INCLUDED count and still allows buying more', () => {
+    expect(panelSrc).toMatch(/INCLUDED x\{includedCount\}/);
+    expect(panelSrc).toMatch(/includedCount/);
+  });
+
+  it('shows the IN TRAY total (free base + requisitioned) for every row', () => {
+    expect(panelSrc).toMatch(/IN TRAY/);
+    expect(panelSrc).toMatch(/inTray = includedCount \+ quantity/);
   });
 
   it('GameplayScreen imports and renders <RequisitionPanel />', () => {

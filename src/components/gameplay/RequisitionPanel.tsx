@@ -56,8 +56,11 @@ const PIECE_LABELS: Record<PieceType, string> = {
   obstacle: 'Obstacle',
 };
 
+// Mirrors BoardGrid.getPieceColor so a piece's icon in the store matches
+// exactly how it renders once placed on the board: Protocol pieces purple,
+// Physics pieces the canonical blue (NOT the amber PHYSICS beam/tab accent).
 function getPieceColor(type: PieceType): string {
-  return PROTOCOL_PIECE_TYPES.includes(type) ? '#8B5CF6' : '#F0B429';
+  return PROTOCOL_PIECE_TYPES.includes(type) ? '#8B5CF6' : Colors.blue;
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -76,19 +79,27 @@ interface Props {
 interface PieceRowProps {
   type: PieceType;
   discipline: Discipline;
-  isPreAssigned: boolean;
+  // How many of this type the level includes for free (0 = purchase-only).
+  includedCount: number;
   quantity: number;
   onIncrement: () => void;
   onDecrement: () => void;
   budgetRemaining: number;
 }
 
-function PieceRow({ type, discipline, isPreAssigned, quantity, onIncrement, onDecrement, budgetRemaining }: PieceRowProps) {
+function PieceRow({ type, discipline, includedCount, quantity, onIncrement, onDecrement, budgetRemaining }: PieceRowProps) {
   const base = PIECE_PRICES[type] ?? 0;
   const price = getRequisitionPrice(type, discipline);
   const discounted = hasRequisitionDiscount(type, discipline);
   const color = getPieceColor(type);
-  const canIncrement = isPreAssigned ? false : budgetRemaining >= price;
+  const isPreAssigned = includedCount > 0;
+  // Total the Engineer will carry into the level: free base + requisitioned.
+  // This is what "I have to work with" means at planning time.
+  const inTray = includedCount + quantity;
+  // Included pieces are free at their base count but may still be requisitioned
+  // in additional copies — the budget is the only gate now (soul of the game:
+  // spend credits to build a bigger machine with the core pieces).
+  const canIncrement = budgetRemaining >= price;
 
   return (
     <View style={styles.row}>
@@ -98,7 +109,10 @@ function PieceRow({ type, discipline, isPreAssigned, quantity, onIncrement, onDe
       <View style={styles.rowInfo}>
         <Text style={styles.rowLabel}>{PIECE_LABELS[type]}</Text>
         {isPreAssigned ? (
-          <Text style={[styles.rowPrice, { color: Colors.green }]}>FREE</Text>
+          <View style={styles.rowPriceRow}>
+            <Text style={[styles.rowPrice, { color: Colors.green, marginTop: 0 }]}>INCLUDED x{includedCount}</Text>
+            <Text style={styles.rowPrice}>{price} CR each</Text>
+          </View>
         ) : discounted ? (
           <View style={styles.rowPriceRow}>
             <Text style={styles.rowPriceStrike}>{base}</Text>
@@ -108,17 +122,16 @@ function PieceRow({ type, discipline, isPreAssigned, quantity, onIncrement, onDe
           <Text style={styles.rowPrice}>{price} CR</Text>
         )}
       </View>
-      {isPreAssigned ? (
-        <View style={styles.rowPreAssignedBadge}>
-          <Text style={styles.rowPreAssignedText}>INCLUDED</Text>
-        </View>
-      ) : (
+      <View style={styles.rowRight}>
+        <Text style={styles.trayCount}>
+          IN TRAY <Text style={[styles.trayCountValue, { color }]}>{inTray}</Text>
+        </Text>
         <View style={styles.rowControls}>
           <TouchableOpacity
             style={[styles.qtyBtn, quantity <= 0 && styles.qtyBtnDisabled]}
             onPress={onDecrement}
             disabled={quantity <= 0}
-            accessibilityLabel={`Remove one ${PIECE_LABELS[type]}`}
+            accessibilityLabel={`Remove one purchased ${PIECE_LABELS[type]}`}
           >
             <Text style={styles.qtyBtnText}>-</Text>
           </TouchableOpacity>
@@ -132,7 +145,7 @@ function PieceRow({ type, discipline, isPreAssigned, quantity, onIncrement, onDe
             <Text style={styles.qtyBtnText}>+</Text>
           </TouchableOpacity>
         </View>
-      )}
+      </View>
     </View>
   );
 }
@@ -235,6 +248,13 @@ export default function RequisitionPanel({
     return p?.quantity ?? 0;
   }, [requisition.purchases]);
 
+  // How many of this type the level hands over for free (one per matching entry
+  // in availablePieces). Drives the INCLUDED xN tag and the IN TRAY total.
+  const countIncluded = useCallback(
+    (type: PieceType): number => preAssignedPieces.filter(t => t === type).length,
+    [preAssignedPieces],
+  );
+
   const getNibblesForTape = useCallback((tapeType: TapeType): number => {
     const key = tapeType === 'TRAIL' ? 'TRAIL_TAPE' : 'OUT_TAPE';
     const p = requisition.purchases.find(x => x.type === key);
@@ -279,40 +299,34 @@ export default function RequisitionPanel({
   function renderTabContent() {
     if (activeTab === 'PHYSICS') {
       const pieces = PHYSICS_PIECE_TYPES;
-      return pieces.map(type => {
-        const isPreAssigned = preAssignedPieces.includes(type);
-        return (
-          <PieceRow
-            key={type}
-            type={type}
-            discipline={discipline}
-            isPreAssigned={isPreAssigned}
-            quantity={getQuantityForPiece(type)}
-            onIncrement={() => handleIncrement(type)}
-            onDecrement={() => handleDecrement(type)}
-            budgetRemaining={budgetRemaining}
-          />
-        );
-      });
+      return pieces.map(type => (
+        <PieceRow
+          key={type}
+          type={type}
+          discipline={discipline}
+          includedCount={countIncluded(type)}
+          quantity={getQuantityForPiece(type)}
+          onIncrement={() => handleIncrement(type)}
+          onDecrement={() => handleDecrement(type)}
+          budgetRemaining={budgetRemaining}
+        />
+      ));
     }
 
     if (activeTab === 'PROTOCOL') {
       const pieces = PROTOCOL_PIECE_TYPES;
-      return pieces.map(type => {
-        const isPreAssigned = preAssignedPieces.includes(type);
-        return (
-          <PieceRow
-            key={type}
-            type={type}
-            discipline={discipline}
-            isPreAssigned={isPreAssigned}
-            quantity={getQuantityForPiece(type)}
-            onIncrement={() => handleIncrement(type)}
-            onDecrement={() => handleDecrement(type)}
-            budgetRemaining={budgetRemaining}
-          />
-        );
-      });
+      return pieces.map(type => (
+        <PieceRow
+          key={type}
+          type={type}
+          discipline={discipline}
+          includedCount={countIncluded(type)}
+          quantity={getQuantityForPiece(type)}
+          onIncrement={() => handleIncrement(type)}
+          onDecrement={() => handleDecrement(type)}
+          budgetRemaining={budgetRemaining}
+        />
+      ));
     }
 
     if (activeTab === 'DATA') {
@@ -515,15 +529,11 @@ const styles = StyleSheet.create({
   },
   rowPrice: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, marginTop: 2 },
 
-  rowPreAssignedBadge: {
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 4, borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.3)',
+  rowRight: { alignItems: 'flex-end', gap: 4 },
+  trayCount: {
+    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, letterSpacing: 0.5,
   },
-  rowPreAssignedText: {
-    fontFamily: Fonts.spaceMono, fontSize: 8,
-    color: Colors.muted, letterSpacing: 0.5,
-  },
+  trayCountValue: { fontFamily: Fonts.orbitron, fontSize: 11 },
 
   rowControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   qtyBtn: {

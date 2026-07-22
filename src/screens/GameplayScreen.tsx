@@ -30,9 +30,8 @@ import PieceTray from '../components/gameplay/PieceTray';
 import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
-import SpecSheetHook from '../components/gameplay/SpecSheetHook';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
-import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
+import ArcWheel, { WHEEL_WIDTH, type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -50,15 +49,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
 import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
-import { getOutputPorts, getInputPorts, evaluateRequiredPieces } from '../game/engine';
-import { buildRequiredPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
+import { resolveDropCell } from '../utils/dropTarget';
+import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
+import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
 import { useGameplayTimer } from '../hooks/useGameplayTimer';
 import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
-import { SPEC_SHEET_ACTIVATION_HOOK, shallStatementToCopy } from '../game/spec/specSheetCopy';
+import { shallStatementToCopy } from '../game/spec/specSheetCopy';
 import { evaluateTopologyGate } from '../game/objectives';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -291,6 +291,19 @@ export default function GameplayScreen({ navigation }: Props) {
   const isDailyChallenge = level?.sector === 'daily';
   const isLevelPreviouslyCompleted = level ? isLevelDone(level.id) : false;
 
+  // Replay-tutorial override (player-facing "Replay Tutorial" setting). It sets
+  // axiom_tutorial_force_show, which lets the tutorial overlay run even on a
+  // level the player has already completed — without wiping their progress.
+  // Read once per level; cleared when the overlay ends.
+  const [forceTutorial, setForceTutorial] = useState(false);
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem('axiom_tutorial_force_show').then(v => {
+      if (active && v === '1') setForceTutorial(true);
+    });
+    return () => { active = false; };
+  }, [level?.id]);
+
   // Phase 1 extraction — failure state (blownCells, failCount, helpers).
   const {
     blownCells, setBlownCells,
@@ -322,7 +335,6 @@ export default function GameplayScreen({ navigation }: Props) {
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
     showSpecSheet, setShowSpecSheet,
-    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
@@ -349,6 +361,8 @@ export default function GameplayScreen({ navigation }: Props) {
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
+    arcWheelMainRef,
+    specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,
     tutorialPlacedGridPos,
@@ -500,6 +514,27 @@ export default function GameplayScreen({ navigation }: Props) {
   const gridW = numColumns * CELL_SIZE;
   const gridH = numRows * CELL_SIZE;
 
+  // ── Drag hover cell — board cell the dragged piece would drop into ──
+  // Reads boardScreenPos.current during render; dragState changes on every
+  // move so the ref is always fresh by the time this recomputes.
+  const dragHoverCell = useMemo(() => {
+    if (!dragState.active || !dragState.type) return null;
+    const boardPos = boardScreenPos.current;
+    const cell = resolveDropCell({
+      x: dragState.x,
+      y: dragState.y,
+      boardX: boardPos.x,
+      boardY: boardPos.y,
+      cellSize: CELL_SIZE,
+      numColumns,
+      numRows,
+      isOccupied: (gx, gy) => pieces.some(p => p.gridX === gx && p.gridY === gy),
+      isBlown: (gx, gy) => blownCells.has(`${gx},${gy}`),
+    });
+    if (!cell.inBounds) return null;
+    return { gridX: cell.gridX, gridY: cell.gridY, valid: cell.valid };
+  }, [dragState.active, dragState.type, dragState.x, dragState.y, CELL_SIZE, numColumns, numRows, pieces, blownCells]);
+
   // Count remaining available pieces from tray
   const availablePiecesList = level?.availablePieces ?? [];
   const availableCounts = useMemo(() => {
@@ -638,8 +673,10 @@ export default function GameplayScreen({ navigation }: Props) {
       hapticLight();
       tutorialOnPieceTapped(piece.type);
     } else if (piece.type === 'latch') {
-      const nextMode = piece.latchMode === 'write' ? 'read' : 'write';
-      updatePiece(piece.id, { latchMode: nextMode });
+      // Three-state cycle write -> read -> delay -> write (REQ-LATCH-MODE-1).
+      // DELAY is the cross-pulse memory K1-9/K1-10 depend on.
+      updatePiece(piece.id, { latchMode: nextLatchMode(piece.latchMode) });
+      hapticLight();
       tutorialOnPieceTapped(piece.type);
     }
     // All other piece types: no tap action
@@ -668,13 +705,8 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleSpecSheetOpen = useCallback(() => {
     setShowSpecSheet(true);
   }, []);
-  // Ref on the HUD Spec Sheet button so the A1-1 activation hook can anchor to
-  // it (SE-TM-033).
-  const specSheetBtnRef = useRef<View>(null);
-  const handleSpecSheetHookDismiss = useCallback(() => {
-    AsyncStorage.setItem('axiom_spec_sheet_hook_seen', '1');
-    setShowSpecSheetHook(false);
-  }, []);
+  // The HUD Spec Sheet button ref now comes from useGameplayTutorial so the
+  // A1-1 final tutorial step (targetRef 'specSheetBtn') can anchor to it.
 
   // ── REQUISITION confirm ──
   const handleRequisitionConfirm = useCallback(() => {
@@ -707,19 +739,30 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleDragEnd = useCallback((x: number, y: number) => {
     // Compute which board cell the drop landed in
     const boardPos = boardScreenPos.current;
-    const relX = x - boardPos.x;
-    const relY = y - boardPos.y;
-    const cs = cellSizeRef.current;
-    const gridX = Math.floor(relX / cs);
-    const gridY = Math.floor(relY / cs);
-    const numCols = level?.gridWidth ?? 8;
-    const numRowsV = level?.gridHeight ?? 7;
-    const inBounds = gridX >= 0 && gridX < numCols && gridY >= 0 && gridY < numRowsV;
-    const occupied = pieces.some(p => p.gridX === gridX && p.gridY === gridY);
-    const blown = blownCellsRef.current.has(`${gridX},${gridY}`);
+    const { gridX, gridY, valid } = resolveDropCell({
+      x,
+      y,
+      boardX: boardPos.x,
+      boardY: boardPos.y,
+      cellSize: cellSizeRef.current,
+      numColumns: level?.gridWidth ?? 8,
+      numRows: level?.gridHeight ?? 7,
+      isOccupied: (gx, gy) => pieces.some(p => p.gridX === gx && p.gridY === gy),
+      isBlown: (gx, gy) => blownCellsRef.current.has(`${gx},${gy}`),
+    });
     const currentDrag = dragState;
 
-    if (currentDrag.type && inBounds && !occupied && !blown) {
+    // Reject drops on cells physically behind the Arc Wheel so pieces can't
+    // get stranded under it (the wheel's PanResponder would block long-press
+    // retrieval of anything placed there).
+    const cellLeft = boardPos.x + gridX * cellSizeRef.current;
+    const cellRight = cellLeft + cellSizeRef.current;
+    const underWheel = !isAxiomLevel && (
+      (arcWheelPosition === 'right' && cellRight > screenWidth - WHEEL_WIDTH) ||
+      (arcWheelPosition === 'left'  && cellLeft  < WHEEL_WIDTH)
+    );
+
+    if (currentDrag.type && valid && !underWheel) {
       const rotation = getAutoRotation(gridX, gridY);
       placePiece(currentDrag.type, gridX, gridY, rotation);
       hapticLight();
@@ -1126,6 +1169,24 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
 
+    // Min-pieces hard floor: the output is correct, the pulses landed, and any
+    // required-piece architecture was engaged — but the machine is too sparse.
+    // Reject the run and consume a life (Axiom never loses a life), pushing the
+    // Engineer toward elaborate builds. Placed AFTER requiredPieces so a
+    // specific missing-piece message takes priority over this generic floor.
+    // Reuses the requiredNotEngaged modal (generic COGS-line renderer).
+    if (!wrongOutput && metPulseRequirement && level.minPieces) {
+      const placedPieces = useGameStore.getState().machineState.pieces;
+      const mp = evaluateMinPieces(level, placedPieces);
+      if (!mp.met) {
+        setBeamState(prev => ({ ...prev, phase: 'idle' }));
+        if (!isAxiomLevel) loseLife();
+        setRequiredNotEngagedLine(buildMinPiecesCogsLine(level.id, mp.active, mp.required));
+        setShowRequiredNotEngaged(true);
+        return;
+      }
+    }
+
     const succeeded = !wrongOutput && metPulseRequirement && topoGate.met;
     if (succeeded) {
       const engageDurationMs = Date.now() - engageStartTime;
@@ -1366,34 +1427,30 @@ export default function GameplayScreen({ navigation }: Props) {
                 const [gx, gy] = key.split(',').map(Number);
                 const cx = gx * CELL_SIZE + CELL_SIZE / 2;
                 const cy = gy * CELL_SIZE + CELL_SIZE / 2;
+                // Blast crater — a charred recess with a copper-scorched rim and
+                // radial cracks. Used for BOTH pre-existing blown cells (worn
+                // Kepler boards) and cells the player blows by failing a run.
                 return (
                   <G key={`scar-${key}`}>
-                    <Rect
-                      x={gx * CELL_SIZE + 2}
-                      y={gy * CELL_SIZE + 2}
-                      width={CELL_SIZE - 4}
-                      height={CELL_SIZE - 4}
-                      rx={4}
-                      fill="rgba(180,30,30,0.12)"
-                      stroke="rgba(180,30,30,0.25)"
-                      strokeWidth={1}
-                    />
-                    <Line
-                      x1={cx - 6} y1={cy - 6}
-                      x2={cx + 4} y2={cy + 2}
-                      stroke="rgba(255,60,60,0.3)"
-                      strokeWidth={1}
-                    />
-                    <Line
-                      x1={cx + 2} y1={cy - 4}
-                      x2={cx - 3} y2={cy + 7}
-                      stroke="rgba(255,60,60,0.25)"
-                      strokeWidth={1}
-                    />
+                    {/* Blast pit */}
                     <Circle
-                      cx={cx} cy={cy} r={3}
-                      fill="rgba(255,50,50,0.2)"
+                      cx={cx} cy={cy} r={CELL_SIZE * 0.34}
+                      fill="rgba(18,8,5,0.55)"
+                      stroke="rgba(176,106,44,0.55)"
+                      strokeWidth={1.5}
                     />
+                    {/* Charred hole */}
+                    <Circle
+                      cx={cx} cy={cy} r={CELL_SIZE * 0.16}
+                      fill="rgba(0,0,0,0.6)"
+                      stroke="rgba(200,72,40,0.5)"
+                      strokeWidth={1}
+                    />
+                    {/* Radial scorch cracks */}
+                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.4} y2={cy - CELL_SIZE * 0.34} stroke="rgba(176,106,44,0.45)" strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.42} y2={cy - CELL_SIZE * 0.26} stroke="rgba(176,106,44,0.4)" strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.3} y2={cy + CELL_SIZE * 0.4} stroke="rgba(176,106,44,0.4)" strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.32} y2={cy + CELL_SIZE * 0.36} stroke="rgba(176,106,44,0.35)" strokeWidth={1} />
                   </G>
                 );
               })}
@@ -1442,6 +1499,27 @@ export default function GameplayScreen({ navigation }: Props) {
               onPieceTap={handlePieceTap}
               onPieceLongPress={handlePieceLongPress}
             />
+
+            {/* Drag hover highlight — copper when the cell is a valid drop
+                target, red when occupied/blown. Sits under the floating ghost
+                piece so the Engineer sees exactly where the drop will land. */}
+            {dragHoverCell && (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.dragHoverCell,
+                  dragHoverCell.valid
+                    ? styles.dragHoverCellValid
+                    : styles.dragHoverCellInvalid,
+                  {
+                    left: dragHoverCell.gridX * CELL_SIZE,
+                    top: dragHoverCell.gridY * CELL_SIZE,
+                    width: CELL_SIZE,
+                    height: CELL_SIZE,
+                  },
+                ]}
+              />
+            )}
 
             {/* Tutorial placed-piece marker — zero-size invisible View at the
                 placed piece's grid cell. TutorialHUDOverlay measures it with
@@ -1615,6 +1693,7 @@ export default function GameplayScreen({ navigation }: Props) {
           side={arcWheelPosition}
           selectedId={selectedInventoryId}
           disabled={isExecuting}
+          mainNodeRef={arcWheelMainRef}
           onSelect={handleArcWheelSelect}
           onDragStart={handleDragStart}
           onDragMove={handleDragMove}
@@ -1635,7 +1714,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <PieceIcon
             type={dragState.type}
             size={CELL_SIZE * 0.6}
-            color={['configNode','scanner','transmitter','inverter','counter','latch'].includes(dragState.type) ? '#8B5CF6' : '#F0B429'}
+            color={getPieceColor(dragState.type)}
           />
         </View>
       )}
@@ -1712,30 +1791,26 @@ export default function GameplayScreen({ navigation }: Props) {
         onClose={() => setShowSpecSheet(false)}
       />
 
-      {/* ── Spec Sheet A1-1 activation hook (SE-TM-033) — orb highlights the
-          info button, copy in a dialog anchored beneath it ── */}
-      <SpecSheetHook
-        visible={showSpecSheetHook}
-        lines={SPEC_SHEET_ACTIVATION_HOOK}
-        targetRef={specSheetBtnRef}
-        onDismiss={handleSpecSheetHookDismiss}
-      />
-
       {/* ── HUD Tutorial Overlay ── */}
       {/* Gated on !isExecuting so measure() calls don't race beam-animation
           setState updates during the run (Prompt 83). The overlay
           remounts at its persisted step once the run resolves. */}
-      {!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted &&
-        !isExecuting && level?.sector === 'axiom' &&
-        (level?.tutorialSteps?.length ?? 0) > 0 && (
+      {/* Axiom runs the overlay from mount. Kepler+ runs it only in the
+          placement phase, after the REQUISITION store closes — that is when the
+          board and Arc Wheel are mounted, so 'boardGrid'/'arcWheelMain' measure
+          reliably (the requisition-phase store screen is not a tutorial target). */}
+      {(forceTutorial || (!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted)) &&
+        !isExecuting && (level?.tutorialSteps?.length ?? 0) > 0 &&
+        (level?.sector === 'axiom' ||
+          (!isAxiomLevel && requisitionPhase === 'placement')) && (
         <TutorialHUDOverlay
           steps={level!.tutorialSteps!}
           levelId={level!.id}
           targetRefs={tutorialTargetRefs}
           spotlightCells={tutorialSpotlightCells}
           spotlightCellSize={CELL_SIZE}
-          onComplete={() => setTutorialComplete(true)}
-          onSkip={() => setTutorialSkipped(true)}
+          onComplete={() => { setTutorialComplete(true); setForceTutorial(false); }}
+          onSkip={() => { setTutorialSkipped(true); setForceTutorial(false); }}
           isBeamActive={beamState.phase !== 'idle'}
           lastPlacedTrigger={lastPlacedTrigger}
           lastTappedTrigger={lastTappedTrigger}
@@ -1903,6 +1978,20 @@ const styles = StyleSheet.create({
     borderColor: '#c87941',
     borderStyle: 'dashed',
     backgroundColor: 'rgba(200,121,65,0.08)',
+  },
+  dragHoverCell: {
+    position: 'absolute',
+    borderRadius: PIECE_RADIUS,
+    borderWidth: 2,
+    zIndex: 150,
+  },
+  dragHoverCellValid: {
+    borderColor: '#F0B429',
+    backgroundColor: 'rgba(240,180,41,0.16)',
+  },
+  dragHoverCellInvalid: {
+    borderColor: 'rgba(200,60,60,0.8)',
+    backgroundColor: 'rgba(200,60,60,0.14)',
   },
 
   // Parts tray

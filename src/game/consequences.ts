@@ -42,6 +42,34 @@ export const KEPLER_BOSS_CONSEQUENCE: NarrativeConsequence = {
     'Propulsion restored. The colonists have resumed communications. They are cautious. Understandably. We should not require another chance to prove ourselves reliable.',
 };
 
+// ─── Kepler Transit Gate (K1-8, mid-sector consequence) ──────────────────────
+// Trigger: failed entirely. Below boss weight (SPEC_KEPLER_REBUILD_v3 Q8): a
+// single comms-array hit, no sector-wide piece reduction, no casualties. Exists
+// as a record per V2 REQ-72/75; like every consequence here it stays dormant
+// until the getTriggeredConsequence -> applyConsequence path is wired into the
+// post-level flow.
+
+export const KEPLER_TRANSIT_GATE_CONSEQUENCE: NarrativeConsequence = {
+  id: 'kepler_transit_gate_consequence',
+  sectorId: 'kepler',
+  triggerLevelId: 'K1-8',
+  triggerCondition: 'fail',
+  mechanicalEffects: [
+    {
+      type: 'damage_system',
+      system: 'communicationArray',
+      // Feedback from the collapsed routing table back through our comms.
+    },
+  ],
+  narrativeEffects: [],
+  cogsImmediateResponse:
+    'The gate dropped its routing and the backlog fed straight back through our communication array. It is degraded, not down. I caught most of it. Not all of it. The colonists noticed the corridor stall before we did. I would have preferred the reverse.',
+  cogsLaterReaction:
+    'The communication array is still degraded. It is a slow problem, not an urgent one, which is the kind I find easiest to leave unattended and hardest to justify leaving unattended. We should repair it before the next dense stretch of the belt.',
+  cogsOnRepair:
+    'Communication array restored. Full routing fidelity. The transit gate is someone else\'s problem again. I am content to leave it that way.',
+};
+
 // ─── Nova Fringe Boss ────────────────────────────────────────────────────────
 // Trigger: failed or completed with 1 star
 // COGS reports exact credit amount at runtime — use placeholder {AMOUNT}
@@ -144,6 +172,7 @@ export const DEEP_VOID_BOSS_CONSEQUENCE: NarrativeConsequence = {
 
 export const ALL_CONSEQUENCES: NarrativeConsequence[] = [
   KEPLER_BOSS_CONSEQUENCE,
+  KEPLER_TRANSIT_GATE_CONSEQUENCE,
   NOVA_BOSS_CONSEQUENCE,
   RIFT_BOSS_CONSEQUENCE,
   DEEP_VOID_BOSS_CONSEQUENCE,

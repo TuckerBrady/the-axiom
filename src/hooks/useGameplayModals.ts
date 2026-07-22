@@ -85,8 +85,6 @@ export interface UseGameplayModalsResult {
   // hook (COGS line pointing at the revived info icon).
   showSpecSheet: boolean;
   setShowSpecSheet: React.Dispatch<React.SetStateAction<boolean>>;
-  showSpecSheetHook: boolean;
-  setShowSpecSheetHook: React.Dispatch<React.SetStateAction<boolean>>;
 
   scoreResult: ScoreResult | null;
   setScoreResult: React.Dispatch<React.SetStateAction<ScoreResult | null>>;
@@ -125,7 +123,6 @@ export function useGameplayModals(
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
 
   const [showSpecSheet, setShowSpecSheet] = useState(false);
-  const [showSpecSheetHook, setShowSpecSheetHook] = useState(false);
 
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [cogsScoreComment, setCogsScoreComment] = useState('');
@@ -141,16 +138,9 @@ export function useGameplayModals(
     });
   }, [level?.id]);
 
-  // SE-TM-033 — Spec Sheet activation hook. The first time the player loads
-  // A1-1, COGS speaks the one-time line that points at the (revived) info icon.
-  // Framed as routing a feed that was always on file, not new instrumentation.
-  // Monotonic seen-flag, mirroring the economy-intro pattern above.
-  useEffect(() => {
-    if (!level || level.id !== 'A1-1') return;
-    AsyncStorage.getItem('axiom_spec_sheet_hook_seen').then(seen => {
-      if (!seen) setShowSpecSheetHook(true);
-    });
-  }, [level?.id]);
+  // SE-TM-033 — the Spec Sheet introduction is now the final A1-1 tutorial step
+  // (targetRef 'specSheetBtn' in levels.ts), not a standalone hook. The old
+  // one-time card and its seen-flag are retired.
 
   const anyModalOpen =
     showPauseModal ||
@@ -183,7 +173,6 @@ export function useGameplayModals(
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
     showSpecSheet, setShowSpecSheet,
-    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,
