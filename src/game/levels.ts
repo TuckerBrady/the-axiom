@@ -880,14 +880,30 @@ pieceCounter = 830;
 
 export const levelK1_4: LevelDefinition = {
   id: 'K1-4', name: 'Mining Platform Alpha', sector: 'kepler',
-  description: 'Output each input value using Latch as dynamic per-pulse memory.',
+  // PROPOSED copy (pending Tucker sign-off). Fun-pass rebuild: was an identity
+  // pass-through (output === input — a wire), which made the Latch and Config Node
+  // decorative and the level un-failable. Now a true BLANK-masking gate: the relay
+  // only forwards the ACTIVE pulses (1s); idle pulses (0s) do not propagate and
+  // leave the output dark. Output visibly differs from input, and the gate is
+  // load-bearing — omit the Config and the 0-pulses leak through as literal 0s and
+  // the relay fails. (Same masking shape as A1-7, but the gate here reads the
+  // LATCH's carried value, not the Scanner trail — reinforcing K1-3's Latch.)
+  description: 'Relay only the active pulses. The Latch stores each pulse and a Config gate forwards it only when it carries signal; idle pulses stay dark.',
   cogsLine: 'Mining Platform Alpha has been decommissioned for six years. The colonists use it as a signal relay. It was not designed for this purpose. It is doing the job anyway.',
   eyeState: 'blue',
   gridWidth: 10, gridHeight: 7,
   prePlacedPieces: [prePlaced('source', 1, 3), prePlaced('terminal', 8, 3)],
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'latch', 'configNode', 'transmitter', 'gear', 'gear'],
+  // Scanner removed: the Latch (WRITE) carries the pulse value into the Config gate
+  // directly (carriesLatchValue), so the masking solution is Latch -> Config ->
+  // Transmitter + routing. Verified solvable in keplerK14Masking.test.ts.
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'latch', 'configNode', 'transmitter', 'gear', 'gear'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, 0, 0, 1, 1, 0],
+  // BLANK-masking live gate (SE-TM-003): Config configValue=1 forwards the three
+  // 1-pulses and blocks the three 0-pulses, which produce no output and stay BLANK.
+  // expectedOutput is full-length and BLANK-aware — exact match against outputTape
+  // is the success condition. A naive build that omits the gate writes literal 0s
+  // on the idle pulses and fails (0 !== BLANK). Proven in keplerK14Masking.test.ts.
+  inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, BLANK, BLANK, 1, 1, BLANK],
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 6, budget: 130,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
@@ -900,12 +916,19 @@ export const levelK1_4: LevelDefinition = {
     cogsWarning: 'Mining Platform Alpha is carrying more than it was built to carry. If the relay drops, it does not fail quietly. The colonists routing through it lose their signal path before they know it is gone. I am stating the stakes once. Proceed.',
     failureEffect: 'The platform relay dropped. Four settlements on the Alpha branch lost signal routing for the duration. They reverted to manual relay, the way they did before this ship arrived. No casualties logged. I am logging the interruption. They will have noticed it.',
   },
-  computationalGoal: 'Output 1 when the input is 1, output 0 when the input is 0. The Latch stores each pulse value and the stored value gates a Config Node that controls whether the Transmitter fires.',
-  conceptTaught: 'Latch as dynamic per-pulse memory (write each pulse, read within same pulse for gating).',
-  prerequisiteConcept: 'Latch write/read, Config Node gating.',
-  tapeDesignRationale: 'Three consecutive same values (positions 1-2 and 3-4) test that the machine is not just alternating.',
+  computationalGoal: 'Forward only the active pulses. The Latch (write mode) stores each pulse value and carries it into a Config Node (configValue 1); the gate passes when the carried value is 1 so the Transmitter writes 1, and blocks on 0-pulses, which leave the output dark (BLANK).',
+  conceptTaught: 'Masking via Latch-carried gating: the output is a filtered subset of the input, not a faithful copy. The Config Node is load-bearing — without it the idle pulses leak through.',
+  prerequisiteConcept: 'Latch write/read (K1-3), Config Node gating, BLANK-masked output (A1-7).',
+  tapeDesignRationale: 'Mixed 1s and 0s with consecutive runs (1-2 and 3-4) force the machine to mask dynamically per pulse: a build that always passes writes 0s where BLANK is expected and fails. The 0-pulses must be dropped, not echoed.',
   difficultyBand: 'derivable',
   narrativeFrame: 'Decommissioned platform repurposed as signal relay. Failure affects colonist communication.',
+  // PROPOSED (pending in-game floor-solve sign-off): require the masking-gate
+  // architecture (Latch + Config Node) and floor the build at 5 active player
+  // pieces. availablePieces carries exactly 1 latch + 1 configNode, so both must
+  // be engaged; the verified masking solve is ~6 player pieces, so a floor of 5
+  // is safely achievable while still rejecting a minimal wire.
+  requiredPieces: [{ type: 'latch', count: 1 }, { type: 'configNode', count: 1 }],
+  minPieces: 5,
 };
 
 pieceCounter = 840;
@@ -1124,7 +1147,17 @@ pieceCounter = 890;
 
 export const levelK1_10: LevelDefinition = {
   id: 'K1-10', name: 'Central Hub', sector: 'kepler',
-  description: 'Running count machine: output 1 when two or more consecutive 1s seen.',
+  // PROPOSED copy (pending Tucker sign-off). Fun-pass rebuild + CRITICAL BUG FIX:
+  // the old boss was a temporal-AND consecutive-1s detector (output [0,1,0,0,1,1,0,
+  // 0,0,1] with literal 0s). That is UNSOLVABLE with the Kepler piece set — there is
+  // no AND combinator (Merger is OR-only) and no NOT (Inverter withheld), and a
+  // blocked pulse produces BLANK, never 0. Because K1-10 gates the sector
+  // (requireThreeStars), the entire Kepler sector was un-completable. Re-scoped to
+  // temporal-OR (out[N] = in[N] OR in[N-1]), the computable dual: it synthesizes the
+  // sector's pieces (Splitter forks the signal, a DELAY Latch carries the previous
+  // pulse, a Merger ORs them) and produces real 0/1 output. Verified solvable in
+  // keplerK110TemporalOr.test.ts.
+  description: 'Hold the signal. Output 1 if the current pulse OR the one before it carried signal — the routing must not drop a pulse the instant it ends.',
   cogsLine: 'The Central Hub. Everything in this corridor routes through here. If it holds, the corridor holds. Three hundred thousand people depend on infrastructure that runs through a single point. That is not good design. It is, however, the current situation.',
   eyeState: 'amber',
   gridWidth: 12, gridHeight: 9,
@@ -1134,8 +1167,26 @@ export const levelK1_10: LevelDefinition = {
   damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 7, gridY: 7 }, { gridX: 9, gridY: 6 }],
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'scanner', 'scanner', 'latch', 'latch', 'splitter', 'merger', 'configNode', 'configNode', 'transmitter', 'gear', 'gear', 'gear', 'gear', 'bridge'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [1, 1, 0, 1, 1, 1, 0, 0, 1, 1], expectedOutput: [0, 1, 0, 0, 1, 1, 0, 0, 0, 1],
+  // Temporal-OR: out[N] = in[N] OR in[N-1]; out[0] = in[0] (DELAY Latch emits 0 on
+  // the first pulse). Tape has isolated 1s and 0-runs so the output diverges from a
+  // pass-through (e.g. index 2/5: a 0 becomes 1 because the previous pulse was 1) and
+  // a hardcode fails. A 0 only survives where two consecutive 0s occur. Verified by
+  // keplerK110TemporalOr.test.ts.
+  inputTape: [0, 1, 0, 0, 1, 0, 0, 0, 1, 1], expectedOutput: [0, 1, 1, 0, 1, 1, 0, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
+  // The boss forces the full temporal-OR architecture (no degenerate wire solve).
+  requiredPieces: [{ type: 'splitter', count: 1 }, { type: 'latch', count: 1 }, { type: 'merger', count: 1 }],
+  // PROPOSED (pending in-game floor-solve sign-off): floor the build at 8 active
+  // player pieces — the full temporal-OR machine (Splitter + DELAY Latch + Merger
+  // + Transmitter plus bypass routing) on the 12-wide board. Matches the
+  // optimalPieces estimate below; revisit alongside the same in-game playthrough.
+  minPieces: 8,
+  // optimalPieces is the computational core (Splitter + DELAY Latch + Merger +
+  // Transmitter = 4) plus the bypass routing across a 12-wide board. Estimated 8
+  // pending an in-game floor-solve on the real magnet board (the Splitter needs >=2
+  // connected sides). Do not lock the 3-star threshold until that playthrough — this
+  // boss is requireThreeStars-gated, so an over-tight optimalPieces would re-block
+  // the sector. See [[kepler-engine-transform-constraints]].
   optimalPieces: 8, budget: 80,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
@@ -1149,17 +1200,17 @@ export const levelK1_10: LevelDefinition = {
     failureEffect: 'The relay failure has been logged with the transit authority. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel. I would suggest we resolve the inquiry through competence rather than correspondence. The systems are repairable.',
     requireThreeStars: true,
   },
-  computationalGoal: 'Implement a running count machine. Output 1 if two or more consecutive 1s have been seen in the input (including the current pulse). Otherwise output 0.',
-  conceptTaught: 'Full stateful computation. A machine that behaves differently on pulse N based on what happened on pulse N-1.',
-  prerequisiteConcept: 'All Kepler concepts mastered.',
-  tapeDesignRationale: 'Ten pulses with multiple runs of consecutive 1s, isolated 1s, and consecutive 0s test all state transitions of the consecutive detection algorithm.',
+  computationalGoal: 'Temporal-OR. Output 1 when the current pulse OR the immediately preceding pulse carried signal; output 0 only across two consecutive idle pulses. A Splitter forks the live signal, a Latch in Delay carries the previous pulse forward, and a Merger ORs the two paths into the Transmitter.',
+  conceptTaught: 'Kepler synthesis capstone: cross-pulse memory (Latch Delay) combined with parallel-path convergence (Splitter + Merger) into a single stateful machine.',
+  prerequisiteConcept: 'Latch Delay (K1-9), Splitter + Merger (K1-5/K1-6), all Kepler routing.',
+  tapeDesignRationale: 'Ten pulses with isolated 1s and 0-runs. The output diverges from the input wherever a 1 is followed by a 0 (the 0 becomes 1, carried by the previous pulse), so a pass-through or a hardcode fails. A 0 survives only where two idle pulses sit adjacent.',
   difficultyBand: 'abstract',
-  narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure.',
+  narrativeFrame: 'Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure. The routing must not drop a signal the instant a pulse ends.',
   tutorialSteps: [
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'amber',
-      message: 'The Central Hub. Twelve columns. The largest board in this sector. The machine must compare each incoming pulse against what the Latch stored from the previous one. All pieces are available. Nothing here has not been seen before.' },
+      message: 'The Central Hub. Twelve columns. The largest board in this sector. The routing here cannot drop a signal the moment a pulse ends — it has to hold one step. Everything you have learned in this corridor is on the manifest. Nothing here is new.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
-      message: 'Output 1 only when this pulse and the one before it are both 1. The Latch in Delay holds the previous value; a Config gate checks both. Three hundred thousand people are downstream. Build it correctly.' },
+      message: 'Output carries signal if this pulse OR the one before it did. Split the signal: one path forward, one path through a Latch in Delay to hold the previous pulse. A Merger brings them back together. Three hundred thousand people are downstream. Build it correctly.' },
   ],
 };
 

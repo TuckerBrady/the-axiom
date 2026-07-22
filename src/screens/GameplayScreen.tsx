@@ -31,7 +31,7 @@ import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
-import ArcWheel, { type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
+import ArcWheel, { WHEEL_WIDTH, type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
@@ -50,8 +50,8 @@ import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/ty
 import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
 import { resolveDropCell } from '../utils/dropTarget';
-import { getOutputPorts, getInputPorts, evaluateRequiredPieces, nextLatchMode } from '../game/engine';
-import { buildRequiredPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
+import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
+import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
 import { useGameplayTimer } from '../hooks/useGameplayTimer';
@@ -752,7 +752,17 @@ export default function GameplayScreen({ navigation }: Props) {
     });
     const currentDrag = dragState;
 
-    if (currentDrag.type && valid) {
+    // Reject drops on cells physically behind the Arc Wheel so pieces can't
+    // get stranded under it (the wheel's PanResponder would block long-press
+    // retrieval of anything placed there).
+    const cellLeft = boardPos.x + gridX * cellSizeRef.current;
+    const cellRight = cellLeft + cellSizeRef.current;
+    const underWheel = !isAxiomLevel && (
+      (arcWheelPosition === 'right' && cellRight > screenWidth - WHEEL_WIDTH) ||
+      (arcWheelPosition === 'left'  && cellLeft  < WHEEL_WIDTH)
+    );
+
+    if (currentDrag.type && valid && !underWheel) {
       const rotation = getAutoRotation(gridX, gridY);
       placePiece(currentDrag.type, gridX, gridY, rotation);
       hapticLight();
@@ -1154,6 +1164,24 @@ export default function GameplayScreen({ navigation }: Props) {
         setBeamState(prev => ({ ...prev, phase: 'idle' }));
         loseLife();
         setRequiredNotEngagedLine(buildRequiredPiecesCogsLine(level.id, rpResult.missing));
+        setShowRequiredNotEngaged(true);
+        return;
+      }
+    }
+
+    // Min-pieces hard floor: the output is correct, the pulses landed, and any
+    // required-piece architecture was engaged — but the machine is too sparse.
+    // Reject the run and consume a life (Axiom never loses a life), pushing the
+    // Engineer toward elaborate builds. Placed AFTER requiredPieces so a
+    // specific missing-piece message takes priority over this generic floor.
+    // Reuses the requiredNotEngaged modal (generic COGS-line renderer).
+    if (!wrongOutput && metPulseRequirement && level.minPieces) {
+      const placedPieces = useGameStore.getState().machineState.pieces;
+      const mp = evaluateMinPieces(level, placedPieces);
+      if (!mp.met) {
+        setBeamState(prev => ({ ...prev, phase: 'idle' }));
+        if (!isAxiomLevel) loseLife();
+        setRequiredNotEngagedLine(buildMinPiecesCogsLine(level.id, mp.active, mp.required));
         setShowRequiredNotEngaged(true);
         return;
       }

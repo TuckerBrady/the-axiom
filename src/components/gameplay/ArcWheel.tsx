@@ -24,15 +24,15 @@ import {
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const WHEEL_WIDTH = 72;
+export const WHEEL_WIDTH = 72;
 const NODE_SIZE_MAX = 52;
 const NODE_SIZE_MIN = 28;
 const NODE_GAP = 8;
 const VISIBLE_NODES = 5;
-const IDLE_OPACITY = 0.18;
+const IDLE_OPACITY = 0.55;
 const RECALL_STRIP_W = 5;
 const DISMISS_THRESHOLD = 40;
-const ACTIVE_TIMEOUT_MS = 2000;
+const ACTIVE_TIMEOUT_MS = 8000;
 const DRAG_HOLD_MS = 180;
 
 const NODE_SLOT_H = NODE_SIZE_MAX + NODE_GAP;
@@ -119,6 +119,7 @@ export default function ArcWheel({
 
   const slideAnim = useRef(new Animated.Value(0)).current;
   const idleAnim = useRef(new Animated.Value(IDLE_OPACITY)).current;
+  const scrollOffsetAnim = useRef(new Animated.Value(0)).current;
   const activeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Entrance animation (REQ-68): 0.8s staggered, alternating above/below ──
@@ -217,14 +218,27 @@ export default function ArcWheel({
 
   // ── Node gesture callbacks (each WheelNode owns its own PanResponder) ──
   const handleScrollSteps = useCallback((steps: number) => {
+    const len = groupsRef.current.length;
+    if (len === 0) return;
+
+    // Slide animation: jump to "before" offset then animate to final position.
+    // steps > 0 = scroll up (pieces slide up), steps < 0 = scroll down.
+    scrollOffsetAnim.stopAnimation();
+    scrollOffsetAnim.setValue(steps * NODE_SLOT_H);
+    Animated.timing(scrollOffsetAnim, {
+      toValue: 0,
+      duration: 200,
+      easing: Easing.bezier(0.16, 1, 0.3, 1),
+      useNativeDriver: false,
+    }).start();
+
     setSelectedIndex(prev => {
-      const len = groupsRef.current.length;
-      if (len === 0) return 0;
       const next = prev + steps;
       return ((next % len) + len) % len;
     });
     hapticLight();
-  }, []);
+    activateWheel();
+  }, [activateWheel, scrollOffsetAnim]);
 
   const handleTapSelect = useCallback((idx: number) => {
     const group = groupsRef.current[idx];
@@ -358,6 +372,19 @@ export default function ArcWheel({
           pointerEvents="box-none"
           style={[styles.pill, { opacity: isActive ? 1 : idleAnim }]}
         >
+          {/* Scroll-up chevron — two stacked ∧ for clear double-chevron look */}
+          {groups.length > 1 && (
+            <TouchableOpacity
+              onPress={() => handleScrollSteps(-1)}
+              hitSlop={{ top: 8, bottom: 4, left: 16, right: 16 }}
+              activeOpacity={0.5}
+              style={styles.chevronBtn}
+            >
+              <Text style={styles.chevronText}>∧</Text>
+              <Text style={styles.chevronText}>∧</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Empty state */}
           {groups.length === 0 && (
             <View style={styles.emptyState}>
@@ -365,8 +392,40 @@ export default function ArcWheel({
             </View>
           )}
 
-          {/* Piece nodes — one per type, count badge for duplicates */}
-          {visibleGroups.map((group, relIdx) => renderNode(group, startIdx + relIdx, relIdx))}
+          {/* Piece nodes — one per type, count badge for duplicates.
+              scrollOffsetAnim drives the slot-machine slide: nodes start offset
+              in the scroll direction and animate to 0 so pieces visually move. */}
+          <Animated.View
+            pointerEvents="box-none"
+            style={{ transform: [{ translateY: scrollOffsetAnim }] }}
+          >
+            {visibleGroups.map((group, relIdx) => renderNode(group, startIdx + relIdx, relIdx))}
+          </Animated.View>
+
+          {/* Scroll-down chevron */}
+          {groups.length > 1 && (
+            <TouchableOpacity
+              onPress={() => handleScrollSteps(1)}
+              hitSlop={{ top: 4, bottom: 8, left: 16, right: 16 }}
+              activeOpacity={0.5}
+              style={styles.chevronBtn}
+            >
+              <Text style={styles.chevronText}>∨</Text>
+              <Text style={styles.chevronText}>∨</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Dismiss handle — 3 dots on the inward face hints at horizontal swipe */}
+          <View
+            style={[
+              styles.dismissHandle,
+              isRight ? styles.dismissHandleLeft : styles.dismissHandleRight,
+            ]}
+          >
+            <View style={styles.dismissDot} />
+            <View style={styles.dismissDot} />
+            <View style={styles.dismissDot} />
+          </View>
         </Animated.View>
       )}
     </Animated.View>
@@ -561,6 +620,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(74,158,255,0.15)',
     minHeight: WHEEL_H,
     gap: 0,
+    overflow: 'hidden',
   },
 
   nodeWrapper: {},
@@ -609,6 +669,39 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.muted,
     opacity: 0.4,
+  },
+
+  // Scroll chevron buttons
+  chevronBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
+  chevronText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 8,
+    lineHeight: 9,
+    color: 'rgba(74,158,255,0.55)',
+  },
+
+  // Dismiss handle — 3 dots on the inward face of the pill
+  dismissHandle: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 8,
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 4,
+  },
+  dismissHandleLeft:  { left: 3 },   // right-side wheel: dots on left (interior) face
+  dismissHandleRight: { right: 3 },  // left-side wheel: dots on right (interior) face
+  dismissDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: 'rgba(74,158,255,0.22)',
   },
 
   // Corner brackets for selected piece

@@ -822,3 +822,24 @@ export function evaluateRequiredPieces(
   if (missing.length === 0) return { result: 'satisfied' };
   return { result: 'requiredPiecesNotEngaged', missing };
 }
+
+/**
+ * Evaluate the minPieces hard floor: a completing run must engage at least
+ * `level.minPieces` player-placed pieces. Pre-placed pieces (Source, Terminal,
+ * Resonator, etc.) are excluded, as are pieces that never fired during the run.
+ * Pushes the Engineer toward elaborate machines rather than minimal wires.
+ *
+ * Returns the active count, the required floor, and whether the floor is met.
+ * A level with no minPieces (undefined or <= 0) always returns met: true.
+ */
+export function evaluateMinPieces(
+  level: LevelDefinition,
+  placedPieces: PlacedPiece[],
+): { met: boolean; active: number; required: number } {
+  const active = placedPieces.filter(
+    p => !p.isPrePlaced && p.firedDuringRun === true,
+  ).length;
+  const required = level.minPieces ?? 0;
+  if (required <= 0) return { met: true, active, required: 0 };
+  return { met: active >= required, active, required };
+}

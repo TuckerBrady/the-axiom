@@ -135,11 +135,30 @@ describe('Kepler Belt levels', () => {
     }
   });
 
-  it('K1-10 tape matches consecutive-1 detector spec', () => {
+  it('K1-10 tape is the temporal-OR capstone (out[N] = in[N] OR in[N-1])', () => {
+    // Fun-pass: the old temporal-AND tape ([0,1,0,0,1,1,0,0,0,1]) was UNSOLVABLE with
+    // the Kepler piece set (no AND combinator, no NOT; blocked pulse = BLANK not 0),
+    // which silently blocked the whole sector (requireThreeStars). Re-scoped to the
+    // computable temporal-OR. Solvability is proven in keplerK110TemporalOr.test.ts.
     const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
-    expect(k10.inputTape).toEqual([1, 1, 0, 1, 1, 1, 0, 0, 1, 1]);
-    expect(k10.expectedOutput).toEqual([0, 1, 0, 0, 1, 1, 0, 0, 0, 1]);
+    expect(k10.inputTape).toEqual([0, 1, 0, 0, 1, 0, 0, 0, 1, 1]);
+    expect(k10.expectedOutput).toEqual([0, 1, 1, 0, 1, 1, 0, 0, 1, 1]);
     expect(k10.inputTape!.length).toBe(k10.expectedOutput!.length);
+    // The boss forces the full temporal-OR architecture.
+    const required = (k10.requiredPieces ?? []).map(r => r.type);
+    expect(required).toEqual(expect.arrayContaining(['splitter', 'latch', 'merger']));
+  });
+
+  it('K1-4 has the masking-gate requiredPieces and a minPieces floor of 5', () => {
+    const k4 = KEPLER_LEVELS.find(l => l.id === 'K1-4')!;
+    expect(k4.minPieces).toBe(5);
+    const required = (k4.requiredPieces ?? []).map(r => r.type);
+    expect(required).toEqual(expect.arrayContaining(['latch', 'configNode']));
+  });
+
+  it('K1-10 has a minPieces floor of 8 for the full temporal-OR machine', () => {
+    const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
+    expect(k10.minPieces).toBe(8);
   });
 
   it('K1-10 is 12x9 grid with correct piece count', () => {
