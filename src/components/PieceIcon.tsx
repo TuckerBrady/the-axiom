@@ -640,8 +640,11 @@ export const PieceIcon = React.memo(function PieceIcon({
 
     case 'latch': {
       const isWrite = latchMode === 'write';
-      const writeOp = latching && isWrite ? 1 : 0.6;
-      const readOp = latching && !isWrite ? 1 : 0.6;
+      const isDelay = latchMode === 'delay';
+      // DELAY (D flip-flop) does both a read and a write each pulse, so both
+      // halves stay lit; WRITE lights the left half, READ the right.
+      const writeOp = latching && (isWrite || isDelay) ? 1 : 0.6;
+      const readOp = latching && (!isWrite || isDelay) ? 1 : 0.6;
       // storedValue is preserved for future reintroduction of a value
       // badge. It's intentionally not rendered right now — the bottom
       // circle was unreadable at small sizes.
@@ -659,15 +662,19 @@ export const PieceIcon = React.memo(function PieceIcon({
           {/* Center divider — lavender */}
           <Line x1="20" y1="10" x2="20" y2="30" stroke="#a78bfa" strokeWidth="1" strokeOpacity="0.5" />
           {/* Mode badge — light violet */}
-          <SvgText x="20" y="8" fill="#C4B5FD" fontSize="5" fontFamily="monospace" textAnchor="middle">{isWrite ? 'WRITE' : 'READ'}</SvgText>
+          <SvgText x="20" y="8" fill="#C4B5FD" fontSize="5" fontFamily="monospace" textAnchor="middle">{isWrite ? 'WRITE' : isDelay ? 'DELAY' : 'READ'}</SvgText>
         </Svg>
       );
     }
 
     case 'obstacle':
+      // Collapsed-corridor debris: a pile of angular rubble. Distinct from the
+      // blown-cell crater (a charred recess) — this is solid terrain in the way.
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Rect x="4" y="4" width="32" height="32" rx="4" fill={Colors.steel} fillOpacity="0.3" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.3" />
+          <Path d="M5 29 L13 15 L21 27 L14 33 Z" fill={Colors.steel} fillOpacity="0.45" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.5" />
+          <Path d="M18 31 L27 13 L35 28 L27 34 Z" fill={Colors.steel} fillOpacity="0.32" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.45" />
+          <Path d="M9 34 L19 30 L31 33 L23 37 L13 37 Z" fill={Colors.steel} fillOpacity="0.5" stroke={Colors.dim} strokeWidth="1" strokeOpacity="0.4" />
         </Svg>
       );
 

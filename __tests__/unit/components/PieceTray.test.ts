@@ -54,7 +54,7 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(screenSrc).toMatch(/refs=\{tutorialTrayRefs\}/);
   });
 
-  it('useGameplayTutorial exposes the tray refs (arcWheelMainRef removed)', () => {
+  it('useGameplayTutorial exposes the tray refs plus the Kepler Arc Wheel ref', () => {
     expect(tutorialHookSrc).toMatch(/trayConveyorRef/);
     expect(tutorialHookSrc).toMatch(/trayGearRef/);
     expect(tutorialHookSrc).toMatch(/trayConfigNodeRef/);
@@ -63,7 +63,9 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(tutorialHookSrc).toMatch(/trayTransmitterRef/);
     expect(tutorialHookSrc).toMatch(/tutorialTrayRefs/);
     expect(tutorialHookSrc).toMatch(/placedPieceRef/);
-    expect(tutorialHookSrc).not.toMatch(/arcWheelMainRef/);
+    // arcWheelMainRef is back — not for the removed Axiom focus-wheel, but for
+    // the Kepler+ Arc Wheel onboarding tutorial (targetRef 'arcWheelMain').
+    expect(tutorialHookSrc).toMatch(/arcWheelMainRef/);
   });
 
   it('GameplayScreen memoizes per-piece costs and affordability', () => {
@@ -120,10 +122,24 @@ describe('PieceTray — extracted parts tray component', () => {
       expect(screenSrc).not.toMatch(/axiomArcWheelPieces/);
       expect(screenSrc).not.toMatch(/axiomWheelSelectedId/);
       expect(screenSrc).not.toMatch(/handleAxiomArcWheelSelect/);
-      // The Kepler+ Arc Wheel render is untouched, so the ArcWheel
-      // import remains valid. The Axiom-specific render block must
-      // be gone.
-      expect(screenSrc).not.toMatch(/mainNodeRef=\{arcWheelMainRef\}/);
+      // The Kepler+ Arc Wheel render now wires mainNodeRef={arcWheelMainRef}
+      // for the wheel-onboarding tutorial, so that string is EXPECTED to be
+      // present — it is no longer a marker for the removed Axiom block.
+    });
+  });
+
+  describe('static during drag', () => {
+    it('disables ScrollView scrolling while a piece is being dragged', () => {
+      // The tray must not slide left/right under the drag (Tucker 2026-06-15).
+      expect(traySrc).toMatch(/scrollEnabled=\{!dragActive\}/);
+      expect(traySrc).toMatch(/onDragActiveChange/);
+    });
+
+    it('freezes on drag start and unfreezes on release and terminate', () => {
+      expect(traySrc).toMatch(/dac\(true\)/);
+      // both the release and terminate paths re-enable scrolling
+      const offCalls = (traySrc.match(/onDragActiveChange\(false\)/g) ?? []).length;
+      expect(offCalls).toBeGreaterThanOrEqual(2);
     });
   });
 });

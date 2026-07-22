@@ -288,14 +288,18 @@ describe('runTransmitterInteraction', () => {
     return ctx;
   }
 
-  it('does NOT light the OUT cell itself — the reveal is deferred to Terminal arrival', () => {
-    // Arrival fill (2026-06-13): the Transmitter computes the value but the OUT
-    // cell does not fill until the signal reaches the Terminal.
+  it("fills the OUT cell when the signal hits the Transmitter (moved off Terminal arrival)", () => {
+    // Tucker 2026-06-16: the OUT cell fills the moment the signal hits the
+    // Transmitter (the piece that writes it), not later at the Terminal.
     const ctx = buildTransmitterCtx();
     const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
     ctx.currentPulseRef.current = 1;
     void runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
-    expect(setTapeCellHighlights).not.toHaveBeenCalled();
+    let state = new Map<string, TapeHighlight>();
+    for (const [arg] of setTapeCellHighlights.mock.calls) {
+      state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
+    }
+    expect(state.get('out-1')).toBe('arrived');
   });
 });
 
@@ -308,22 +312,11 @@ describe('runTerminalInteraction', () => {
     return ctx;
   }
 
-  it("sets an out-${pulse} 'arrived' highlight when the signal reaches the Terminal", () => {
+  it('no longer touches the OUT tape — the fill moved to the Transmitter', () => {
     const ctx = buildTerminalCtx();
     const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
     ctx.currentPulseRef.current = 1;
     runTerminalInteraction(ctx, step('terminal', 'p-term', true));
-    let state = new Map<string, TapeHighlight>();
-    for (const [arg] of setTapeCellHighlights.mock.calls) {
-      state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);
-    }
-    expect(state.get('out-1')).toBe('arrived');
-  });
-
-  it('does nothing when the signal did not reach the Terminal (success false)', () => {
-    const ctx = buildTerminalCtx();
-    const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
-    runTerminalInteraction(ctx, step('terminal', 'p-term', false));
     expect(setTapeCellHighlights).not.toHaveBeenCalled();
   });
 });

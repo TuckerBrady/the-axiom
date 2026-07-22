@@ -42,6 +42,14 @@ describe('SpecSheetPanel — renders the four RFC-2119 sections', () => {
   it('reads MAY copy from the level conditions, not a derive function', () => {
     expect(panelSrc).toMatch(/mayConditions/);
   });
+
+  it('shows the expected IN -> OUT tape for a live output-gate level (Tucker 2026-06-16)', () => {
+    // The output-match SHALL is abstract; the panel also shows the actual
+    // required output tape so the player knows the target.
+    expect(panelSrc).toMatch(/expectedOutputIsLiveGate\(level\)/);
+    expect(panelSrc).toMatch(/REQUIRED OUTPUT/);
+    expect(panelSrc).toMatch(/<TapeStrip[\s\S]*?label="OUT"[\s\S]*?level\.expectedOutput/);
+  });
 });
 
 describe('SpecSheetPanel — read-only contract', () => {
@@ -70,18 +78,52 @@ describe('Spec Sheet — HUD + screen wiring', () => {
     expect(screenSrc).toMatch(/<SpecSheetPanel/);
   });
 
-  it('A1-1 activation hook is one-time (AsyncStorage seen-flag) and points at the icon', () => {
-    expect(modalsHookSrc).toMatch(/axiom_spec_sheet_hook_seen/);
-    expect(modalsHookSrc).toMatch(/level\.id !== 'A1-1'/);
-    expect(screenSrc).toMatch(/SPEC_SHEET_ACTIVATION_HOOK/);
+  it('A1-1 introduces the Spec Sheet as the FINAL tutorial step, pointing at the icon', () => {
+    const levelsSrc = read('src/game/levels.ts');
+    expect(levelsSrc).toMatch(/id: 'spec-sheet'/);
+    expect(levelsSrc).toMatch(/targetRef: 'specSheetBtn'/);
+    // The retired one-time hook + its seen-flag must be gone.
+    expect(modalsHookSrc).not.toMatch(/axiom_spec_sheet_hook_seen/);
+    expect(screenSrc).not.toMatch(/SPEC_SHEET_ACTIVATION_HOOK/);
   });
 });
 
-describe('Spec Sheet — MAY bonus surfaced on results', () => {
-  it('results modal renders the MAY bonus block', () => {
+describe('Spec Sheet — A1-1 intro is a tutorial step, not a standalone card (SE-TM-033)', () => {
+  it('the standalone SpecSheetHook card is no longer rendered', () => {
+    expect(screenSrc).not.toMatch(/<SpecSheetHook/);
+  });
+
+  it('the HUD info button is wired as the tutorial target specSheetBtn', () => {
+    const tutHookSrc = read('src/hooks/useGameplayTutorial.ts');
+    expect(tutHookSrc).toMatch(/specSheetBtn: specSheetBtnRef/);
+    expect(hudSrc).toMatch(/ref=\{specSheetBtnRef\}/);
+  });
+});
+
+describe('Topology SHALL is graded at win time (SE-TM-035)', () => {
+  it('GameplayScreen evaluates the topology gate and folds it into success', () => {
+    expect(screenSrc).toMatch(/evaluateTopologyGate\(level, steps\)/);
+    expect(screenSrc).toMatch(/!wrongOutput && metPulseRequirement && topoGate\.met/);
+  });
+
+  it('a correct output that violates topology shows the spec diagnostic, not a win', () => {
+    expect(screenSrc).toMatch(/!topoGate\.met/);
+    expect(screenSrc).toMatch(/setShowSpecNotMet\(true\)/);
+  });
+
+  it('A1-4 declares both the executed-path objective and the Spec Sheet topology field', () => {
+    const levelsSrc = read('src/game/levels.ts');
+    expect(levelsSrc).toMatch(/min_direction_changes['"]?,?\s*count:\s*2/);
+    expect(levelsSrc).toMatch(/topologyRequirements:\s*\{\s*minDirectionChanges:\s*2/);
+  });
+});
+
+describe('Spec Sheet — results checklist + MAY', () => {
+  it('results modal builds the spec checklist (incl. MAY) from the run', () => {
     const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');
-    expect(modalsSrc).toMatch(/mayBonus &&/);
+    expect(modalsSrc).toMatch(/buildSpecChecklist\(/);
     expect(modalsSrc).toMatch(/metDescriptions/);
+    expect(modalsSrc).toMatch(/SPECIFICATION/);
   });
 
   it('successHandler only awards MAY on a 3-star clear', () => {

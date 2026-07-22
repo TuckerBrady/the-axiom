@@ -18,16 +18,19 @@ describe('ArcWheel — source contract', () => {
     expect(hapticCalls).toBeGreaterThanOrEqual(2);
   });
 
-  it('defines IDLE_OPACITY between 15% and 20%', () => {
+  it('defines IDLE_OPACITY between 40% and 70% (visible but dimmed)', () => {
     const match = wheelSrc.match(/IDLE_OPACITY\s*=\s*([\d.]+)/);
     expect(match).not.toBeNull();
     const opacity = parseFloat(match![1]);
-    expect(opacity).toBeGreaterThanOrEqual(0.15);
-    expect(opacity).toBeLessThanOrEqual(0.20);
+    expect(opacity).toBeGreaterThanOrEqual(0.40);
+    expect(opacity).toBeLessThanOrEqual(0.70);
   });
 
-  it('defines ACTIVE_TIMEOUT_MS as 2000ms', () => {
-    expect(wheelSrc).toMatch(/ACTIVE_TIMEOUT_MS\s*=\s*2000/);
+  it('defines ACTIVE_TIMEOUT_MS >= 5000ms (long enough to scroll without fading)', () => {
+    const match = wheelSrc.match(/ACTIVE_TIMEOUT_MS\s*=\s*(\d+)/);
+    expect(match).not.toBeNull();
+    const ms = parseInt(match![1], 10);
+    expect(ms).toBeGreaterThanOrEqual(5000);
   });
 
   it('defines DRAG_HOLD_MS between 150ms and 250ms', () => {
@@ -49,6 +52,12 @@ describe('ArcWheel — source contract', () => {
     expect(wheelSrc).toMatch(/#8B5CF6/);  // purple — tape
   });
 
+  it('groups pieces by type with a count badge (one node per type)', () => {
+    expect(wheelSrc).toMatch(/groupArcWheelPieces/);
+    expect(wheelSrc).toMatch(/countBadge/);
+    expect(wheelSrc).toMatch(/group\.count > 1/);
+  });
+
   it('renders corner brackets on the selected piece', () => {
     expect(wheelSrc).toMatch(/cornerTL/);
     expect(wheelSrc).toMatch(/cornerTR/);
@@ -66,6 +75,18 @@ describe('ArcWheel — source contract', () => {
     expect(wheelSrc).toMatch(/Animated\.timing/);
   });
 
+  it('has chevron scroll buttons (∧/∨) for explicit up/down navigation', () => {
+    expect(wheelSrc).toMatch(/handleScrollSteps\(-1\)/);
+    expect(wheelSrc).toMatch(/handleScrollSteps\(1\)/);
+    expect(wheelSrc).toMatch(/chevronBtn/);
+    expect(wheelSrc).toMatch(/chevronText/);
+  });
+
+  it('has dismiss handle dots to hint at horizontal swipe', () => {
+    expect(wheelSrc).toMatch(/dismissHandle/);
+    expect(wheelSrc).toMatch(/dismissDot/);
+  });
+
   it('uses props for side (left/right) positioning', () => {
     expect(wheelSrc).toMatch(/side.*'left'.*'right'|'left'\s*\|\s*'right'/);
   });
@@ -79,8 +100,8 @@ describe('ArcWheel — source contract', () => {
   });
 
   it('groups inventory by type (count badge) rather than one node per instance', () => {
-    expect(wheelSrc).toMatch(/groupPieces/);
-    expect(wheelSrc).toMatch(/CountBadge/);
+    // Uses groupArcWheelPieces (arcWheelGrouping.ts) — the canonical grouping module.
+    expect(wheelSrc).toMatch(/groupArcWheelPieces/);
     expect(wheelSrc).toMatch(/group\.count/);
   });
 

@@ -14,6 +14,15 @@ export type PulseResultData = {
   achieved: number;
 } | null;
 
+// SE-TM-035 — topology SHALL not met. The machine produced the right output
+// but its signal path violated a stated board-topology requirement. Drives the
+// "specification not met" diagnostic modal.
+export type SpecNotMetData = {
+  required: number;
+  actual: number;
+  requirementText: string;
+} | null;
+
 // SE-TM-031a — MAY bonus surfaced on the results card. credits is the total
 // bonus CR awarded; metDescriptions are the [PROPOSED] condition lines that
 // were satisfied. null when no MAY condition was met (or the level has none).
@@ -47,6 +56,11 @@ export interface UseGameplayModalsResult {
   pulseResultData: PulseResultData;
   setPulseResultData: React.Dispatch<React.SetStateAction<PulseResultData>>;
 
+  showSpecNotMet: boolean;
+  setShowSpecNotMet: React.Dispatch<React.SetStateAction<boolean>>;
+  specNotMetData: SpecNotMetData;
+  setSpecNotMetData: React.Dispatch<React.SetStateAction<SpecNotMetData>>;
+
   showOutOfLives: boolean;
   setShowOutOfLives: React.Dispatch<React.SetStateAction<boolean>>;
 
@@ -71,8 +85,6 @@ export interface UseGameplayModalsResult {
   // hook (COGS line pointing at the revived info icon).
   showSpecSheet: boolean;
   setShowSpecSheet: React.Dispatch<React.SetStateAction<boolean>>;
-  showSpecSheetHook: boolean;
-  setShowSpecSheetHook: React.Dispatch<React.SetStateAction<boolean>>;
 
   scoreResult: ScoreResult | null;
   setScoreResult: React.Dispatch<React.SetStateAction<ScoreResult | null>>;
@@ -100,6 +112,8 @@ export function useGameplayModals(
   const [wrongOutputData, setWrongOutputData] = useState<WrongOutputData>(null);
   const [showInsufficientPulses, setShowInsufficientPulses] = useState(false);
   const [pulseResultData, setPulseResultData] = useState<PulseResultData>(null);
+  const [showSpecNotMet, setShowSpecNotMet] = useState(false);
+  const [specNotMetData, setSpecNotMetData] = useState<SpecNotMetData>(null);
   const [showOutOfLives, setShowOutOfLives] = useState(false);
   const [showEconomyIntro, setShowEconomyIntro] = useState(false);
   const [showSystemRestored, setShowSystemRestored] = useState<string | null>(null);
@@ -109,7 +123,6 @@ export function useGameplayModals(
   const [showTeachCard, setShowTeachCard] = useState<string[] | null>(null);
 
   const [showSpecSheet, setShowSpecSheet] = useState(false);
-  const [showSpecSheetHook, setShowSpecSheetHook] = useState(false);
 
   const [scoreResult, setScoreResult] = useState<ScoreResult | null>(null);
   const [cogsScoreComment, setCogsScoreComment] = useState('');
@@ -125,16 +138,9 @@ export function useGameplayModals(
     });
   }, [level?.id]);
 
-  // SE-TM-033 — Spec Sheet activation hook. The first time the player loads
-  // A1-1, COGS speaks the one-time line that points at the (revived) info icon.
-  // Framed as routing a feed that was always on file, not new instrumentation.
-  // Monotonic seen-flag, mirroring the economy-intro pattern above.
-  useEffect(() => {
-    if (!level || level.id !== 'A1-1') return;
-    AsyncStorage.getItem('axiom_spec_sheet_hook_seen').then(seen => {
-      if (!seen) setShowSpecSheetHook(true);
-    });
-  }, [level?.id]);
+  // SE-TM-033 — the Spec Sheet introduction is now the final A1-1 tutorial step
+  // (targetRef 'specSheetBtn' in levels.ts), not a standalone hook. The old
+  // one-time card and its seen-flag are retired.
 
   const anyModalOpen =
     showPauseModal ||
@@ -142,6 +148,7 @@ export function useGameplayModals(
     showResults ||
     showWrongOutput ||
     showInsufficientPulses ||
+    showSpecNotMet ||
     showOutOfLives ||
     showEconomyIntro ||
     showCompletionCard;
@@ -156,6 +163,8 @@ export function useGameplayModals(
     wrongOutputData, setWrongOutputData,
     showInsufficientPulses, setShowInsufficientPulses,
     pulseResultData, setPulseResultData,
+    showSpecNotMet, setShowSpecNotMet,
+    specNotMetData, setSpecNotMetData,
     showOutOfLives, setShowOutOfLives,
     showEconomyIntro, setShowEconomyIntro,
     showSystemRestored, setShowSystemRestored,
@@ -164,7 +173,6 @@ export function useGameplayModals(
     showDisciplineCard, setShowDisciplineCard,
     showTeachCard, setShowTeachCard,
     showSpecSheet, setShowSpecSheet,
-    showSpecSheetHook, setShowSpecSheetHook,
     scoreResult, setScoreResult,
     cogsScoreComment, setCogsScoreComment,
     firstTimeBonus, setFirstTimeBonus,

@@ -20,7 +20,8 @@ import { BLANK } from '../../game/types';
 import type { ScoreResult } from '../../game/scoring';
 import type { Discipline } from '../../store/playerStore';
 import { useEconomyStore } from '../../store/economyStore';
-import type { WrongOutputData, PulseResultData, MayBonusData } from '../../hooks/useGameplayModals';
+import type { WrongOutputData, PulseResultData, MayBonusData, SpecNotMetData } from '../../hooks/useGameplayModals';
+import { buildSpecChecklist, type SpecCheckStatus } from '../../game/spec/specChecklist';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -64,6 +65,30 @@ function renderStars(count: number) {
   ));
 }
 
+// Spec checklist status indicator (no emoji — drawn). met = green check,
+// partial = amber bar, missed = red x, given = muted dot (WILL facts).
+function SpecGlyph({ status }: { status: SpecCheckStatus }) {
+  if (status === 'met') {
+    return (
+      <Svg width={14} height={14} viewBox="0 0 14 14">
+        <Path d="M3 7.5 L6 10.5 L11 4" stroke="#4ecb8d" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+  if (status === 'missed') {
+    return (
+      <Svg width={14} height={14} viewBox="0 0 14 14">
+        <Path d="M4 4 L10 10 M10 4 L4 10" stroke="rgba(224,85,85,0.9)" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+      </Svg>
+    );
+  }
+  if (status === 'partial') {
+    return <View style={{ width: 10, height: 2.5, borderRadius: 2, backgroundColor: Colors.amber }} />;
+  }
+  // given
+  return <View style={{ width: 5, height: 5, borderRadius: 2.5, backgroundColor: Colors.dim }} />;
+}
+
 export interface GameplayModalsProps {
   // Modal flags + data (from useGameplayModals)
   showPauseModal: boolean;
@@ -83,6 +108,10 @@ export interface GameplayModalsProps {
   setShowInsufficientPulses: React.Dispatch<React.SetStateAction<boolean>>;
   pulseResultData: PulseResultData;
   setPulseResultData: React.Dispatch<React.SetStateAction<PulseResultData>>;
+  showSpecNotMet: boolean;
+  setShowSpecNotMet: React.Dispatch<React.SetStateAction<boolean>>;
+  specNotMetData: SpecNotMetData;
+  setSpecNotMetData: React.Dispatch<React.SetStateAction<SpecNotMetData>>;
   showOutOfLives: boolean;
   setShowOutOfLives: React.Dispatch<React.SetStateAction<boolean>>;
   showEconomyIntro: boolean;
@@ -150,6 +179,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     wrongOutputData, setWrongOutputData,
     showInsufficientPulses, setShowInsufficientPulses,
     pulseResultData, setPulseResultData,
+    showSpecNotMet, setShowSpecNotMet,
+    specNotMetData, setSpecNotMetData,
     showOutOfLives, setShowOutOfLives,
     showEconomyIntro, setShowEconomyIntro,
     showSystemRestored,
@@ -286,19 +317,38 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               </Text>
             )}
 
-            {/* MAY bonus — above-and-beyond payout (SE-TM-031a) */}
-            {mayBonus && (
-              <View style={styles.mayBonusWrap}>
-                <Text style={styles.mayBonusHeader}>
-                  {mayBonus.credits > 0
-                    ? `MAY · +${mayBonus.credits} CR`
-                    : 'MAY · ABOVE AND BEYOND'}
-                </Text>
-                {mayBonus.metDescriptions.map((d, i) => (
-                  <Text key={i} style={styles.mayBonusLine}>{d}</Text>
-                ))}
-              </View>
-            )}
+            {/* Spec Sheet checklist — each spec with its real outcome
+                (SHALL met by completion, SHOULD from scoring, MAY evaluated,
+                WILL shown as givens). */}
+            {scoreResult && (() => {
+              const items = buildSpecChecklist(
+                level,
+                scoreResult.breakdown,
+                mayBonus?.metDescriptions ?? [],
+              );
+              if (items.length === 0) return null;
+              return (
+                <View style={styles.specCheckWrap}>
+                  <Text style={styles.specCheckHeader}>SPECIFICATION</Text>
+                  {items.map((item, i) => (
+                    <View key={i} style={styles.specCheckRow}>
+                      <View style={styles.specCheckGlyph}>
+                        <SpecGlyph status={item.status} />
+                      </View>
+                      <Text
+                        style={[
+                          styles.specCheckText,
+                          item.status === 'missed' && styles.specCheckTextMissed,
+                          item.status === 'given' && styles.specCheckTextGiven,
+                        ]}
+                      >
+                        {item.text}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              );
+            })()}
 
             <View style={styles.cogsResultRow}>
               <CogsAvatar size="small" state="online" />
@@ -466,6 +516,42 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 setShowInsufficientPulses(false);
                 setPulseResultData(null);
                 handleReset();
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* ── Specification Not Met (topology SHALL violated — SE-TM-035) ── */}
+      {showSpecNotMet && specNotMetData && (
+        <Animated.View style={styles.completionCardWrap} entering={FadeIn.duration(300)}>
+          <View style={styles.wrongOutputCard}>
+            <Text style={styles.wrongOutputTitle}>SPECIFICATION NOT MET</Text>
+            <Text style={styles.insufficientSubtext}>
+              {specNotMetData.requirementText}
+            </Text>
+            <Text style={styles.specNotMetReadout}>
+              SIGNAL PATH: {specNotMetData.actual} of {specNotMetData.required} required direction changes
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              <CogsAvatar size="small" state="damaged" />
+              <Text style={styles.wrongOutputCogsText}>
+                {`"The output was correct. The build was not to specification. Meeting the answer is not the same as meeting the spec. Read it again — every SHALL is mandatory."`}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.wrongOutputRetryBtn}
+              onPress={() => {
+                setShowSpecNotMet(false);
+                setSpecNotMetData(null);
+                if (lives <= 0) {
+                  setShowOutOfLives(true);
+                } else {
+                  handleReset();
+                }
               }}
               activeOpacity={0.7}
             >
@@ -983,30 +1069,49 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // MAY bonus (SE-TM-031a)
-  mayBonusWrap: {
+  // Spec Sheet checklist (results screen)
+  specCheckWrap: {
     width: '100%',
     borderWidth: 1,
-    borderColor: 'rgba(78,203,141,0.3)',
-    backgroundColor: 'rgba(78,203,141,0.06)',
+    borderColor: 'rgba(74,158,255,0.15)',
+    backgroundColor: 'rgba(10,18,30,0.5)',
     borderRadius: 8,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     marginBottom: Spacing.md,
-    gap: 4,
+    gap: 5,
   },
-  mayBonusHeader: {
+  specCheckHeader: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: '#4ecb8d',
-    letterSpacing: 2,
+    fontSize: 8,
+    color: Colors.dim,
+    letterSpacing: 3,
+    marginBottom: 2,
   },
-  mayBonusLine: {
+  specCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  specCheckGlyph: {
+    width: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+  },
+  specCheckText: {
+    flex: 1,
     fontFamily: Fonts.exo2,
-    fontSize: 11,
+    fontSize: 11.5,
+    color: Colors.starWhite,
+    lineHeight: 15,
+  },
+  specCheckTextMissed: {
+    color: Colors.muted,
+  },
+  specCheckTextGiven: {
     color: Colors.muted,
     fontStyle: 'italic',
-    lineHeight: 16,
   },
 
   // Forfeiture notice
@@ -1201,6 +1306,15 @@ const styles = StyleSheet.create({
     color: Colors.muted,
     textAlign: 'center',
     marginBottom: 12,
+    letterSpacing: 1,
+  },
+  // Specification not met (SE-TM-035)
+  specNotMetReadout: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: 11,
+    color: Colors.amber,
+    textAlign: 'center',
+    marginBottom: 4,
     letterSpacing: 1,
   },
   pulseResultsRow: {

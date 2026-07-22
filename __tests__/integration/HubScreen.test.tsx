@@ -1,5 +1,19 @@
 // Integration test: verify HubScreen's data dependencies work correctly
 
+describe('HubScreen mission card gating', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(
+    path.resolve(__dirname, '../../src/screens/HubScreen.tsx'),
+    'utf8',
+  );
+
+  it('the amber mission card is removed once all Axiom levels are complete', () => {
+    // Rendered only while a next level exists; gone after A1-8 (Tucker 2026-06-15).
+    expect(src).toMatch(/\{nextLevelId && nextLevel && \(\s*<CogsHubCard/);
+  });
+});
+
 describe('HubScreen data layer', () => {
   it('livesStore provides lives count and regenerate', () => {
     const { useLivesStore } = require('../../src/store/livesStore');

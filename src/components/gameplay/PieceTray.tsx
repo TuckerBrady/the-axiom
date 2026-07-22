@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -99,10 +99,17 @@ function PieceTrayComponent({
   const dragEnabled =
     !!onDragStart && !!onDragMove && !!onDragEnd && !!onDragCancel;
 
+  // While a piece is being dragged out, the tray must stay STATIC — otherwise
+  // the horizontal finger motion scrolls the ScrollView and the tray items
+  // slide left/right following the drag (Tucker, 2026-06-15). Disabling
+  // scrolling for the duration of the drag pins them in place.
+  const [dragActive, setDragActive] = useState(false);
+
   return (
     <View style={styles.partsTray}>
       <ScrollView
         horizontal
+        scrollEnabled={!dragActive}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.partsTrayInner}
       >
@@ -156,6 +163,7 @@ function PieceTrayComponent({
                 onDragMove={onDragMove!}
                 onDragEnd={onDragEnd!}
                 onDragCancel={onDragCancel!}
+                onDragActiveChange={setDragActive}
               >
                 {innerContent}
               </TrayItemDraggable>
@@ -208,6 +216,8 @@ interface TrayItemDraggableProps {
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
   onDragCancel: () => void;
+  // Notifies the tray to freeze/unfreeze ScrollView scrolling for the drag.
+  onDragActiveChange: (active: boolean) => void;
   children: React.ReactNode;
 }
 
@@ -223,6 +233,7 @@ function TrayItemDraggable({
   onDragMove,
   onDragEnd,
   onDragCancel,
+  onDragActiveChange,
   children,
 }: TrayItemDraggableProps) {
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,12 +242,12 @@ function TrayItemDraggable({
 
   const propsRef = useRef({
     pt, disabled, isActive,
-    onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel,
+    onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
   });
   useEffect(() => {
     propsRef.current = {
       pt, disabled, isActive,
-      onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel,
+      onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
     };
   });
 
@@ -264,7 +275,8 @@ function TrayItemDraggable({
         if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
         holdTimerRef.current = setTimeout(() => {
           isDraggingRef.current = true;
-          const { pt: ptNow, onDragStart: ods } = propsRef.current;
+          const { pt: ptNow, onDragStart: ods, onDragActiveChange: dac } = propsRef.current;
+          dac(true); // freeze the tray so it doesn't scroll under the drag
           ods({
             active: true,
             pieceId: ptNow,
@@ -288,6 +300,7 @@ function TrayItemDraggable({
         }
         if (isDraggingRef.current) {
           isDraggingRef.current = false;
+          propsRef.current.onDragActiveChange(false); // re-enable tray scroll
           propsRef.current.onDragEnd(
             evt.nativeEvent.pageX,
             evt.nativeEvent.pageY,
@@ -306,6 +319,7 @@ function TrayItemDraggable({
         }
         if (isDraggingRef.current) {
           isDraggingRef.current = false;
+          propsRef.current.onDragActiveChange(false); // re-enable tray scroll
           propsRef.current.onDragCancel();
         }
       },
