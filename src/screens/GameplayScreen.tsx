@@ -1333,7 +1333,6 @@ export default function GameplayScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safeArea}>
         {/* ── Top Bar ── */}
         <HUDChrome
-          sectorBadge={level.sector === 'axiom' ? 'THE AXIOM' : level.sector.toUpperCase()}
           levelId={level.id}
           levelTitle={level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}
           timerText={!showResults && !showVoid && !tutorialIsActive ? formatMMSS(elapsedSeconds) : null}
