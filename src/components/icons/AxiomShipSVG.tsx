@@ -2,6 +2,18 @@ import React from 'react';
 import Svg, { Path, Rect, Ellipse, Line, G, Defs, RadialGradient, Stop } from 'react-native-svg';
 import { Colors } from '../../theme/tokens';
 
+// AXM-001 AUDIT NOTE (README "Repo files touched" table: "S-00 —
+// audit — fourth non-canon hull"): this is the fourth, independent
+// ship geometry AXIOM_SHIP_CANON.md's S-00 describes and locks
+// against — a different silhouette from the one canonical hull now
+// in src/components/ship/AxiomHull.tsx. Grep confirms it has no
+// import anywhere in src/ (it is exported from
+// src/components/icons/index.ts but never consumed) — it is dead
+// code, not a rendering path a player can reach. S-00's deliverable
+// list does not include deleting this file, only auditing it, so it
+// is left in place; flagged in the AXM-001 process note as a
+// candidate for removal in a follow-up pass.
+
 interface Props {
   width?: number;
   height?: number;
