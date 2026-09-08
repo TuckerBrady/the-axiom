@@ -13,8 +13,19 @@ No piece ships without completing every item on this checklist.
 - [ ] PieceIcon case: complete SVG icon using primary color prop plus
       hardcoded secondary accents that survive board color override
 - [ ] Color identity: immediately recognizable at a glance.
-      Physics pieces use amber/copper accents.
-      Protocol pieces use circuit purple or blue accents.
+      Physics pieces use copper (`#c87941`) static accents.
+      Protocol pieces use lavender/circuit (`#a78bfa`) static accents.
+      **Reserved hues (AXM-001 D-03/D-04):** `#F0B429` (amber) and
+      `#00D4FF` (cyan) are beam-only — the same two colors as
+      `getBeamColor()` below. They may appear inside a transient
+      animation guarded by an explicit flag (charging, locking,
+      gating, splitting, transmitting, rolling, scanning) but never as
+      a static piece accent, or the beam loses its own contrast event.
+      `#00C48C` (green) is reserved for destination/success (Terminal,
+      gate PASS, locked piece) — never as a second-output marker. A
+      piece with two outputs to tell apart (a second magnet, a second
+      drum) uses FORM — filled vs. hollow, a differing shape — not a
+      second hue; see Splitter/Conveyor/Merger in `PieceIcon.tsx`.
 - [ ] Icon legible at 32x32px (tray) and 52x52px (board)
 
 ## Animations

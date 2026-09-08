@@ -22,6 +22,9 @@ export const Colors = {
   blue: '#4a9eff',
   red: '#e05555',
   circuit: '#a78bfa',
+  // AXM-001 D-03/S-04 — Protocol category body stroke. Was hardcoded as
+  // '#8B5CF6' throughout PieceIcon.tsx; now the single source of truth.
+  protocol: '#8B5CF6',
   neonCyan: '#00E5FF',
   neonGreen: '#00FF87',
   neonYellow: '#FFE000',
@@ -42,6 +45,11 @@ export const Fonts = {
 
 export const FontSizes = {
   xs: 10,
+  // AXM-001 D-07/D-08 — the review's 11pt readable floor. Added rather
+  // than removing `xs` in place, since `xs` is load-bearing in several
+  // screens outside this mission's scope (CodexScreen, BootScreen,
+  // CharacterNameScreen, etc.) — see the AXM-001 process note.
+  floor: 11,
   sm: 12,
   md: 14,
   lg: 16,

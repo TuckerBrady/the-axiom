@@ -11,7 +11,7 @@ import {
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import type { DragState } from './ArcWheel';
-import { Colors, Fonts } from '../../theme/tokens';
+import { Colors, Fonts, FontSizes } from '../../theme/tokens';
 
 // Hold threshold (ms) before a touch promotes from a tap candidate to a
 // drag. Mirrors the ArcWheel.tsx constant of the same name.
@@ -96,6 +96,11 @@ function PieceTrayComponent({
   onDragCancel,
   disabled,
 }: Props) {
+  // D-08 — `costs` is kept on the Props interface for call-site
+  // compatibility (RequisitionPanel is the buying screen and the
+  // right home for price; the parent screen still computes per-piece
+  // pricing for it elsewhere) but is no longer rendered here.
+  void costs;
   const dragEnabled =
     !!onDragStart && !!onDragMove && !!onDragEnd && !!onDragCancel;
 
@@ -117,7 +122,9 @@ function PieceTrayComponent({
           const count = availableCounts[pt] || 0;
           const isActive = selectedPieceFromTray === pt;
           const color = getPieceColor(pt);
-          const cost = costs[pt] ?? 0;
+          // D-08: `costs` (CR price) is no longer displayed in the tray,
+          // but `affordable`/canAfford still drives the icon dim state
+          // so the player can see what they can't currently place.
           const canAfford = affordable[pt] ?? true;
           const measureRef = refs
             ? pt === 'conveyor' ? refs.trayConveyor
@@ -134,17 +141,21 @@ function PieceTrayComponent({
             styles.trayItem,
             isActive && { borderColor: color, backgroundColor: `${color}15` },
           ];
+          // D-08 — price display removed from the in-level tray: it is
+          // information the player cannot act on (the requisition
+          // window is one-time, before the level starts) and it was
+          // taking space from the icon at an unreadable 7pt. Price
+          // belongs in RequisitionPanel, where the buying decision
+          // actually happens. `cost`/`canAfford` stay computed above
+          // for the icon dim-when-unaffordable treatment below.
           const innerContent = (
             <>
               <View style={{ opacity: count > 0 && canAfford ? 1 : 0.3 }}>
-                <PieceIcon type={pt} size={22} color={color} />
+                <PieceIcon type={pt} size={32} color={color} />
               </View>
               <View style={[styles.trayBadge, { backgroundColor: count > 0 ? color : Colors.dim }]}>
                 <Text style={styles.trayBadgeText}>{count}</Text>
               </View>
-              {cost > 0 && (
-                <Text style={[styles.trayCost, { color: canAfford ? Colors.amber : 'rgba(224,85,85,0.7)' }]}>{cost} CR</Text>
-              )}
             </>
           );
 
@@ -365,17 +376,17 @@ const styles = StyleSheet.create({
     gap: 2,
     position: 'relative',
   },
+  // D-08 — badge raised to the 11pt floor (was 8pt, dark-on-hue and
+  // unreadable). The 56pt cell still has room: a 32pt icon plus an
+  // 11pt corner badge fits with the price gone.
   trayBadge: {
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: 8,
-    minWidth: 18,
+    borderRadius: 9,
+    minWidth: 20,
     alignItems: 'center',
   },
   trayBadgeText: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.void, fontWeight: 'bold',
-  },
-  trayCost: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.void, fontWeight: 'bold',
   },
 });

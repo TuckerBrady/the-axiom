@@ -128,6 +128,25 @@ describe('PieceTray — extracted parts tray component', () => {
     });
   });
 
+  describe('AXM-001 D-01/D-02/D-08: tray icon and badge legibility', () => {
+    it('renders tray icons at 32pt, not 22pt', () => {
+      expect(traySrc).toMatch(/<PieceIcon type=\{pt\} size=\{32\} color=\{color\} \/>/);
+      expect(traySrc).not.toMatch(/size=\{22\}/);
+    });
+
+    it('no tray text style has a fontSize literal below 11', () => {
+      const sizes = [...traySrc.matchAll(/fontSize:\s*(?:FontSizes\.floor|(\d+))/g)]
+        .map(m => (m[1] ? parseInt(m[1], 10) : 11));
+      expect(sizes.length).toBeGreaterThan(0);
+      expect(sizes.every(n => n >= 11)).toBe(true);
+    });
+
+    it('removes the in-level price display (belongs in RequisitionPanel)', () => {
+      expect(traySrc).not.toMatch(/trayCost/);
+      expect(traySrc).not.toMatch(/\{cost\} CR/);
+    });
+  });
+
   describe('static during drag', () => {
     it('disables ScrollView scrolling while a piece is being dragged', () => {
       // The tray must not slide left/right under the drag (Tucker 2026-06-15).

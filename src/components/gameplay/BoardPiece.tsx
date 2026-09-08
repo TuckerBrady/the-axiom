@@ -1,7 +1,28 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Pressable, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { PieceIcon } from '../PieceIcon';
 import type { PlacedPiece } from '../../game/types';
+import { Colors, Fonts, FontSizes } from '../../theme/tokens';
+
+// AXM-001 D-05 — exact numeric values (count, storedValue,
+// configValue) no longer render inside PieceIcon as SvgText; they
+// were unreadable there (5-9pt). This overlay renders the value at
+// the cell corner, outside the rotated `View` below, so it stays
+// upright and legible (11pt floor) regardless of the piece's rotation.
+function boardOverlayValue(piece: PlacedPiece): string | null {
+  switch (piece.type) {
+    case 'counter':
+      return `${piece.count ?? 0}/${piece.threshold ?? 2}`;
+    case 'latch':
+      return piece.storedValue !== null && piece.storedValue !== undefined
+        ? String(piece.storedValue)
+        : null;
+    case 'configNode':
+      return String(piece.configValue ?? 1);
+    default:
+      return null;
+  }
+}
 
 const PIECE_RADIUS = 10;
 // Half-duration of the native-driven flash. Two halves stitched into
@@ -115,6 +136,7 @@ const BoardPiece = React.memo(function BoardPiece({
 
   const lockedBorderWidth = isLocked ? 2 : 0;
   const lockedBorderColor = isLocked ? '#00C48C' : undefined;
+  const overlayValue = boardOverlayValue(piece);
 
   return (
     <Pressable
@@ -182,8 +204,35 @@ const BoardPiece = React.memo(function BoardPiece({
           connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
         />
       </View>
+      {/* D-05 board overlay chip — outside the rotated View above, so
+          it stays upright regardless of piece.rotation. */}
+      {overlayValue !== null && (
+        <View style={styles.overlayChip} pointerEvents="none">
+          <Text style={styles.overlayChipText}>{overlayValue}</Text>
+        </View>
+      )}
     </Pressable>
   );
 }, arePropsEqual);
 
 export default BoardPiece;
+
+const styles = StyleSheet.create({
+  overlayChip: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: 'rgba(6,9,15,0.85)',
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(122,150,176,0.4)',
+  },
+  overlayChipText: {
+    fontFamily: Fonts.spaceMono,
+    fontSize: FontSizes.floor,
+    color: Colors.starWhite,
+    lineHeight: FontSizes.floor + 2,
+  },
+});
