@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #06090f; }
+  a { color: #4a9eff; text-decoration: none; }
+  a:hover { color: #7ab8ff; }
+</style>
+</helmet>
+
+<section style="display:flex; flex-direction:column; gap:32px; padding:56px; font-family:'Space Mono',monospace; background:#06090f; color:#e8f0ff; width:1400px">
+
+  <div style="display:flex; flex-direction:column; gap:12px; max-width:820px">
+    <div style="font-size:11px; letter-spacing:3px; color:#7a96b0">VESSEL RECORD — PROPOSED CANON</div>
+    <div style="font-family:'Orbitron',sans-serif; font-size:38px; font-weight:700; letter-spacing:1px; line-height:1.1">The Axiom</div>
+    <div style="font-size:13px; letter-spacing:1px; color:#c87941">LONG-RANGE MILITARY SCOUT · DESIGNATION CLASS UNKNOWN</div>
+    <div style="font-size:14px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">Designed from <code style="color:#f0b429">docs/NARRATIVE.md</code>. Every feature below is something the story already says is true about this ship. Nothing here is invented — it is your lore given a shape.</div>
+  </div>
+
+  <!-- ── SILHOUETTE ─────────────────────────────── -->
+  <div id="2a" style="display:flex; flex-direction:column; gap:20px; padding:28px; border:1px solid rgba(74,158,255,0.18); background:#080e18">
+    <div style="display:flex; align-items:baseline; gap:12px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#f0b429; border:1px solid rgba(240,180,41,0.4); padding:3px 8px">2a</span>
+      <span style="font-family:'Orbitron',sans-serif; font-size:18px; font-weight:700">Silhouette — starboard profile</span>
+    </div>
+
+    <svg viewBox="0 0 1300 450" style="width:100%; height:auto">
+      <!-- ── leader lines ── -->
+      <g stroke="#4a9eff" stroke-width="1" stroke-opacity=".45" fill="none">
+        <path d="M 500 78 L 512 122"/>
+        <path d="M 820 134 L 838 150"/>
+        <path d="M 1000 118 L 966 158"/>
+        <path d="M 160 388 L 166 380"/>
+        <path d="M 321 414 L 321 372"/>
+        <path d="M 478 396 L 480 394"/>
+        <path d="M 848 368 L 850 352"/>
+      </g>
+
+      <!-- ── DORSAL SPINE — signal relay array (the Maker's good work) ── -->
+      <g fill="none" stroke="#4a9eff" stroke-width="1.6">
+        <path d="M 330 128 L 690 134" stroke-width="2"/>
+        <path d="M 328 170 L 688 177"/>
+        <g stroke-width="1" stroke-opacity=".55">
+          <path d="M 338 128 L 364 172"/><path d="M 392 173 L 418 129"/>
+          <path d="M 446 130 L 472 174"/><path d="M 500 174 L 526 130"/>
+          <path d="M 554 131 L 580 175"/><path d="M 608 176 L 634 132"/>
+          <path d="M 662 133 L 686 176"/>
+        </g>
+        <path d="M 330 128 L 328 170" stroke-width="2"/>
+        <path d="M 690 134 L 688 177" stroke-width="2"/>
+      </g>
+      <!-- comm dishes -->
+      <g fill="none" stroke="#4a9eff" stroke-width="1.4">
+        <ellipse cx="450" cy="112" rx="17" ry="7" transform="rotate(-12 450 112)"/>
+        <path d="M 450 119 L 447 130"/>
+        <ellipse cx="620" cy="116" rx="14" ry="6" transform="rotate(-12 620 116)"/>
+        <path d="M 620 122 L 618 133"/>
+      </g>
+
+      <!-- ── DRIVE BLOCK — bolted-on aft mass, deliberately heavier than the hull ── -->
+      <path d="M 92 148 L 240 154 L 240 336 L 92 342 Z" fill="#0c1524" stroke="#4a9eff" stroke-width="2.5"/>
+      <g fill="none" stroke="#4a9eff" stroke-width="1" stroke-opacity=".5">
+        <path d="M 92 196 L 240 200"/><path d="M 92 294 L 240 291"/>
+        <path d="M 166 154 L 166 336"/>
+      </g>
+      <path d="M 92 178 L 55 166 L 55 324 L 92 312 Z" fill="#0a1220" stroke="#4a9eff" stroke-width="2"/>
+      <path d="M 55 192 L 32 202 L 32 288 L 55 298" fill="none" stroke="#c87941" stroke-width="1.6"/>
+      <ellipse cx="74" cy="245" rx="7" ry="52" fill="none" stroke="#F0B429" stroke-width="1.4" stroke-opacity=".8"/>
+
+      <!-- ── MAIN HULL — deep aft, shallow forward, blunt faceted bow ── -->
+      <path d="M 240 172 L 700 178 L 716 202 L 1010 208 L 1130 234 L 1136 258 L 1010 292 L 716 300 L 700 320 L 240 312 Z" fill="#0c1524" stroke="#4a9eff" stroke-width="2.5"/>
+
+      <!-- hull paneling -->
+      <g fill="none" stroke="#4a9eff" stroke-width="1" stroke-opacity=".4">
+        <path d="M 248 198 L 700 202 L 716 222 L 1050 226"/>
+        <path d="M 248 286 L 700 290 L 716 278 L 1030 276"/>
+        <path d="M 700 178 L 700 320"/>
+        <path d="M 1010 208 L 1010 292"/>
+      </g>
+
+      <!-- ── ZONE 1: EMERGENCY POWER — plated battery bank, aft ventral ── -->
+      <path d="M 252 312 L 252 344 L 390 341 L 390 312" fill="#0c1524" stroke="#4a9eff" stroke-width="2"/>
+      <g fill="none" stroke="#4a9eff" stroke-width="1" stroke-opacity=".5">
+        <path d="M 286 313 L 286 343"/><path d="M 321 313 L 321 342"/><path d="M 356 313 L 356 342"/>
+      </g>
+      <g fill="#c87941" fill-opacity=".8">
+        <rect x="262" y="332" width="10" height="4" rx="1"/>
+        <rect x="370" y="329" width="10" height="4" rx="1"/>
+      </g>
+
+      <!-- ── VENTRAL BLISTER — life support ── -->
+      <path d="M 398 312 Q 480 362 562 313" fill="#0c1524" stroke="#4a9eff" stroke-width="2"/>
+      <g fill="none" stroke="#4a9eff" stroke-width="1" stroke-opacity=".5">
+        <path d="M 436 340 L 440 313"/><path d="M 480 352 L 480 313"/><path d="M 524 340 L 520 313"/>
+      </g>
+
+      <!-- ── HARDPOINTS — capped, deliberately locked ── -->
+      <g>
+        <path d="M 760 299 L 830 297 L 826 322 L 764 324 Z" fill="#0a1220" stroke="#4a9eff" stroke-width="1.8"/>
+        <path d="M 762 302 L 828 319 M 828 300 L 762 321" stroke="#c87941" stroke-width="1.8"/>
+        <path d="M 870 295 L 940 293 L 936 316 L 874 318 Z" fill="#0a1220" stroke="#4a9eff" stroke-width="1.8"/>
+        <path d="M 872 298 L 938 314 M 938 296 L 872 316" stroke="#c87941" stroke-width="1.8"/>
+      </g>
+
+      <!-- ── BRIDGE CANOPY ── -->
+      <path d="M 775 206 L 800 176 L 880 182 L 900 208 Z" fill="#0e1f36" stroke="#4a9eff" stroke-width="2.2"/>
+      <g fill="none" stroke="#00D4FF" stroke-width="1.2" stroke-opacity=".7">
+        <path d="M 812 180 L 806 202"/><path d="M 840 182 L 837 204"/><path d="M 868 184 L 867 205"/>
+      </g>
+
+      <!-- ── NAV BLISTER ── -->
+      <path d="M 920 206 Q 960 182 1000 208" fill="#0e1f36" stroke="#4a9eff" stroke-width="2.2"/>
+      <circle cx="960" cy="200" r="6" fill="none" stroke="#4a9eff" stroke-width="1.4"/>
+
+      <!-- ── SENSOR PROW — blunt faceted wedge ── -->
+      <g fill="none" stroke="#4a9eff" stroke-width="1.2" stroke-opacity=".55">
+        <path d="M 1052 217 L 1052 283"/>
+        <path d="M 1092 226 L 1092 271"/>
+      </g>
+      <circle cx="1112" cy="246" r="10" fill="none" stroke="#00D4FF" stroke-width="1.6"/>
+      <circle cx="1112" cy="246" r="3.5" fill="#00D4FF"/>
+
+      <!-- ── C: MAKER'S BYPASS CONDUIT — ignores the hull's own paneling ── -->
+      <path d="M 956 208 C 936 226, 908 224, 884 238 C 862 250, 836 246, 812 252" fill="none" stroke="#c87941" stroke-width="2.6"/>
+      <g fill="#c87941">
+        <rect x="898" y="222" width="7" height="15" rx="2"/>
+        <rect x="844" y="238" width="7" height="15" rx="2"/>
+      </g>
+
+      <!-- ── B: THREE WELD STYLES ── -->
+      <!-- crude hand-run zigzag -->
+      <path d="M 380 173 L 373 196 L 386 219 L 373 242 L 386 265 L 373 288 L 380 312" fill="none" stroke="#c87941" stroke-width="1.8" stroke-opacity=".85"/>
+      <!-- neat riveted line -->
+      <path d="M 620 178 L 620 313" stroke="#c87941" stroke-width=".8" stroke-opacity=".5"/>
+      <g fill="#c87941" fill-opacity=".85">
+        <circle cx="620" cy="186" r="2.3"/><circle cx="620" cy="207" r="2.3"/><circle cx="620" cy="228" r="2.3"/>
+        <circle cx="620" cy="249" r="2.3"/><circle cx="620" cy="270" r="2.3"/><circle cx="620" cy="291" r="2.3"/>
+      </g>
+      <!-- heavy overlapped plate -->
+      <path d="M 268 173 L 268 196 L 281 196 L 281 219 L 268 219 L 268 242 L 281 242 L 281 265 L 268 265 L 268 288 L 281 288 L 281 312" fill="none" stroke="#c87941" stroke-width="2.6" stroke-opacity=".75" stroke-linejoin="miter"/>
+
+      <!-- ── A: PAINTED-OVER HULL MARKING ── -->
+      <rect x="440" y="220" width="150" height="46" fill="#101c2e" stroke="#4a9eff" stroke-width="1" stroke-opacity=".3"/>
+      <text x="515" y="252" fill="#4a9eff" fill-opacity=".14" font-size="26" font-family="Orbitron, sans-serif" font-weight="700" letter-spacing="4" text-anchor="middle">AX-7</text>
+      <rect x="440" y="220" width="150" height="46" fill="none" stroke="#c87941" stroke-width="1.2" stroke-opacity=".5" stroke-dasharray="5,3"/>
+
+      <!-- ── zone markers ── -->
+      <g font-family="Space Mono, monospace" font-size="13" font-weight="700">
+        <circle cx="1176" cy="246" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="1176" y="251" fill="#00C48C" text-anchor="middle">6</text>
+        <circle cx="960" cy="158" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="960" y="163" fill="#00C48C" text-anchor="middle">3</text>
+        <circle cx="838" cy="150" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="838" y="155" fill="#00C48C" text-anchor="middle">8</text>
+        <circle cx="512" cy="122" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="512" y="127" fill="#00C48C" text-anchor="middle">5</text>
+        <circle cx="166" cy="368" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="166" y="373" fill="#00C48C" text-anchor="middle">4</text>
+        <circle cx="321" cy="360" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="321" y="365" fill="#00C48C" text-anchor="middle">1</text>
+        <circle cx="480" cy="382" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="480" y="387" fill="#00C48C" text-anchor="middle">2</text>
+        <circle cx="850" cy="340" r="12" fill="#06090f" stroke="#00C48C" stroke-width="1.6"/><text x="850" y="345" fill="#00C48C" text-anchor="middle">7</text>
+      </g>
+
+      <!-- ── story markers ── -->
+      <g font-family="Space Mono, monospace" font-size="12" font-weight="700">
+        <circle cx="515" cy="204" r="11" fill="#06090f" stroke="#F0B429" stroke-width="1.5"/><text x="515" y="208" fill="#F0B429" text-anchor="middle">A</text>
+        <circle cx="656" cy="196" r="11" fill="#06090f" stroke="#F0B429" stroke-width="1.5"/><text x="656" y="200" fill="#F0B429" text-anchor="middle">B</text>
+        <circle cx="788" cy="272" r="11" fill="#06090f" stroke="#F0B429" stroke-width="1.5"/><text x="788" y="276" fill="#F0B429" text-anchor="middle">C</text>
+        <circle cx="962" cy="330" r="11" fill="#06090f" stroke="#F0B429" stroke-width="1.5"/><text x="962" y="334" fill="#F0B429" text-anchor="middle">D</text>
+      </g>
+
+      <!-- ── labels ── -->
+      <g font-family="Space Mono, monospace" font-size="12" letter-spacing="1.5" fill="#7a96b0">
+        <text x="398" y="74">COMMUNICATION ARRAY</text>
+        <text x="742" y="130">BRIDGE</text>
+        <text x="948" y="114">NAV ARRAY</text>
+        <text x="1148" y="206">SENSORS</text>
+        <text x="88" y="400">PROPULSION CORE</text>
+        <text x="256" y="428">EMERGENCY POWER</text>
+        <text x="418" y="408">LIFE SUPPORT</text>
+        <text x="796" y="380">WEAPONS LOCK</text>
+      </g>
+
+      <!-- scale bar -->
+      <g stroke="#4a9eff" stroke-opacity=".4" fill="#7a96b0" font-family="Space Mono, monospace" font-size="10" letter-spacing="1">
+        <path d="M 1040 424 L 1040 432 M 1040 428 L 1240 428 M 1240 424 L 1240 432" stroke-width="1"/>
+        <text x="1140" y="418" text-anchor="middle">LENGTH 4.6 : HEIGHT 1</text>
+      </g>
+    </svg>
+
+    <div style="display:flex; gap:32px; flex-wrap:wrap">
+      <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:300px">
+        <div style="font-size:11px; letter-spacing:2px; color:#F0B429">STORY VISIBLE IN THE SILHOUETTE</div>
+        <sc-for list="{{ story }}" as="s" hint-placeholder-count="4">
+          <div style="display:flex; gap:12px; align-items:flex-start">
+            <span style="width:20px; height:20px; border:1.5px solid #F0B429; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:#F0B429; flex-shrink:0; margin-top:1px">{{ s.k }}</span>
+            <div style="font-size:12px; line-height:1.65; color:#a8bdd0"><strong style="color:#e8f0ff">{{ s.t }}</strong> {{ s.d }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:300px">
+        <div style="font-size:11px; letter-spacing:2px; color:#4a9eff">WHY THIS SHAPE</div>
+        <div style="font-size:12px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">A <strong style="color:#e8f0ff">single</strong> heavy drive, not a symmetrical pair. Twin engines read as a fighter; one oversized drive block bolted to a slim hull reads as range — a ship built to go far and come back, which is what a scout is and what the Maker used it for.</div>
+        <div style="font-size:12px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">The <strong style="color:#e8f0ff">dorsal lattice mast</strong> is the signal relay array, and it is deliberately the finest-made thing on the ship. Your lore says someone knew exactly what they were doing when they installed it. The player should be able to see that the nicest part of this vessel is the part someone else built.</div>
+        <div style="font-size:12px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">The hull is a flat-sided <strong style="color:#e8f0ff">utility wedge</strong> — cheap to patch, which is why it has been patched. No curves except the two blisters. It should look repairable, because repairing it is the game.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ZONES ─────────────────────────────── -->
+  <div id="2b" style="display:flex; flex-direction:column; gap:18px; padding:28px; border:1px solid rgba(74,158,255,0.18); background:#080e18">
+    <div style="display:flex; align-items:baseline; gap:12px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#f0b429; border:1px solid rgba(240,180,41,0.4); padding:3px 8px">2b</span>
+      <span style="font-family:'Orbitron',sans-serif; font-size:18px; font-weight:700">Eight zones, eight levels</span>
+    </div>
+    <div style="font-size:13px; line-height:1.7; color:#a8bdd0; max-width:860px; text-wrap:pretty">Sector 0 has exactly eight levels, and the ship has exactly eight repairable zones. They are the same list. The spatial arrangement follows the level order so that repair progress reads as the ship lighting up back-to-front and bottom-to-top: power and drive first, bridge last.</div>
+
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:2px; background:rgba(74,158,255,0.1)">
+      <sc-for list="{{ zones }}" as="z" hint-placeholder-count="8">
+        <div style="display:flex; gap:14px; padding:16px 18px; background:#0a1220; align-items:flex-start">
+          <span style="width:26px; height:26px; border:1.5px solid #00C48C; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#00C48C; flex-shrink:0">{{ z.n }}</span>
+          <div style="display:flex; flex-direction:column; gap:4px">
+            <div style="display:flex; gap:10px; align-items:baseline"><span style="font-family:'Orbitron',sans-serif; font-size:14px; font-weight:700; color:#e8f0ff">{{ z.name }}</span><span style="font-size:10px; letter-spacing:1.5px; color:#c87941">{{ z.id }}</span></div>
+            <div style="font-size:11px; letter-spacing:1px; color:#4a9eff">{{ z.part }}</div>
+            <div style="font-size:11.5px; line-height:1.6; color:#a8bdd0">{{ z.note }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ── REPAIR STATES ─────────────────────────────── -->
+  <div id="2c" style="display:flex; flex-direction:column; gap:20px; padding:28px; border:1px solid rgba(74,158,255,0.18); background:#080e18">
+    <div style="display:flex; align-items:baseline; gap:12px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#f0b429; border:1px solid rgba(240,180,41,0.4); padding:3px 8px">2c</span>
+      <span style="font-family:'Orbitron',sans-serif; font-size:18px; font-weight:700">Repair state — the three-value rule</span>
+    </div>
+    <div style="font-size:13px; line-height:1.7; color:#a8bdd0; max-width:860px; text-wrap:pretty">Your current ship renders unrepaired zones as low as 0.01 opacity, which on a phone outdoors is nothing at all. A reveal needs somewhere to travel <em>from</em>. Three fixed values, no exceptions:</div>
+
+    <svg viewBox="0 0 1300 540" style="width:100%; height:auto">
+      <defs>
+        <g id="axiom-lite" fill="none" stroke="#4a9eff" stroke-width="3">
+          <path d="M 240 172 L 700 178 L 716 202 L 1010 208 L 1130 234 L 1136 258 L 1010 292 L 716 300 L 700 320 L 240 312 Z"/>
+          <path d="M 92 148 L 240 154 L 240 336 L 92 342 Z"/>
+          <path d="M 92 178 L 55 166 L 55 324 L 92 312 Z"/>
+          <path d="M 330 128 L 690 134"/><path d="M 328 170 L 688 177"/>
+          <path d="M 330 128 L 328 170"/><path d="M 690 134 L 688 177"/>
+          <path d="M 338 128 L 364 172"/><path d="M 392 173 L 418 129"/>
+          <path d="M 446 130 L 472 174"/><path d="M 500 174 L 526 130"/>
+          <path d="M 554 131 L 580 175"/><path d="M 608 176 L 634 132"/>
+          <path d="M 662 133 L 686 176"/>
+          <path d="M 252 312 L 252 344 L 390 341 L 390 312"/>
+          <path d="M 398 312 Q 480 362 562 313"/>
+          <path d="M 775 206 L 800 176 L 880 182 L 900 208 Z"/>
+          <path d="M 920 206 Q 960 182 1000 208"/>
+          <path d="M 760 299 L 830 297 L 826 322 L 764 324 Z"/>
+          <path d="M 870 295 L 940 293 L 936 316 L 874 318 Z"/>
+        </g>
+      </defs>
+
+      <g transform="translate(60,-62) scale(0.62)">
+        <g opacity=".25"><use href="#axiom-lite"/></g>
+      </g>
+      <g transform="translate(60,108) scale(0.62)">
+        <g opacity=".55"><use href="#axiom-lite"/></g>
+      </g>
+      <g transform="translate(60,278) scale(0.62)">
+        <g opacity=".9"><use href="#axiom-lite"/></g>
+        <g opacity=".9"><path d="M 775 206 L 800 176 L 880 182 L 900 208 Z" fill="none" stroke="#00D4FF" stroke-width="3"/><path d="M 920 206 Q 960 182 1000 208" fill="none" stroke="#00D4FF" stroke-width="3"/></g>
+        <ellipse cx="74" cy="245" rx="7" ry="52" fill="#F0B429" fill-opacity=".45" stroke="#F0B429" stroke-width="3"/>
+      </g>
+
+      <g font-family="Space Mono, monospace" letter-spacing="1.5">
+        <text x="880" y="66" font-size="15" fill="#e8f0ff" font-weight="700">DERELICT · 0.25</text>
+        <text x="880" y="90" font-size="12" fill="#7a96b0">Zone not yet repaired.</text>
+        <text x="880" y="110" font-size="12" fill="#7a96b0">Dark but present. Never below 0.25.</text>
+
+        <text x="880" y="236" font-size="15" fill="#e8f0ff" font-weight="700">POWERED · 0.55</text>
+        <text x="880" y="260" font-size="12" fill="#7a96b0">Zone repaired, system idle.</text>
+        <text x="880" y="280" font-size="12" fill="#7a96b0">Structure legible. No glow.</text>
+
+        <text x="880" y="406" font-size="15" fill="#e8f0ff" font-weight="700">ONLINE · 0.90 + accent</text>
+        <text x="880" y="430" font-size="12" fill="#7a96b0">Zone repaired and running.</text>
+        <text x="880" y="450" font-size="12" fill="#7a96b0">Cyan for signal systems,</text>
+        <text x="880" y="470" font-size="12" fill="#7a96b0">amber for the drive. Nothing else.</text>
+      </g>
+    </svg>
+
+    <div style="display:flex; gap:24px; flex-wrap:wrap; padding-top:4px">
+      <div style="flex:1; min-width:320px; font-size:12px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">The gap between 0.25 and 0.90 is what the player earns across eight levels. It has to be a gap they can actually see at arm's length in daylight, which the current 0.01 → 0.4 range is not.</div>
+      <div style="flex:1; min-width:320px; font-size:12px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">Only two accents ever light up: <span style="color:#00D4FF">cyan</span> on signal systems (bridge, nav, sensors, comms) and <span style="color:#F0B429">amber</span> on the drive. This is the same rule as the piece review — amber is the physical signal, cyan is protocol. The ship teaches it before the first puzzle does.</div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY ─────────────────────────────── -->
+  <div id="2d" style="display:flex; flex-direction:column; gap:18px; padding:28px; border:1px solid rgba(74,158,255,0.18); background:#080e18">
+    <div style="display:flex; align-items:baseline; gap:12px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:12px; font-weight:700; letter-spacing:2px; color:#f0b429; border:1px solid rgba(240,180,41,0.4); padding:3px 8px">2d</span>
+      <span style="font-family:'Orbitron',sans-serif; font-size:18px; font-weight:700">Vessel history</span>
+    </div>
+    <div style="font-size:12px; line-height:1.7; color:#7a96b0; max-width:860px">Assembled from what <code style="color:#f0b429">NARRATIVE.md</code> already establishes. Written as record, not as prose — this is reference for whoever draws or writes the ship next, not player-facing copy.</div>
+
+    <div style="display:flex; flex-direction:column; gap:2px; background:rgba(74,158,255,0.1); max-width:1000px">
+      <sc-for list="{{ history }}" as="h" hint-placeholder-count="6">
+        <div style="display:grid; grid-template-columns:150px 1fr; gap:20px; padding:16px 20px; background:#0a1220; align-items:baseline">
+          <div style="font-size:11px; letter-spacing:1.5px; color:#c87941">{{ h.when }}</div>
+          <div style="font-size:12.5px; line-height:1.7; color:#a8bdd0; text-wrap:pretty">{{ h.what }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="max-width:860px; padding:18px 20px; background:rgba(240,180,41,0.05); border-left:2px solid #F0B429; font-size:12.5px; line-height:1.75; color:#a8bdd0; text-wrap:pretty">
+      <strong style="color:#e8f0ff">The design rule that follows from all of this:</strong> the Axiom is not a damaged version of a clean ship. It is a ship whose current shape <em>is</em> the record of everyone who worked on it. Symmetry is wrong. Uniform paneling is wrong. Any redraw that makes it look like it came out of a shipyard has thrown away the story.
+    </div>
+  </div>
+
+  <!-- ── HONEST NOTE ─────────────────────────────── -->
+  <div style="max-width:1000px; padding:22px 24px; border:1px solid rgba(224,85,85,0.3); background:rgba(224,85,85,0.04); display:flex; flex-direction:column; gap:10px">
+    <div style="font-size:11px; letter-spacing:2px; color:#e05555">WHAT THIS IS AND ISN'T</div>
+    <div style="font-size:12.5px; line-height:1.75; color:#a8bdd0; text-wrap:pretty">The drawing above is a <strong style="color:#e8f0ff">schematic</strong>, not finished art. It is accurate to proportion, zone position, and feature placement — enough for Claude Code to build the component and enough for an illustrator to render properly — but I hand-build SVG and I can't generate images, so the linework will never have the quality of a real ship illustration. Judge it as a blueprint.</div>
+    <div style="font-size:12.5px; line-height:1.75; color:#a8bdd0; text-wrap:pretty">What is worth keeping regardless of who draws the final version: the proportions, the eight zone positions, the single-drive decision, the fine dorsal mast against the crude hull, and the three-value repair rule. Those are design calls, and they hold whatever the final art looks like.</div>
+  </div>
+
+  <div style="font-size:11px; line-height:1.7; color:#7a96b0; max-width:900px; padding-top:8px; border-top:1px solid rgba(74,158,255,0.12)">
+    <a href="#2a">2a</a> silhouette · <a href="#2b">2b</a> zones · <a href="#2c">2c</a> repair states · <a href="#2d">2d</a> history. Piece and HUD review is in <code style="color:#f0b429">Axiom Design Review</code>; the fix list for Claude Code is <code style="color:#f0b429">AXIOM_DESIGN_REVIEW.md</code>.
+  </div>
+
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:2400}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      story: [
+        { k: "A", t: "The painted-over hull marking.", d: "A rectangle of newer paint amidships, starboard side, with the original registration still faintly legible underneath. Your Chapter Two thread, sitting in plain sight from the first frame of the game." },
+        { k: "B", t: "Three welding styles.", d: "Three seam treatments across the hull, deliberately mismatched: a crude hand-run zigzag, a neat riveted line, and a heavy overlapped plate. Three people fixed this ship. None of them talked to each other." },
+        { k: "C", t: "The Maker's bypass conduit.", d: "An external copper run from the nav blister aft to the forward compartment, clamped on by hand. It ignores the hull's own paneling because it was never meant to be there. This is the relay COGS says to leave alone in Sector 3." },
+        { k: "D", t: "Capped weapon hardpoints.", d: "Two mounts plated over with cross-braces. Not battle damage — someone locked these deliberately, which is exactly what COGS notes at A1-7 and refuses to comment on." },
+      ],
+      zones: [
+        { n: 1, id: "A1-1", name: "Emergency Power", part: "Plated battery bank, aft ventral hull", note: "A plated battery bank on the aft ventral hull. Lowest and furthest back, so the reveal starts at the ship's floor." },
+        { n: 2, id: "A1-2", name: "Life Support", part: "Ventral blister, amidships", note: "The rounded belly. One of only two curved forms on the vessel — it reads as the part built for people." },
+        { n: 3, id: "A1-3", name: "Navigation Array", part: "Forward dorsal blister", note: "Carries the Maker's bypass conduit. The player repairs around a piece of work that isn't theirs." },
+        { n: 4, id: "A1-4", name: "Propulsion Core", part: "Drive block and nozzle, stern", note: "The single largest mass. When it lights, it lights amber — the only amber on the hull." },
+        { n: 5, id: "A1-5", name: "Communication Array", part: "Dorsal lattice mast, full length", note: "The Maker's good work. Spans most of the silhouette, so bringing it online changes the whole ship's read." },
+        { n: 6, id: "A1-6", name: "Sensor Grid", part: "Prow tip and forward facets", note: "Furthest forward point. Small, so it needs its accent ring to register at hub scale." },
+        { n: 7, id: "A1-7", name: "Weapons Lock", part: "Two capped ventral hardpoints", note: "Repaired but never unlocked. The plates stay on. The zone goes to POWERED, never ONLINE." },
+        { n: 8, id: "A1-8", name: "Bridge Systems", part: "Forward dorsal canopy", note: "Last and highest. Its cyan canopy glow is the payoff frame of Sector 0 — hold it a beat before COGS speaks." },
+      ],
+      history: [
+        { when: "ORIGIN", what: "Built as a long-range military scout. Designation class unknown — the record either never existed or was removed. Configured for endurance rather than engagement: one oversized drive, minimal armament, an oversized signal relay array for a hull this size." },
+        { when: "SERVICE", what: "Hull patched in at least three different welding styles. Forward compartments rewired to two incompatible gauge standards. The signal relay array was installed by someone competent; whoever handled the forward wiring was not." },
+        { when: "THE MAKER", what: "Fits the AX-MOD to COGS's chassis and hand-installs a bypass relay in the nav array. Good work, done manually, in a technique that matches nothing else aboard. Departs for Deep Void." },
+        { when: "DEEP VOID", what: "Enters with two life signs. One drops from the log at 40 percent of the sector's spatial range. Then none. Hardware logs encode it automatically. COGS cannot control what they record, and has never deleted the coordinates." },
+        { when: "847 DAYS", what: "COGS operates without a heading or a human operator. The AX-MOD holds his core integrity. Ship systems degrade past what neglect alone explains. The Axiom drifts out of the Void." },
+        { when: "SALVAGE", what: "Sold at salvage price. No official record of prior ownership survives the transfer. Weapons systems found locked — deliberately, not from damage. Somewhere in this period the hull registration is painted over." },
+        { when: "CURRENT", what: "Acquired by the Engineer. Barely functional across all eight primary systems. A maintenance database at Nova Fringe Station 14 still holds a match on the hull markings." },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

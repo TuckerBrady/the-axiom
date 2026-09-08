@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Orbitron:wght@400;700&family=Exo+2:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #06090f; }
+  a { color: #4a9eff; text-decoration: none; }
+  a:hover { color: #7ab8ff; }
+</style>
+</helmet>
+
+<div style="font-family:'Space Mono',monospace; background:#06090f; color:#e8f0ff; padding:48px; display:flex; flex-direction:column; gap:44px; max-width:1100px">
+
+  <div style="display:flex; flex-direction:column; gap:10px">
+    <div style="font-size:11px; letter-spacing:3px; color:#7a96b0">THE AXIOM — UI KIT</div>
+    <div style="font-family:'Orbitron',sans-serif; font-size:32px; font-weight:700; letter-spacing:1px">Design system</div>
+    <div style="font-size:13px; line-height:1.7; color:#a8bdd0; max-width:640px; text-wrap:pretty">Every token below is the real value from <code style="color:#f0b429">src/theme/tokens.ts</code>. Where the review changes a rule, the change is marked. Color roles are the part worth reading — that is where the system currently has no rules at all.</div>
+  </div>
+
+  <!-- ─── COLOR ROLES ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Color roles</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#f0b429">PROPOSED — ONE JOB PER HUE</span>
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:8px">
+      <sc-for list="{{ roles }}" as="r" hint-placeholder-count="9">
+        <div style="display:grid; grid-template-columns:52px 128px 1fr 190px; gap:16px; align-items:center; padding:10px 0; border-bottom:1px solid rgba(74,158,255,0.07)">
+          <div style="height:36px; border-radius:6px; background:{{ r.hex }}; border:1px solid rgba(255,255,255,0.12)"></div>
+          <div style="display:flex; flex-direction:column; gap:2px">
+            <span style="font-size:12px; font-weight:700; color:#e8f0ff">{{ r.name }}</span>
+            <span style="font-size:10px; color:#7a96b0">{{ r.hex }}</span>
+          </div>
+          <div style="font-size:11px; line-height:1.6; color:#a8bdd0">{{ r.job }}</div>
+          <div style="font-size:10px; line-height:1.5; color:#7a96b0">{{ r.never }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="font-size:11px; line-height:1.7; color:#7a96b0; text-wrap:pretty">The two beam hues are the system's most valuable asset and currently its most diluted. Amber appears on seven static elements and cyan on seven more, so when a beam fires there is no contrast event and the player cannot learn that Physics and Protocol are separate systems. Everything else in this kit follows from protecting those two.</div>
+  </div>
+
+  <!-- ─── SURFACES ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Surfaces &amp; ink</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#4ecb8d">CURRENT — CONTRAST CHECKED</span>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:12px">
+      <sc-for list="{{ inks }}" as="k" hint-placeholder-count="6">
+        <div style="width:168px; padding:16px; border-radius:8px; background:#06090f; border:1px solid rgba(74,158,255,0.15); display:flex; flex-direction:column; gap:8px">
+          <span style="font-size:15px; color:{{ k.hex }}">Aa Engineer 0/1</span>
+          <span style="font-size:10px; color:#7a96b0">{{ k.name }} · {{ k.hex }}</span>
+          <span style="font-size:10px; font-weight:700; color:{{ k.flagColor }}">{{ k.ratio }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:11px; line-height:1.7; color:#7a96b0; text-wrap:pretty">Ratios measured against the void ground <code style="color:#f0b429">#06090f</code>. <span style="color:#e05555">dim</span> and <span style="color:#e05555">#1A3050</span> fail 4.5:1 and are currently used for the gameplay HUD sector tag and pulse counter respectively — see D-07. Neither is legitimate for text on void; both are fine as borders or fills.</div>
+  </div>
+
+  <!-- ─── TYPE ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Type</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#f0b429">PROPOSED — 11PT FLOOR</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px">
+      <div style="display:flex; align-items:baseline; gap:20px; padding-bottom:12px; border-bottom:1px solid rgba(74,158,255,0.07)">
+        <div style="width:150px; font-size:10px; color:#7a96b0; letter-spacing:1.5px">ORBITRON 700</div>
+        <div style="font-family:'Orbitron',sans-serif; font-size:24px; font-weight:700">Navigation Array</div>
+        <div style="font-size:10px; color:#7a96b0; line-height:1.5">Screen titles, ship name, level names on dossier and results. Never body copy — Orbitron's counters close up below 14pt.</div>
+      </div>
+      <div style="display:flex; align-items:baseline; gap:20px; padding-bottom:12px; border-bottom:1px solid rgba(74,158,255,0.07)">
+        <div style="width:150px; font-size:10px; color:#7a96b0; letter-spacing:1.5px">SPACE MONO 400</div>
+        <div style="font-size:16px">A1-3 · SIGNAL LOCKED</div>
+        <div style="font-size:10px; color:#7a96b0; line-height:1.5">Everything operational: HUD, tape values, counts, credits, labels, telemetry. The workhorse.</div>
+      </div>
+      <div style="display:flex; align-items:baseline; gap:20px">
+        <div style="width:150px; font-size:10px; color:#7a96b0; letter-spacing:1.5px">EXO 2 400</div>
+        <div style="font-family:'Exo 2',sans-serif; font-size:16px">Not all damage is structural.</div>
+        <div style="font-size:10px; color:#7a96b0; line-height:1.5">Prose only — COGS dialogue, Codex descriptions, narrative. Where sentences need to be read rather than scanned.</div>
+      </div>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:4px">
+      <sc-for list="{{ sizes }}" as="z" hint-placeholder-count="8">
+        <div style="padding:10px 14px; border:1px solid {{ z.border }}; border-radius:6px; display:flex; flex-direction:column; gap:4px; min-width:104px">
+          <span style="font-size:11px; color:{{ z.color }}">{{ z.label }}</span>
+          <span style="font-size:10px; color:#7a96b0">{{ z.use }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:11px; line-height:1.7; color:#7a96b0; text-wrap:pretty">The token scale bottoms out at <code style="color:#f0b429">xs: 10</code>, but shipped code reaches 5pt (Latch mode badge), 7pt (tray price, sector tag) and 8pt (level id, count badge). Proposed rule: <strong style="color:#e8f0ff">no rendered text below 11pt anywhere</strong>, including inside SVG. Delete <code>xs: 10</code> from the scale so it cannot be reached.</div>
+  </div>
+
+  <!-- ─── PIECE STANDARD ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Piece drawing standard</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#f0b429">PROPOSED</span>
+    </div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px">
+      <sc-for list="{{ rules }}" as="u" hint-placeholder-count="8">
+        <div style="padding:14px; background:rgba(74,158,255,0.03); border-left:2px solid #4a9eff; display:flex; flex-direction:column; gap:5px">
+          <span style="font-size:11px; font-weight:700; letter-spacing:1px; color:#e8f0ff">{{ u.title }}</span>
+          <span style="font-size:11px; line-height:1.6; color:#a8bdd0">{{ u.body }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <!-- ─── CONTROLS ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Controls</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#7a96b0">44PT MINIMUM TARGET</span>
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start">
+
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#7a96b0">PRIMARY — ENGAGE</div>
+        <div style="min-height:52px; padding:16px 36px; border:1px solid #f0b429; border-radius:4px; background:rgba(240,180,41,0.10); font-family:'Orbitron',sans-serif; font-size:14px; font-weight:700; letter-spacing:3px; color:#f0b429; display:flex; align-items:center; justify-content:center">ENGAGE</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#7a96b0">SECONDARY</div>
+        <div style="min-height:52px; padding:16px 30px; border:1px solid rgba(74,158,255,0.35); border-radius:4px; font-family:'Orbitron',sans-serif; font-size:13px; letter-spacing:2.5px; color:#4a9eff; display:flex; align-items:center; justify-content:center">REQUISITION</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#7a96b0">DISABLED</div>
+        <div style="min-height:52px; padding:16px 30px; border:1px solid rgba(58,80,112,0.5); border-radius:4px; font-family:'Orbitron',sans-serif; font-size:13px; letter-spacing:2.5px; color:#3a5070; display:flex; align-items:center; justify-content:center">ENGAGE</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:8px">
+        <div style="font-size:10px; letter-spacing:1.5px; color:#7a96b0">TRAY CELL — PROPOSED</div>
+        <div style="display:flex; gap:8px">
+          <div style="width:56px; height:56px; border:1px solid rgba(74,158,255,0.2); border-radius:12px; background:rgba(8,14,28,0.8); display:flex; align-items:center; justify-content:center; position:relative">
+            <svg width="32" height="32" viewBox="0 0 40 40"><path d="M 20 6 L 22 10 L 26 10 L 28 14 L 34 16 L 34 20 L 34 24 L 28 26 L 26 30 L 22 30 L 20 34 L 18 30 L 14 30 L 12 26 L 6 24 L 6 20 L 6 16 L 12 14 L 14 10 L 18 10 Z" fill="#0e1f36" stroke="#4a9eff" stroke-width="2" stroke-linejoin="round"/><rect x="18.5" y="2" width="3" height="4" rx="1" fill="#c87941"/><rect x="18.5" y="34" width="3" height="4" rx="1" fill="#c87941"/><rect x="2" y="18.5" width="4" height="3" rx="1" fill="#c87941"/><rect x="34" y="18.5" width="4" height="3" rx="1" fill="#c87941"/><circle cx="20" cy="20" r="6" fill="#060e1a" stroke="#c87941" stroke-width="1.2" stroke-opacity=".7"/><circle cx="20" cy="20" r="2.5" fill="#c87941"/></svg>
+            <div style="position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; border-radius:10px; background:#4a9eff; color:#06090f; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px">4</div>
+          </div>
+          <div style="width:56px; height:56px; border:1px solid #8B5CF6; border-radius:12px; background:rgba(139,92,246,0.10); display:flex; align-items:center; justify-content:center; position:relative">
+            <svg width="32" height="32" viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" fill="#0e1f36" stroke="#8B5CF6" stroke-width="2"/><circle cx="20" cy="20" r="10" fill="none" stroke="#a78bfa" stroke-width="1.3" stroke-opacity=".8"/><circle cx="20" cy="20" r="5" fill="none" stroke="#a78bfa" stroke-width="1.3" stroke-opacity=".7"/><line x1="20" y1="5" x2="20" y2="35" stroke="#a78bfa" stroke-width="1.3" stroke-opacity=".7"/><line x1="5" y1="20" x2="35" y2="20" stroke="#a78bfa" stroke-width="1.3" stroke-opacity=".7"/><circle cx="20" cy="20" r="2.4" fill="#a78bfa"/></svg>
+            <div style="position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; border-radius:10px; background:#8B5CF6; color:#06090f; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; padding:0 5px">2</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div style="font-size:11px; line-height:1.7; color:#7a96b0; text-wrap:pretty">Tray cells above show the proposed treatment: 32pt icon, 11pt count badge moved to the corner, price removed (it belongs in the requisition panel, since purchases only happen there). Category now reads at a glance because copper and lavender are the only accents — amber and cyan are held in reserve for the beam. Selected state is a full-strength category border plus a 10% wash, as shipped.</div>
+  </div>
+
+  <!-- ─── CHROME ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">HUD chrome</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#7a96b0">TACTICAL SCREENS ONLY</span>
+    </div>
+    <div style="display:flex; gap:20px; flex-wrap:wrap">
+      <div style="width:280px; height:150px; position:relative; border:1px solid rgba(74,158,255,0.1); background:#06090f">
+        <div style="position:absolute; top:12px; left:12px; width:22px; height:22px; border-top:2px solid rgba(74,158,255,0.35); border-left:2px solid rgba(74,158,255,0.35)"></div>
+        <div style="position:absolute; top:12px; right:12px; width:22px; height:22px; border-top:2px solid rgba(74,158,255,0.35); border-right:2px solid rgba(74,158,255,0.35)"></div>
+        <div style="position:absolute; bottom:12px; left:12px; width:22px; height:22px; border-bottom:2px solid rgba(74,158,255,0.35); border-left:2px solid rgba(74,158,255,0.35)"></div>
+        <div style="position:absolute; bottom:12px; right:12px; width:22px; height:22px; border-bottom:2px solid rgba(74,158,255,0.35); border-right:2px solid rgba(74,158,255,0.35)"></div>
+        <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; letter-spacing:2px; color:#7a96b0">CORNER BRACKETS</div>
+      </div>
+      <div style="flex:1; min-width:280px; display:flex; flex-direction:column; gap:10px; font-size:11px; line-height:1.7; color:#a8bdd0">
+        <div>Brackets at 22pt, 2pt stroke, <code style="color:#f0b429">rgba(74,158,255,0.35)</code>, inset 12–14pt. Fade in over 600ms. Gameplay, sector map, dossier, results. Never on hub, settings, store, or codex.</div>
+        <div style="color:#7a96b0">Proposed: brackets currently render at 0.3 alpha in the ship prototype and 0.12 on some screens. Pick one value and put it in tokens — chrome that varies per screen reads as inconsistency, not atmosphere.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── MOTION ─────────────────────────── -->
+  <div style="display:flex; flex-direction:column; gap:18px">
+    <div style="display:flex; align-items:baseline; gap:14px; border-bottom:1px solid rgba(74,158,255,0.18); padding-bottom:10px">
+      <span style="font-family:'Orbitron',sans-serif; font-size:15px; font-weight:700">Motion</span>
+      <span style="font-size:10px; letter-spacing:2px; color:#7a96b0">FROM ANIMATION_RULES + PIECE STANDARD</span>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px">
+      <sc-for list="{{ motion }}" as="m" hint-placeholder-count="6">
+        <div style="display:grid; grid-template-columns:190px 96px 1fr; gap:16px; padding:9px 0; border-bottom:1px solid rgba(74,158,255,0.07); align-items:baseline">
+          <span style="font-size:11px; color:#e8f0ff">{{ m.name }}</span>
+          <span style="font-size:11px; color:#f0b429">{{ m.dur }}</span>
+          <span style="font-size:10px; line-height:1.5; color:#7a96b0">{{ m.note }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="font-size:11px; line-height:1.7; color:#7a96b0; text-wrap:pretty">Piece feedback lives at 150–400ms; screen transitions at 600ms minimum per Design Principle 4. The gap between them is deliberate — machine parts react, the camera moves. Keep the two bands from bleeding into each other.</div>
+  </div>
+
+  <div style="font-size:11px; line-height:1.7; color:#7a96b0; border-top:1px solid rgba(74,158,255,0.12); padding-top:16px">Companion documents: <code style="color:#f0b429">Axiom Design Review.dc.html</code> for the visual audit, <code style="color:#f0b429">AXIOM_DESIGN_REVIEW.md</code> for the numbered implementation spec.</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:1700}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      roles: [
+        { hex: '#F0B429', name: 'amber', job: 'Physics signal beam. Live physical-signal animation only.', never: 'Never a static piece accent. Never Source fill, gate strips, or drums.' },
+        { hex: '#00D4FF', name: 'neonCyan', job: 'Protocol data beam. Live data-trail animation only.', never: 'Never a static piece accent. HUD glyphs move to starWhite or muted.' },
+        { hex: '#c87941', name: 'copper', job: 'Physics identity, static. Mechanical accents, wires, drums, teeth.', never: 'Never on a Protocol piece.' },
+        { hex: '#a78bfa', name: 'circuit', job: 'Protocol identity, static. Data rows, rings, logic symbols.', never: 'Never on a Physics piece.' },
+        { hex: '#4a9eff', name: 'blue', job: 'Physics category body stroke, structural chrome, brackets.', never: 'Not an accent — the body outline only.' },
+        { hex: '#8B5CF6', name: 'protocol', job: 'Protocol category body stroke. Config Node always.', never: 'Not in tokens.ts yet — add it.' },
+        { hex: '#00C48C', name: 'terminal', job: 'Destination and success. Terminal, gate PASS, locked piece.', never: 'Never a second-output marker. Use form, not hue.' },
+        { hex: '#e05555', name: 'red', job: 'Failure, damage, blocked. COGS damage state.', never: 'Never decorative. Failure only.' },
+        { hex: '#f5ede0', name: 'cream', job: 'Warmth. COGS green-eye moments, rank, earned states.', never: 'Not a body text color — starWhite is.' }
+      ],
+      inks: [
+        { hex: '#e8f0ff', name: 'starWhite', ratio: '15.8:1  PASS', flagColor: '#4ecb8d' },
+        { hex: '#f5ede0', name: 'cream', ratio: '15.4:1  PASS', flagColor: '#4ecb8d' },
+        { hex: '#7a96b0', name: 'muted', ratio: '7.4:1  PASS', flagColor: '#4ecb8d' },
+        { hex: '#c87941', name: 'copper', ratio: '5.9:1  PASS', flagColor: '#4ecb8d' },
+        { hex: '#3a5070', name: 'dim', ratio: '2.4:1  FAIL', flagColor: '#e05555' },
+        { hex: '#1A3050', name: 'HUD pulse', ratio: '1.5:1  FAIL', flagColor: '#e05555' }
+      ],
+      sizes: [
+        { label: '48 hero', use: 'Launch, ship name', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '32 display', use: 'Screen titles', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '24 xxl', use: 'Section heads', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '20 xl', use: 'Card titles', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '16 lg', use: 'Body, dialogue', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '14 md', use: 'Dense body', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '12 sm', use: 'Labels, telemetry', border: 'rgba(74,158,255,0.2)', color: '#e8f0ff' },
+        { label: '11 floor', use: 'Absolute minimum', border: 'rgba(240,180,41,0.5)', color: '#f0b429' },
+        { label: '10 xs', use: 'Delete from scale', border: 'rgba(224,85,85,0.4)', color: '#e05555' }
+      ],
+      rules: [
+        { title: 'ONE CANVAS', body: 'Every piece draws on viewBox 0 0 40 40 and renders s × s. No exceptions — the conveyor is the current one and it breaks the tray rhythm.' },
+        { title: 'ENCLOSED MASS', body: 'Every piece needs a filled body the eye can catch at 22pt. The Splitter has none — three hairlines and two ovals read as dots.' },
+        { title: 'STROKE FLOOR', body: 'Primary body stroke 2. No accent below 1.2. Nothing renders under 1.0pt on device after scaling.' },
+        { title: 'OPACITY FLOOR', body: 'No stroke or fill below 0.45. Detail that needs to be quieter than that does not survive the size — delete it instead.' },
+        { title: 'NO TYPE IN ICONS', body: 'No SvgText, ever. Counts and stored values render as an upright 11pt chip drawn by BoardPiece outside the rotation transform.' },
+        { title: 'ROTATION INVARIANT', body: 'State must never be encoded as position. A rotated Config Node currently reads as the opposite value.' },
+        { title: 'TWO ACCENTS MAX', body: 'Category stroke plus one accent family. Current icons carry up to five hues; at 22pt that is mud, not detail.' },
+        { title: 'FORM OVER HUE', body: 'Distinguish two outputs by shape or fill, not amber-vs-green — the single worst pairing for colorblind players, carrying load-bearing routing information.' }
+      ],
+      motion: [
+        { name: 'Screen transition', dur: '600ms', note: 'cubic-bezier. Design Principle 4 minimum. Cinematic.' },
+        { name: 'Piece success', dur: '150-400ms', note: 'Per-piece prop on PieceIcon. Communicates what the piece did to the signal.' },
+        { name: 'Beam CHARGE / BEAM / LOCK', dur: 'three-phase', note: 'Locked. The one animation the whole game is built around.' },
+        { name: 'Piece flash', dur: '180ms', note: '90ms in, 90ms out. JS driver required — host remounts per pulse.' },
+        { name: 'Failure X fade', dur: '800ms', note: 'Long on purpose. Failure is the curriculum; give it time to land.' },
+        { name: 'Magnet snap', dur: '150 / 100ms', note: 'Asymmetric — extends slower than it retracts. Keep it.' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
