@@ -46,10 +46,20 @@ describe('ArcWheel — source contract', () => {
     expect(wheelSrc).toMatch(/recallStrip/);
   });
 
-  it('defines source colors: amber for preAssigned, cyan for requisitioned, purple for tape', () => {
-    expect(wheelSrc).toMatch(/#F0B429/);  // amber — preAssigned
-    expect(wheelSrc).toMatch(/#00D4FF/);  // cyan — requisitioned
-    expect(wheelSrc).toMatch(/#8B5CF6/);  // purple — tape
+  // REQ-G-03 (Handoff 003, ratified 2026-09-10) supersedes REQ-41's
+  // color-by-source-provenance scheme this test used to pin:
+  // COMPUTATIONAL_MODEL.md "Visual Distinction" (Option B) mandates that
+  // purchased pieces appear identically to pre-assigned ones — encoding
+  // provenance via amber/cyan node borders is exactly what that forbids.
+  it('uses one neutral border for non-tape nodes — no color-by-provenance, tape still purple', () => {
+    expect(wheelSrc).not.toMatch(/SOURCE_COLORS/);
+    expect(wheelSrc).toMatch(/const NEUTRAL_BORDER = Colors\.muted;/);
+    expect(wheelSrc).not.toMatch(/#00D4FF/); // cyan requisitioned-provenance accent is gone
+    expect(wheelSrc).toMatch(/#8B5CF6/); // purple — tape identity, unrelated to provenance
+  });
+
+  it('getPieceColor returns Colors.blue for non-Protocol pieces, matching BoardGrid/PieceTray', () => {
+    expect(wheelSrc).toMatch(/function getPieceColor\(type: PieceType\): string \{\s*\n\s*return PROTOCOL_TYPES\.includes\(type\) \? '#8B5CF6' : Colors\.blue;/);
   });
 
   it('groups pieces by type with a count badge (one node per type)', () => {

@@ -202,7 +202,7 @@ describe('charge state helpers', () => {
   });
 
   it('setChargeProgress replaces progress', () => {
-    const { state, setter } = makeState<ChargeState>({ pos: { x: 5, y: 5 }, progress: 0 });
+    const { state, setter } = makeState<ChargeState>({ pos: { x: 5, y: 5 }, progress: 0, color: null });
     setChargeProgress(setter, 0.75);
     expect(state.value.progress).toBe(0.75);
     expect(state.value.pos).toEqual({ x: 5, y: 5 });

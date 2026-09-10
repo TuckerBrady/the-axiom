@@ -4,6 +4,7 @@ import {
   setChargePos as setChargePosField,
   setSignalPhase,
 } from './stateHelpers';
+import { Colors } from '../../theme/tokens';
 
 // Prompt 99A — charge ring progress is now driven natively via
 // ctx.chargeProgressAnim. The render layer reads the Animated.Value
@@ -26,10 +27,16 @@ import {
 export async function runChargePhase(
   ctx: EngagementContext,
   sourcePieceId: string,
+  // REQ-G-05: category color of the first post-Source step (SE-BEAM-081),
+  // computed by the caller (which has the pulse trace) and threaded
+  // through rather than recomputed here. Optional so existing call sites
+  // that don't yet care about it keep compiling; defaults to amber, the
+  // DEC-2-confirmed default (also the getBeamColor() default case).
+  chargeColor: string = Colors.amber,
 ): Promise<void> {
   const sp = ctx.getPieceCenter(sourcePieceId);
   if (!sp) return;
-  setChargePosField(ctx.setChargeState, sp);
+  setChargePosField(ctx.setChargeState, sp, chargeColor);
   setSignalPhase(ctx.setBeamState, 'charge');
 
   ctx.chargeAnim?.stop();
@@ -56,11 +63,12 @@ export async function runChargePhase(
 export async function runReplayChargePhase(
   ctx: EngagementContext,
   sourcePieceId: string,
+  chargeColor: string = Colors.amber,
 ): Promise<void> {
   const sp = ctx.getPieceCenter(sourcePieceId);
   if (!sp) return;
   if (!ctx.loopingRef.current) return;
-  setChargePosField(ctx.setChargeState, sp);
+  setChargePosField(ctx.setChargeState, sp, chargeColor);
   setSignalPhase(ctx.setBeamState, 'charge');
 
   ctx.chargeAnim?.stop();

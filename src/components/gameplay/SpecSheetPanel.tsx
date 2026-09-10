@@ -51,11 +51,14 @@ interface Props {
 
 // Each section keys off the RFC-2119 term it heads. The accent colour
 // distinguishes the obligation strength at a glance: SHALL (mandatory) reads
-// amber/load-bearing, WILL (the given) reads neutral cyan, SHOULD (guidance)
+// copper/load-bearing, WILL (the given) reads neutral cyan, SHOULD (guidance)
 // reads dim, MAY (optional/bonus) reads green like a reward.
+// REQ-G-03 (Handoff 003): SHALL carries obligation strength via
+// Colors.copper now, not the Physics beam amber — static chrome stops
+// borrowing beam hues.
 const SECTION_ACCENT = {
   WILL: '#00D4FF',
-  SHALL: Colors.amber,
+  SHALL: Colors.copper,
   SHOULD: Colors.muted,
   MAY: '#4ecb8d',
 } as const;

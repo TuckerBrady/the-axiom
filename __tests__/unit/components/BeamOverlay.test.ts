@@ -48,10 +48,29 @@ describe('BeamOverlay — extracted beam + charge + lock + voidPulse layer', () 
     expect(beamSrc).toMatch(/beamState\.branchTrails\.map/);
   });
 
-  it('renders beam heads with translucent halo + white core', () => {
+  // REQ-G-03 (Handoff 003, ratified 2026-09-10) supersedes the
+  // all-white travelling front this test used to pin: white-at-r=3.5 was
+  // the least visible part of the animation for the layer-change signal
+  // SE-BEAM-082 exists to communicate. The front now carries its layer
+  // color, with white kept only as a smaller inner core.
+  it('renders beam heads with translucent halo, a layer-colored front, and a smaller white core', () => {
     expect(beamSrc).toMatch(/beamState\.heads\.map/);
     expect(beamSrc).toMatch(/r=\{11\}[\s\S]*?fill=\{beamState\.headColor\}/);
-    expect(beamSrc).toMatch(/r=\{3\.5\}[\s\S]*?fill="white"/);
+    expect(beamSrc).toMatch(/r=\{3\.5\}[\s\S]*?fill=\{beamState\.headColor\}/);
+    expect(beamSrc).toMatch(/r=\{1\.5\}[\s\S]*?fill="white"/);
+  });
+
+  // REQ-G-05: the charge rings take chargeState.color (the first
+  // post-Source step's category, SE-BEAM-081) instead of the hardcoded
+  // Protocol body stroke '#8B5CF6', which painted every charge run in a
+  // reserved, often-wrong hue.
+  it('charge rings take chargeState.color, not a hardcoded hex', () => {
+    expect(beamSrc).not.toMatch(/stroke="#8B5CF6"/);
+    const chargeBlock = beamSrc.slice(
+      beamSrc.indexOf("beamState.phase === 'charge'"),
+      beamSrc.indexOf("beamState.trails.map"),
+    );
+    expect((chargeBlock.match(/stroke=\{chargeState\.color \?\? Colors\.amber\}/g) ?? []).length).toBe(2);
   });
 
   it('renders the void pulse circle when voidPulse is non-null', () => {

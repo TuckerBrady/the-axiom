@@ -10,6 +10,7 @@ module.exports = {
       moduleNameMapper: {
         '@react-native-async-storage/async-storage': '<rootDir>/__tests__/__mocks__/async-storage.ts',
         '^react-native$': '<rootDir>/__tests__/__mocks__/react-native.ts',
+        '^expo-haptics$': '<rootDir>/__tests__/__mocks__/expo-haptics.ts',
       },
       globals: {
         __DEV__: false,

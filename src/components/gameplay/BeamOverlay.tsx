@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Animated as RNAnimated } from 'react-native';
 import Svg, { Circle, G, Polyline } from 'react-native-svg';
 import type { BeamState, ChargeState, Pt } from '../../game/engagement';
+import { Colors } from '../../theme/tokens';
 
 const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
 
@@ -54,16 +55,21 @@ function BeamOverlayComponent({
         >
           {beamState.phase === 'charge' && chargeState.pos && (
             <>
+              {/* REQ-G-05 (Handoff 003): the charge rings take
+                  chargeState.color — the first post-Source step's category
+                  (SE-BEAM-081) — instead of the hardcoded Protocol body
+                  stroke '#8B5CF6', which painted every charge amber-or-blue
+                  run in the wrong (and reserved) hue. */}
               <AnimatedCircle
                 cx={chargeState.pos.x} cy={chargeState.pos.y}
                 r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [6, 24] }) as unknown as number}
-                fill="none" stroke="#8B5CF6" strokeWidth={2}
+                fill="none" stroke={chargeState.color ?? Colors.amber} strokeWidth={2}
                 opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }) as unknown as number}
               />
               <AnimatedCircle
                 cx={chargeState.pos.x} cy={chargeState.pos.y}
                 r={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [2, 28] }) as unknown as number}
-                fill="none" stroke="#8B5CF6" strokeWidth={1.5}
+                fill="none" stroke={chargeState.color ?? Colors.amber} strokeWidth={1.5}
                 opacity={chargeProgressAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] }) as unknown as number}
               />
             </>
@@ -96,10 +102,16 @@ function BeamOverlayComponent({
               ) : null
             )),
           )}
+          {/* REQ-G-05: the travelling front now carries its layer color
+              (r=3.5, was fill="white") with a smaller white core (r=1.5)
+              on top — previously the front was entirely white, the least
+              visible part of the animation for the layer-change signal
+              SE-BEAM-082 exists to communicate. */}
           {beamState.heads.map((bh, bi) => (
             <G key={`bh-${bi}`}>
               <Circle cx={bh.x} cy={bh.y} r={11} fill={beamState.headColor} opacity={0.25} />
-              <Circle cx={bh.x} cy={bh.y} r={3.5} fill="white" opacity={0.95} />
+              <Circle cx={bh.x} cy={bh.y} r={3.5} fill={beamState.headColor} opacity={0.95} />
+              <Circle cx={bh.x} cy={bh.y} r={1.5} fill="white" opacity={0.95} />
             </G>
           ))}
           {beamState.voidPulse && (

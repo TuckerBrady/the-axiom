@@ -257,3 +257,65 @@ describe('Prompt 98 — beam pause/resume race fix', () => {
     });
   });
 });
+
+// REQ-G-05 / SE-BEAM-082 (Handoff 003) — segment color crossfades across a
+// category boundary over 300ms via one JS-driven Animated.Value per active
+// trail, instead of the stroke literal swapping instantly at the boundary.
+describe('REQ-G-05 — beam segment color crossfade at a category boundary', () => {
+  describe('source contract', () => {
+    it('allocates one Animated.Value per runLinearPath invocation (per active trail), JS-driven', () => {
+      const fnBlock = beamSrc.match(/export function runLinearPath\([\s\S]*?\n\}/);
+      expect(fnBlock).not.toBeNull();
+      expect(fnBlock![0]).toMatch(/const crossfadeAnim = new Animated\.Value\(0\);/);
+      expect(fnBlock![0]).toMatch(
+        /Animated\.timing\(crossfadeAnim,\s*\{\s*toValue:\s*1,\s*duration:\s*300,\s*useNativeDriver:\s*false,/,
+      );
+    });
+
+    it('detects the boundary by comparing the active segment color to the previous one, not a fixed index', () => {
+      expect(beamSrc).toMatch(/const activeSegIdx = newSegs\.length - 1;/);
+      expect(beamSrc).toMatch(/if \(fromColor !== toColor\) \{/);
+    });
+
+    it('blends via lerpHexColor, never swapping seg.color to the new literal outright mid-crossfade', () => {
+      expect(beamSrc).toMatch(/function lerpHexColor\(fromHex: string, toHex: string, t: number\): string/);
+      expect(beamSrc).toMatch(/color: lerpHexColor\(crossfadeFromColor, crossfadeToColor, crossfadeLiveValue\)/);
+    });
+
+    it('cleans up the listener when the path resolves (both the void and success branches)', () => {
+      const cleanupCount = (beamSrc.match(/crossfadeAnim\.removeListener\(crossfadeListenerId\);/g) ?? []).length;
+      expect(cleanupCount).toBe(2);
+    });
+  });
+
+  describe('lerpHexColor — pure-JS reimplementation (mirrors the production algorithm)', () => {
+    // beamAnimation.ts isn't importable in the unit-tier project (it pulls
+    // in react-native's Animated) — mirrors the pattern already used above
+    // for the pause/resume state machine.
+    function lerpHexColor(fromHex: string, toHex: string, t: number): string {
+      const parse = (hex: string) => ({
+        r: parseInt(hex.slice(1, 3), 16),
+        g: parseInt(hex.slice(3, 5), 16),
+        b: parseInt(hex.slice(5, 7), 16),
+      });
+      const a = parse(fromHex);
+      const b = parse(toHex);
+      const r = Math.round(a.r + (b.r - a.r) * t);
+      const g = Math.round(a.g + (b.g - a.g) * t);
+      const bl = Math.round(a.b + (b.b - a.b) * t);
+      return `rgb(${r},${g},${bl})`;
+    }
+
+    it('returns the fromColor exactly at t=0', () => {
+      expect(lerpHexColor('#F0B429', '#00D4FF', 0)).toBe('rgb(240,180,41)');
+    });
+
+    it('returns the toColor exactly at t=1', () => {
+      expect(lerpHexColor('#F0B429', '#00D4FF', 1)).toBe('rgb(0,212,255)');
+    });
+
+    it('blends channel-wise at t=0.5', () => {
+      expect(lerpHexColor('#000000', '#FFFFFF', 0.5)).toBe('rgb(128,128,128)');
+    });
+  });
+});

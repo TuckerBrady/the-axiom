@@ -8,7 +8,9 @@ import {
   Animated,
   Easing,
   PanResponder,
+  Dimensions,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import type { Discipline } from '../../store/playerStore';
@@ -28,9 +30,13 @@ import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 
 type TabKey = 'PHYSICS' | 'PROTOCOL' | 'DATA' | 'INFRA';
 
+// REQ-G-03 (Handoff 003) / DEC-2 (ratified 2026-09-10): PHYSICS and
+// PROTOCOL take their static Request-001 identity colors (copper / circuit),
+// not the Physics/Protocol beam colors — this was held pending DEC-2 and is
+// now cleared. DATA/INFRA are unaffected (not beam colors to begin with).
 const TAB_COLORS: Record<TabKey, string> = {
-  PHYSICS:  '#F0B429',
-  PROTOCOL: '#00D4FF',
+  PHYSICS:  Colors.copper,
+  PROTOCOL: Colors.circuit,
   DATA:     '#8B5CF6',
   INFRA:    '#8B5CF6',
 };
@@ -104,7 +110,8 @@ function PieceRow({ type, discipline, includedCount, quantity, onIncrement, onDe
   return (
     <View style={styles.row}>
       <View style={[styles.rowIcon, { borderColor: `${color}40` }]}>
-        <PieceIcon type={type} size={22} color={color} />
+        {/* REQ-G-17: 22 -> 32pt, matching the tray icon size per D-08. */}
+        <PieceIcon type={type} size={32} color={color} />
       </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowLabel}>{PIECE_LABELS[type]}</Text>
@@ -309,6 +316,16 @@ export default function RequisitionPanel({
     return [...preAssigned, ...purchasable];
   }
 
+  // REQ-G-17 (Handoff 003): a per-tab item count, so the catalogue's
+  // length is legible from the tab bar itself rather than only discoverable
+  // by scrolling in. Presentation only — does not affect what's purchasable.
+  function getTabItemCount(tab: TabKey): number {
+    if (tab === 'PHYSICS') return categoryRows(PHYSICS_PIECE_TYPES).length;
+    if (tab === 'PROTOCOL') return categoryRows(PROTOCOL_PIECE_TYPES).length;
+    if (tab === 'DATA') return purchasableTapes.filter(t => !freeTapes.includes(t)).length;
+    return 0;
+  }
+
   // ── Render tab content ──
   function renderTabContent() {
     if (activeTab === 'PHYSICS' || activeTab === 'PROTOCOL') {
@@ -369,7 +386,10 @@ export default function RequisitionPanel({
     return null;
   }
 
-  const tabColor = TAB_COLORS[activeTab];
+  // REQ-G-17: maxHeight derives from available screen height instead of a
+  // fixed 240pt, which showed ~5 rows regardless of device size and hid
+  // the sixth-plus row behind a blind drag with no indicator or count.
+  const contentMaxHeight = Math.round(Dimensions.get('window').height * 0.32);
 
   return (
     <Animated.View style={[styles.root, { transform: [{ translateY: slideOutAnim }] }]}>
@@ -401,35 +421,47 @@ export default function RequisitionPanel({
         <>
           {/* Tab bar */}
           <View style={styles.tabBar}>
-            {orderedTabs.map(tab => (
-              <TouchableOpacity
-                key={tab}
-                style={[
-                  styles.tab,
-                  { borderBottomColor: TAB_COLORS[tab] },
-                  activeTab === tab && { backgroundColor: `${TAB_COLORS[tab]}18` },
-                ]}
-                onPress={() => setActiveTab(tab)}
-                activeOpacity={0.7}
-              >
-                <Text style={[
-                  styles.tabLabel,
-                  { color: activeTab === tab ? TAB_COLORS[tab] : Colors.muted },
-                ]}>
-                  {tab}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {orderedTabs.map(tab => {
+              const count = getTabItemCount(tab);
+              return (
+                <TouchableOpacity
+                  key={tab}
+                  style={[
+                    styles.tab,
+                    { borderBottomColor: TAB_COLORS[tab] },
+                    activeTab === tab && { backgroundColor: `${TAB_COLORS[tab]}18` },
+                  ]}
+                  onPress={() => setActiveTab(tab)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.tabLabel,
+                    { color: activeTab === tab ? TAB_COLORS[tab] : Colors.muted },
+                  ]}>
+                    {tab}{count > 0 ? ` (${count})` : ''}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Tab content */}
-          <ScrollView
-            style={styles.contentScroll}
-            contentContainerStyle={styles.contentInner}
-            showsVerticalScrollIndicator={false}
-          >
-            {renderTabContent()}
-          </ScrollView>
+          <View style={styles.contentWrap}>
+            <ScrollView
+              style={[styles.contentScroll, { maxHeight: contentMaxHeight }]}
+              contentContainerStyle={styles.contentInner}
+              showsVerticalScrollIndicator
+            >
+              {renderTabContent()}
+            </ScrollView>
+            {/* REQ-G-17: bottom fade signals there's more to scroll to,
+                alongside the restored indicator and the tab-bar count. */}
+            <LinearGradient
+              pointerEvents="none"
+              colors={['rgba(6,10,20,0)', 'rgba(6,10,20,0.96)']}
+              style={styles.contentFade}
+            />
+          </View>
 
           {/* Warning text */}
           <View style={styles.warningRow}>
@@ -445,15 +477,19 @@ export default function RequisitionPanel({
             </Text>
           )}
 
-          {/* Confirm button */}
+          {/* Confirm button — REQ-G-03: one fixed accent, not tabColor.
+              The primary CTA changing color with the selected tab read as
+              the confirm action itself being Physics- or Protocol-flavored,
+              which it isn't; matches the game's other primary-confirm CTA
+              (Button variant="gradient") copper/amber accent. */}
           <TouchableOpacity
-            style={[styles.confirmBtn, { borderColor: tabColor }, (dismissing || (!canAffordRequisition && totalSpend > 0)) && styles.confirmBtnDisabled]}
+            style={[styles.confirmBtn, (dismissing || (!canAffordRequisition && totalSpend > 0)) && styles.confirmBtnDisabled]}
             onPress={handleConfirmPress}
             disabled={dismissing || (!canAffordRequisition && totalSpend > 0)}
             activeOpacity={0.8}
             accessibilityLabel="Confirm requisition"
           >
-            <Text style={[styles.confirmBtnText, { color: tabColor }]}>REQUISITION</Text>
+            <Text style={styles.confirmBtnText}>REQUISITION</Text>
           </TouchableOpacity>
         </>
       )}
@@ -511,8 +547,20 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.spaceMono, fontSize: 9, letterSpacing: 1.2,
   },
 
-  contentScroll: { maxHeight: 240 },
+  // REQ-G-17: contentScroll's maxHeight is now set inline per-render from
+  // contentMaxHeight (derived from screen height); the static entry here
+  // no longer carries one.
+  contentWrap: { position: 'relative' },
+  contentScroll: {},
   contentInner: { paddingHorizontal: Spacing.lg, paddingVertical: 8, gap: 8 },
+  // Bottom fade signaling more content below (REQ-G-17).
+  contentFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 24,
+  },
 
   row: {
     flexDirection: 'row',
@@ -531,11 +579,15 @@ const styles = StyleSheet.create({
   rowInfo: { flex: 1 },
   rowLabel: { fontFamily: Fonts.exo2, fontSize: FontSizes.sm, color: Colors.starWhite },
   rowPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  // REQ-G-17: price and stock text raised to the 11pt floor (was 9pt) —
+  // the numbers the purchase decision is made from. The broader 11pt-floor
+  // sweep across the rest of this file is REQ-G-10 (Wave 3), out of scope
+  // here.
   rowPriceStrike: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted,
     textDecorationLine: 'line-through',
   },
-  rowPrice: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, marginTop: 2 },
+  rowPrice: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, marginTop: 2 },
 
   rowRight: { alignItems: 'flex-end', gap: 4 },
   trayCount: {
@@ -544,8 +596,11 @@ const styles = StyleSheet.create({
   trayCountValue: { fontFamily: Fonts.orbitron, fontSize: 11 },
 
   rowControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // REQ-G-17: 28x28 -> 44x44 — the plus/minus pressed repeatedly during
+  // requisition (see also REQ-G-10, which sweeps the rest of the file's
+  // touch targets in Wave 3).
   qtyBtn: {
-    width: 28, height: 28, borderRadius: 6,
+    width: 44, height: 44, borderRadius: 8,
     borderWidth: 1, borderColor: 'rgba(74,158,255,0.3)',
     alignItems: 'center', justifyContent: 'center',
   },
@@ -578,11 +633,13 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     paddingVertical: 12,
     borderRadius: 8, borderWidth: 1,
+    borderColor: Colors.copper,
     alignItems: 'center', justifyContent: 'center',
   },
   confirmBtnDisabled: { opacity: 0.35 },
   confirmBtnText: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md,
     letterSpacing: 2,
+    color: Colors.amber,
   },
 });

@@ -101,8 +101,12 @@ export function setLockedPieces(
 export function setChargePos(
   setter: Dispatch<SetStateAction<ChargeState>>,
   pos: Pt | null,
+  // REQ-G-05: set together with pos when the charge phase starts, so the
+  // ring color is available the same render it becomes visible. Omitted
+  // on the "clear" call (pos: null) — color is unread while pos is null.
+  color?: string,
 ): void {
-  setter(prev => ({ ...prev, pos }));
+  setter(prev => ({ ...prev, pos, ...(color !== undefined ? { color } : {}) }));
 }
 
 export function setChargeProgress(
