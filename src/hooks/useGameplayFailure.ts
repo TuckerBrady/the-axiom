@@ -7,6 +7,11 @@ export interface UseGameplayFailureResult {
   setBlownCells: React.Dispatch<React.SetStateAction<Set<string>>>;
   failCount: number;
   setFailCount: React.Dispatch<React.SetStateAction<number>>;
+  // REQ-G-08 part 1: the void quote's index is drawn once, on entering the
+  // void state (see failureHandlers.handleVoidFailure), and held here
+  // alongside failCount — not redrawn on every GameplayModals re-render.
+  voidQuoteIndex: number;
+  setVoidQuoteIndex: React.Dispatch<React.SetStateAction<number>>;
   blownCellsRef: React.MutableRefObject<Set<string>>;
   findBlownPiece: (
     failureType: 'void' | 'wrongOutput',
@@ -37,6 +42,7 @@ export function useGameplayFailure(
 ): UseGameplayFailureResult {
   const [blownCells, setBlownCells] = useState<Set<string>>(() => seedBlownCells(level));
   const [failCount, setFailCount] = useState(0);
+  const [voidQuoteIndex, setVoidQuoteIndex] = useState(0);
   const blownCellsRef = useRef<Set<string>>(seedBlownCells(level));
 
   useEffect(() => {
@@ -109,6 +115,8 @@ export function useGameplayFailure(
     setBlownCells,
     failCount,
     setFailCount,
+    voidQuoteIndex,
+    setVoidQuoteIndex,
     blownCellsRef,
     findBlownPiece,
     getBlownCellCOGSLine,

@@ -25,13 +25,33 @@ const beamOverlaySrc = read('src/components/gameplay/BeamOverlay.tsx');
 // Phase 4 refactor (Prompt 110): beamOpacity and all other beam
 // Animated.Values moved from GameplayScreen into useBeamEngine.
 const beamHookSrc = read('src/hooks/useBeamEngine.ts');
+const tokensSrc = read('src/theme/tokens.ts');
+
+// REQ-G-04 (Handoff 003, ratified 2026-09-10): tokens.ts carries exactly one
+// hex per tape layer, at the locked values from TRIBAL_KNOWLEDGE.md §3.
+describe('tokens.ts — tape layer colors locked per TRIBAL_KNOWLEDGE.md §3', () => {
+  it('tapeInBar is Ice Blue #7FC8E8 (was the wrong #BFFF3F neon green)', () => {
+    expect(tokensSrc).toMatch(/tapeInBar:\s*'#7FC8E8'/);
+  });
+  it('tapeTrailBar is Atomic Purple #A97FDB', () => {
+    expect(tokensSrc).toMatch(/tapeTrailBar:\s*'#A97FDB'/);
+  });
+  it('tapeOutBar is Fire Orange #FF7D3F', () => {
+    expect(tokensSrc).toMatch(/tapeOutBar:\s*'#FF7D3F'/);
+  });
+});
 
 describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () => {
-  describe('Fix 1 — IN tape green/yellow palette', () => {
-    it('declares dedicated IN-tape cell + text styles (extracted to TapeCell.tsx in Prompt 99B)', () => {
+  describe('Fix 1 — IN tape color palette', () => {
+    // REQ-G-04 (Handoff 003, ratified 2026-09-10) locks IN to Colors.tapeInBar
+    // (Ice Blue #7FC8E8), superseding the '#BFFF3F' neon-green this block used
+    // to pin — that was the bug G-04 exists to fix, not a decision to keep.
+    it('declares dedicated IN-tape cell + text styles referencing Colors.tapeInBar (extracted to TapeCell.tsx in Prompt 99B)', () => {
       expect(tapeCellSrc).toMatch(/tapeCellIn:\s*\{/);
-      expect(tapeCellSrc).toMatch(/tapeCellInActive:\s*\{[\s\S]*?borderColor:\s*'#BFFF3F'[\s\S]*?backgroundColor:\s*'rgba\(191,255,63,0\.14\)'/);
-      expect(tapeCellSrc).toMatch(/tapeCellTextIn:\s*\{[\s\S]*?color:\s*'#BFFF3F'/);
+      expect(tapeCellSrc).toMatch(/tapeCellInActive:\s*\{[\s\S]*?borderColor:\s*Colors\.tapeInBar[\s\S]*?backgroundColor:\s*'rgba\(127,200,232,0\.14\)'/);
+      expect(tapeCellSrc).toMatch(/tapeCellTextIn:\s*\{[\s\S]*?color:\s*Colors\.tapeInBar/);
+      // No IN-tape hex literal remains outside tokens.ts (REQ-G-04 acceptance).
+      expect(tapeCellSrc).not.toMatch(/'#BFFF3F'/);
     });
 
     it('applies the IN-specific styles in the IN tape rendering block (not TRAIL)', () => {
@@ -40,12 +60,15 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(tapeCellSrc).toMatch(/styles\.tapeCellTextIn,\s*\n[\s\S]*?isActive && styles\.tapeCellTextInActive/);
     });
 
-    it('TRAIL keeps its color; OUT uses arrival (orange) + blocked (red) styles', () => {
-      // TRAIL still uses Colors.neonGreen for its inline text style (in TapeCell.tsx).
-      expect(tapeCellSrc).toMatch(/styles\.tapeCellText, \{ color: Colors\.neonGreen \}/);
-      // OUT arrival fill is the OUT tape's own orange (#FF7D3F); blocked stays red.
-      // (2026-06-13: the old green gate-passed fill became the orange arrival fill.)
-      expect(tapeCellSrc).toMatch(/tapeCellArrived:\s*\{[\s\S]*?borderColor:\s*'#FF7D3F'/);
+    it('TRAIL renders TRAIL purple; OUT uses arrival (orange) + blocked (red) styles', () => {
+      // REQ-G-04: TRAIL cells render Colors.tapeTrailBar (Atomic Purple
+      // #A97FDB), not the old Colors.neonGreen (#00FF87) — TRAIL and its
+      // indicator bar above it now speak the same color for the first time.
+      expect(tapeCellSrc).toMatch(/tapeCellTextTrail:\s*\{[\s\S]*?color:\s*Colors\.tapeTrailBar/);
+      expect(tapeCellSrc).not.toMatch(/color:\s*Colors\.neonGreen/);
+      // OUT arrival fill is the OUT tape's own orange, referenced via the
+      // tokens.ts single source of truth rather than a literal.
+      expect(tapeCellSrc).toMatch(/tapeCellArrived:\s*\{[\s\S]*?borderColor:\s*Colors\.tapeOutBar/);
       expect(tapeCellSrc).toMatch(/tapeCellGateBlocked:\s*\{[\s\S]*?borderColor:\s*'#FF3B3B'/);
     });
   });

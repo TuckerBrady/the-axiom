@@ -29,7 +29,10 @@ export const Colors = {
   neonGreen: '#00FF87',
   neonYellow: '#FFE000',
   // Y2K Indicator Bar palette
-  tapeInBar: '#BFFF3F',       // Neon Green (N64 Funtastic)
+  // REQ-G-04 (Handoff 003) — locked per TRIBAL_KNOWLEDGE.md §3. tapeInBar
+  // was '#BFFF3F' (Neon Green, N64 Funtastic); corrected to the locked Ice
+  // Blue. TRAIL and OUT already matched the lock.
+  tapeInBar: '#7FC8E8',       // Ice Blue
   tapeTrailBar: '#A97FDB',    // Atomic Purple (Game Boy Color)
   tapeOutBar: '#FF7D3F',      // Fire Orange (iMac Tangerine)
   // Gate-outcome colors

@@ -132,3 +132,15 @@ describe('Spec Sheet — results checklist + MAY', () => {
     expect(handlerSrc).toMatch(/evaluateMayConditions/);
   });
 });
+
+// REQ-G-04 (Handoff 003): the REQUIRED OUTPUT tape strips read their color
+// from tokens.ts (Colors.tapeInBar / tapeOutBar) rather than a hardcoded
+// hex, so a future lock update to those tokens can't drift out of sync here.
+describe('SpecSheetPanel — REQUIRED OUTPUT tape strip colors (REQ-G-04)', () => {
+  it('passes Colors.tapeInBar / Colors.tapeOutBar to the IN/OUT TapeStrip, not a hex literal', () => {
+    expect(panelSrc).toMatch(/<TapeStrip label="IN"[\s\S]*?color=\{Colors\.tapeInBar\}/);
+    expect(panelSrc).toMatch(/<TapeStrip label="OUT"[\s\S]*?color=\{Colors\.tapeOutBar\}/);
+    expect(panelSrc).not.toMatch(/color="#BFFF3F"/);
+    expect(panelSrc).not.toMatch(/color="#FF7D3F"/);
+  });
+});

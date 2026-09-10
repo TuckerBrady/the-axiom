@@ -42,6 +42,7 @@ export type {
   TapeHighlight,
   TapeIndicatorBarState,
   GlowTravelerState,
+  GlowTravelerLayer,
   ValueTravelRefs,
   GateOutcome,
   GateOutcomeMap,

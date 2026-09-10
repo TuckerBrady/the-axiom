@@ -235,13 +235,15 @@ describe('OUT tape rendering — source contract (extracted to TapeCell + TapeBa
     );
   });
 
-  it('keeps the legacy tapeCellCorrect / tapeCellWrong styles for Kepler reuse', () => {
-    // Legacy styles intentionally retained in GameplayScreen.tsx.
-    expect(gameplayScreenSource).toMatch(/tapeCellCorrect: \{/);
-    expect(gameplayScreenSource).toMatch(/tapeCellWrong: \{/);
-    expect(gameplayScreenSource).toMatch(
-      /Legacy: retained for non-gate output comparison \(Kepler Belt\)/,
-    );
+  // REQ-G-11 (Handoff 003, ratified 2026-09-10) supersedes the "retained
+  // for Kepler reuse" decision this test used to pin: the legacy
+  // tapeCellCorrect/tapeCellWrong duplicates were never referenced by any
+  // JSX in this file (Kepler's actual OUT-tape rendering lives in
+  // TapeCell.tsx's tapeCellArrived/tapeCellGateBlocked, asserted above) and
+  // are gone along with the rest of GameplayScreen.styles' unused entries.
+  it('does not carry the legacy tapeCellCorrect / tapeCellWrong duplicates (REQ-G-11)', () => {
+    expect(gameplayScreenSource).not.toMatch(/tapeCellCorrect:\s*\{/);
+    expect(gameplayScreenSource).not.toMatch(/tapeCellWrong:\s*\{/);
   });
 
   it('hasValue excludes both the BLANK (empty) and -2 (blocked) sentinels', () => {

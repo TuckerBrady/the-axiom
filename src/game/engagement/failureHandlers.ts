@@ -1,5 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ExecutionStep, OutputTapeValue, PlacedPiece } from './types';
+import { VOID_QUOTES } from '../voidQuotes';
 
 export interface WrongOutputParams {
   steps: ExecutionStep[];
@@ -49,6 +50,10 @@ export interface VoidFailureParams {
   deletePiece: (id: string) => void;
   setBlownCells: Dispatch<SetStateAction<Set<string>>>;
   setFailCount: (n: number) => void;
+  // REQ-G-08 pt 1: drawn once here, on entering the void state. Optional so
+  // pre-existing call sites/fixtures that don't supply it still type-check;
+  // when omitted the void modal keeps whatever index it last had.
+  setVoidQuoteIndex?: (n: number) => void;
   setFlashColor: (c: string | null) => void;
   setShowTeachCard: (lines: string[] | null) => void;
   setShowVoid: (show: boolean) => void;
@@ -72,6 +77,7 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
     deletePiece,
     setBlownCells,
     setFailCount,
+    setVoidQuoteIndex,
     setFlashColor,
     setShowTeachCard,
     setShowVoid,
@@ -117,6 +123,10 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
       deletePiece(blownPiece.id);
     }
   }
+  // REQ-G-08 pt 1: the index is drawn exactly once, here, on entering the
+  // void state — not in GameplayModals' render path, which would reroll it
+  // on every elapsedSeconds tick.
+  setVoidQuoteIndex?.(Math.floor(Math.random() * VOID_QUOTES.length));
   setShowVoid(true);
   triggerHints('onVoid');
   return false;

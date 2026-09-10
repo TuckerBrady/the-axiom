@@ -42,6 +42,11 @@ export const TAPE_BAR_INITIAL: TapeIndicatorBarState = {
   outIndex: null,
 };
 
+// REQ-G-04 (Handoff 003): the traveler tints to its destination tape layer
+// so a Scanner read reads as one purple event and a Transmitter write as one
+// orange event, instead of a uniform cyan regardless of destination.
+export type GlowTravelerLayer = 'in' | 'trail' | 'out';
+
 export type GlowTravelerState = {
   visible: boolean;
   value: string;
@@ -50,6 +55,11 @@ export type GlowTravelerState = {
   toX: number;
   toY: number;
   phase: 'idle' | 'liftoff' | 'travel' | 'impact';
+  // Optional (rather than required) so call sites that construct this state
+  // without a destination — e.g. pre-existing test fixtures — still
+  // type-check; consumers fall back to 'trail', the traveler's original and
+  // most common journey.
+  layer?: GlowTravelerLayer;
 };
 
 export const GLOW_TRAVELER_INITIAL: GlowTravelerState = {
@@ -60,6 +70,7 @@ export const GLOW_TRAVELER_INITIAL: GlowTravelerState = {
   toX: 0,
   toY: 0,
   phase: 'idle',
+  layer: 'trail',
 };
 
 export interface ValueTravelRefs {

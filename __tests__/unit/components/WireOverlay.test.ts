@@ -43,4 +43,21 @@ describe('WireOverlay — extracted wire layer', () => {
     // The wire layer renders between the dot Svg and BeamOverlay.
     expect(screenSrc).toMatch(/<WireOverlay[\s\S]*?litWires=\{beamState\.litWires\}/);
   });
+
+  // REQ-G-07 (Handoff 003): static wire identity follows Protocol/Physics
+  // per Request 001's token table (circuit for Protocol, copper for
+  // Physics), not the beam colors (amber for Physics, blue for Protocol) —
+  // the old mapping taught the inverse of what Kepler Belt is gated on.
+  it('unlit wire color follows static Protocol/Physics identity, not the beam colors', () => {
+    expect(wireSrc).toMatch(
+      /const wireColor = isProtocol \? Colors\.circuit : Colors\.copper;/,
+    );
+    expect(wireSrc).not.toMatch(/isProtocol \? Colors\.amber : Colors\.blue/);
+  });
+
+  it('lit/locked wire behavior is unchanged — isLit still defers to getBeamColor, isLocked to the lock color', () => {
+    expect(wireSrc).toMatch(
+      /isLocked \? '#00C48C' : isLit \? getBeamColor\(toType\) : wireColor/,
+    );
+  });
 });

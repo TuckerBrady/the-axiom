@@ -1,5 +1,5 @@
 import { Animated, Easing } from 'react-native';
-import type { EngagementContext, ValueTravelRefs } from './types';
+import type { EngagementContext, ValueTravelRefs, GlowTravelerLayer } from './types';
 
 const CINEMATIC_EASING = Easing.bezier(0.4, 0, 0.2, 1);
 
@@ -31,6 +31,10 @@ export function runValueTravel(
   toY: number,
   value: string,
   onArrive?: () => void,
+  // REQ-G-04: which tape the value is landing on, so the traveler renders
+  // in that tape's locked color. Defaults to 'trail' (Scanner read), the
+  // traveler's original and most common journey.
+  layer: GlowTravelerLayer = 'trail',
 ): Promise<void> {
   return new Promise(resolve => {
     refs.x.setValue(fromX);
@@ -43,6 +47,7 @@ export function runValueTravel(
       value,
       fromX, fromY, toX, toY,
       phase: 'liftoff',
+      layer,
     });
 
     // Phase 1: Lift-off (0.3s)

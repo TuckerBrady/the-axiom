@@ -68,8 +68,15 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 const DOT_R = 1.5;
 const PIECE_RADIUS = 10;
 const CANVAS_PAD = 20;  // padding inside canvas area — ensures edge pieces are fully visible
-const MIN_CELL = 48;
+// REQ-G-01 (Handoff 003): MIN_CELL removed. It was a fixed floor that
+// silently overrode the locked sizing rule ("CELL_SIZE always derives
+// dynamically from canvas + grid" — CLAUDE_CONTEXT.md) and clipped 10 of 11
+// Kepler grids outside `overflow: 'hidden'`, making their outer columns
+// untappable. Touch targets are preserved independently via hitSlop
+// (BoardPiece's Pressable, and the ghost-cell TouchableOpacity below).
 const MAX_CELL = 88;
+// Minimum pressable size for a placed/ghost cell, independent of CELL_SIZE.
+const MIN_TOUCH_TARGET = 44;
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Gameplay'>;
@@ -133,6 +140,7 @@ import {
   PIECE_ANIM_INITIAL,
   type Pt,
   type EngagementContext,
+  type GlowTravelerLayer,
 } from '../game/engagement';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
@@ -308,6 +316,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const {
     blownCells, setBlownCells,
     failCount, setFailCount,
+    voidQuoteIndex, setVoidQuoteIndex,
     blownCellsRef,
     findBlownPiece,
     getBlownCellCOGSLine,
@@ -508,11 +517,15 @@ export default function GameplayScreen({ navigation }: Props) {
   const availW = canvasLayout.w - CANVAS_PAD * 2;
   const availH = canvasLayout.h - CANVAS_PAD * 2;
   const CELL_SIZE = availW > 0 && availH > 0
-    ? Math.min(MAX_CELL, Math.max(MIN_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows))))
+    ? Math.min(MAX_CELL, Math.floor(Math.min(availW / numColumns, availH / numRows)))
     : 52;
   cellSizeRef.current = CELL_SIZE;
   const gridW = numColumns * CELL_SIZE;
   const gridH = numRows * CELL_SIZE;
+  // REQ-G-01: the drawn cell can now fall under 44pt on dense grids; pad the
+  // ghost-cell pressable back to the touch-target floor via hitSlop rather
+  // than inflating the drawn cell itself.
+  const ghostCellSlop = Math.max(0, (MIN_TOUCH_TARGET - CELL_SIZE) / 2);
 
   // ── Drag hover cell — board cell the dragged piece would drop into ──
   // Reads boardScreenPos.current during render; dragState changes on every
@@ -1237,6 +1250,7 @@ export default function GameplayScreen({ navigation }: Props) {
         deletePiece,
         setBlownCells,
         setFailCount,
+        setVoidQuoteIndex,
         setFlashColor,
         setShowTeachCard,
         setShowVoid,
@@ -1325,6 +1339,18 @@ export default function GameplayScreen({ navigation }: Props) {
     );
   }
 
+  // REQ-G-04: the glow traveler tints to its destination tape's locked
+  // color, driven by tape.glowTravelerState.layer — no hex literal here,
+  // no remount, just a per-render lookup into tokens.ts. Falls back to
+  // 'trail' (the traveler's original journey) if layer is unset.
+  const GLOW_TRAVELER_COLORS: Record<GlowTravelerLayer, string> = {
+    in: Colors.tapeInBar,
+    trail: Colors.tapeTrailBar,
+    out: Colors.tapeOutBar,
+  };
+  const glowTravelerColor = GLOW_TRAVELER_COLORS[tape.glowTravelerState.layer ?? 'trail'];
+  const glowTravelerTint = hexToRgba(glowTravelerColor, 0.22);
+
   return (
     <GameplayErrorBoundary onReset={handleReset}>
     <Animated.View style={[styles.root, screenStyle]}>
@@ -1409,8 +1435,14 @@ export default function GameplayScreen({ navigation }: Props) {
           >
             {/* Dot grid + blown-cell scars (static across beam animation) */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
-              {Array.from({ length: numRows + 1 }, (_, y) =>
-                Array.from({ length: numColumns + 1 }, (_, x) => (
+              {/* REQ-G-14: iterate numRows × numColumns, not
+                  (numRows + 1) × (numColumns + 1) — the +1 drew a phantom
+                  row/column half a cell outside the board that
+                  styles.canvas's overflow: 'hidden' then clipped, reading
+                  as cut off rather than framed. A boundary marker, if
+                  wanted, belongs in styles.canvas's border, not here. */}
+              {Array.from({ length: numRows }, (_, y) =>
+                Array.from({ length: numColumns }, (_, x) => (
                   <Circle
                     key={`dot-${x}-${y}`}
                     cx={x * CELL_SIZE + CELL_SIZE / 2}
@@ -1429,27 +1461,30 @@ export default function GameplayScreen({ navigation }: Props) {
                 // Blast crater — a charred recess with a copper-scorched rim and
                 // radial cracks. Used for BOTH pre-existing blown cells (worn
                 // Kepler boards) and cells the player blows by failing a run.
+                // REQ-G-15: scorched rim -> Colors.copper, inner crater
+                // ring -> Colors.red, at the same opacities as the old
+                // off-token oranges. Geometry unchanged.
                 return (
                   <G key={`scar-${key}`}>
                     {/* Blast pit */}
                     <Circle
                       cx={cx} cy={cy} r={CELL_SIZE * 0.34}
                       fill="rgba(18,8,5,0.55)"
-                      stroke="rgba(176,106,44,0.55)"
+                      stroke={hexToRgba(Colors.copper, 0.55)}
                       strokeWidth={1.5}
                     />
                     {/* Charred hole */}
                     <Circle
                       cx={cx} cy={cy} r={CELL_SIZE * 0.16}
                       fill="rgba(0,0,0,0.6)"
-                      stroke="rgba(200,72,40,0.5)"
+                      stroke={hexToRgba(Colors.red, 0.5)}
                       strokeWidth={1}
                     />
                     {/* Radial scorch cracks */}
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.4} y2={cy - CELL_SIZE * 0.34} stroke="rgba(176,106,44,0.45)" strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.42} y2={cy - CELL_SIZE * 0.26} stroke="rgba(176,106,44,0.4)" strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.3} y2={cy + CELL_SIZE * 0.4} stroke="rgba(176,106,44,0.4)" strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.32} y2={cy + CELL_SIZE * 0.36} stroke="rgba(176,106,44,0.35)" strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.4} y2={cy - CELL_SIZE * 0.34} stroke={hexToRgba(Colors.copper, 0.45)} strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.42} y2={cy - CELL_SIZE * 0.26} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.3} y2={cy + CELL_SIZE * 0.4} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
+                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.32} y2={cy + CELL_SIZE * 0.36} stroke={hexToRgba(Colors.copper, 0.35)} strokeWidth={1} />
                   </G>
                 );
               })}
@@ -1575,6 +1610,7 @@ export default function GameplayScreen({ navigation }: Props) {
                         styles.ghostCell,
                         { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },
                       ]}
+                      hitSlop={{ top: ghostCellSlop, bottom: ghostCellSlop, left: ghostCellSlop, right: ghostCellSlop }}
                       onPress={() => handleCanvasTap(x, y)}
                       activeOpacity={0.6}
                     >
@@ -1760,6 +1796,7 @@ export default function GameplayScreen({ navigation }: Props) {
         blownCells={blownCells}
         setBlownCells={setBlownCells}
         failCount={failCount}
+        voidQuoteIndex={voidQuoteIndex}
         getBlownCellCOGSLine={getBlownCellCOGSLine}
         lives={lives}
         livesCredits={livesCredits}
@@ -1817,12 +1854,18 @@ export default function GameplayScreen({ navigation }: Props) {
       )}
 
       {/* Glow Traveler — single reusable element. Stays mounted; opacity
-          drives visibility, transforms drive position. */}
+          drives visibility, transforms drive position. REQ-G-04: color
+          comes from the destination tape's layer via props (border,
+          background, shadow, text) — a style change on the same
+          already-mounted host, never a remount. */}
       <RNAnimated.View
         pointerEvents="none"
         style={[
           styles.glowTraveler,
           {
+            borderColor: glowTravelerColor,
+            backgroundColor: glowTravelerTint,
+            shadowColor: glowTravelerColor,
             opacity: tape.glowTravelerOpacity,
             transform: [
               { translateX: tape.glowTravelerX },
@@ -1832,7 +1875,7 @@ export default function GameplayScreen({ navigation }: Props) {
           },
         ]}
       >
-        <Text style={styles.glowTravelerText}>
+        <Text style={[styles.glowTravelerText, { color: glowTravelerColor }]}>
           {tape.glowTravelerState.value}
         </Text>
       </RNAnimated.View>
@@ -1843,6 +1886,14 @@ export default function GameplayScreen({ navigation }: Props) {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
+// REQ-G-11 (Handoff 003): GameplayScreen.styles previously retained ~65
+// unused entries — pre-AXM-001 duplicates of values D-07/D-08 deleted
+// elsewhere (topBar/backBtn/pauseBtn/timerText/sectorTag/levelTag/
+// configRow/piece/partsTray/trayBadge/trayCost and ~40 orphaned tape
+// styles, including the tapeCellGatePassed green-on-green TapeCell
+// replaced) after the HUDChrome / PieceTray / TapeBarShell / TapeCell
+// extractions moved their live styles into those components. Deleted;
+// this file's own JSX only ever referenced the entries kept below.
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.void },
   safeArea: { flex: 1 },
@@ -1850,74 +1901,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.muted,
     textAlign: 'center', marginTop: Spacing.xxxl,
   },
-
-  // Top bar
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(74,158,255,0.12)',
-  },
-  backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  backArrow: { fontFamily: Fonts.orbitron, fontSize: 18, color: Colors.muted },
-  pauseBtn: {
-    width: 36, height: 36, alignItems: 'center', justifyContent: 'center',
-    flexDirection: 'row', gap: 4,
-  },
-  pauseBar: {
-    width: 3, height: 10, backgroundColor: '#00D4FF', opacity: 0.7, borderRadius: 1,
-  },
-  timerText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 13,
-    color: '#00D4FF',
-    opacity: 0.7,
-    letterSpacing: 1,
-    marginTop: 2,
-  },
-  topBarCenter: { flex: 1, alignItems: 'center' },
-  sectorTag: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.dim,
-    letterSpacing: 2, marginBottom: 1,
-  },
-  levelTag: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.copper,
-    letterSpacing: 1.5, textTransform: 'uppercase',
-  },
-  levelName: {
-    fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
-    color: Colors.starWhite,
-  },
-
-  // Configuration
-  configRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xs,
-    gap: Spacing.sm,
-    zIndex: 30,
-  },
-  configLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, letterSpacing: 1,
-  },
-  configToggle: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: Colors.dim,
-    borderRadius: 6,
-  },
-  configToggleActive: {
-    borderColor: Colors.amber,
-    backgroundColor: 'rgba(240,180,41,0.12)',
-  },
-  configToggleText: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.dim, letterSpacing: 1,
-  },
-  configToggleTextActive: { color: Colors.amber },
 
   // Canvas
   canvasOuter: {
@@ -1955,14 +1938,6 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
 
-  // Pieces
-  piece: {
-    position: 'absolute',
-    borderRadius: PIECE_RADIUS,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   // Ghost cells
   ghostCell: {
     position: 'absolute',
@@ -1993,43 +1968,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(200,60,60,0.14)',
   },
 
-  // Parts tray
-  partsTray: {
-    height: 72,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(74,158,255,0.12)',
-    justifyContent: 'center',
-  },
-  partsTrayInner: {
-    paddingHorizontal: 20,
-    gap: 8,
-    alignItems: 'center',
-  },
-  trayItem: {
-    width: 56,
-    height: 56,
-    borderWidth: 1,
-    borderColor: 'rgba(74,158,255,0.2)',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(8,14,28,0.8)',
-    gap: 2,
-    position: 'relative',
-  },
-  trayBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 8,
-    minWidth: 18,
-    alignItems: 'center',
-  },
-  trayBadgeText: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.void, fontWeight: 'bold',
-  },
-  trayCost: {
-    fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5,
-  },
   creditErrorWrap: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.xs,
@@ -2080,64 +2018,18 @@ const styles = StyleSheet.create({
     flex: 2,
   },
 
-  // Turing tape UI
-  pulseCounterText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: '#1A3050',
-    marginTop: 2,
-    letterSpacing: 1,
-  },
-  pulseTargetRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    alignItems: 'center',
-  },
-  pulseTargetText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    letterSpacing: 2,
-    color: Colors.amber,
-    textTransform: 'uppercase',
-    opacity: 0.7,
-  },
-  tapeSection: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    gap: 6,
-    flexShrink: 0,
-  },
-  tapeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  tapeIndicatorBar: {
-    position: 'absolute',
-    top: -2,
-    left: 42 + 8,  // tapeLabel width (42) + tapeRow gap (8)
-    width: 24,      // matches cell width
-    height: 6,
-    borderRadius: 3,
-    // The bar must render ABOVE the cell wraps (which include the
-    // purple `tapeHead` strip on the IN tape's active/pre-beam cell).
-    // Without an explicit zIndex, the in-flow `tapeCells` container
-    // stacks over this absolute sibling and the purple head pokes
-    // through the green IN bar (Prompt 91, Fix 2).
-    zIndex: 2,
-    elevation: 2,
-  },
+  // REQ-G-04: borderColor / backgroundColor / shadowColor / text color are
+  // no longer hardcoded here — they come from glowTravelerColor /
+  // glowTravelerTint, derived per-render from the traveler's destination
+  // layer (tokens.ts tapeInBar / tapeTrailBar / tapeOutBar).
   glowTraveler: {
     position: 'absolute',
     width: 24,
     height: 24,
     borderRadius: 3,
     borderWidth: 1.5,
-    borderColor: '#00E5FF',
-    backgroundColor: 'rgba(0,229,255,0.22)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#00E5FF',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
     shadowRadius: 18,
@@ -2146,112 +2038,6 @@ const styles = StyleSheet.create({
   glowTravelerText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
-    color: '#00E5FF',
     fontWeight: 'bold',
-  },
-  tapeLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 9,
-    color: Colors.muted,
-    letterSpacing: 1,
-    width: 42,
-  },
-  tapeCells: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  tapeCellWrap: {
-    alignItems: 'center',
-  },
-  tapeHead: {
-    width: 6,
-    height: 4,
-    backgroundColor: '#8B5CF6',
-    marginBottom: 2,
-  },
-  tapeCell: {
-    width: 24,
-    height: 24,
-    borderRadius: 3,
-    borderWidth: 1,
-    borderColor: '#0D1E30',
-    backgroundColor: '#08101C',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tapeCellActive: {
-    borderColor: Colors.neonCyan,
-    backgroundColor: 'rgba(0,229,255,0.1)',
-  },
-  tapeCellPast: {
-    borderColor: 'rgba(139,92,246,0.3)',
-  },
-  // Legacy: retained for non-gate output comparison (Kepler Belt).
-  tapeCellCorrect: {
-    borderColor: '#00C48C',
-    backgroundColor: 'rgba(0,196,140,0.08)',
-  },
-  // Legacy: retained for non-gate output comparison (Kepler Belt).
-  tapeCellWrong: {
-    borderColor: '#FF3B3B',
-    backgroundColor: 'rgba(255,59,59,0.08)',
-  },
-  // Gate-outcome styles (Prompt 84C). OUT tape cells use these
-  // instead of the legacy correct/wrong styles on Axiom levels.
-  tapeCellGatePassed: {
-    borderColor: '#00FF87',
-    backgroundColor: 'rgba(0,255,135,0.14)',
-  },
-  tapeCellGateBlocked: {
-    borderColor: '#FF3B3B',
-    backgroundColor: 'rgba(255,59,59,0.14)',
-  },
-  tapeCellText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 10,
-    color: Colors.neonCyan,
-  },
-  tapeCellTextActive: {
-    color: Colors.neonCyan,
-    fontWeight: 'bold' as const,
-  },
-  tapeCellTextPast: {
-    color: 'rgba(0,229,255,0.4)',
-  },
-  // Legacy: retained for non-gate output comparison (Kepler Belt).
-  tapeCellTextCorrect: {
-    color: Colors.neonYellow,
-  },
-  // Legacy: retained for non-gate output comparison (Kepler Belt).
-  tapeCellTextWrong: {
-    color: '#FF3B3B',
-  },
-  tapeCellTextGatePassed: {
-    color: '#00FF87',
-  },
-  tapeCellTextGateBlocked: {
-    color: '#FF3B3B',
-  },
-  // IN-tape-specific palette (Prompt 91, Fix 1). Tucker moved the
-  // green/yellow color treatment from the TRAIL tape to the IN tape;
-  // these overrides apply on top of the shared tapeCell / tapeCellText
-  // styles. The hex matches Colors.tapeInBar (#BFFF3F).
-  tapeCellIn: {
-    // Idle IN cell still uses the dark base background; the active
-    // override below paints the neon-green tint.
-  },
-  tapeCellInActive: {
-    borderColor: '#BFFF3F',
-    backgroundColor: 'rgba(191,255,63,0.14)',
-  },
-  tapeCellTextIn: {
-    color: '#BFFF3F',
-  },
-  tapeCellTextInActive: {
-    color: '#BFFF3F',
-    fontWeight: 'bold' as const,
-  },
-  tapeCellTextInPast: {
-    color: 'rgba(191,255,63,0.4)',
   },
 });
