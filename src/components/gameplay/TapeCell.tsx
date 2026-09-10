@@ -259,9 +259,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.tapeInBar,
     marginBottom: 2,
   },
+  // REQ-G-10 (Handoff 003): 24x24 -> 26x26, growing the cell to fit its
+  // digit at the 11pt+ floor. Every tape value in the game renders here.
   tapeCell: {
-    width: 24,
-    height: 24,
+    width: 26,
+    height: 26,
     borderRadius: 3,
     borderWidth: 1,
     borderColor: '#0D1E30',
@@ -295,9 +297,10 @@ const styles = StyleSheet.create({
     borderColor: '#FF3B3B',
     backgroundColor: 'rgba(255,59,59,0.14)',
   },
+  // REQ-G-10: 10 -> 12pt.
   tapeCellText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.neonCyan,
   },
   tapeCellTextIn: {

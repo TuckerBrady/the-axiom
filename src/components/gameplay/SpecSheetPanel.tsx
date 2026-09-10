@@ -224,15 +224,17 @@ const styles = StyleSheet.create({
   },
   chromeLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   chromeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#00D4FF' },
+  // REQ-G-10: 10 -> FontSizes.floor (both).
   chromeLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 10, color: '#00D4FF', letterSpacing: 2,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: '#00D4FF', letterSpacing: 2,
   },
   chromeRight: {
-    fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.muted, letterSpacing: 2,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, letterSpacing: 2,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   levelLine: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     color: Colors.copper,
     letterSpacing: 1.5,
     marginTop: Spacing.sm,
@@ -277,9 +279,10 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.lg,
     gap: 6,
   },
+  // REQ-G-10: 8 -> FontSizes.floor.
   expectedLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
+    fontSize: FontSizes.floor,
     color: Colors.dim,
     letterSpacing: 2,
     marginBottom: 2,
@@ -289,9 +292,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   tapeStripLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     letterSpacing: 1,
     width: 28,
   },
@@ -332,11 +336,13 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 18,
   },
+  // REQ-G-10: paddingVertical 10 -> 14 (was ~31pt tall; brings the button
+  // up toward the 44pt touch-target floor).
   closeBtn: {
     alignSelf: 'center',
     marginTop: Spacing.md,
     paddingHorizontal: 28,
-    paddingVertical: 10,
+    paddingVertical: 14,
     borderWidth: 1,
     borderColor: 'rgba(0,212,255,0.4)',
     borderRadius: 6,

@@ -13,7 +13,7 @@ import {
 import { hapticLight } from '../../utils/haptics';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
-import { Colors, Fonts } from '../../theme/tokens';
+import { Colors, Fonts, FontSizes } from '../../theme/tokens';
 import {
   groupArcWheelPieces,
   type ArcWheelPiece,
@@ -290,9 +290,13 @@ export default function ArcWheel({
     const maxVisible = Math.floor(VISIBLE_NODES / 2);
     if (absDistance > maxVisible) return null;
 
+    // REQ-G-13 (Handoff 003): explicit floors, not just incidental headroom
+    // from the current constants — a future NODE_SIZE_MAX/VISIBLE_NODES
+    // tweak must not silently push outer nodes back under the piece
+    // drawing standard's 32pt size / 0.45 opacity minimums.
     const scaleFactor = 1 - (absDistance / (maxVisible + 1)) * 0.45;
-    const nodeSize = NODE_SIZE_MAX * scaleFactor;
-    const distanceOpacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
+    const nodeSize = Math.max(32, NODE_SIZE_MAX * scaleFactor);
+    const distanceOpacity = Math.max(0.45, 1 - (absDistance / (maxVisible + 1)) * 0.7);
     const isSelected = group.repId === selectedId || idx === selectedIndex;
     const borderColor = group.isTape ? TAPE_COLOR : NEUTRAL_BORDER;
     const color = getPieceColor(group.type);
@@ -386,7 +390,8 @@ export default function ArcWheel({
                     accessibilityLabel={`${PIECE_LABELS[group.type]}, ${group.count} available`}
                   >
                     <View style={[styles.overviewIcon, { borderColor: `${borderColor}60` }]}>
-                      <PieceIcon type={group.type} size={20} color={color} />
+                      {/* REQ-G-13: 20 -> 32pt, matching the tray/board icon size. */}
+                      <PieceIcon type={group.type} size={32} color={color} />
                     </View>
                     <Text style={[styles.overviewLabel, { color: isSelected ? borderColor : Colors.starWhite }]} numberOfLines={1}>
                       {PIECE_LABELS[group.type]}
@@ -497,6 +502,46 @@ export default function ArcWheel({
             <View style={styles.dismissDot} />
             <View style={styles.dismissDot} />
           </View>
+
+          {/* REQ-G-18 (Handoff 003) — category quick-jump, per
+              ARC_WHEEL_UX_ANALYSIS.md's recommendation: "a thin horizontal
+              row of dot indicators appears at the bottom of the wheel
+              showing all pieces as colored dots. Tap a dot to jump the
+              wheel to that piece." Shown only while the wheel is active
+              (touched within the last ACTIVE_TIMEOUT_MS), addressing the
+              wheel's weakest dimension — discoverability — without giving
+              up its idle-dimmed, board-preserving footprint. */}
+          {isActive && groups.length > 1 && (
+            <View style={styles.quickJumpStrip} pointerEvents="box-none">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.quickJumpInner}
+              >
+                {groups.map((group, idx) => {
+                  const isSel = idx === selectedIndex;
+                  const dotColor = group.isTape ? TAPE_COLOR : getPieceColor(group.type);
+                  return (
+                    <TouchableOpacity
+                      key={group.key}
+                      onPress={() => handleTapSelect(idx)}
+                      hitSlop={{ top: 8, bottom: 8, left: 3, right: 3 }}
+                      activeOpacity={0.6}
+                      accessibilityLabel={`Jump to ${PIECE_LABELS[group.type]}`}
+                    >
+                      <View
+                        style={[
+                          styles.quickJumpDot,
+                          { backgroundColor: dotColor },
+                          isSel && styles.quickJumpDotActive,
+                        ]}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
         </Animated.View>
       )}
     </Animated.View>
@@ -695,7 +740,8 @@ const styles = StyleSheet.create({
 
   nodeWrapper: {},
   node: { borderRadius: 12, alignItems: 'center', justifyContent: 'center', position: 'relative' },
-  nodeLabel: { fontFamily: Fonts.spaceMono, fontSize: 7, letterSpacing: 0.5, marginTop: 2, textAlign: 'center' },
+  // REQ-G-10: 7 -> FontSizes.floor.
+  nodeLabel: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: 0.5, marginTop: 2, textAlign: 'center' },
 
   countBadge: {
     position: 'absolute', top: -5, right: -5,
@@ -703,16 +749,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, backgroundColor: 'rgba(6,10,20,0.95)',
     alignItems: 'center', justifyContent: 'center',
   },
-  countBadgeText: { fontFamily: Fonts.spaceMono, fontSize: 9, fontWeight: '700' },
+  // REQ-G-10: 9 -> FontSizes.floor.
+  countBadgeText: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, fontWeight: '700' },
 
   emptyState: {
     height: WHEEL_H,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // REQ-G-10: 10 -> FontSizes.floor.
   emptyText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: FontSizes.floor,
     color: Colors.muted,
     opacity: 0.4,
   },
@@ -723,10 +771,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     alignItems: 'center',
   },
+  // REQ-G-10: 8 -> FontSizes.floor; lineHeight raised to match.
   chevronText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
-    lineHeight: 9,
+    fontSize: FontSizes.floor,
+    lineHeight: 12,
     color: 'rgba(74,158,255,0.55)',
   },
 
@@ -766,11 +815,13 @@ const styles = StyleSheet.create({
   overviewRight: { right: 0, borderLeftWidth: 1 },
   overviewLeft: { left: 0, borderRightWidth: 1 },
   overviewClose: { paddingHorizontal: 12, paddingVertical: 8, alignSelf: 'flex-end' },
-  overviewCloseText: { fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted, letterSpacing: 1.5 },
+  // REQ-G-10: 9 -> FontSizes.floor.
+  overviewCloseText: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, letterSpacing: 1.5 },
   overviewScroll: { paddingHorizontal: 8, paddingBottom: 24, gap: 4 },
   overviewSection: { marginBottom: 10 },
+  // REQ-G-10: 8 -> FontSizes.floor.
   overviewHeader: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.dim,
     letterSpacing: 2, marginBottom: 4, marginLeft: 4,
   },
   overviewItem: {
@@ -783,6 +834,34 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 6, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
-  overviewLabel: { flex: 1, fontFamily: Fonts.spaceMono, fontSize: 10, letterSpacing: 0.5 },
+  // REQ-G-13: 10 -> FontSizes.floor (11).
+  overviewLabel: { flex: 1, fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: 0.5 },
   overviewCount: { fontFamily: Fonts.spaceMono, fontSize: 11, fontWeight: '700' },
+
+  // REQ-G-18: category quick-jump dot strip.
+  quickJumpStrip: {
+    width: '100%',
+    height: 20,
+    marginTop: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickJumpInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 6,
+  },
+  quickJumpDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    opacity: 0.5,
+  },
+  quickJumpDotActive: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    opacity: 1,
+  },
 });

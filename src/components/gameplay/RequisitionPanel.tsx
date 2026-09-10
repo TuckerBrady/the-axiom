@@ -513,8 +513,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(74,158,255,0.3)',
     marginBottom: 4,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   handleLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.muted,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted,
     letterSpacing: 1.5,
   },
 
@@ -526,7 +527,8 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(74,158,255,0.08)',
   },
   budgetItem: { flex: 1, alignItems: 'center' },
-  budgetLabel: { fontFamily: Fonts.spaceMono, fontSize: 7, color: Colors.muted, letterSpacing: 1 },
+  // REQ-G-10: 7 -> FontSizes.floor.
+  budgetLabel: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, letterSpacing: 1 },
   budgetValue: { fontFamily: Fonts.orbitron, fontSize: FontSizes.sm, color: Colors.starWhite, marginTop: 2 },
   budgetSpent: { color: '#F0B429' },
   budgetExhausted: { color: '#FF4444' },
@@ -543,8 +545,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   tabLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, letterSpacing: 1.2,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: 1.2,
   },
 
   // REQ-G-17: contentScroll's maxHeight is now set inline per-render from
@@ -590,8 +593,9 @@ const styles = StyleSheet.create({
   rowPrice: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, marginTop: 2 },
 
   rowRight: { alignItems: 'flex-end', gap: 4 },
+  // REQ-G-10: 8 -> FontSizes.floor.
   trayCount: {
-    fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, letterSpacing: 0.5,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, letterSpacing: 0.5,
   },
   trayCountValue: { fontFamily: Fonts.orbitron, fontSize: 11 },
 
@@ -608,23 +612,26 @@ const styles = StyleSheet.create({
   qtyBtnText: { fontFamily: Fonts.orbitron, fontSize: 14, color: Colors.starWhite, lineHeight: 16 },
   qtyValue: { fontFamily: Fonts.orbitron, fontSize: FontSizes.sm, color: Colors.starWhite, minWidth: 20, textAlign: 'center' },
 
-  tapeTypeLabel: { fontFamily: Fonts.orbitron, fontSize: 8, color: '#8B5CF6', letterSpacing: 1 },
-  tapeDesc: { fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.muted, marginTop: 2 },
+  // REQ-G-10: 8 -> FontSizes.floor (both).
+  tapeTypeLabel: { fontFamily: Fonts.orbitron, fontSize: FontSizes.floor, color: '#8B5CF6', letterSpacing: 1 },
+  tapeDesc: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, marginTop: 2 },
 
   emptyTab: { paddingVertical: 24, alignItems: 'center' },
-  emptyTabText: { fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.muted, textAlign: 'center' },
+  // REQ-G-10: 10 -> FontSizes.floor.
+  emptyTabText: { fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted, textAlign: 'center' },
 
   warningRow: {
     paddingHorizontal: Spacing.lg, paddingVertical: 6,
     borderTopWidth: 1, borderTopColor: 'rgba(255,68,68,0.15)',
   },
+  // REQ-G-10: 9 -> FontSizes.floor (both).
   warningText: {
-    fontFamily: Fonts.spaceMono, fontSize: 9,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor,
     color: '#FF4444', textAlign: 'center', letterSpacing: 0.5,
   },
 
   insufficientText: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: '#FF4444',
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: '#FF4444',
     textAlign: 'center', paddingBottom: 4,
   },
 
