@@ -224,7 +224,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
+              {/* REQ-G-10: 8 -> FontSizes.floor. */}
+              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.dim, letterSpacing: 3 }}>
                 TAP TO CONTINUE
               </Text>
             </TouchableOpacity>
@@ -302,7 +303,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             })()}
 
             {level.id === 'A1-8' && firstTimeBonus && (
-              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 9, color: '#4ecb8d', letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
+              // REQ-G-10: 9 -> FontSizes.floor.
+              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: '#4ecb8d', letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
                 FULL SCORING UNLOCKED
               </Text>
             )}
@@ -599,19 +601,29 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
           <View style={styles.overlayContent}>
             <Text style={styles.voidTitle}>VOID STATE</Text>
             <Text style={styles.voidSubtext}>Signal lost. Machine failed.</Text>
+            {/* REQ-G-09 (Handoff 003): cogsResultRow is flexDirection: 'row',
+                so with a blown-cell line present the two Text children each
+                took flex: 1 and split into parallel columns — two
+                consecutive COGS statements read as unrelated side-by-side
+                fragments instead of one COGS in sequence. Wrapping them in
+                one flex: 1 column keeps the avatar left and stacks the
+                lines in order; no copy change. */}
             <View style={styles.cogsResultRow}>
               <CogsAvatar size="small" state="damaged" />
-              <Text style={styles.voidQuote}>
-                {VOID_QUOTES[voidQuoteIndex]}
-              </Text>
-              {!isAxiomLevel && blownCells.size > 0 && (
+              <View style={{ flex: 1, gap: Spacing.sm }}>
                 <Text style={styles.voidQuote}>
-                  {getBlownCellCOGSLine(blownCells.size)}
+                  {VOID_QUOTES[voidQuoteIndex]}
                 </Text>
-              )}
+                {!isAxiomLevel && blownCells.size > 0 && (
+                  <Text style={styles.voidQuote}>
+                    {getBlownCellCOGSLine(blownCells.size)}
+                  </Text>
+                )}
+              </View>
             </View>
             {isDailyChallenge && (
-              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.red, letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
+              // REQ-G-10: 10 -> FontSizes.floor.
+              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.red, letterSpacing: 3, marginBottom: Spacing.md, textAlign: 'center' }}>
                 REWARD FORFEITED
               </Text>
             )}
@@ -702,7 +714,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               }}
               activeOpacity={0.7}
             >
-              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3 }}>
+              {/* REQ-G-10: 8 -> FontSizes.floor. */}
+              <Text style={{ fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.dim, letterSpacing: 3 }}>
                 TAP TO CONTINUE
               </Text>
             </TouchableOpacity>
@@ -781,7 +794,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 ? 'You navigated a Protocol piece. It was not elegant. But it worked. I am noting that.'
                 : 'Physics and Protocol in the same machine. That is the Field Operative\'s answer to everything. I am beginning to understand the choice.'}
             </Text>
-            <Text style={{ fontFamily: Fonts.spaceMono, fontSize: 8, color: Colors.dim, letterSpacing: 3, marginTop: Spacing.xl }}>
+            {/* REQ-G-10: 8 -> FontSizes.floor. */}
+            <Text style={{ fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.dim, letterSpacing: 3, marginTop: Spacing.xl }}>
               TAP TO CONTINUE
             </Text>
           </View>
@@ -919,9 +933,10 @@ const styles = StyleSheet.create({
     height: 14,
     borderColor: 'rgba(0,212,255,0.35)',
   },
+  // REQ-G-10: 10 -> FontSizes.floor.
   pauseLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: FontSizes.floor,
     color: '#00D4FF',
     opacity: 0.6,
     letterSpacing: 2,
@@ -944,9 +959,10 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#E8F4FF',
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   pauseTimerLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     color: '#00D4FF',
     opacity: 0.5,
     letterSpacing: 2,
@@ -967,9 +983,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 6,
   },
+  // REQ-G-10: 10 -> FontSizes.floor.
   pauseAbandonSub: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: FontSizes.floor,
     color: '#B0CCE8',
     opacity: 0.6,
     textAlign: 'center',
@@ -1061,9 +1078,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: 'bold',
   },
+  // REQ-G-10: 5 -> FontSizes.floor.
   scoreCellLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 5,
+    fontSize: FontSizes.floor,
     color: Colors.dim,
     letterSpacing: 0.5,
   },
@@ -1080,9 +1098,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     gap: 5,
   },
+  // REQ-G-10: 8 -> FontSizes.floor.
   specCheckHeader: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
+    fontSize: FontSizes.floor,
     color: Colors.dim,
     letterSpacing: 3,
     marginBottom: 2,
@@ -1114,9 +1133,10 @@ const styles = StyleSheet.create({
   },
 
   // Forfeiture notice
+  // REQ-G-10: 8 -> FontSizes.floor.
   forfeitedNotice: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 8,
+    fontSize: FontSizes.floor,
     color: 'rgba(224,85,85,0.8)',
     letterSpacing: 2,
     marginBottom: Spacing.md,
@@ -1165,9 +1185,10 @@ const styles = StyleSheet.create({
   wrongOutputSection: {
     marginBottom: 12,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   wrongOutputLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     color: Colors.muted,
     letterSpacing: 2,
     marginBottom: 6,
@@ -1256,8 +1277,11 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.exo2, fontSize: FontSizes.md, color: Colors.muted,
     marginBottom: Spacing.xl,
   },
+  // REQ-G-09: flex: 1 removed — was needed only when both lines were direct
+  // row children (the columns bug); now nested one level down in a
+  // flex: 1 column (cogsResultRow's wrapper View), where each Text should
+  // size to its own content, not claim an equal share of the column.
   voidQuote: {
-    flex: 1,
     fontFamily: Fonts.exo2, fontSize: FontSizes.sm, color: Colors.muted,
     fontStyle: 'italic', lineHeight: 18,
   },
@@ -1265,15 +1289,19 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     width: '100%',
   },
+  // REQ-G-10: paddingVertical Spacing.md -> Spacing.lg (44pt touch target);
+  // label 10pt Colors.red on the void gradient was ~4.4:1 at that size —
+  // moved to 11pt starWhite with red carried by the border, clearing
+  // contrast without introducing a new color.
   voidBtn: {
     borderWidth: 1,
     borderColor: Colors.red,
     borderRadius: 12,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.lg,
     alignItems: 'center',
   },
   voidBtnText: {
-    fontFamily: Fonts.orbitron, fontSize: 10, color: Colors.red, letterSpacing: 1,
+    fontFamily: Fonts.orbitron, fontSize: FontSizes.floor, color: Colors.starWhite, letterSpacing: 1,
   },
 
   // A1-8 Completion scene
@@ -1338,14 +1366,16 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(239, 68, 68, 0.4)',
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   pulseResultText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     letterSpacing: 1,
   },
+  // REQ-G-10: 7 -> FontSizes.floor.
   pulseResultIcon: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 7,
+    fontSize: FontSizes.floor,
     letterSpacing: 1,
     marginTop: 2,
   },

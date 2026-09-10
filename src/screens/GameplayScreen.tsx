@@ -2013,8 +2013,9 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
     alignItems: 'center',
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   creditErrorText: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.red, letterSpacing: 1,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.red, letterSpacing: 1,
   },
 
   // Debug bar
@@ -2036,11 +2037,13 @@ const styles = StyleSheet.create({
     borderColor: Colors.amber,
     borderRadius: 6,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   debugBtnText: {
-    fontFamily: Fonts.spaceMono, fontSize: 9, color: Colors.amber, letterSpacing: 1,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.amber, letterSpacing: 1,
   },
+  // REQ-G-10: 10 -> FontSizes.floor.
   debugStep: {
-    fontFamily: Fonts.spaceMono, fontSize: 10, color: Colors.starWhite,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.starWhite,
   },
 
   // Engage row
@@ -2075,9 +2078,10 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 8,
   },
+  // REQ-G-10: 10 -> FontSizes.floor.
   glowTravelerText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 10,
+    fontSize: FontSizes.floor,
     fontWeight: 'bold',
   },
 });

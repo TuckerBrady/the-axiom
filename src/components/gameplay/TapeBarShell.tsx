@@ -1,9 +1,15 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated as RNAnimated } from 'react-native';
 import TapeCell from './TapeCell';
-import { Colors, Fonts, Spacing } from '../../theme/tokens';
+import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
 import type { TapeHighlight, TapeIndicatorBarState, GateOutcome, SignalPhase } from '../../game/engagement';
 import { BLANK, type OutputTapeValue } from '../../game/types';
+
+// REQ-G-10 (Handoff 003): TapeCell grew from 24x24 to 26x26 (tapeCells'
+// own `gap: 3` is unchanged) — the indicator bar's per-cell pitch and own
+// width must track that or it drifts out of alignment with the cells it's
+// meant to sit above.
+const TAPE_CELL_PITCH = 26 + 3;
 
 interface Props {
   // Tape data
@@ -72,7 +78,7 @@ function TapeBarShellComponent({
               styles.tapeIndicatorBar,
               {
                 backgroundColor: Colors.tapeInBar,
-                transform: [{ translateX: tapeBarState.inIndex * (24 + 3) }],
+                transform: [{ translateX: tapeBarState.inIndex * TAPE_CELL_PITCH }],
                 shadowColor: Colors.tapeInBar,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.6,
@@ -116,7 +122,7 @@ function TapeBarShellComponent({
                 styles.tapeIndicatorBar,
                 {
                   backgroundColor: Colors.tapeTrailBar,
-                  transform: [{ translateX: tapeBarState.trailIndex * (24 + 3) }],
+                  transform: [{ translateX: tapeBarState.trailIndex * TAPE_CELL_PITCH }],
                   shadowColor: Colors.tapeTrailBar,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.6,
@@ -154,7 +160,7 @@ function TapeBarShellComponent({
                 styles.tapeIndicatorBar,
                 {
                   backgroundColor: Colors.tapeOutBar,
-                  transform: [{ translateX: tapeBarState.outIndex * (24 + 3) }],
+                  transform: [{ translateX: tapeBarState.outIndex * TAPE_CELL_PITCH }],
                   shadowColor: Colors.tapeOutBar,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.6,
@@ -223,19 +229,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  // REQ-G-10: width 24 -> 26, matching TapeCell's new size.
   tapeIndicatorBar: {
     position: 'absolute',
     top: -2,
     left: 42 + 8,
-    width: 24,
+    width: 26,
     height: 6,
     borderRadius: 3,
     zIndex: 2,
     elevation: 2,
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   tapeLabel: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     color: Colors.muted,
     letterSpacing: 1,
     width: 42,
@@ -249,9 +257,10 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     alignItems: 'center',
   },
+  // REQ-G-10: 9 -> FontSizes.floor.
   pulseTargetText: {
     fontFamily: Fonts.spaceMono,
-    fontSize: 9,
+    fontSize: FontSizes.floor,
     letterSpacing: 2,
     color: Colors.amber,
     textTransform: 'uppercase',

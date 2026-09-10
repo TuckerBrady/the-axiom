@@ -24,6 +24,21 @@ function boardOverlayValue(piece: PlacedPiece): string | null {
   }
 }
 
+// REQ-G-06 (Handoff 003) — approximate average glyph width for Space Mono
+// at FontSizes.floor (11pt). Used only to decide whether the full
+// "count/threshold" string still fits inside the chip at the current cell
+// size; not a layout measurement, so it only needs to be in the right
+// neighborhood.
+const CHIP_CHAR_WIDTH_AT_FLOOR = 6.6;
+
+// The threshold is already on the Spec Sheet and in the Codex — dropping
+// the denominator here doesn't hide information the player can't get
+// elsewhere, it just keeps the on-board chip legible at the 11pt floor
+// instead of shrinking the point size to fit.
+function fitsAtFloor(text: string, availableWidth: number): boolean {
+  return text.length * CHIP_CHAR_WIDTH_AT_FLOOR <= availableWidth;
+}
+
 const PIECE_RADIUS = 10;
 // Half-duration of the native-driven flash. Two halves stitched into
 // an Animated.sequence give the contract-required 180 ms total
@@ -141,6 +156,15 @@ const BoardPiece = React.memo(function BoardPiece({
   const lockedBorderWidth = isLocked ? 2 : 0;
   const lockedBorderColor = isLocked ? '#00C48C' : undefined;
   const overlayValue = boardOverlayValue(piece);
+  // REQ-G-06: three glyphs or more ("0/2") shrinks the chip's own padding
+  // before anything else is touched.
+  const chipPaddingH = (overlayValue?.length ?? 0) >= 3 ? 2 : 3;
+  // Inset(1) + border(1) on each side, plus the shrunk/unshrunk padding.
+  const chipAvailableWidth = pieceSize - 2 - 2 - chipPaddingH * 2;
+  const displayValue =
+    overlayValue && piece.type === 'counter' && !fitsAtFloor(overlayValue, chipAvailableWidth)
+      ? String(piece.count ?? 0) // drop the denominator ("0/2" -> "0"), not the point size
+      : overlayValue;
   // REQ-G-01: pad the pressable back up to the 44pt touch-target floor via
   // hitSlop while the drawn cell stays at its computed size.
   const touchSlop = Math.max(0, (MIN_TOUCH_TARGET - pieceSize) / 2);
@@ -213,10 +237,16 @@ const BoardPiece = React.memo(function BoardPiece({
         />
       </View>
       {/* D-05 board overlay chip — outside the rotated View above, so
-          it stays upright regardless of piece.rotation. */}
+          it stays upright regardless of piece.rotation. REQ-G-06: inset
+          inside the piece box (was bottom/right: -2, sitting mostly
+          outside it and clipping at the board edge) and padding shrinks
+          at 3+ glyphs. */}
       {overlayValue !== null && (
-        <View style={styles.overlayChip} pointerEvents="none">
-          <Text style={styles.overlayChipText}>{overlayValue}</Text>
+        <View
+          style={[styles.overlayChip, { paddingHorizontal: chipPaddingH }]}
+          pointerEvents="none"
+        >
+          <Text style={styles.overlayChipText}>{displayValue}</Text>
         </View>
       )}
     </Pressable>
@@ -226,13 +256,17 @@ const BoardPiece = React.memo(function BoardPiece({
 export default BoardPiece;
 
 const styles = StyleSheet.create({
+  // REQ-G-06: bottom/right -2 -> 1 — the chip now sits inside the piece
+  // box instead of mostly outside it, so it no longer clips at the
+  // board's right/bottom edge (where the Terminal usually sits) or
+  // overlaps the neighbouring cell's icon.
   overlayChip: {
     position: 'absolute',
-    bottom: -2,
-    right: -2,
+    bottom: 1,
+    right: 1,
     backgroundColor: 'rgba(6,9,15,0.85)',
     borderRadius: 4,
-    paddingHorizontal: 3,
+    // paddingHorizontal set inline per-render (REQ-G-06: shrinks at 3+ glyphs).
     paddingVertical: 1,
     borderWidth: 1,
     borderColor: 'rgba(122,150,176,0.4)',
