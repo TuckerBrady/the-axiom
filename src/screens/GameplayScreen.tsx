@@ -838,6 +838,19 @@ export default function GameplayScreen({ navigation }: Props) {
       pulses.push(partitionBranches(steps.slice(start, end), pieces));
     }
 
+    // REQ-G-05 (Handoff 003) / SE-BEAM-081 — the charge glow and the
+    // inter-pulse source flash both take the first post-Source step's
+    // category color (amber for Physics, blue for Protocol), computed once
+    // per run. getBeamColor's 'terminal' case returns the Protocol body
+    // stroke, which is wrong here too, so a direct Source-to-Terminal trace
+    // (no piece in between) falls back to amber rather than inheriting
+    // that bug.
+    const firstPostSourceStep = pulses[0]?.[1];
+    const chargeColor =
+      firstPostSourceStep && firstPostSourceStep.type !== 'terminal'
+        ? getBeamColor(firstPostSourceStep.type)
+        : Colors.amber;
+
     // Screen-position helpers (need refs at component scope — keep inline).
     const getBoardScreenPos = (): Promise<{ x: number; y: number }> =>
       new Promise(resolve => {
@@ -928,7 +941,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // PHASE 1 — CHARGE
     const sourcePiece = machineState.pieces.find(p => p.type === 'source');
     if (sourcePiece) {
-      await runChargePhase(ctx, sourcePiece.id);
+      await runChargePhase(ctx, sourcePiece.id, chargeColor);
     }
 
     // Cache screen coordinates once — board and tape containers do not
@@ -1004,7 +1017,9 @@ export default function GameplayScreen({ navigation }: Props) {
       }
 
       if (p < pulses.length - 1) {
-        if (sourcePiece) engageFlashPiece(ctx, sourcePiece.id, '#F0B429');
+        // REQ-G-05: was hardcoded amber regardless of the machine's actual
+        // category; now the same chargeColor the charge rings use.
+        if (sourcePiece) engageFlashPiece(ctx, sourcePiece.id, chargeColor);
         await new Promise(r => setTimeout(r, 80));
       }
     }
@@ -1626,7 +1641,15 @@ export default function GameplayScreen({ navigation }: Props) {
 
 
         {/* ── Parts Tray (all Axiom levels) ── */}
-        {isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && (
+        {/* REQ-G-02 (Handoff 003): stays mounted for the whole level —
+            conditionally unmounting it on !isExecuting removed 72pt of
+            siblings the instant ENGAGE fired, translating the board ~64pt
+            down the screen in the same frame the run begins (canvasOuter
+            is flex:1, justifyContent:'center'). `hidden` now drives
+            opacity/pointerEvents instead of existence; the run-state gate
+            (isExecuting/showResults/showVoid/debugMode) is unchanged, only
+            its effect is. */}
+        {isAxiomLevel && (
           <PieceTray
             trayPieceTypes={trayPieceTypes}
             availableCounts={availableCounts}
@@ -1639,6 +1662,7 @@ export default function GameplayScreen({ navigation }: Props) {
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
+            hidden={isExecuting || showResults || showVoid || debugMode}
           />
         )}
 
@@ -1690,24 +1714,37 @@ export default function GameplayScreen({ navigation }: Props) {
         )}
 
         {/* ── Engage Button ── */}
-        {!isExecuting && !showResults && !showVoid && !debugMode && (
-          <View style={styles.engageRow}>
-            <Button
-              variant="secondary"
-              label="RESET"
-              onPress={handleReset}
-              style={styles.engageRowReset}
-            />
-            <Button
-              ref={engageButtonRef}
-              variant="gradient"
-              label="ENGAGE MACHINE"
-              onPress={handleEngage}
-              disabled={!hasPlacedPieces}
-              style={styles.engageRowEngage}
-            />
-          </View>
-        )}
+        {/* REQ-G-02: stays mounted for the whole level, same reasoning as
+            the Parts Tray above — this row's 56pt was the other sibling
+            whose unmount produced the ENGAGE-frame layout jump. Hidden via
+            opacity/pointerEvents instead of existence; RESET/ENGAGE stay
+            disabled while hidden so a stray touch during the transition
+            can't fire either. */}
+        {(() => {
+          const engageRowHidden = isExecuting || showResults || showVoid || debugMode;
+          return (
+            <View
+              style={[styles.engageRow, engageRowHidden && { opacity: 0 }]}
+              pointerEvents={engageRowHidden ? 'none' : 'auto'}
+            >
+              <Button
+                variant="secondary"
+                label="RESET"
+                onPress={handleReset}
+                disabled={engageRowHidden}
+                style={styles.engageRowReset}
+              />
+              <Button
+                ref={engageButtonRef}
+                variant="gradient"
+                label="ENGAGE MACHINE"
+                onPress={handleEngage}
+                disabled={engageRowHidden || !hasPlacedPieces}
+                style={styles.engageRowEngage}
+              />
+            </View>
+          );
+        })()}
 
         {/* ── Flash Overlay ── */}
         {flashColor && (
@@ -1959,9 +1996,12 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     zIndex: 150,
   },
+  // REQ-G-03 (Handoff 003): matches ghostInnerValid (copper), not the
+  // Physics beam amber — the Axiom placement hint and the Kepler drag-hover
+  // highlight are the same "valid drop" signal and should read as one.
   dragHoverCellValid: {
-    borderColor: '#F0B429',
-    backgroundColor: 'rgba(240,180,41,0.16)',
+    borderColor: Colors.copper,
+    backgroundColor: 'rgba(200,121,65,0.16)',
   },
   dragHoverCellInvalid: {
     borderColor: 'rgba(200,60,60,0.8)',

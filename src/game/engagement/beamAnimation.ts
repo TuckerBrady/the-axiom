@@ -14,6 +14,23 @@ import {
 } from './bubbleHelpers';
 import { triggerPieceAnim } from './interactions';
 
+// REQ-G-05 / SE-BEAM-082 — linear RGB blend between two '#RRGGBB' colors at
+// t in [0, 1]. Segment colors always come from getBeamColor(), which only
+// ever returns plain hex literals, so no rgba/named-color parsing is needed.
+function lerpHexColor(fromHex: string, toHex: string, t: number): string {
+  const parse = (hex: string) => ({
+    r: parseInt(hex.slice(1, 3), 16),
+    g: parseInt(hex.slice(3, 5), 16),
+    b: parseInt(hex.slice(5, 7), 16),
+  });
+  const a = parse(fromHex);
+  const b = parse(toHex);
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
 // Beam-dim level while a tape piece is processing (Prompt 91, Fix 5).
 // 0.3 reads as "energy is over there now, not in the wire" without
 // being so dim that the beam looks broken. Transition is 200ms each
@@ -118,6 +135,29 @@ export function runLinearPath(
     // counter would let branch A's tape pause leak into branch B.
     let inFlightTapePauses = 0;
 
+    // REQ-G-05 / SE-BEAM-082 (Handoff 003) — one JS-driven Animated.Value
+    // per active trail (closure-scoped per runLinearPath invocation, same
+    // reasoning as inFlightTapePauses above — a Splitter's two branches
+    // each get their own crossfade, never sharing one). useNativeDriver:
+    // false per ANIMATION_RULES.md; color interpolation isn't
+    // native-drivable here regardless, and this value never backs an
+    // Animated.View host (it's read via addListener into a plain string
+    // baked into TrailSeg.color, rendered on a plain, non-Animated
+    // <Polyline>), so the single-host invariant doesn't apply to it.
+    // Crossfades the ACTIVE (currently-forming) segment's stroke smoothly
+    // from the previous segment's color to its own over 300ms when the two
+    // differ — i.e. when the beam crosses a Physics/Protocol category
+    // boundary — instead of the segment's color snapping the instant the
+    // boundary is crossed.
+    const crossfadeAnim = new Animated.Value(0);
+    let crossfadeLiveValue = 1; // 1 = settled on the active segment's own color
+    const crossfadeListenerId = crossfadeAnim.addListener(({ value }) => {
+      crossfadeLiveValue = value;
+    });
+    let lastActiveSegIdx = -1;
+    let crossfadeFromColor: string | null = null;
+    let crossfadeToColor: string | null = null;
+
     function applyFrame(update: {
       trail: TrailSeg[] | null;
       head: Pt | null | undefined; // undefined = no change, null = clear
@@ -208,6 +248,43 @@ export function runLinearPath(
           break;
         }
       }
+
+      // REQ-G-05 / SE-BEAM-082 — the active (currently-forming) segment is
+      // always the last entry pushed above. When it advances to a new
+      // index whose color differs from the segment just completed, that's
+      // a category-boundary crossing: kick a fresh 300ms crossfade from the
+      // old color to the new one, JS-driven per ANIMATION_RULES.md.
+      const activeSegIdx = newSegs.length - 1;
+      if (activeSegIdx >= 0 && activeSegIdx !== lastActiveSegIdx) {
+        const toColor = segColors[activeSegIdx] ?? '#F0B429';
+        if (lastActiveSegIdx >= 0) {
+          const fromColor = segColors[lastActiveSegIdx] ?? toColor;
+          if (fromColor !== toColor) {
+            crossfadeFromColor = fromColor;
+            crossfadeToColor = toColor;
+            crossfadeAnim.stopAnimation();
+            crossfadeAnim.setValue(0);
+            Animated.timing(crossfadeAnim, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: false,
+            }).start();
+          }
+        }
+        lastActiveSegIdx = activeSegIdx;
+      }
+      if (
+        activeSegIdx >= 0 &&
+        crossfadeLiveValue < 1 &&
+        crossfadeFromColor &&
+        crossfadeToColor
+      ) {
+        newSegs[activeSegIdx] = {
+          ...newSegs[activeSegIdx],
+          color: lerpHexColor(crossfadeFromColor, crossfadeToColor, crossfadeLiveValue),
+        };
+      }
+
       const currentColor = hasVoid && rawT > 0.85
         ? '#FF3B3B'
         : (newSegs.length > 0 ? newSegs[newSegs.length - 1].color : '#8B5CF6');
@@ -388,10 +465,14 @@ export function runLinearPath(
             ctx.voidPulseAnim = null;
             ctx.setVoidBurstCenter(null);
             applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
+            crossfadeAnim.removeListener(crossfadeListenerId);
+            crossfadeAnim.stopAnimation();
             resolve();
           });
         } else {
           applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
+          crossfadeAnim.removeListener(crossfadeListenerId);
+          crossfadeAnim.stopAnimation();
           resolve();
         }
       }

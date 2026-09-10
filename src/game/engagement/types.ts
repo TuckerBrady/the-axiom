@@ -161,9 +161,14 @@ export const PIECE_ANIM_INITIAL: PieceAnimState = {
 export interface ChargeState {
   pos: Pt | null;
   progress: number;
+  // REQ-G-05 (Handoff 003): the charge ring color, derived from the first
+  // post-Source step's category (SE-BEAM-081) — amber for Physics, blue for
+  // Protocol. Set alongside `pos` when the charge phase starts; irrelevant
+  // (and unread) while `pos` is null.
+  color: string | null;
 }
 
-export const CHARGE_INITIAL: ChargeState = { pos: null, progress: 0 };
+export const CHARGE_INITIAL: ChargeState = { pos: null, progress: 0, color: null };
 
 export interface EngagementContext {
   CELL_SIZE: number;

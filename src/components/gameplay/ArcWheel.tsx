@@ -13,7 +13,6 @@ import {
 import { hapticLight } from '../../utils/haptics';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
-import type { InventoryPiece } from '../../store/requisitionStore';
 import { Colors, Fonts } from '../../theme/tokens';
 import {
   groupArcWheelPieces,
@@ -38,12 +37,13 @@ const DRAG_HOLD_MS = 180;
 const NODE_SLOT_H = NODE_SIZE_MAX + NODE_GAP;
 const WHEEL_H = VISIBLE_NODES * NODE_SLOT_H;
 
-// ─── Color coding by source (REQ-41) ─────────────────────────────────────────
-
-const SOURCE_COLORS: Record<InventoryPiece['source'], string> = {
-  preAssigned:  '#F0B429',
-  requisitioned: '#00D4FF',
-};
+// REQ-G-03 (Handoff 003, ratified 2026-09-10) supersedes REQ-41's
+// color-by-source-provenance scheme: COMPUTATIONAL_MODEL.md "Visual
+// Distinction" (Option B) mandates that purchased pieces appear
+// IDENTICALLY to pre-assigned ones — the old per-source amber/cyan pair
+// encoded exactly the distinction that's now forbidden. One neutral border
+// for every non-tape node; provenance is not encoded at all.
+const NEUTRAL_BORDER = Colors.muted;
 const TAPE_COLOR = '#8B5CF6';
 
 const PROTOCOL_TYPES: PieceType[] = ['configNode', 'scanner', 'transmitter', 'inverter', 'counter', 'latch'];
@@ -57,10 +57,12 @@ const PIECE_LABELS: Record<PieceType, string> = {
   obstacle: '',
 };
 
-// Matches BoardGrid/PieceTray: Protocol pieces purple, everything else the
-// canonical blue (NOT the amber source-accent used for node borders).
+// REQ-G-03: matches BoardGrid/PieceTray — Protocol pieces purple, everything
+// else the canonical blue. Was '#F0B429' (amber) for every non-Protocol
+// piece, contradicting this very comment (it said "NOT the amber
+// source-accent" while returning exactly that).
 function getPieceColor(type: PieceType): string {
-  return PROTOCOL_TYPES.includes(type) ? '#8B5CF6' : '#F0B429';
+  return PROTOCOL_TYPES.includes(type) ? '#8B5CF6' : Colors.blue;
 }
 
 type CategoryKey = 'PHYSICS' | 'PROTOCOL' | 'DATA';
@@ -292,7 +294,7 @@ export default function ArcWheel({
     const nodeSize = NODE_SIZE_MAX * scaleFactor;
     const distanceOpacity = 1 - (absDistance / (maxVisible + 1)) * 0.7;
     const isSelected = group.repId === selectedId || idx === selectedIndex;
-    const borderColor = group.isTape ? TAPE_COLOR : SOURCE_COLORS[group.source];
+    const borderColor = group.isTape ? TAPE_COLOR : NEUTRAL_BORDER;
     const color = getPieceColor(group.type);
     const eY = entranceY[relIdx] ?? new Animated.Value(0);
     const eOp = entranceOpacity[relIdx] ?? new Animated.Value(1);
@@ -370,7 +372,7 @@ export default function ArcWheel({
             <View key={section.key} style={styles.overviewSection}>
               <Text style={styles.overviewHeader}>{CATEGORY_LABEL[section.key]}</Text>
               {section.groups.map(({ group, idx }) => {
-                const borderColor = group.isTape ? TAPE_COLOR : SOURCE_COLORS[group.source];
+                const borderColor = group.isTape ? TAPE_COLOR : NEUTRAL_BORDER;
                 const color = getPieceColor(group.type);
                 const isSelected = idx === selectedIndex;
                 return (

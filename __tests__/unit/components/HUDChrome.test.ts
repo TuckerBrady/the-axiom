@@ -39,8 +39,19 @@ describe('HUDChrome — extracted top bar component', () => {
     expect(hudSrc).toMatch(/timerText !== null && \(\s*<Text/);
   });
 
-  it('renders the pulse counter text only when pulseCounterText is non-null', () => {
-    expect(hudSrc).toMatch(/pulseCounterText !== null && \(\s*<Text/);
+  // REQ-G-02 (Handoff 003, ratified 2026-09-10) supersedes the conditional
+  // mount this test used to pin: mounting the row only during 'beam' phase
+  // added ~19pt to the HUD in the same frame ENGAGE fires. It is now always
+  // rendered, present and empty when idle.
+  it('always renders the pulse counter Text, falling back to an empty string when pulseCounterText is null', () => {
+    expect(hudSrc).not.toMatch(/pulseCounterText !== null && \(/);
+    expect(hudSrc).toMatch(/<Text style=\{styles\.pulseCounterText\}[^>]*>\s*\{pulseCounterText \?\? ''\}\s*<\/Text>/);
+  });
+
+  it('the pulse counter row has a fixed height and is left-aligned (REQ-G-02)', () => {
+    const styleBlock = hudSrc.slice(hudSrc.indexOf('pulseCounterText: {'));
+    expect(styleBlock).toMatch(/height:\s*16/);
+    expect(styleBlock).toMatch(/textAlign:\s*'left'/);
   });
 
   it('GameplayScreen imports and renders <HUDChrome />', () => {

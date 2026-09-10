@@ -62,9 +62,15 @@ function HUDChromeComponent({
         {timerText !== null && (
           <Text style={styles.timerText}>{timerText}</Text>
         )}
-        {pulseCounterText !== null && (
-          <Text style={styles.pulseCounterText}>{pulseCounterText}</Text>
-        )}
+        {/* REQ-G-02 (Handoff 003): present and empty when idle, not
+            conditionally mounted — mounting it only during 'beam' phase
+            added ~19pt to the HUD in the same frame the run begins, and
+            left-aligning (was center, like its siblings) keeps that edge
+            still as the string grows ("PULSE 1 / 6" -> "PULSE 1 / 6 —
+            REACHED: 0 / 3") instead of the whole line re-centering. */}
+        <Text style={styles.pulseCounterText} numberOfLines={1}>
+          {pulseCounterText ?? ''}
+        </Text>
       </View>
       <TouchableOpacity
         ref={specSheetBtnRef}
@@ -126,11 +132,18 @@ const styles = StyleSheet.create({
   // D-07 — was 9pt at the HUD's old 1.5:1 pulse color, effectively
   // invisible. Promoted to 13pt Colors.muted (7.4:1); the old fail
   // color is deleted from the HUD entirely, not just dimmed further.
+  // REQ-G-02 — fixed height (present and empty when idle, so mounting
+  // never adds/removes vertical space) and left-aligned, stretched to
+  // the row's full width so per-pulse string growth extends rightward
+  // from a still left edge instead of re-centering the line.
   pulseCounterText: {
     fontFamily: Fonts.spaceMono,
     fontSize: 13,
     color: Colors.muted,
     marginTop: 2,
     letterSpacing: 1,
+    height: 16,
+    alignSelf: 'stretch',
+    textAlign: 'left',
   },
 });

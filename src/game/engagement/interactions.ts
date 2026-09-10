@@ -11,6 +11,7 @@ import {
 import {
   updateActiveAnimations,
 } from './stateHelpers';
+import { hapticLight, hapticMedium } from '../../utils/haptics';
 
 export async function runScannerInteraction(
   ctx: EngagementContext,
@@ -166,6 +167,15 @@ export function triggerPieceAnim(
   stp: ExecutionStep,
   batch?: FlashBatch,
 ): Promise<void> {
+  // REQ-G-16 (Handoff 003) — machine heartbeat. One light tap per piece the
+  // beam touches; medium on Terminal arrival (the payoff); no tap for
+  // Source itself, so the beam launch (CHARGE, handled elsewhere with no
+  // haptic) is the first thing felt, not a tap before it's even left.
+  if (stp.type === 'terminal') {
+    hapticMedium();
+  } else if (stp.type !== 'source') {
+    hapticLight();
+  }
   const flashColor = getBeamColor(stp.type);
   if (batch) {
     batch.flashes.push({ pieceId: stp.pieceId, color: flashColor });

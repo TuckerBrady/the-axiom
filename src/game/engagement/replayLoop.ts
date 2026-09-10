@@ -59,7 +59,7 @@ export async function runReplayLoop(params: ReplayLoopParams): Promise<void> {
       animations: new Map(),
       gates: new Map(),
     }));
-    ctx.setChargeState({ pos: null, progress: 0 });
+    ctx.setChargeState({ pos: null, progress: 0, color: null });
     ctx.setLockRingCenter(null);
     ctx.setTapeBarState(TAPE_BAR_INITIAL);
     ctx.setGlowTravelerState(GLOW_TRAVELER_INITIAL);

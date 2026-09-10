@@ -75,13 +75,22 @@ interface Props {
   onDragEnd?: (x: number, y: number) => void;
   onDragCancel?: () => void;
   disabled?: boolean;
+  // REQ-G-02 (Handoff 003): the parent keeps this component mounted for
+  // the whole level now (it used to unmount on !isExecuting, which was
+  // the primary cause of the ENGAGE-frame layout jump). `hidden` drives
+  // opacity + pointerEvents instead — the 72pt row stays reserved in the
+  // layout, just invisible and non-interactive, during the run/results/
+  // void/debug states.
+  hidden?: boolean;
 }
 
 // React.memo with default shallow comparison. The `refs` prop must be
 // memoized in the parent (useMemo) so reference identity is stable
-// across renders. Tray is hidden during beam runs (its parent does
-// not render it when isExecuting), so it does not re-render at all
-// during a beam tick — clause 4.1.5.
+// across renders. REQ-G-02 (Handoff 003) keeps this component mounted
+// through beam runs now (hidden via the `hidden` prop, not unmounted);
+// none of the other props change mid-run, so it still does not
+// meaningfully re-render during a beam tick — clause 4.1.5 holds on
+// prop stability, not on being absent from the tree.
 function PieceTrayComponent({
   trayPieceTypes,
   availableCounts,
@@ -95,6 +104,7 @@ function PieceTrayComponent({
   onDragEnd,
   onDragCancel,
   disabled,
+  hidden,
 }: Props) {
   // D-08 — `costs` is kept on the Props interface for call-site
   // compatibility (RequisitionPanel is the buying screen and the
@@ -111,7 +121,10 @@ function PieceTrayComponent({
   const [dragActive, setDragActive] = useState(false);
 
   return (
-    <View style={styles.partsTray}>
+    <View
+      style={[styles.partsTray, hidden && { opacity: 0 }]}
+      pointerEvents={hidden ? 'none' : 'auto'}
+    >
       <ScrollView
         horizontal
         scrollEnabled={!dragActive}

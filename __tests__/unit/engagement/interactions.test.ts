@@ -165,6 +165,43 @@ describe('triggerPieceAnim', () => {
     triggerPieceAnim(ctx, step('conveyor', 'p-1'));
     expect(pieceAnimRef.value.flashing.get('p-1')).toBe('#F0B429');
   });
+
+  // REQ-G-16 (Handoff 003) — machine heartbeat. One light tap per piece the
+  // beam touches; medium on Terminal arrival; no tap for Source itself, so
+  // the beam launch is the first thing felt.
+  describe('haptics (REQ-G-16)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { impactAsync, ImpactFeedbackStyle } = require('expo-haptics');
+
+    beforeEach(() => {
+      impactAsync.mockClear();
+    });
+
+    it('fires a light impact for a conveyor (a piece the beam touches)', () => {
+      const { ctx } = buildCtx();
+      triggerPieceAnim(ctx, step('conveyor', 'p-1'));
+      expect(impactAsync).toHaveBeenCalledWith(ImpactFeedbackStyle.Light);
+    });
+
+    it('fires a light impact for a configNode, gate result notwithstanding', () => {
+      const { ctx } = buildCtx();
+      void triggerPieceAnim(ctx, step('configNode', 'p-c', false));
+      expect(impactAsync).toHaveBeenCalledWith(ImpactFeedbackStyle.Light);
+    });
+
+    it('fires a medium impact — not light — on Terminal arrival', () => {
+      const { ctx } = buildCtx();
+      triggerPieceAnim(ctx, step('terminal', 'p-t'));
+      expect(impactAsync).toHaveBeenCalledWith(ImpactFeedbackStyle.Medium);
+      expect(impactAsync).not.toHaveBeenCalledWith(ImpactFeedbackStyle.Light);
+    });
+
+    it('fires no haptic for Source itself', () => {
+      const { ctx } = buildCtx();
+      triggerPieceAnim(ctx, step('source', 'p-src'));
+      expect(impactAsync).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('runScannerInteraction', () => {

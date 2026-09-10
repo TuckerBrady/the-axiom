@@ -110,4 +110,27 @@ describe('chargePhase source contract — Prompt 99A', () => {
     // Both variants short-circuit if getPieceCenter returns null.
     expect(chargeSource).toMatch(/if \(!sp\) return;/);
   });
+
+  // REQ-G-05 (Handoff 003): both variants accept a chargeColor and thread
+  // it into setChargePosField alongside pos, so the charge rings render
+  // the first post-Source step's category color instead of the hardcoded
+  // Protocol body stroke. Optional (defaulting to Colors.amber) so the
+  // pre-existing 2-arg call sites above keep compiling.
+  it('runChargePhase accepts an optional chargeColor defaulting to Colors.amber', () => {
+    const bodyMatch = chargeSource.match(
+      /export async function runChargePhase\([\s\S]*?\n\}\n/,
+    );
+    expect(bodyMatch).toBeTruthy();
+    expect(bodyMatch![0]).toMatch(/chargeColor:\s*string\s*=\s*Colors\.amber/);
+    expect(bodyMatch![0]).toMatch(/setChargePosField\(ctx\.setChargeState,\s*sp,\s*chargeColor\)/);
+  });
+
+  it('runReplayChargePhase accepts an optional chargeColor defaulting to Colors.amber', () => {
+    const replayMatch = chargeSource.match(
+      /export async function runReplayChargePhase\([\s\S]*?\n\}\n/,
+    );
+    expect(replayMatch).toBeTruthy();
+    expect(replayMatch![0]).toMatch(/chargeColor:\s*string\s*=\s*Colors\.amber/);
+    expect(replayMatch![0]).toMatch(/setChargePosField\(ctx\.setChargeState,\s*sp,\s*chargeColor\)/);
+  });
 });

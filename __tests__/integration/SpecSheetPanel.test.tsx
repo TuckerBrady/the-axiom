@@ -144,3 +144,14 @@ describe('SpecSheetPanel — REQUIRED OUTPUT tape strip colors (REQ-G-04)', () =
     expect(panelSrc).not.toMatch(/color="#FF7D3F"/);
   });
 });
+
+// REQ-G-03 (Handoff 003, ratified 2026-09-10): SHALL's obligation-strength
+// accent moves off the Physics beam amber onto Colors.copper — static
+// chrome stops borrowing beam hues. WILL/SHOULD/MAY are unaffected (not
+// beam colors, or out of this requirement's scope).
+describe('SpecSheetPanel — obligation-strength accent stops borrowing the beam color (REQ-G-03)', () => {
+  it('SHALL carries Colors.copper, not Colors.amber', () => {
+    expect(panelSrc).toMatch(/SHALL:\s*Colors\.copper,/);
+    expect(panelSrc).not.toMatch(/SHALL:\s*Colors\.amber,/);
+  });
+});

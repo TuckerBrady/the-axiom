@@ -147,6 +147,32 @@ describe('PieceTray — extracted parts tray component', () => {
     });
   });
 
+  // REQ-G-02 (Handoff 003): the tray stays mounted for the whole level now
+  // (it used to unmount on !isExecuting, which was the primary cause of
+  // the ENGAGE-frame layout jump — the header comment above is stale on
+  // that point, not this test). `hidden` drives opacity + pointerEvents
+  // instead of existence.
+  describe('hidden prop (REQ-G-02)', () => {
+    it('declares an optional hidden prop', () => {
+      expect(traySrc).toMatch(/hidden\?:\s*boolean/);
+    });
+
+    it('sets opacity 0 and pointerEvents none when hidden, without unmounting', () => {
+      expect(traySrc).toMatch(/style=\{\[styles\.partsTray, hidden && \{ opacity: 0 \}\]\}/);
+      expect(traySrc).toMatch(/pointerEvents=\{hidden \? 'none' : 'auto'\}/);
+    });
+
+    it('GameplayScreen mounts PieceTray unconditionally for Axiom levels (isAxiomLevel only), passing hidden for the run-state gate', () => {
+      expect(screenSrc).toMatch(/\{isAxiomLevel && \(\s*<PieceTray/);
+      expect(screenSrc).not.toMatch(
+        /isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && \(\s*<PieceTray/,
+      );
+      expect(screenSrc).toMatch(
+        /<PieceTray[\s\S]*?hidden=\{isExecuting \|\| showResults \|\| showVoid \|\| debugMode\}/,
+      );
+    });
+  });
+
   describe('static during drag', () => {
     it('disables ScrollView scrolling while a piece is being dragged', () => {
       // The tray must not slide left/right under the drag (Tucker 2026-06-15).
