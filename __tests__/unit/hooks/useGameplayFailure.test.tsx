@@ -72,6 +72,19 @@ describe('useGameplayFailure', () => {
       expect(captured!.failCount).toBe(0);
     });
 
+    // REQ-G-08 pt 1 (Handoff 003): voidQuoteIndex is held alongside
+    // failCount so failureHandlers.handleVoidFailure can draw it once, on
+    // entering the void state, instead of GameplayModals rerolling it in
+    // its render path.
+    it('starts with voidQuoteIndex 0', () => {
+      TestRenderer.act(() => {
+        TestRenderer.create(
+          React.createElement(Harness, { level: makeLevel('A1-1'), isAxiomLevel: true }),
+        );
+      });
+      expect(captured!.voidQuoteIndex).toBe(0);
+    });
+
     it('exposes a blownCellsRef that mirrors the initial Set', () => {
       TestRenderer.act(() => {
         TestRenderer.create(
@@ -149,6 +162,20 @@ describe('useGameplayFailure', () => {
       });
       expect(captured!.blownCells.size).toBe(0);
       expect(captured!.failCount).toBe(0);
+    });
+  });
+
+  describe('voidQuoteIndex', () => {
+    it('setVoidQuoteIndex updates the held index', () => {
+      TestRenderer.act(() => {
+        TestRenderer.create(
+          React.createElement(Harness, { level: makeLevel('A1-1'), isAxiomLevel: true }),
+        );
+      });
+      TestRenderer.act(() => {
+        captured!.setVoidQuoteIndex(2);
+      });
+      expect(captured!.voidQuoteIndex).toBe(2);
     });
   });
 

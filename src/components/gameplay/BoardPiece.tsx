@@ -29,6 +29,10 @@ const PIECE_RADIUS = 10;
 // an Animated.sequence give the contract-required 180 ms total
 // fade-in / fade-out (PERFORMANCE_CONTRACT 2.1.2).
 const FLASH_HALF_MS = 90;
+// REQ-G-01: touch-target floor, independent of the drawn piece size —
+// removing MIN_CELL from the board fit calculation means pieceSize can
+// fall well under this on dense grids.
+const MIN_TOUCH_TARGET = 44;
 
 export interface PieceAnimProps {
   animType: string | undefined;
@@ -137,10 +141,14 @@ const BoardPiece = React.memo(function BoardPiece({
   const lockedBorderWidth = isLocked ? 2 : 0;
   const lockedBorderColor = isLocked ? '#00C48C' : undefined;
   const overlayValue = boardOverlayValue(piece);
+  // REQ-G-01: pad the pressable back up to the 44pt touch-target floor via
+  // hitSlop while the drawn cell stays at its computed size.
+  const touchSlop = Math.max(0, (MIN_TOUCH_TARGET - pieceSize) / 2);
 
   return (
     <Pressable
       ref={pieceRef}
+      hitSlop={{ top: touchSlop, bottom: touchSlop, left: touchSlop, right: touchSlop }}
       style={{
         position: 'absolute',
         borderRadius: PIECE_RADIUS,

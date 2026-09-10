@@ -4,6 +4,7 @@ import {
   handleVoidFailure,
 } from '../../../src/game/engagement/failureHandlers';
 import type { WrongOutputParams, VoidFailureParams } from '../../../src/game/engagement/failureHandlers';
+import { VOID_QUOTES } from '../../../src/game/voidQuotes';
 import type { ExecutionStep, PlacedPiece } from '../../../src/game/engagement/types';
 import {
   getConsequenceFailureLine,
@@ -316,6 +317,48 @@ describe('handleVoidFailure', () => {
     const calls = (setFlashColor as jest.Mock).mock.calls.map((c: [string | null]) => c[0]);
     const redCalls = calls.filter((c: string | null) => c === '#DEADBE');
     expect(redCalls.length).toBe(3);
+  });
+
+  // REQ-G-08 pt 1 (Handoff 003): the void quote's index is drawn exactly
+  // once, here, on entering the void state — not in GameplayModals' render
+  // path, where it used to reroll every second off elapsedSeconds.
+  describe('void quote index (REQ-G-08 pt 1)', () => {
+    it('calls setVoidQuoteIndex exactly once when the void state is entered', async () => {
+      const setVoidQuoteIndex = jest.fn();
+      const params = makeVoidParams({ setVoidQuoteIndex, levelId: 'A1-1' });
+      const promise = handleVoidFailure(params);
+      await jest.runAllTimersAsync();
+      await promise;
+      expect(setVoidQuoteIndex).toHaveBeenCalledTimes(1);
+    });
+
+    it('draws an index within VOID_QUOTES bounds', async () => {
+      const setVoidQuoteIndex = jest.fn();
+      const params = makeVoidParams({ setVoidQuoteIndex, levelId: 'A1-1' });
+      const promise = handleVoidFailure(params);
+      await jest.runAllTimersAsync();
+      await promise;
+      const drawn = (setVoidQuoteIndex as jest.Mock).mock.calls[0][0] as number;
+      expect(Number.isInteger(drawn)).toBe(true);
+      expect(drawn).toBeGreaterThanOrEqual(0);
+      expect(drawn).toBeLessThan(VOID_QUOTES.length);
+    });
+
+    it('does not call setVoidQuoteIndex when a teaching card short-circuits (A1-3 fail 1/2)', async () => {
+      const setVoidQuoteIndex = jest.fn();
+      const params = makeVoidParams({ setVoidQuoteIndex, levelId: 'A1-3', failCount: 0 });
+      const promise = handleVoidFailure(params);
+      await jest.runAllTimersAsync();
+      await promise;
+      expect(setVoidQuoteIndex).not.toHaveBeenCalled();
+    });
+
+    it('omitting setVoidQuoteIndex does not throw (optional param)', async () => {
+      const params = makeVoidParams({ levelId: 'A1-1' });
+      delete (params as Partial<VoidFailureParams>).setVoidQuoteIndex;
+      const promise = handleVoidFailure(params);
+      await expect(jest.runAllTimersAsync().then(() => promise)).resolves.not.toThrow();
+    });
   });
 });
 

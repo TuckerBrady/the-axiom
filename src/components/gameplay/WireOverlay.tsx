@@ -32,7 +32,10 @@ const WireSegment = React.memo(function WireSegment({
   toType,
   cellSize,
 }: WireSegmentProps) {
-  const wireColor = isProtocol ? Colors.amber : Colors.blue;
+  // REQ-G-07: static wire identity follows Protocol/Physics, not the beam
+  // colors. isLit (below) already defers to getBeamColor(toType) for the
+  // beam-color contrast event; this is the unlit/static state only.
+  const wireColor = isProtocol ? Colors.circuit : Colors.copper;
   const wireSW = Math.max(2, cellSize / 18);
   const dashOn = Math.round(cellSize / 5);
   const dashOff = Math.round(cellSize / 8);

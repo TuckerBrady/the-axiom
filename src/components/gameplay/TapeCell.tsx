@@ -66,10 +66,13 @@ function colorsForHighlight(h: TapeHighlight, tape: TapeRole): { bg: string; bor
       return { bg: 'rgba(255,59,59,0.18)', border: 'rgba(255,59,59,0.9)' };
     case 'arrived': {
       // The single tape-to-tape arrival fill: the destination cell pulses in
-      // its OWN tape color when the value lands — TRAIL purple (Scanner read),
-      // OUT orange (Terminal arrival). One animation, each in its tape's color.
+      // its OWN tape color when the value lands — IN Ice Blue (write into IN),
+      // TRAIL purple (Scanner read), OUT orange (Terminal arrival). One
+      // animation, each in its tape's color. Decimal RGB decompositions of
+      // the locked tokens.ts hexes (REQ-G-04): tapeInBar #7FC8E8 = 127,200,232;
+      // tapeTrailBar #A97FDB = 169,127,219; tapeOutBar #FF7D3F = 255,125,63.
       const rgb =
-        tape === 'trail' ? '169,127,219' : tape === 'in' ? '191,255,63' : '255,125,63';
+        tape === 'trail' ? '169,127,219' : tape === 'in' ? '127,200,232' : '255,125,63';
       return { bg: `rgba(${rgb},0.30)`, border: `rgba(${rgb},1)` };
     }
     case 'departing':
@@ -183,11 +186,20 @@ const TapeCell = React.memo(function TapeCell(props: Props) {
           collapsable={false}
           style={[
             styles.tapeCell,
-            isHead && { borderColor: Colors.neonGreen, backgroundColor: 'rgba(0,255,135,0.08)' },
+            // REQ-G-04: TRAIL cells render TRAIL purple; the head stays
+            // distinct through border weight, not a different hue.
+            isHead && styles.tapeCellTrailHead,
           ]}
         >
           {overlay}
-          <Text style={[styles.tapeCellText, { color: Colors.neonGreen }, isHead && { fontWeight: 'bold' as const }, value === null && { opacity: 0.2 }]}>
+          <Text
+            style={[
+              styles.tapeCellText,
+              styles.tapeCellTextTrail,
+              isHead && { fontWeight: 'bold' as const },
+              value === null && { opacity: 0.2 },
+            ]}
+          >
             {value === null ? '·' : value}
           </Text>
         </View>
@@ -242,7 +254,9 @@ const styles = StyleSheet.create({
   tapeHead: {
     width: 6,
     height: 4,
-    backgroundColor: '#8B5CF6',
+    // REQ-G-04: the head marker on the IN tape takes the IN color, not the
+    // Protocol body stroke (#8B5CF6).
+    backgroundColor: Colors.tapeInBar,
     marginBottom: 2,
   },
   tapeCell: {
@@ -256,16 +270,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   tapeCellIn: {},
+  // REQ-G-04: IN tape identity is Colors.tapeInBar (Ice Blue #7FC8E8), not
+  // the old neon-green literal it used to hardcode. rgba decomposition: 127,200,232.
   tapeCellInActive: {
-    borderColor: '#BFFF3F',
-    backgroundColor: 'rgba(191,255,63,0.14)',
+    borderColor: Colors.tapeInBar,
+    backgroundColor: 'rgba(127,200,232,0.14)',
   },
   tapeCellPast: {
     borderColor: 'rgba(139,92,246,0.3)',
   },
+  // REQ-G-04: OUT tape identity is Colors.tapeOutBar (Fire Orange #FF7D3F).
   tapeCellArrived: {
-    borderColor: '#FF7D3F',
+    borderColor: Colors.tapeOutBar,
     backgroundColor: 'rgba(255,125,63,0.18)',
+  },
+  // REQ-G-04: TRAIL head is distinguished from other TRAIL cells by border
+  // weight, not hue — both render Colors.tapeTrailBar (Atomic Purple #A97FDB).
+  tapeCellTrailHead: {
+    borderWidth: 2,
+    borderColor: Colors.tapeTrailBar,
+    backgroundColor: 'rgba(169,127,219,0.14)',
   },
   tapeCellGateBlocked: {
     borderColor: '#FF3B3B',
@@ -277,14 +301,19 @@ const styles = StyleSheet.create({
     color: Colors.neonCyan,
   },
   tapeCellTextIn: {
-    color: '#BFFF3F',
+    color: Colors.tapeInBar,
   },
   tapeCellTextInActive: {
-    color: '#BFFF3F',
+    color: Colors.tapeInBar,
     fontWeight: 'bold' as const,
   },
   tapeCellTextInPast: {
-    color: 'rgba(191,255,63,0.4)',
+    color: 'rgba(127,200,232,0.4)',
+  },
+  // REQ-G-04: TRAIL cells render TRAIL purple (Colors.tapeTrailBar), not the
+  // old Colors.neonGreen (#00FF87).
+  tapeCellTextTrail: {
+    color: Colors.tapeTrailBar,
   },
   tapeCellTextArrived: {
     color: '#FFFFFF',

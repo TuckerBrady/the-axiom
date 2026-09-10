@@ -58,6 +58,15 @@ describe('GameplayModals — pure render contract', () => {
   it('wraps the implementation in React.memo for prop-equality bailouts', () => {
     expect(modalsSrc).toMatch(/React\.memo\(GameplayModalsImpl\)/);
   });
+
+  // REQ-G-08 pt 1 (Handoff 003): the void quote index must come from props
+  // (drawn once by failureHandlers.handleVoidFailure), never rolled in this
+  // component's render path — GameplayModals re-renders at least once per
+  // second while the void modal is open, driven by the elapsedSeconds prop.
+  it('renders the void quote from the voidQuoteIndex prop, not Math.random()', () => {
+    expect(modalsSrc).toMatch(/VOID_QUOTES\[voidQuoteIndex\]/);
+    expect(modalsSrc).not.toMatch(/Math\.random/);
+  });
 });
 
 describe('GameplayModals — navigation callbacks', () => {

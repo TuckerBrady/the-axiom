@@ -22,6 +22,7 @@ import type { Discipline } from '../../store/playerStore';
 import { useEconomyStore } from '../../store/economyStore';
 import type { WrongOutputData, PulseResultData, MayBonusData, SpecNotMetData } from '../../hooks/useGameplayModals';
 import { buildSpecChecklist, type SpecCheckStatus } from '../../game/spec/specChecklist';
+import { VOID_QUOTES } from '../../game/voidQuotes';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -32,13 +33,6 @@ const { width: screenWidth } = Dimensions.get('window');
 const STAR_ENTER_1 = FadeInUp.delay(200).duration(400);
 const STAR_ENTER_2 = FadeInUp.delay(400).duration(400);
 const STAR_ENTER_3 = FadeInUp.delay(600).duration(400);
-
-const VOID_QUOTES = [
-  '"The signal did not reach Output. I observed the exact moment it failed."',
-  '"Void state. I could explain why. You should already know."',
-  '"The machine did not lock. Review your connections."',
-  '"Signal lost. The configuration was incorrect. Adjust and retry."',
-];
 
 function formatMMSS(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -133,6 +127,10 @@ export interface GameplayModalsProps {
   blownCells: Set<string>;
   setBlownCells: React.Dispatch<React.SetStateAction<Set<string>>>;
   failCount: number;
+  // REQ-G-08 pt 1: drawn once on entering the void state (failureHandlers
+  // .handleVoidFailure), not re-rolled here. No RNG call belongs in this
+  // render path.
+  voidQuoteIndex: number;
   getBlownCellCOGSLine: (count: number) => string | null;
 
   // Stores
@@ -189,6 +187,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     showTeachCard, setShowTeachCard,
     scoreResult, cogsScoreComment, firstTimeBonus, elaborationMult, mayBonus,
     blownCells, setBlownCells,
+    voidQuoteIndex,
     getBlownCellCOGSLine,
     lives, livesCredits, discipline, credits,
     loseLife, refillLives, stars,
@@ -603,7 +602,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             <View style={styles.cogsResultRow}>
               <CogsAvatar size="small" state="damaged" />
               <Text style={styles.voidQuote}>
-                {VOID_QUOTES[Math.floor(Math.random() * VOID_QUOTES.length)]}
+                {VOID_QUOTES[voidQuoteIndex]}
               </Text>
               {!isAxiomLevel && blownCells.size > 0 && (
                 <Text style={styles.voidQuote}>

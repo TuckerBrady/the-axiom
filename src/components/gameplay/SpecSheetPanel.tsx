@@ -152,8 +152,8 @@ function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
           {showExpectedOutput && (
             <View style={styles.expectedBlock}>
               <Text style={styles.expectedLabel}>REQUIRED OUTPUT</Text>
-              <TapeStrip label="IN" values={level.inputTape as OutputTapeValue[]} color="#BFFF3F" />
-              <TapeStrip label="OUT" values={level.expectedOutput as OutputTapeValue[]} color="#FF7D3F" />
+              <TapeStrip label="IN" values={level.inputTape as OutputTapeValue[]} color={Colors.tapeInBar} />
+              <TapeStrip label="OUT" values={level.expectedOutput as OutputTapeValue[]} color={Colors.tapeOutBar} />
             </View>
           )}
 
