@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Space+Mono:wght@400;700&family=Exo+2:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #06090f; }
+  a { color: #a78bfa; text-decoration: none; }
+  a:hover { color: #c87941; }
+</style>
+</helmet>
+
+<div style="background:#06090f; min-height:100vh; padding:40px 32px 96px; font-family:'Exo 2',system-ui,sans-serif; color:#e8f0ff;">
+
+  <div style="max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:14px; padding-bottom:28px; border-bottom:1px solid rgba(74,158,255,0.14);">
+    <div style="font-family:'Space Mono',monospace; font-size:12px; letter-spacing:3px; color:#c87941;">REQUEST 003 · VISUAL REFERENCE</div>
+    <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:32px; letter-spacing:1px; color:#e8f0ff;">Gameplay Screen — Board, Tape, Tray, Failure</div>
+    <div style="font-size:15px; line-height:1.6; color:#7a96b0; max-width:760px; text-wrap:pretty;">
+      Support material for <strong style="color:#e8f0ff;">GAMEPLAY_REVIEW.md</strong>. The spec is the deliverable; these panels
+      only show what the numbered findings describe. Drawn in HTML at true device
+      point sizes for an iPhone 15 Pro (393 &times; 852 pt, 1 px = 1 pt here). This is a
+      blueprint for React Native and <span style="font-family:'Space Mono',monospace; font-size:13px;">react-native-svg</span>, not markup to port.
+    </div>
+    <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:6px;">
+      <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:#e8f0ff; border:1px solid rgba(200,121,65,0.5); border-radius:4px; padding:6px 10px;">HI-FI &mdash; every hex, pt size, cell size and stroke weight is literal</div>
+      <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:#7a96b0; border:1px solid rgba(122,150,176,0.35); border-radius:4px; padding:6px 10px;">LO-FI &mdash; piece icons are labelled placeholders (icon art is Request 001's scope)</div>
+    </div>
+  </div>
+
+  <!-- ══ PANEL A ══ -->
+  <section id="A" style="max-width:1180px; margin:0 auto; padding-top:56px; display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px; color:#c87941;">A</div>
+      <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:22px; color:#e8f0ff;">Board geometry &mdash; G-01</div>
+      <div style="font-family:'Space Mono',monospace; font-size:12px; color:#7a96b0;">K1-10, 12 &times; 9, at 393 pt</div>
+    </div>
+    <div style="font-size:14.5px; line-height:1.65; color:#7a96b0; max-width:820px; text-wrap:pretty;">
+      Left: what ships. <span style="font-family:'Space Mono',monospace; font-size:13px; color:#e8f0ff;">MIN_CELL&nbsp;48</span> pins the cell above the fit, so
+      <span style="font-family:'Space Mono',monospace; font-size:13px; color:#e8f0ff;">gridW&nbsp;=&nbsp;576</span> inside a 393 pt canvas that clips. Right: the same board with the
+      clamp removed &mdash; every column reachable, 29 pt cells, 44 pt hit slop. The right panel is also the
+      argument for G-01 part two: at 29 pt the icon lands at 15 pt, under the 22 pt catchability floor.
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+
+      <!-- current -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#e05555;">SHIPPING &mdash; 4 OF 12 COLUMNS UNREACHABLE</div>
+        <div style="position:relative; width:393px; height:452px; background:#06090f; border:1px solid rgba(224,85,85,0.35); overflow:hidden;">
+          <div style="position:absolute; left:calc(50% - 288px); top:20px; width:576px; height:432px; background:#06090f; border:1px solid rgba(74,158,255,0.1); border-radius:8px; overflow:hidden;">
+            <sc-for list="{{ dots12 }}" as="d" hint-placeholder-count="24">
+              <div style="position:absolute; width:3px; height:3px; border-radius:50%; background:rgba(74,158,255,0.12); left:{{ d.l }}; top:{{ d.t }};"></div>
+            </sc-for>
+            <sc-for list="{{ piecesWide }}" as="p" hint-placeholder-count="6">
+              <div style="position:absolute; left:{{ p.l }}; top:{{ p.t }}; width:44px; height:44px; border-radius:10px; border:1.5px solid {{ p.stroke }}; background:rgba(8,14,28,0.85); display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:0.5px; color:{{ p.stroke }};">{{ p.label }}</div>
+            </sc-for>
+          </div>
+          <div style="position:absolute; left:0; top:0; bottom:0; width:91.5px; background:rgba(224,85,85,0.14); border-right:1px dashed rgba(224,85,85,0.6);"></div>
+          <div style="position:absolute; right:0; top:0; bottom:0; width:91.5px; background:rgba(224,85,85,0.14); border-left:1px dashed rgba(224,85,85,0.6);"></div>
+          <div style="position:absolute; left:8px; bottom:10px; font-family:'Space Mono',monospace; font-size:11px; color:#e05555;">91.5 pt clipped</div>
+          <div style="position:absolute; right:8px; bottom:10px; font-family:'Space Mono',monospace; font-size:11px; color:#e05555;">91.5 pt clipped</div>
+        </div>
+        <div style="font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7a96b0; width:393px;">availW 353 &middot; 353/12 = 29 &rarr; clamped 48 &middot; gridW 576 &middot; canvas 393</div>
+      </div>
+
+      <!-- specified -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#00C48C;">CLAMP REMOVED &mdash; WHOLE BOARD IN FRAME</div>
+        <div style="position:relative; width:393px; height:452px; background:#06090f; border:1px solid rgba(0,196,140,0.3); overflow:hidden;">
+          <div style="position:absolute; left:20px; top:100px; width:348px; height:261px; background:#06090f; border:1px solid rgba(74,158,255,0.1); border-radius:8px; overflow:hidden;">
+            <sc-for list="{{ dots12fit }}" as="d" hint-placeholder-count="24">
+              <div style="position:absolute; width:2px; height:2px; border-radius:50%; background:rgba(74,158,255,0.12); left:{{ d.l }}; top:{{ d.t }};"></div>
+            </sc-for>
+            <sc-for list="{{ piecesFit }}" as="p" hint-placeholder-count="6">
+              <div style="position:absolute; left:{{ p.l }}; top:{{ p.t }}; width:25px; height:25px; border-radius:6px; border:1px solid {{ p.stroke }}; background:rgba(8,14,28,0.85); display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:7px; color:{{ p.stroke }};">{{ p.short }}</div>
+            </sc-for>
+          </div>
+          <div style="position:absolute; left:20px; top:372px; width:348px; display:flex; flex-direction:column; gap:6px;">
+            <div style="font-family:'Space Mono',monospace; font-size:11px; color:#00C48C;">gridW 348 &le; availW 353 &middot; cell 29 &middot; hitSlop pads to 44</div>
+            <div style="font-family:'Space Mono',monospace; font-size:11px; color:#F0B429;">icon 15 pt &mdash; under the 22 pt floor. See G-01 part two.</div>
+          </div>
+        </div>
+        <div style="font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7a96b0; width:393px;">Reachability fixed by the clamp removal. Legibility needs pan/zoom or a grid cap.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL B ══ -->
+  <section id="B" style="max-width:1180px; margin:0 auto; padding-top:72px; display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px; color:#c87941;">B</div>
+      <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:22px; color:#e8f0ff;">Tape stack during a pulse &mdash; G-04, G-10</div>
+      <div style="font-family:'Space Mono',monospace; font-size:12px; color:#7a96b0;">A1-7, pulse 3 of 6, Scanner firing</div>
+    </div>
+    <div style="font-size:14.5px; line-height:1.65; color:#7a96b0; max-width:820px; text-wrap:pretty;">
+      Both rows are drawn at real size. Top: shipping colors &mdash; the TRAIL head bar is purple over green
+      cells, the IN head marker is Protocol purple, and the value in flight is cyan, the Protocol beam
+      color. Five hues inside one 100 pt band. Bottom: each layer speaking one color, the traveler tinted
+      to its destination, cells 26 pt with a 12 pt digit. The IN hex below is shown as
+      <span style="font-family:'Space Mono',monospace; font-size:13px; color:#e8f0ff;">#7FC8E8</span> per the request; see the decision item in the spec.
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:28px;">
+      <!-- shipping -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#e05555;">SHIPPING</div>
+        <div style="width:393px; background:#06090f; border:1px solid rgba(224,85,85,0.3); padding:8px 12px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; align-items:center; gap:8px; position:relative;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px; color:#7a96b0;">IN</div>
+            <div style="position:absolute; left:50px; top:-2px; width:24px; height:6px; border-radius:3px; background:#BFFF3F; transform:translateX(54px);"></div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ inOld }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; background:#8B5CF6; opacity:{{ c.headOp }};"></div>
+                  <div style="width:24px; height:24px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10px; color:{{ c.ink }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; position:relative;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px; color:#7a96b0;">TRAIL</div>
+            <div style="position:absolute; left:50px; top:-2px; width:24px; height:6px; border-radius:3px; background:#A97FDB; transform:translateX(54px);"></div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ trailOld }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; opacity:0;"></div>
+                  <div style="width:24px; height:24px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10px; color:#00FF87; opacity:{{ c.op }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:9px; letter-spacing:1px; color:#7a96b0;">OUT</div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ outOld }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; opacity:0;"></div>
+                  <div style="width:24px; height:24px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10px; color:{{ c.ink }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:34px; position:relative;">
+            <div style="position:absolute; left:118px; top:2px; width:24px; height:24px; border-radius:3px; border:1.5px solid #00E5FF; background:rgba(0,229,255,0.22); box-shadow:0 0 18px rgba(0,229,255,0.8); display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:10px; font-weight:700; color:#00E5FF;">1</div>
+            <div style="position:absolute; left:154px; top:8px; font-family:'Space Mono',monospace; font-size:11px; color:#e05555;">glow traveler &mdash; cyan on a purple layer</div>
+          </div>
+        </div>
+        <div style="width:393px; font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7a96b0;">IN #BFFF3F &middot; head #8B5CF6 &middot; TRAIL cells #00FF87 over an #A97FDB bar &middot; digits 10 pt &middot; labels 9 pt</div>
+      </div>
+
+      <!-- specified -->
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#00C48C;">SPECIFIED</div>
+        <div style="width:393px; background:#06090f; border:1px solid rgba(0,196,140,0.3); padding:8px 12px; display:flex; flex-direction:column; gap:6px;">
+          <div style="display:flex; align-items:center; gap:8px; position:relative;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:#7a96b0;">IN</div>
+            <div style="position:absolute; left:50px; top:-2px; width:26px; height:6px; border-radius:3px; background:#7FC8E8; transform:translateX(58px);"></div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ inNew }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; background:#7FC8E8; opacity:{{ c.headOp }};"></div>
+                  <div style="width:26px; height:26px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:12px; color:{{ c.ink }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; position:relative;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:#7a96b0;">TRAIL</div>
+            <div style="position:absolute; left:50px; top:-2px; width:26px; height:6px; border-radius:3px; background:#A97FDB; transform:translateX(58px);"></div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ trailNew }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; opacity:0;"></div>
+                  <div style="width:26px; height:26px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:12px; font-weight:{{ c.weight }}; color:#A97FDB; opacity:{{ c.op }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:42px; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1px; color:#7a96b0;">OUT</div>
+            <div style="display:flex; gap:3px;">
+              <sc-for list="{{ outNew }}" as="c" hint-placeholder-count="6">
+                <div style="display:flex; flex-direction:column; align-items:center;">
+                  <div style="width:6px; height:4px; margin-bottom:2px; opacity:0;"></div>
+                  <div style="width:26px; height:26px; border-radius:3px; border:1px solid {{ c.border }}; background:{{ c.bg }}; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:12px; color:{{ c.ink }};">{{ c.v }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="height:34px; position:relative;">
+            <div style="position:absolute; left:126px; top:2px; width:26px; height:26px; border-radius:3px; border:1.5px solid #A97FDB; background:rgba(169,127,219,0.22); box-shadow:0 0 18px rgba(169,127,219,0.75); display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:12px; font-weight:700; color:#A97FDB;">1</div>
+            <div style="position:absolute; left:164px; top:8px; font-family:'Space Mono',monospace; font-size:11px; color:#00C48C;">traveler takes the destination layer</div>
+          </div>
+        </div>
+        <div style="width:393px; font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7a96b0;">One hue per layer &middot; cells 26 pt &middot; digits 12 pt &middot; labels 11 pt &middot; row total 361 pt of 393</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL C ══ -->
+  <section id="C" style="max-width:1180px; margin:0 auto; padding-top:72px; display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px; color:#c87941;">C</div>
+      <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:22px; color:#e8f0ff;">Tray, collapsed and expanded &mdash; G-03, G-13</div>
+    </div>
+    <div style="font-size:14.5px; line-height:1.65; color:#7a96b0; max-width:820px; text-wrap:pretty;">
+      The Axiom tray is post-D-08 and correct: 56 pt cells, 32 pt icons, 11 pt badge, no price. The Kepler
+      Arc Wheel diverges from it on both axes this panel measures &mdash; every Physics piece renders amber, and
+      the expanded overview drops to a 20 pt icon with 8&ndash;10 pt labels.
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#00C48C;">AXIOM PIECE TRAY &mdash; COMPLIANT</div>
+        <div style="width:393px; height:72px; border-top:1px solid rgba(74,158,255,0.12); display:flex; align-items:center; padding:0 20px; gap:8px; background:#06090f;">
+          <sc-for list="{{ trayItems }}" as="t" hint-placeholder-count="4">
+            <div style="width:56px; height:56px; border:1px solid rgba(74,158,255,0.2); border-radius:12px; background:rgba(8,14,28,0.8); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;">
+              <div style="width:32px; height:32px; border:1.5px solid {{ t.color }}; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:8px; color:{{ t.color }};">{{ t.label }}</div>
+              <div style="min-width:20px; padding:1px 6px; border-radius:9px; background:{{ t.color }}; font-family:'Space Mono',monospace; font-size:11px; font-weight:700; color:#06090f; text-align:center;">{{ t.count }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="width:393px; font-family:'Space Mono',monospace; font-size:11px; line-height:1.7; color:#7a96b0;">Physics #4a9eff &middot; Protocol #8B5CF6 &middot; icon 32 pt &middot; badge 11 pt</div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#e05555;">ARC WHEEL &mdash; SHIPPING VS SPECIFIED</div>
+        <div style="display:flex; gap:16px;">
+          <div style="width:180px; background:#06090f; border:1px solid rgba(224,85,85,0.3); padding:10px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:'Space Mono',monospace; font-size:8px; letter-spacing:1.5px; color:#3a5070;">PHYSICS</div>
+            <sc-for list="{{ wheelOld }}" as="w" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:8px; border:1px solid {{ w.border }}; border-radius:8px; padding:6px 8px;">
+                <div style="width:20px; height:20px; border:1px solid {{ w.icon }}; border-radius:4px; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:6px; color:{{ w.icon }};">{{ w.label }}</div>
+                <div style="flex:1; font-family:'Space Mono',monospace; font-size:10px; color:#e8f0ff;">{{ w.label }}</div>
+                <div style="font-family:'Space Mono',monospace; font-size:8px; color:{{ w.border }};">&times;{{ w.n }}</div>
+              </div>
+            </sc-for>
+            <div style="font-family:'Space Mono',monospace; font-size:11px; line-height:1.6; color:#e05555;">amber #F0B429 on every Physics piece &middot; icon 20 pt &middot; label 10 pt &middot; count 8 pt</div>
+          </div>
+          <div style="width:180px; background:#06090f; border:1px solid rgba(0,196,140,0.3); padding:10px; display:flex; flex-direction:column; gap:8px;">
+            <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:1.5px; color:#7a96b0;">PHYSICS</div>
+            <sc-for list="{{ wheelNew }}" as="w" hint-placeholder-count="3">
+              <div style="display:flex; align-items:center; gap:8px; border:1px solid {{ w.border }}; border-radius:8px; padding:6px 8px;">
+                <div style="width:32px; height:32px; border:1.5px solid {{ w.icon }}; border-radius:7px; display:flex; align-items:center; justify-content:center; font-family:'Space Mono',monospace; font-size:8px; color:{{ w.icon }};">{{ w.label }}</div>
+                <div style="flex:1; font-family:'Space Mono',monospace; font-size:11px; color:#e8f0ff;">{{ w.label }}</div>
+                <div style="font-family:'Space Mono',monospace; font-size:11px; color:#7a96b0;">&times;{{ w.n }}</div>
+              </div>
+            </sc-for>
+            <div style="font-family:'Space Mono',monospace; font-size:11px; line-height:1.6; color:#00C48C;">category color matches the board &middot; icon 32 pt &middot; label and count at the 11 pt floor &middot; provenance not encoded</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ PANEL D ══ -->
+  <section id="D" style="max-width:1180px; margin:0 auto; padding-top:72px; display:flex; flex-direction:column; gap:24px;">
+    <div style="display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;">
+      <div style="font-family:'Space Mono',monospace; font-size:13px; letter-spacing:2px; color:#c87941;">D</div>
+      <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:22px; color:#e8f0ff;">Void state &mdash; G-08, G-09, G-10</div>
+    </div>
+    <div style="font-size:14.5px; line-height:1.65; color:#7a96b0; max-width:820px; text-wrap:pretty;">
+      Layout only. The COGS lines shown are the existing strings from
+      <span style="font-family:'Space Mono',monospace; font-size:13px;">VOID_QUOTES</span> and
+      <span style="font-family:'Space Mono',monospace; font-size:13px;">getBlownCellCOGSLine</span>; no new copy is proposed here and the
+      diagnostic slot is left empty on purpose &mdash; its wording needs sign-off.
+    </div>
+
+    <div style="display:flex; flex-wrap:wrap; gap:36px; align-items:flex-start;">
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#e05555;">SHIPPING &mdash; TWO LINES SPLIT THE ROW</div>
+        <div style="width:393px; height:420px; background:linear-gradient(rgba(30,5,5,0.94), rgba(15,2,2,0.98)); border:1px solid rgba(224,85,85,0.25); display:flex; flex-direction:column; align-items:center; padding:56px 32px 24px;">
+          <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:32px; letter-spacing:4px; color:#e05555;">VOID STATE</div>
+          <div style="font-family:'Exo 2',sans-serif; font-size:14px; color:#7a96b0; margin-top:8px; margin-bottom:20px;">Signal lost. Machine failed.</div>
+          <div style="display:flex; align-items:flex-start; gap:8px; width:100%;">
+            <div style="width:28px; height:28px; border-radius:50%; border:1px solid #e05555; flex:none;"></div>
+            <div style="flex:1; font-family:'Exo 2',sans-serif; font-size:12px; font-style:italic; line-height:18px; color:#7a96b0;">"The machine did not lock. Review your connections."</div>
+            <div style="flex:1; font-family:'Exo 2',sans-serif; font-size:12px; font-style:italic; line-height:18px; color:#7a96b0;">"Two cells are gone. Work around them."</div>
+          </div>
+          <div style="width:100%; display:flex; flex-direction:column; gap:8px; margin-top:24px;">
+            <div style="border:1px solid #e05555; border-radius:12px; padding:12px 0; text-align:center; font-family:Orbitron,sans-serif; font-size:10px; letter-spacing:1px; color:#e05555;">TRY AGAIN</div>
+            <div style="border:1px solid #f0b429; border-radius:12px; padding:12px 0; text-align:center; font-family:Orbitron,sans-serif; font-size:10px; letter-spacing:1px; color:#f0b429;">REPAIR CELLS (50 CR)</div>
+          </div>
+          <div style="margin-top:14px; font-family:'Space Mono',monospace; font-size:11px; color:#e05555;">37 pt targets &middot; 10 pt label at ~4.4:1 &middot; line rerolls every second</div>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#00C48C;">SPECIFIED &mdash; STACKED, WITH A DIAGNOSTIC SLOT</div>
+        <div style="width:393px; height:420px; background:linear-gradient(rgba(30,5,5,0.94), rgba(15,2,2,0.98)); border:1px solid rgba(0,196,140,0.3); display:flex; flex-direction:column; align-items:center; padding:44px 32px 24px;">
+          <div style="font-family:Orbitron,sans-serif; font-weight:700; font-size:32px; letter-spacing:4px; color:#e05555;">VOID STATE</div>
+          <div style="font-family:'Exo 2',sans-serif; font-size:14px; color:#7a96b0; margin-top:8px; margin-bottom:16px;">Signal lost. Machine failed.</div>
+          <div style="width:100%; border:1px dashed rgba(122,150,176,0.45); border-radius:8px; padding:10px 12px; margin-bottom:16px; display:flex; flex-direction:column; gap:4px;">
+            <div style="font-family:'Space Mono',monospace; font-size:11px; letter-spacing:2px; color:#7a96b0;">DIAGNOSTIC SLOT</div>
+            <div style="font-family:'Space Mono',monospace; font-size:11px; line-height:1.6; color:#7a96b0;">last piece reached, its cell, and the layer the traversal stopped on &mdash; wording pending sign-off</div>
+          </div>
+          <div style="display:flex; align-items:flex-start; gap:8px; width:100%;">
+            <div style="width:28px; height:28px; border-radius:50%; border:1px solid #e05555; flex:none;"></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:8px;">
+              <div style="font-family:'Exo 2',sans-serif; font-size:12px; font-style:italic; line-height:18px; color:#7a96b0;">"The machine did not lock. Review your connections."</div>
+              <div style="font-family:'Exo 2',sans-serif; font-size:12px; font-style:italic; line-height:18px; color:#7a96b0;">"Two cells are gone. Work around them."</div>
+            </div>
+          </div>
+          <div style="width:100%; display:flex; flex-direction:column; gap:8px; margin-top:20px;">
+            <div style="border:1px solid #e05555; border-radius:12px; padding:16px 0; text-align:center; font-family:Orbitron,sans-serif; font-size:11px; letter-spacing:1px; color:#e8f0ff;">TRY AGAIN</div>
+            <div style="border:1px solid #c87941; border-radius:12px; padding:16px 0; text-align:center; font-family:Orbitron,sans-serif; font-size:11px; letter-spacing:1px; color:#e8f0ff;">REPAIR CELLS (50 CR)</div>
+          </div>
+          <div style="margin-top:12px; font-family:'Space Mono',monospace; font-size:11px; color:#00C48C;">44 pt targets &middot; starWhite label &middot; line selected once, on entry</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div style="max-width:1180px; margin:64px auto 0; padding-top:24px; border-top:1px solid rgba(74,158,255,0.14); font-family:'Space Mono',monospace; font-size:11px; line-height:1.8; color:#7a96b0;">
+    Reference only. Not production code, not a React Native component, not to be ported into src/.
+    Findings and the changes they require live in GAMEPLAY_REVIEW.md.
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 1260, &quot;height&quot;: 1600}}">
+class Component extends DCLogic {
+  renderVals() {
+    const dotField = (cols, rows, cell) => {
+      const out = [];
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          out.push({ l: (x * cell + cell / 2 - 1.5) + 'px', t: (y * cell + cell / 2 - 1.5) + 'px' });
+        }
+      }
+      return out;
+    };
+
+    const BLUE = '#4a9eff', PURPLE = '#8B5CF6', AMBER = '#F0B429', TERM = '#00C48C';
+    const layout = [
+      { gx: 0, gy: 4, label: 'SRC', short: 'S', stroke: AMBER },
+      { gx: 1, gy: 4, label: 'CONV', short: 'CV', stroke: BLUE },
+      { gx: 2, gy: 4, label: 'GEAR', short: 'GR', stroke: BLUE },
+      { gx: 2, gy: 3, label: 'SCAN', short: 'SC', stroke: PURPLE },
+      { gx: 5, gy: 3, label: 'CFG', short: 'CF', stroke: PURPLE },
+      { gx: 8, gy: 3, label: 'CONV', short: 'CV', stroke: BLUE },
+      { gx: 10, gy: 3, label: 'XMIT', short: 'XM', stroke: PURPLE },
+      { gx: 11, gy: 6, label: 'TERM', short: 'TM', stroke: TERM },
+    ];
+    const place = (cell, inset, sizeKey) => layout.map(p => ({
+      ...p,
+      l: (p.gx * cell + inset) + 'px',
+      t: (p.gy * cell + inset) + 'px',
+    }));
+
+    const cellStyle = (border, bg, ink, v) => ({ border, bg, ink, v });
+
+    // Shipping tape row (A1-7, pulse index 2 active)
+    const inTapeVals = [1, 0, 1, 1, 0, 1];
+    const inOld = inTapeVals.map((v, i) => ({
+      v,
+      headOp: i === 2 ? 1 : 0,
+      border: i === 2 ? '#BFFF3F' : i < 2 ? 'rgba(139,92,246,0.3)' : '#0D1E30',
+      bg: i === 2 ? 'rgba(191,255,63,0.14)' : '#08101C',
+      ink: i === 2 ? '#BFFF3F' : i < 2 ? 'rgba(191,255,63,0.4)' : '#BFFF3F',
+    }));
+    const inNew = inTapeVals.map((v, i) => ({
+      v,
+      headOp: i === 2 ? 1 : 0,
+      border: i === 2 ? '#7FC8E8' : i < 2 ? 'rgba(127,200,232,0.3)' : '#0D1E30',
+      bg: i === 2 ? 'rgba(127,200,232,0.16)' : '#08101C',
+      ink: i === 2 ? '#7FC8E8' : i < 2 ? 'rgba(127,200,232,0.45)' : '#7FC8E8',
+    }));
+
+    const trailVals = ['1', '0', '·', '·', '·', '·'];
+    const trailOld = trailVals.map((v, i) => ({
+      v,
+      op: v === '·' ? 0.2 : 1,
+      border: i === 2 ? '#00FF87' : '#0D1E30',
+      bg: i === 2 ? 'rgba(0,255,135,0.08)' : '#08101C',
+    }));
+    const trailNew = trailVals.map((v, i) => ({
+      v,
+      op: v === '·' ? 0.25 : 1,
+      weight: i === 2 ? 700 : 400,
+      border: i === 2 ? '#A97FDB' : '#0D1E30',
+      bg: i === 2 ? 'rgba(169,127,219,0.14)' : '#08101C',
+    }));
+
+    const outVals = ['1', '_', '_', '_', '_', '_'];
+    const outCell = (v, i) => ({
+      v,
+      border: v === '_' ? '#0D1E30' : '#FF7D3F',
+      bg: v === '_' ? '#08101C' : 'rgba(255,125,63,0.18)',
+      ink: v === '_' ? '#00E5FF' : '#FFFFFF',
+    });
+    const outOld = outVals.map(outCell);
+    const outNew = outVals.map((v, i) => ({
+      v,
+      border: v === '_' ? '#0D1E30' : '#FF7D3F',
+      bg: v === '_' ? '#08101C' : 'rgba(255,125,63,0.18)',
+      ink: v === '_' ? '#7a96b0' : '#FFFFFF',
+    }));
+
+    return {
+      dots12: dotField(12, 9, 48),
+      dots12fit: dotField(12, 9, 29),
+      piecesWide: place(48, 2),
+      piecesFit: place(29, 2),
+      inOld, inNew, trailOld, trailNew, outOld, outNew,
+      trayItems: [
+        { label: 'CONV', count: 4, color: BLUE },
+        { label: 'GEAR', count: 3, color: BLUE },
+        { label: 'SPLIT', count: 1, color: BLUE },
+        { label: 'SCAN', count: 1, color: PURPLE },
+        { label: 'CFG', count: 2, color: PURPLE },
+      ],
+      wheelOld: [
+        { label: 'CONV', n: 4, border: '#F0B429', icon: '#F0B429' },
+        { label: 'GEAR', n: 3, border: '#00D4FF', icon: '#F0B429' },
+        { label: 'SPLIT', n: 1, border: '#F0B429', icon: '#F0B429' },
+      ],
+      wheelNew: [
+        { label: 'CONV', n: 4, border: 'rgba(74,158,255,0.35)', icon: BLUE },
+        { label: 'GEAR', n: 3, border: 'rgba(74,158,255,0.35)', icon: BLUE },
+        { label: 'SPLIT', n: 1, border: 'rgba(74,158,255,0.35)', icon: BLUE },
+      ],
+    };
+  }
+}
+
+</script>
+</body>
+</html>
