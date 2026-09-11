@@ -293,9 +293,7 @@ export function generatePuzzleFromTemplate(
     for (let i = have; i < (needed as number); i++) available.push(type as PieceType);
   }
 
-  // 8. Build LevelDefinition. isTapeLevel reflects what actually shipped, so
-  // downstream (COGS copy, Spec Sheet) describes the real puzzle.
-  const isTapeLevel = inputTape !== undefined && expectedOutput !== undefined;
+  // 8. Build LevelDefinition.
   const level: LevelDefinition = {
     id: `daily_${dateString}`,
     name: `${template.name} — Daily Bounty`,
@@ -310,9 +308,6 @@ export function generatePuzzleFromTemplate(
     objectives: [{ type: 'reach_output' }],
     optimalPieces: pattern.optimalPieceCount,
     budget,
-    scoringCategoriesVisible: isTapeLevel
-      ? ['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus']
-      : ['efficiency', 'chainIntegrity', 'disciplineBonus', 'speedBonus'],
     inputTape,
     expectedOutput,
   };

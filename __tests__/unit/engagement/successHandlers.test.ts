@@ -1,24 +1,26 @@
-jest.mock('../../../src/game/scoring', () => ({
-  calculateScore: jest.fn().mockReturnValue({
-    total: 75,
-    stars: 2,
-    breakdown: {
-      purchasedTouchedCount: 0,
-      forfeitedPurchasedCount: 0,
-      completionBonus: 25,
-      machineComplexity: 20,
-      protocolPrecision: 10,
-      pathIntegrity: 10,
-      speedBonus: 10,
-      elaboration: 0,
-      efficiency: 0,
-      chainIntegrity: 0,
-      disciplineBonus: 0,
-    },
-  }),
-  getCOGSScoreComment: jest.fn().mockReturnValue('Acceptable.'),
-  getTutorialCOGSComment: jest.fn().mockReturnValue('Tutorial comment.'),
-}));
+// REQ-62/34/37 (scoring-algorithm-v2.md, AXM-010): calculateScore and the
+// two COGS-comment functions are mocked (their own behavior is scoring.ts's
+// job, covered in scoring.test.ts); calculatePayout/defaultBaseReward/
+// TUTORIAL_FLAT_PAYOUT are left REAL via requireActual — they're pure,
+// dependency-free functions, and this file's job is verifying
+// successHandlers.ts wires the new credit-payout formula (REQ-34/37)
+// correctly, which requires exercising the real formula, not a mock of it.
+jest.mock('../../../src/game/scoring', () => {
+  const actual = jest.requireActual('../../../src/game/scoring');
+  return {
+    ...actual,
+    calculateScore: jest.fn().mockReturnValue({
+      total: 75,
+      stars: 2,
+      breakdown: {
+        completion: 25, pathIntegrity: 15, signalDepth: 10, investment: 9,
+        diversity: 8, discipline: 8, forfeitedPurchasedCount: 0,
+      },
+    }),
+    getCOGSScoreComment: jest.fn().mockReturnValue('Acceptable.'),
+    getTutorialCOGSComment: jest.fn().mockReturnValue('Tutorial comment.'),
+  };
+});
 
 jest.mock('../../../src/store/requisitionStore', () => ({
   useRequisitionStore: {
@@ -41,9 +43,13 @@ import { handleSuccess } from '../../../src/game/engagement/successHandlers';
 import type { SuccessParams } from '../../../src/game/engagement/successHandlers';
 import {
   calculateScore,
+  calculatePayout,
+  defaultBaseReward,
   getCOGSScoreComment,
   getTutorialCOGSComment,
+  TUTORIAL_FLAT_PAYOUT,
 } from '../../../src/game/scoring';
+import type { ScoreBreakdown } from '../../../src/game/scoring';
 import type { LevelDefinition } from '../../../src/game/types';
 
 jest.useFakeTimers();
@@ -69,13 +75,20 @@ function makeLevel(overrides: Partial<LevelDefinition> = {}): LevelDefinition {
   };
 }
 
+function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
+  return {
+    completion: 25, pathIntegrity: 15, signalDepth: 10, investment: 9,
+    diversity: 8, discipline: 8, forfeitedPurchasedCount: 0,
+    ...overrides,
+  };
+}
+
 function makeParams(overrides: Partial<SuccessParams> = {}): SuccessParams {
   return {
     steps: [],
     level: makeLevel(),
     pieces: [],
     discipline: 'field',
-    engageDurationMs: 5000,
     lockedElapsed: 10,
     levelSpent: 20,
     setScoreResult: jest.fn(),
@@ -117,10 +130,13 @@ describe('handleSuccess', () => {
         placedPieces: params.pieces,
         optimalPieces: params.level.optimalPieces,
         discipline: params.discipline,
-        engageDurationMs: params.engageDurationMs,
-        elapsedSeconds: params.lockedElapsed,
       }),
     );
+    // REQ-60: engageDurationMs/elapsedSeconds are gone — Speed Bonus no
+    // longer exists, so calculateScore no longer takes timing params.
+    const call = (calculateScore as jest.Mock).mock.calls[0][0];
+    expect(call).not.toHaveProperty('engageDurationMs');
+    expect(call).not.toHaveProperty('elapsedSeconds');
   });
 
   it('non-tutorial: setScoreResult called with calculateScore stars (not forced 3)', async () => {
@@ -184,111 +200,113 @@ describe('handleSuccess', () => {
     const promise = handleSuccess(params);
     await jest.runAllTimersAsync();
     await promise;
-    // One call for first-time bonus
+    // The first-time bonus (25 CR + 25 lives) is separate from the
+    // REQ-34 score-based payout — both fire on a first completion.
     expect(earnCredits).toHaveBeenCalledWith(25);
     expect(addLivesCredits).toHaveBeenCalledWith(25);
   });
 
-  it('stars=3 (mock override): earnCredits called with a positive number for star bonus', async () => {
-    (calculateScore as jest.Mock).mockReturnValueOnce({
-      total: 90,
-      stars: 3,
-      breakdown: {
-        purchasedTouchedCount: 0,
-        forfeitedPurchasedCount: 0,
-        completionBonus: 25,
-        machineComplexity: 30,
-        protocolPrecision: 20,
-        pathIntegrity: 15,
-        speedBonus: 10,
-        elaboration: 0,
-        efficiency: 0,
-        chainIntegrity: 0,
-        disciplineBonus: 0,
-      },
-    });
+  // ─── REQ-34/37: credit payout is now a function of score against
+  // level.baseReward (or defaultBaseReward when omitted), not a fraction
+  // of levelSpent gated on hitting exactly 2 or 3 stars.
+
+  it('non-tutorial: earnCredits called with calculatePayout(total, baseReward) exactly', async () => {
     const completeLevel = jest.fn().mockReturnValue(false);
     const earnCredits = jest.fn();
-    const params = makeParams({
-      completeLevel,
-      earnCredits,
-      levelSpent: 20,
-    });
+    const level = makeLevel({ sector: 'kepler', optimalPieces: 3 });
+    const params = makeParams({ level, completeLevel, earnCredits });
     const promise = handleSuccess(params);
     await jest.runAllTimersAsync();
     await promise;
-    expect(earnCredits).toHaveBeenCalledWith(expect.any(Number));
-    const amounts = (earnCredits as jest.Mock).mock.calls.map((c: [number]) => c[0]) as number[];
-    expect(amounts.some((a: number) => a > 0)).toBe(true);
+    // Default mock: total=75. level has no explicit baseReward -> defaultBaseReward.
+    const expectedPayout = calculatePayout(75, defaultBaseReward(level));
+    expect(earnCredits).toHaveBeenCalledWith(expectedPayout);
   });
 
-  it('stars=2 (default mock): earnCredits called with a positive number for star bonus', async () => {
+  it('an explicit level.baseReward is used instead of defaultBaseReward', async () => {
     const completeLevel = jest.fn().mockReturnValue(false);
     const earnCredits = jest.fn();
-    const params = makeParams({
-      completeLevel,
-      earnCredits,
-      levelSpent: 40,
-    });
+    const level = makeLevel({ sector: 'kepler', baseReward: 200 });
+    const params = makeParams({ level, completeLevel, earnCredits });
     const promise = handleSuccess(params);
     await jest.runAllTimersAsync();
     await promise;
-    const amounts = (earnCredits as jest.Mock).mock.calls.map((c: [number]) => c[0]) as number[];
-    expect(amounts.some((a: number) => a > 0)).toBe(true);
+    expect(earnCredits).toHaveBeenCalledWith(calculatePayout(75, 200));
+    expect(earnCredits).not.toHaveBeenCalledWith(calculatePayout(75, defaultBaseReward(level)));
   });
 
-  it('stars=0: earnCredits not called for star-based bonus (only first-time if applicable)', async () => {
+  it('a low score (stars=0) still pays out something — REQ-34 has no zero-below-2-stars gate', async () => {
     (calculateScore as jest.Mock).mockReturnValueOnce({
       total: 10,
       stars: 0,
-      breakdown: {
-        purchasedTouchedCount: 0,
-        forfeitedPurchasedCount: 0,
-        completionBonus: 0,
-        machineComplexity: 0,
-        protocolPrecision: 0,
-        pathIntegrity: 0,
-        speedBonus: 10,
-        elaboration: 0,
-        efficiency: 0,
-        chainIntegrity: 0,
-        disciplineBonus: 0,
-      },
+      breakdown: makeBreakdown({ completion: 0, pathIntegrity: 10 }),
     });
     const completeLevel = jest.fn().mockReturnValue(false);
     const earnCredits = jest.fn();
-    const params = makeParams({ completeLevel, earnCredits });
+    const level = makeLevel();
+    const params = makeParams({ level, completeLevel, earnCredits });
     const promise = handleSuccess(params);
     await jest.runAllTimersAsync();
     await promise;
-    expect(earnCredits).not.toHaveBeenCalled();
+    expect(earnCredits).toHaveBeenCalledWith(calculatePayout(10, defaultBaseReward(level)));
+    expect((earnCredits as jest.Mock).mock.calls[0][0]).toBeGreaterThan(0);
   });
 
-  it('stars=1: earnCredits not called for star-based bonus', async () => {
+  it('a perfect score (total=100) pays the full baseReward', async () => {
     (calculateScore as jest.Mock).mockReturnValueOnce({
-      total: 40,
-      stars: 1,
-      breakdown: {
-        purchasedTouchedCount: 0,
-        forfeitedPurchasedCount: 0,
-        completionBonus: 25,
-        machineComplexity: 0,
-        protocolPrecision: 0,
-        pathIntegrity: 0,
-        speedBonus: 10,
-        elaboration: 0,
-        efficiency: 0,
-        chainIntegrity: 0,
-        disciplineBonus: 0,
-      },
+      total: 100,
+      stars: 3,
+      breakdown: makeBreakdown(),
     });
     const completeLevel = jest.fn().mockReturnValue(false);
     const earnCredits = jest.fn();
-    const params = makeParams({ completeLevel, earnCredits });
+    const level = makeLevel({ baseReward: 100 });
+    const params = makeParams({ level, completeLevel, earnCredits });
     const promise = handleSuccess(params);
     await jest.runAllTimersAsync();
     await promise;
-    expect(earnCredits).not.toHaveBeenCalled();
+    expect(earnCredits).toHaveBeenCalledWith(100);
+  });
+
+  it('tutorial (axiom): earnCredits called with the flat TUTORIAL_FLAT_PAYOUT, ignoring score', async () => {
+    (calculateScore as jest.Mock).mockReturnValueOnce({
+      total: 15, // a low raw score — tutorial payout must not scale with it
+      stars: 0,
+      breakdown: makeBreakdown({ completion: 0 }),
+    });
+    const completeLevel = jest.fn().mockReturnValue(false);
+    const earnCredits = jest.fn();
+    const params = makeParams({
+      level: makeLevel({ sector: 'axiom', id: 'A1-1' }),
+      completeLevel,
+      earnCredits,
+    });
+    const promise = handleSuccess(params);
+    await jest.runAllTimersAsync();
+    await promise;
+    expect(earnCredits).toHaveBeenCalledWith(TUTORIAL_FLAT_PAYOUT);
+  });
+
+  it('elaborationMult reflects total/100 on a non-tutorial level (no >1 "bonus multiplier" concept remains)', async () => {
+    const setElaborationMult = jest.fn();
+    const params = makeParams({ setElaborationMult });
+    const promise = handleSuccess(params);
+    await jest.runAllTimersAsync();
+    await promise;
+    // Default mock total=75.
+    expect(setElaborationMult).toHaveBeenCalledWith(0.75);
+  });
+
+  it('elaborationMult is 1 on a tutorial level', async () => {
+    const setElaborationMult = jest.fn();
+    const params = makeParams({
+      level: makeLevel({ sector: 'axiom', id: 'A1-1' }),
+      setElaborationMult,
+    });
+    const promise = handleSuccess(params);
+    await jest.runAllTimersAsync();
+    await promise;
+    expect(setElaborationMult).toHaveBeenCalledWith(1);
   });
 
   it('calls triggerHints("onSuccess")', async () => {
@@ -351,32 +369,6 @@ describe('handleSuccess', () => {
     await jest.runAllTimersAsync();
     await promise;
     expect(setShowCompletionCard).toHaveBeenCalledWith(true);
-  });
-
-  it('elaboration multiplier is capped at 1.5 when many purchased pieces touched', async () => {
-    (calculateScore as jest.Mock).mockReturnValueOnce({
-      total: 90,
-      stars: 3,
-      breakdown: {
-        purchasedTouchedCount: 10,
-        completionBonus: 25,
-        machineComplexity: 30,
-        protocolPrecision: 20,
-        pathIntegrity: 15,
-        speedBonus: 10,
-        elaboration: 0,
-        efficiency: 0,
-        chainIntegrity: 0,
-        disciplineBonus: 0,
-      },
-    });
-    const setElaborationMult = jest.fn();
-    const params = makeParams({ setElaborationMult });
-    const promise = handleSuccess(params);
-    await jest.runAllTimersAsync();
-    await promise;
-    const mult = (setElaborationMult as jest.Mock).mock.calls[0][0] as number;
-    expect(mult).toBeLessThanOrEqual(1.5);
   });
 
   it('A1-8 first completion with sector count >= 8: shows completion scene, navigates to Tabs, returns true', async () => {

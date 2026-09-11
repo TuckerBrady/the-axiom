@@ -15,7 +15,7 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 import CogsAvatar from '../CogsAvatar';
 import { Button } from '../Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
-import type { LevelDefinition, ScoringCategory } from '../../game/types';
+import type { LevelDefinition } from '../../game/types';
 import { BLANK } from '../../game/types';
 import type { ScoreResult } from '../../game/scoring';
 import type { Discipline } from '../../store/playerStore';
@@ -272,24 +272,27 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             <Text style={styles.resultsTitle}>CIRCUIT COMPLETE</Text>
             <Text style={styles.resultsLevel}>{level.name}</Text>
 
-            {/* Score breakdown strip — progressive reveal */}
+            {/* Score breakdown strip (REQ-62, scoring-algorithm-v2.md /
+                AXM-010): all six v2 categories, unconditionally — under v1,
+                categories were curated per level (scoringCategoriesVisible,
+                now removed) because some genuinely didn't apply (e.g. no
+                Protocol pieces on the level). Under v2 every category is
+                always structurally meaningful — even 0 Investment or 0
+                Diversity is real information about the run — so there's no
+                per-level curation left to do. */}
             {scoreResult && (() => {
-              const visible = level.scoringCategoriesVisible ?? ['efficiency'];
-              const allCats: [ScoringCategory, string, number, number][] = [
-                ['efficiency', 'EFFICIENCY', scoreResult.breakdown.efficiency, 30],
-                ['protocolPrecision', 'PROTOCOL', scoreResult.breakdown.protocolPrecision, 25],
-                ['chainIntegrity', 'INTEGRITY', scoreResult.breakdown.chainIntegrity, 20],
-                ['disciplineBonus', 'DISCIPLINE', scoreResult.breakdown.disciplineBonus, 15],
-                ['speedBonus', 'SPEED', scoreResult.breakdown.speedBonus, 10],
-                ['elaboration', 'ELABORATION', scoreResult.breakdown.elaboration, 15],
+              const b = scoreResult.breakdown;
+              const cats: [string, number, number][] = [
+                ['COMPLETION', b.completion, 25],
+                ['PATH', b.pathIntegrity, 15],
+                ['DEPTH', b.signalDepth, 14],
+                ['INVESTMENT', b.investment, 25],
+                ['DIVERSITY', b.diversity, 11],
+                ['DISCIPLINE', b.discipline, 10],
               ];
-              const shown = allCats.filter(([cat, , val]) => {
-                if (cat === 'elaboration') return val > 0 && level.sector !== 'axiom';
-                return visible.includes(cat);
-              });
               return (
                 <View style={styles.scoreStrip}>
-                  {shown.map(([, label, val, max]) => (
+                  {cats.map(([label, val, max]) => (
                     <View key={label} style={styles.scoreCell}>
                       <Text style={[
                         styles.scoreCellVal,

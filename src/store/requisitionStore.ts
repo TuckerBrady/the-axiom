@@ -78,7 +78,7 @@ interface RequisitionStoreState {
 
   // Computed selectors (exposed as methods for simplicity)
   getUnplacedPieces: () => InventoryPiece[];
-  getPurchasedTapeTypes: () => string[];
+  getPurchasedTapeTypes: () => TapeType[];
   getTotalSpend: () => number;
   getBudgetRemaining: () => number;
   canAffordMore: (unitPrice: number) => boolean;
@@ -314,7 +314,7 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   getPurchasedTapeTypes: () => {
     const { requisition, inventory } = get();
-    const result: string[] = [];
+    const result: TapeType[] = [];
     if (requisition.purchases.some(p => p.type === 'TRAIL_TAPE' && p.quantity > 0) && inventory.tapes.trail) {
       result.push('TRAIL');
     }

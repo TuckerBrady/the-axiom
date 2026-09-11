@@ -821,7 +821,6 @@ export default function GameplayScreen({ navigation }: Props) {
     beam.safetyTimersRef.current = [];
     // Stop the elapsed timer at the moment ENGAGE is pressed (lock state).
     const lockedElapsed = lockTimer();
-    const engageStartTime = Date.now();
     const steps = engage();
 
     // Determine pulse boundaries by counting source-typed steps. Each
@@ -1217,13 +1216,11 @@ export default function GameplayScreen({ navigation }: Props) {
 
     const succeeded = !wrongOutput && metPulseRequirement && topoGate.met;
     if (succeeded) {
-      const engageDurationMs = Date.now() - engageStartTime;
       const routed = await handleSuccess({
         steps,
         level,
         pieces: machineState.pieces,
         discipline,
-        engageDurationMs,
         lockedElapsed,
         levelSpent,
         purchasedTapeTypes: isAxiomLevel ? [] : useRequisitionStore.getState().getPurchasedTapeTypes(),

@@ -369,24 +369,13 @@ describe('handleVoidFailure', () => {
 function makeBreakdown(overrides: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
   // v2 defaults: 3 purchased-active pieces → investment=9, diversity>0, discipline=10
   return {
-    // v2 canonical
     completion: 25,
     pathIntegrity: 10,
     signalDepth: 4,
     investment: 9,
     diversity: 5,
     discipline: 10,
-    // v1 compat aliases
-    completionBonus: 25,
-    machineComplexity: 9,
-    protocolPrecision: 5,
-    speedBonus: 0,
-    elaboration: 4,
-    purchasedTouchedCount: 3,
     forfeitedPurchasedCount: 0,
-    efficiency: 25,
-    chainIntegrity: 10,
-    disciplineBonus: 10,
     ...overrides,
   };
 }
@@ -432,7 +421,7 @@ describe('getConsequenceFailureLine', () => {
 describe('getCOGSScoreComment additional branches', () => {
   it('returns full-machine line when stars=3 and investment >= 12', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ investment: 12, machineComplexity: 12 }),
+      makeBreakdown({ investment: 12 }),
       'systems', 3, 4, 4,
     );
     expect(comment).toContain('Full machine');
@@ -440,7 +429,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns protocol-avoided line when diversity is 0 and investment >= 6', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ diversity: 0, protocolPrecision: 0, investment: 8, machineComplexity: 8 }),
+      makeBreakdown({ diversity: 0, investment: 8 }),
       'drive', 2, 4, 4,
     );
     expect(comment).toContain('Protocol catalogue');
@@ -448,7 +437,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns path-integrity line when pathIntegrity < 8 and investment >= 6 and diversity > 0', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ pathIntegrity: 5, chainIntegrity: 5 }),
+      makeBreakdown({ pathIntegrity: 5 }),
       'field', 2, 4, 4,
     );
     expect(comment).toContain('never saw the signal');
@@ -464,7 +453,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns stars-3 fallback when stars=3 but investment < 12', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ investment: 9, machineComplexity: 9 }),
+      makeBreakdown({ investment: 9 }),
       'systems', 3, 4, 4,
     );
     expect(comment).toContain('Optimal');
@@ -472,7 +461,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns stars-2 fallback for stars=2', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ investment: 9, machineComplexity: 9 }),
+      makeBreakdown({ investment: 9 }),
       'systems', 2, 4, 4,
     );
     expect(comment).toContain('Functional');
@@ -480,7 +469,7 @@ describe('getCOGSScoreComment additional branches', () => {
 
   it('returns stars-1 fallback for stars=1', () => {
     const comment = getCOGSScoreComment(
-      makeBreakdown({ investment: 9, machineComplexity: 9 }),
+      makeBreakdown({ investment: 9 }),
       'systems', 1, 4, 4,
     );
     expect(comment).toContain('barely worked');
@@ -488,10 +477,19 @@ describe('getCOGSScoreComment additional branches', () => {
 });
 
 describe('calculateScore starsFromTotal branches', () => {
-  it('returns stars=1 when total is exactly 30', () => {
-    // v2: succeeded=true, 1 player piece NOT in signal path.
-    // completion=25, pathIntegrity=0 (piece untouched), signalDepth=0,
-    // investment=0, diversity=0, discipline=5 → total=30 → stars=1.
+  // Exact-boundary tests for REQ-67 (29->void, 30->1star, ...) live in
+  // scoring.test.ts, constructed directly against the category formulas.
+  // These two exercise calculateScore's end-to-end wiring on simple,
+  // hand-verifiable inputs — not boundary-precise by design, since with
+  // zero active player pieces every gated/active-derived category (path
+  // integrity, signal depth, investment, diversity, discipline) is
+  // necessarily 0 or its floor value, not a value chosen to land on 30.
+  it('a placed-but-untouched piece scores only Completion — dead weight earns nothing else', () => {
+    // succeeded=true, 1 player piece NOT in the signal path.
+    // completion=25, pathIntegrity=round(0/1*15)=0 (piece untouched),
+    // signalDepth=0 (gated, 0 purchased-active), investment=0,
+    // diversity=0 (gated), discipline=0 (0 active Physics/Protocol of any
+    // kind, so raw=0 regardless of the 0.5 floor-solve gate) -> total=25.
     const piece = {
       id: 'c1', type: 'conveyor' as const, category: 'physics' as const,
       gridX: 0, gridY: 0, ports: [], rotation: 0, isPrePlaced: false,
@@ -504,27 +502,25 @@ describe('calculateScore starsFromTotal branches', () => {
       placedPieces: [piece],
       optimalPieces: 1,
       discipline: 'field',
-      engageDurationMs: 1000,
       succeeded: true,
     });
-    expect(result.total).toBe(30);
-    expect(result.stars).toBe(1);
+    expect(result.total).toBe(25);
+    expect(result.stars).toBe(0);
   });
 
-  it('returns stars=0 when total is below 30 (failed, no pieces)', () => {
-    // v2: succeeded=false, no player pieces.
-    // completion=0, pathIntegrity=15 (no pieces), signalDepth=0,
-    // investment=0, diversity=0, discipline=5 → total=20 → stars=0.
+  it('returns stars=0 for a failed run with no player pieces (Path Integrity floor only)', () => {
+    // succeeded=false, no player pieces.
+    // completion=0, pathIntegrity=15 (vacuous — no pieces means no dead
+    // weight), signalDepth=0, investment=0, diversity=0, discipline=0
+    // (0 active pieces of any category) -> total=15.
     const result = calculateScore({
       executionSteps: [],
       placedPieces: [],
       optimalPieces: 1,
       discipline: 'field',
-      engageDurationMs: 100000,
-      elapsedSeconds: 100,
       succeeded: false,
     });
-    expect(result.total).toBe(20);
+    expect(result.total).toBe(15);
     expect(result.stars).toBe(0);
   });
 
@@ -551,7 +547,6 @@ describe('calculateScore starsFromTotal branches', () => {
       trayPieceTypes: ['conveyor', 'gear'],
       depthCeiling: 8,
       discipline: 'systems',
-      engageDurationMs: 1000,
       succeeded: true,
     });
     expect(result.total).toBeGreaterThanOrEqual(55);
