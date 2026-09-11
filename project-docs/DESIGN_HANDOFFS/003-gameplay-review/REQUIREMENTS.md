@@ -16,8 +16,9 @@ observed-behavior detail behind each `G-NN` reference, then
 
 Requirements are `REQ-G-NN`, grouped into four waves. Each carries **what
 changes**, **acceptance criteria** (verifiable, not descriptive), and its
-source finding. Anything marked **BLOCKED** must not be started until the
-named decision lands — implementing it early means implementing it twice.
+source finding. All Wave 0 decisions were resolved on 2026-09-10, so nothing
+here is blocked — the resolutions are recorded in Wave 0 and in the index at
+the end.
 
 Waves are dependency-ordered, not effort-ordered. Wave 0 decisions gate
 Wave 2.
@@ -35,10 +36,25 @@ Canonical test viewport: **390 × 844** (`TRIBAL_KNOWLEDGE.md`). Arithmetic in
 
 ---
 
-## WAVE 0 — Decisions (no code)
+## WAVE 0 — Decisions — ALL RESOLVED 2026-09-10
 
-Three questions block eight requirements. None need new design work; two are
-picking between documents that disagree.
+**Resolved in `DECISIONS.md` (Tucker, 2026-09-10). Waves 1–3 may all
+proceed.** The original statements are kept below for traceability, each with
+its resolution.
+
+**Three further decisions, 2026-09-10:**
+
+- **DEC-4 — cyan mirrors amber.** `#00D4FF` is valid Protocol static identity
+  just as amber is valid Physics static identity. Withdraws the color half of
+  REQ-G-03 entirely.
+- **DEC-5 — engine before requisition UI.** REQ-G-17 waits on ENG-001 so the
+  panel never teaches a constraint the engine does not enforce.
+- **DEC-6 — Kepler caps at 8 columns.** The widest grid holding a 48 pt cell at
+  390 pt. Ten grids need re-floor-solving, tracked as LD-001. Height is
+  unconstrained.
+
+**Wave 1 is cleared to start immediately** — seven self-contained fixes, no
+design or engine dependency.
 
 ### DEC-1 — Scoring model
 `scoring.ts` scores Efficiency (30 pts, fewer pieces is better) and Speed
@@ -48,10 +64,19 @@ Investment (25 pts), and **deletes Speed Bonus** — its stated reason being tha
 speed rewards rushing. `COMPUTATIONAL_MODEL.md` and `TRIBAL_KNOWLEDGE.md`
 agree with v2. Three documents, three systems; the shipped one matches none.
 
-**Ratify v2, or amend the soul statement.** v2 is still marked PROPOSED and
-carries six open questions in its own spec — those need answers too.
+**RESOLVED — v2 ratified.** `scoring-algorithm-v2.md` supersedes
+`CLAUDE_CONTEXT.md` and `src/game/scoring.ts`; status PROPOSED → ratified.
+All six of its open questions accepted as proposed: Speed Bonus removed
+entirely (COGS may still comment on time as color, with no score effect),
+tape prices 40 CR, Investment 3 pts per purchased active piece (17 cap from
+pieces, +8 from tape use, 25 hard cap), `depthCeiling` default
+`floorSolvePieces * 2` with per-level override, discipline thresholds as
+proposed. Item 6 — the COGS scoring-language rewrite — is delivered as
+handoff `004-scoring-language/`.
 
-Blocks: REQ-G-12, REQ-G-16, REQ-G-17.
+**Unblocks REQ-G-12, REQ-G-16, REQ-G-17.** Note that ratification also makes
+the scoring engine itself a work item: `scoring.ts` implements the superseded
+model. That is a systems task, outside this bundle's presentation scope.
 
 ### DEC-2 — Amber
 `CLAUDE_CONTEXT.md` lists `Source visual: amber #F0B429` as locked.
@@ -59,18 +84,27 @@ Blocks: REQ-G-12, REQ-G-16, REQ-G-17.
 color. Request 001's D-03 reserves amber for the Physics beam. The first two
 cannot coexist with the third.
 
-Recommended: keep Source amber (it is the signal's origin, and the charge glow
-reads as continuous with it), and drop D-03's claim to exclusivity for static
-piece identity — but this is your call, not mine to take.
+**RESOLVED — Source keeps amber; D-03's exclusivity is dropped.** Physics
+static identity may also use amber. `CLAUDE_CONTEXT.md` and
+`TRIBAL_KNOWLEDGE.md` §3 stand.
 
-Blocks: REQ-G-03, and the charge-color half of REQ-G-05.
+**Consequence for REQ-G-03:** the finding narrows sharply. Amber-on-Physics is
+no longer a violation, so `TAB_COLORS.PHYSICS`, `SECTION_ACCENT.SHALL`,
+`dragHoverCellValid` and the Source may all stay amber. What survives is only
+what other docs settle: the `getPieceColor` code/comment contradiction and
+the `SOURCE_COLORS` provenance encoding. Cyan (`#00D4FF`) as static chrome is
+untouched by this decision and still wants review — D-03 covered both hues and
+only amber was litigated.
+
+**Unblocks REQ-G-03 and the charge-color half of REQ-G-05.**
 
 ### DEC-3 — Void dialogue matrix
 `DIALOGUE_SYSTEM.md` already contains an authored void `resultsLine` for every
-discipline × behavior × phase combination, plus hub follow-ups, awaiting
-sign-off. No writing is required — approve it and REQ-G-08 becomes wiring.
+discipline × behavior × phase combination, plus hub follow-ups.
 
-Blocks: REQ-G-08 (part 2 only; part 1 ships regardless).
+**RESOLVED — approved as authored.** No new copy required. Handoff 004's
+scoring-language pass covers that file's scoring sections only, not the void
+matrix. **Unblocks REQ-G-08 parts 2 and 3.**
 
 ---
 
@@ -81,7 +115,8 @@ design input needed; ship in any order.
 
 ### REQ-G-04 — Tape colors to their locked values
 **Source:** G-04 · **Files:** `tokens.ts`, `TapeCell.tsx`,
-`TapeBarShell.tsx`, `SpecSheetPanel.tsx`, `GameplayScreen.tsx`
+`TapeBarShell.tsx`, `SpecSheetPanel.tsx`, `GameplayScreen.tsx`,
+`CodexDetailView.tsx` (added 2026-09-10)
 
 `TRIBAL_KNOWLEDGE.md` §3 locks all three: IN = Ice Blue `#7FC8E8`,
 TRAIL = Atomic Purple `#A97FDB`, OUT = Fire Orange `#FF7D3F`. Shipped code has
@@ -98,10 +133,17 @@ TRAIL = Atomic Purple `#A97FDB`, OUT = Fire Orange `#FF7D3F`. Shipped code has
    is one purple event and a Transmitter write is one orange event. It is one
    persistent host taking color from props — style change only, no remount.
 
-**Acceptance:** no file under `src/components/gameplay/` or
-`src/screens/GameplayScreen.tsx` contains a tape hex literal. At the moment a
-Scanner fires, the tape region shows exactly two hues: the layer's color and
-the ink.
+6. `CodexDetailView.getCodexPieceColor` returns `'#BFFF3F'` for `inputTape`,
+   commented `IN — neon green` — the same locked-value violation in a second
+   file, on the Codex entry the player is taught the tape from. Fix to the
+   locked IN color and delete the literal. Note `CODEX_PIECES` is a manual
+   duplicate of `CodexScreen`'s data ("kept in sync manually"), which is how
+   this drift survives a fix in one file; check both.
+
+**Acceptance:** no file under `src/components/gameplay/`,
+`src/screens/GameplayScreen.tsx`, or `CodexDetailView.tsx` contains a tape hex
+literal. At the moment a Scanner fires, the tape region shows exactly two
+hues: the layer's color and the ink.
 
 ### REQ-G-01 — Remove the `MIN_CELL` clamp
 **Source:** G-01 (amended) · **Files:** `GameplayScreen.tsx`, `BoardPiece.tsx`
@@ -122,12 +164,47 @@ into at all.
 `numColumns * CELL_SIZE <= canvasLayout.w - CANVAS_PAD * 2`. On K1-10, a piece
 can be placed in column 0 and column 11.
 
-**Referred out, not solved here:** at 12 columns on 390 pt the cell is 29 pt
-and the icon lands at 15 pt, under the 22 pt catchability floor.
-`LEVEL_DESIGN_FRAMEWORK.md`'s own quality checklist requires "board size is
-minimum necessary for correct solution," so 9-plus-column grids are a
-level-design item. Pan/zoom is not supported by any design doc and is
-withdrawn. **Do not add a viewport interaction to work around this.**
+**RESOLVED 2026-09-10 (DEC-6) — Kepler caps at 8 columns.** Removing the
+clamp stops the clipping, but legibility still needs the grids themselves to
+change: at 12 columns on 390 pt the cell is 29 pt and the icon lands at 15 pt,
+under the 22 pt catchability floor. 8 columns is the widest grid that holds a
+48 pt cell at 390 pt, which keeps icons at spec.
+
+Ten of eleven Kepler grids exceed the cap and need re-floor-solving. That is
+level-design work, tracked as **LD-001** below, not part of this requirement.
+Pan/zoom is not supported by any design doc and is withdrawn — **do not add a
+viewport interaction to work around this.**
+
+### LD-001 — Re-floor-solve the ten over-wide Kepler grids
+**Owner:** level design, not this bundle · **Gated by:** DEC-6
+
+`levels.ts` declares Kepler grids of 8, 9, 10, 10, 10, 11, 10, 11, 11, 12 and
+9 columns. Every grid above 8 needs its width reduced and its floor solve
+re-derived so the level still teaches its concept at the narrower size.
+`LEVEL_DESIGN_FRAMEWORK.md`'s quality checklist already requires "board size is
+minimum necessary for correct solution," so this is bringing ten levels into
+compliance with an existing standard, not applying a new one.
+
+Height is unconstrained by DEC-6 — a level that genuinely needs more room can
+grow in rows. Note that `CELL_SIZE` takes the `min()` of the width and height
+fits, so tall grids trade cell size the same way wide ones do; the 44 pt
+practical floor applies to both axes.
+
+**Acceptance:** no grid in `levels.ts` exceeds 8 columns; every affected level
+still passes its own checklist entry for minimum-necessary board size.
+
+### ENG-001 — Implement scoring v2
+**Owner:** systems, not this bundle · **Gated by:** DEC-1 · **Gates:** REQ-G-17
+
+DEC-1 ratified `scoring-algorithm-v2.md`, which makes `src/game/scoring.ts` an
+implementation of a superseded model. Until it ships, the engine contradicts
+both the ratified spec and the COGS dialogue in handoff 004. Six categories,
+Speed Bonus removed entirely, Investment at 3 pts per purchased active piece
+(17 from pieces, +8 from tape use, 25 hard cap), `depthCeiling` defaulting to
+`floorSolvePieces * 2` with per-level override.
+
+Recorded here because it gates a requirement in this bundle, not because this
+bundle owns it.
 
 ### REQ-G-07 — Wire colors follow static identity, not beam colors
 **Source:** G-07 · **File:** `WireOverlay.tsx`
@@ -148,7 +225,7 @@ render rule.
 ### REQ-G-08 — Void failure: select once, then wire the authored matrix
 **Source:** G-08 · **Files:** `GameplayModals.tsx`, `useGameplayFailure.ts`
 
-Part 1 ships now. Part 2 is **BLOCKED on DEC-3.**
+DEC-3 resolved — the matrix is approved as authored. All three parts proceed.
 
 1. **Now:** `VOID_QUOTES[Math.floor(Math.random() * …)]` is called in the
    render path, and `GameplayModals` re-renders every second from its
@@ -156,9 +233,9 @@ Part 1 ships now. Part 2 is **BLOCKED on DEC-3.**
    the index once when the void state is entered, store it in
    `useGameplayFailure` alongside `failCount`, pass it in as a prop.
    `Math.random()` must not appear in any render path.
-2. **BLOCKED (DEC-3):** replace the five-item array with the
+2. Replace the five-item array with the
    `DIALOGUE_SYSTEM.md` void matrix, selected on discipline × behavior × phase.
-3. **BLOCKED (DEC-3):** add the board-state diagnostic above the COGS quote,
+3. Add the board-state diagnostic above the COGS quote,
    in the slot `INSUFFICIENT PULSES` uses for `insufficientSubtext`. It needs
    `lastStep.pieceId`, its `type`, `gridX/gridY`, and the layer the traversal
    stopped on. The other four failure modals all carry a specific diagnostic;
@@ -215,7 +292,9 @@ Where the build works as coded but not as designed.
 ### REQ-G-05 — The beam carries its layer's color
 **Source:** G-05 · **File:** `BeamOverlay.tsx`, `GameplayScreen.handleEngage`
 
-Charge color is **BLOCKED on DEC-2**; items 2 and 3 ship regardless.
+DEC-2 resolved — Source stays amber, so item 1 is now unblocked. Per
+SE-BEAM-081 the charge ring still derives from the first post-Source
+*category*; amber for Physics is now consistent rather than contested.
 
 Three spec-fails against `SPEC_BEAM_ANIMATION.md`: both charge rings are
 hardcoded `#8B5CF6` (the Protocol *body* stroke — neither beam color, so an
@@ -225,7 +304,7 @@ crossfade at a category boundary. Worse, the travelling front is white
 (`Circle r=3.5 fill="white"`) over a 0.25-opacity halo, so the layer change
 SE-BEAM-082 exists to communicate is the least visible part of the animation.
 
-1. **BLOCKED (DEC-2):** derive a `chargeColor` prop from the first
+1. Derive a `chargeColor` prop from the first
    post-Source step's `category` and use it for both charge rings and the
    source flash, replacing both hardcoded literals. Per SE-BEAM-081 that is
    `#F0B429` / `#00D4FF`; DEC-2 confirms whether amber stays.
@@ -267,8 +346,8 @@ test asserts both style hosts stay mounted while `isExecuting` is true.
 
 ### REQ-G-16 — Machine heartbeat (haptics)
 **Source:** `INTENT_VS_BUILD.md` §3 · **Spec:** `audio-haptics.md`
-**BLOCKED on DEC-1** only insofar as the timer's fate affects run pacing;
-the haptic work itself can start immediately.
+DEC-1 resolved — Speed Bonus is deleted, so there is no scored timer for the
+heartbeat to compete with. Proceed.
 
 Specced and unbuilt. One of the game's two stated signature moments — the
 signal reaching Terminal and locking — currently lands silent and untouched.
@@ -281,7 +360,12 @@ signal reaching Terminal and locking — currently lands silent and untouched.
 light taps and one medium, with no haptic before the beam leaves Source.
 
 ### REQ-G-17 — Requisition reads as a real constraint
-**Source:** G-12 · **File:** `RequisitionPanel.tsx` · **BLOCKED on DEC-1**
+**Source:** G-12 · **File:** `RequisitionPanel.tsx`
+**SEQUENCED (DEC-5): do not start until the scoring engine ships v2.** The
+requirement's premise is v2's one-star ceiling on a floor solve. `scoring.ts`
+still implements Efficiency 30 + Speed Bonus 10, so building this first would
+have the panel teaching a constraint the game does not yet enforce. Engine
+first, then this.
 
 Purchases happen once, before the level, and under v2 a floor solve caps at 45
 points — one star. The panel currently shows ~5 rows out of a `maxHeight: 240`
@@ -303,10 +387,10 @@ indicator and a count are visible and the sixth row is discoverable without a
 blind drag. Snapshots at 375 / 390 / 430 pt.
 
 ### REQ-G-03 — Static identity stops borrowing beam colors
-**Source:** G-03 (amended) · **BLOCKED on DEC-2** for the Source and
-Physics-identity questions
-
-Two sub-findings are settled by other docs and ship regardless of DEC-2:
+**Source:** G-03 (amended) · DEC-2 resolved — **most of this requirement is
+withdrawn.** Source keeps amber and Physics static identity may use it, so
+`TAB_COLORS.PHYSICS`, `SECTION_ACCENT.SHALL` and `dragHoverCellValid` stay as
+shipped. Two sub-findings survive, both settled by other docs:
 
 1. `ArcWheel.getPieceColor` returns `#F0B429` for every non-Protocol piece
    while its own adjacent comment states it returns "the canonical blue (NOT
@@ -318,8 +402,18 @@ Two sub-findings are settled by other docs and ship regardless of DEC-2:
    purchased pieces appear **identically** to pre-assigned ones. Collapse to
    one neutral border; do not encode provenance at all.
 
-Held for DEC-2: `RequisitionPanel.TAB_COLORS`, `SpecSheetPanel.SECTION_ACCENT`,
-`dragHoverCellValid`, and the Source's static color.
+Withdrawn by DEC-2: `RequisitionPanel.TAB_COLORS`,
+`SpecSheetPanel.SECTION_ACCENT`, `dragHoverCellValid`, and the Source's static
+color — all keep amber.
+
+**RESOLVED 2026-09-10 (DEC-4) — cyan mirrors amber.** `#00D4FF` is valid
+Protocol static identity, exactly as amber is valid Physics static identity.
+`TAB_COLORS.PROTOCOL` and `SECTION_ACCENT.WILL` stay as shipped. The color
+half of this requirement is now **fully withdrawn**; what remains is only the
+`getPieceColor` code/comment contradiction and the `SOURCE_COLORS` provenance
+encoding, and the latter is a `COMPUTATIONAL_MODEL.md` Option B violation
+rather than a color one — collapse the two entries to a single neutral border
+regardless of hue.
 
 **Acceptance (1 and 2):** `ArcWheel` node borders are identical for a
 pre-assigned and a requisitioned piece of the same type; no `#00D4FF` in
@@ -433,19 +527,23 @@ full-width and stacked.
 
 ---
 
-## Design work I owe you
+## Design work I owe you — CORRECTED 2026-09-10
 
-Two playtest specs are blocked on design, not development
-(`SKEPTIC_PLAYTEST_2026-06-09.md`):
+Both items I offered here were **already delivered** before I offered them; I
+read the June playtest report's blockers without checking whether they had
+since been cleared. See `004-scoring-language/README.md` for the evidence.
 
-- **SPEC-02 / UX-01** — exact pixel anchors for the two-position COGS dialogue
-  card. Explicitly blocked on design; still undefined.
-- **CONTENT-01** — Codex entry format for IN / TRAIL / OUT. The three tape
-  elements are the only game objects with no Codex entry, so they never get the
-  "???" → entry → UNDERSTOOD discovery beat every piece gets — on a stated
-  signature moment.
+- **SPEC-02 / UX-01** — specified in full by
+  `project-docs/BRIEFS/BRIEF_UX01_DIALOGUE_CARD_ANCHORS.md` (2026-06-09):
+  both anchors, the branch rule, the centering formula, lines to delete,
+  acceptance criteria. Unimplemented, not unspecified — **route to dev.**
+- **CONTENT-01** — tape Codex entries were designed, approved 2026-06-12, and
+  built: a `Stream` entry type, `DATA STREAM` badge, `TapeGlyph`,
+  `TapeFieldStrip`, and discovery wired at A1-5 and A1-7. **Close it.**
 
-Say the word and I will deliver both as a 004 handoff.
+What I do owe: the COGS scoring-language rewrite from DEC-1 item 6, delivered
+as `004-scoring-language/`. It needs one decision from Tucker — the Field
+Operative discipline is currently defined by the metric v2 deletes.
 
 ---
 
@@ -465,23 +563,23 @@ a React Native component and must not be ported into `src/`.
 
 ## Requirement index
 
-| ID | Wave | Blocked by | Files |
+| ID | Wave | Status / blocked by | Files |
 |---|---|---|---|
-| DEC-1 scoring | 0 | — | decision |
-| DEC-2 amber | 0 | — | decision |
-| DEC-3 void matrix | 0 | — | decision |
-| REQ-G-04 tape colors | 1 | — | tokens, TapeCell, TapeBarShell, SpecSheet, GameplayScreen |
+| DEC-1 scoring | 0 | RESOLVED — v2 ratified | — |
+| DEC-2 amber | 0 | RESOLVED — Source keeps amber | — |
+| DEC-3 void matrix | 0 | RESOLVED — approved as authored | — |
+| REQ-G-04 tape colors | 1 | clear | tokens, TapeCell, TapeBarShell, SpecSheet, GameplayScreen, CodexDetailView |
 | REQ-G-01 MIN_CELL | 1 | — | GameplayScreen, BoardPiece |
 | REQ-G-07 wire colors | 1 | — | WireOverlay |
-| REQ-G-08 void reroll | 1 | pt 2–3: DEC-3 | GameplayModals, useGameplayFailure |
+| REQ-G-08 void reroll | 1 | clear | GameplayModals, useGameplayFailure |
 | REQ-G-14 dot grid | 1 | — | GameplayScreen |
 | REQ-G-15 scar tokens | 1 | — | GameplayScreen |
 | REQ-G-11 dead styles | 1 | — | GameplayScreen |
-| REQ-G-05 beam color | 2 | pt 1: DEC-2 | BeamOverlay, GameplayScreen |
+| REQ-G-05 beam color | 2 | clear | BeamOverlay, GameplayScreen |
 | REQ-G-02 layout jump | 2 | — | GameplayScreen, HUDChrome |
 | REQ-G-16 haptics | 2 | — | new — per audio-haptics.md |
-| REQ-G-17 requisition | 2 | DEC-1 | RequisitionPanel |
-| REQ-G-03 static identity | 2 | partial: DEC-2 | ArcWheel, RequisitionPanel, SpecSheet, GameplayScreen |
+| REQ-G-17 requisition | 2 | **after ENG-001** | RequisitionPanel |
+| REQ-G-03 static identity | 2 | color half withdrawn by DEC-2/4 | ArcWheel |
 | REQ-G-10 type floor | 3 | — | 7 files |
 | REQ-G-13 wheel legibility | 3 | — | ArcWheel |
 | REQ-G-18 wheel quick-jump | 3 | — | ArcWheel |

@@ -108,10 +108,13 @@ src/hooks/useGameplayFailure.ts               G-08
 src/theme/tokens.ts                           G-04
 ```
 
-## Decisions needed before implementation starts
+## Decisions — ALL RESOLVED 2026-09-10
 
-Full statements in `REQUIREMENTS.md` Wave 0. Three decisions gate eight
-requirements.
+Answered by Tucker in `DECISIONS.md`. Waves 1–3 may all proceed. Resolutions:
+**DEC-1** v2 ratified (Speed Bonus deleted, all six open questions accepted);
+**DEC-2** Source keeps amber and D-03's exclusivity is dropped, which withdraws
+most of REQ-G-03; **DEC-3** void matrix approved as authored, unblocking
+REQ-G-08 in full. Original statements below for traceability.
 
 1. **DEC-1 — scoring.** Shipped `scoring.ts` scores Efficiency (fewer pieces)
    and Speed Bonus (with a live HUD timer). `scoring-algorithm-v2.md` rewards
@@ -127,7 +130,9 @@ requirements.
    follow-ups, awaiting sign-off. Approve it and REQ-G-08 becomes a wiring
    task, not a writing one.
 
-**Kepler grid width** is referred to level design rather than escalated here:
+**Kepler grid width — RESOLVED (DEC-6): cap at 8 columns**, the widest grid
+holding a 48 pt cell at 390 pt. Ten grids need re-floor-solving, tracked as
+LD-001 in `REQUIREMENTS.md`. Height is unconstrained. Original framing:
 `CLAUDE_CONTEXT.md` prohibits a fixed `CELL_SIZE`, and
 `LEVEL_DESIGN_FRAMEWORK.md`'s own checklist ("board size is minimum
 necessary") plus `PIECE_CREATION_STANDARD.md` (icons legible at 52 px) put the

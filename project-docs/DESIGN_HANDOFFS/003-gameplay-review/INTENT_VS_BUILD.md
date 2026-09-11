@@ -83,9 +83,10 @@ of the presentation findings in Request 003 — including my G-12, which I
 framed as "the catalogue pushes the Engineer toward the floor solve." Under
 v2 that is not a nudge, it is a hard one-star ceiling.
 
-**Product call needed:** ratify scoring v2 (it is still PROPOSED, with six
-open questions at the end of its own spec) or amend the soul statement. Right
-now the code and the bible disagree and the code is what players feel.
+**RESOLVED 2026-09-10 — v2 ratified**, all six open questions accepted as
+proposed, Speed Bonus deleted outright. See `DECISIONS.md`. The scoring engine
+in `scoring.ts` now implements a superseded model and becomes a systems work
+item.
 
 ### 2. The failure screen bypasses a dialogue system that is already written
 
@@ -155,20 +156,26 @@ numbers in the review should be read as approximate by 3 pt.
 `SKEPTIC_PLAYTEST_2026-06-09.md` established four canonical specs and two are
 waiting on a designer, not a developer:
 
-- **SPEC-02** — the two-position COGS dialogue card. UX-01 is explicitly
-  blocked: *"PRISM to define exact pixel anchors before Dev implements."*
-  Still undefined.
-- **CONTENT-01** — IN / TRAIL / OUT tape Codex entries. Blocked on *"PRISM to
-  design Codex entry format for tape elements."* Still undesigned. This one
-  matters more than its P2 suggests: the tape is a stated signature moment and
-  the three tape elements are the only game objects with no Codex entry, so
-  they never get the "???" → entry → UNDERSTOOD discovery beat every piece
-  gets.
+- **SPEC-02** — ~~pixel anchors still undefined~~ **CORRECTED 2026-09-10:
+  specified in full** by `BRIEFS/BRIEF_UX01_DIALOGUE_CARD_ANCHORS.md`
+  (2026-06-09) — upper `top: 80`, lower `top: 576`, branch rule, centering
+  formula, lines to delete, six acceptance criteria. Unimplemented, not
+  unspecified. Route to dev.
+- **CONTENT-01** — ~~tape Codex entries, still undesigned~~ **CORRECTED
+  2026-09-10: already delivered.** `CodexDetailView.tsx` carries all three
+  entries under a "copy approved by Tucker 2026-06-12" marker, with a
+  dedicated `Stream` type, `DATA STREAM` badge, `TapeGlyph` hero icon,
+  `TapeFieldStrip`, and discovery wired at A1-5 and A1-7. I read the playtest
+  report's blocker and did not check whether it had been cleared. One real
+  defect remains in that file: `getCodexPieceColor` returns `#BFFF3F` for
+  `inputTape`, the same drift as §4 — now folded into REQ-G-04.
 - **SPEC-03/04** — the discovery flow and call-and-response rhythm are
   specified and partly unimplemented (UX-06, GAME-01).
 
-I can clear the two design blockers. They are small, specific, and they unblock
-dev work that is otherwise stalled.
+**Corrected:** neither blocker was still open. What Design does owe is the
+scoring-language rewrite (DEC-1 item 6), delivered as handoff 004 — where the
+substantive finding is that the Field Operative discipline is defined, in
+COGS's own words, by the exact metric scoring v2 deletes.
 
 ### 7. Arc Wheel is missing its one recommended investment
 
