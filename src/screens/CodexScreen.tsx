@@ -47,12 +47,14 @@ function getCodexPieceColor(pieceId: string): string {
     case 'counter':
     case 'latch':
       return '#8B5CF6'; // Protocol purple
+    // REQ-G-04 addendum (AXM-008): same drift, same fix, as
+    // CodexDetailView.tsx's copy of this function.
     case 'inputTape':
-      return '#BFFF3F'; // IN — neon green
+      return Colors.tapeInBar; // IN — Ice Blue (locked, TRIBAL_KNOWLEDGE.md §3)
     case 'dataTrail':
-      return '#A97FDB'; // TRAIL — atomic purple
+      return Colors.tapeTrailBar; // TRAIL — Atomic Purple
     case 'outputTape':
-      return '#FF7D3F'; // OUT — fire orange
+      return Colors.tapeOutBar; // OUT — Fire Orange
     default:
       return '#4a9eff'; // Physics blue
   }
