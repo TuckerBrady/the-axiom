@@ -149,7 +149,13 @@ export type LevelDefinition = {
   budget?: number;
   tutorialHints?: TutorialHint[];
   tutorialSteps?: TutorialStep[];
-  scoringCategoriesVisible?: ScoringCategory[];
+  // REQ-62 (scoring-algorithm-v2.md): scoringCategoriesVisible removed.
+  // Under v1 it curated which categories were relevant per level (e.g. no
+  // Protocol pieces -> hide protocolPrecision); under v2 all six categories
+  // are always structurally meaningful everywhere, so per-level curation no
+  // longer conveys real information. The results-screen score strip now
+  // shows all six unconditionally; the Spec Sheet's SHOULD section uses a
+  // fixed category subset (see specSheet.ts) rather than a per-level field.
   // Consequence levels — undefined for normal levels
   consequence?: ConsequenceConfig;
   // Turing tape — optional. When defined, level runs N pulses and the
@@ -173,11 +179,22 @@ export type LevelDefinition = {
   tapeDesignRationale?: string;
   difficultyBand?: 'intuitive' | 'derivable' | 'abstract' | 'hidden';
   narrativeFrame?: string;
-  // Economy fields (v3) — drive the REQUISITION store in Kepler+
+  // Economy fields (v3) — drive the REQUISITION store in Kepler+.
+  // `freeTapes` is scoring-algorithm-v2.md's REQ-38 `providedTapes`: IN is
+  // always effectively free and never purchasable (REQ-42), TRAIL/OUT may be
+  // provided free or left purchasable. Omitted on most levels; GameplayScreen
+  // already falls back to `level?.freeTapes ?? ['IN']` (pre-existing, unchanged
+  // by AXM-010) — level design's existing call on which levels gate TRAIL/OUT
+  // behind a purchase, not a v2-motivated default to relitigate here.
   freeTapes?: ('IN' | 'TRAIL' | 'OUT')[];
   purchasableTapes?: ('TRAIL' | 'OUT')[];
   creditBudget?: number;
+  // REQ-17: defaults to optimalPieces * 2 when omitted (see scoring.ts).
   depthCeiling?: number;
+  // REQ-36/63: credit payout base (see scoring.ts's calculatePayout). Most
+  // levels omit this and fall back to scoring.ts's defaultBaseReward — a
+  // placeholder floor, not a tuned value; flagged for Tucker/level-design
+  // review in AXM-010's PR rather than hand-authored per level.
   baseReward?: number;
   // Kepler mechanics — not used in K1-1 but type is defined here
   damagedCells?: Array<{ gridX: number; gridY: number }>;
@@ -392,8 +409,13 @@ export type TutorialStep = {
 };
 
 // ─── Scoring Category Visibility ─────────────────────────────────────────────
+// REQ-62 (scoring-algorithm-v2.md): the v1 names above (efficiency,
+// chainIntegrity, protocolPrecision, disciplineBonus, speedBonus,
+// elaboration) are removed — every consumer of this type now uses the six
+// v2 category names. speedBonus has no v2 successor (REQ-60, removed
+// entirely); the other five map to their v2 equivalents.
 
-export type ScoringCategory = 'efficiency' | 'chainIntegrity' | 'protocolPrecision' | 'disciplineBonus' | 'speedBonus' | 'elaboration';
+export type ScoringCategory = 'completion' | 'pathIntegrity' | 'signalDepth' | 'investment' | 'diversity' | 'discipline';
 
 // ─── Daily Challenge ─────────────────────────────────────────────────────────
 

@@ -125,14 +125,25 @@ export function deriveShallStatements(level: LevelDefinition): ShallStatement[] 
 
 // ─── SHOULD ───────────────────────────────────────────────────────────────────
 
+// REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
+// removed from LevelDefinition — under v1 it curated which categories were
+// relevant per level; under v2 all six are always structurally meaningful
+// everywhere, so per-level curation stopped conveying real information.
+//
+// This fixed subset — not all six — is deliberate: SHOULD_COPY
+// (specSheetCopy.ts) is Tucker-approved COGS voice (Design Principle 2),
+// and rewriting it to cover completion/investment/diversity honestly is a
+// copy decision, not a scoring one — REQ-59's dialogue rewrite track, not
+// this mission's. These three reuse pre-existing approved sentences whose
+// meaning still holds under v2 (pathIntegrity ~= the old "every piece
+// participates" line, discipline ~= the old "reflects your training" line,
+// signalDepth ~= the old "make full use of requisitioned pieces" line).
+const SHOULD_CATEGORIES: ScoringCategory[] = ['pathIntegrity', 'signalDepth', 'discipline'];
+
 /**
- * 2/3-star guidance, derived from the level's visible scoring categories
- * (`scoringCategoriesVisible`). NOTE: the scoring WEIGHTS are global constants
- * (Efficiency 30, Protocol Precision 25, ... — locked, src/game/scoring.ts),
- * so the only per-level scoring signal is WHICH categories the level surfaces.
- * One statement per visible category; [] when the level declares none.
+ * 2/3-star guidance. One statement per category in SHOULD_CATEGORIES,
+ * for every level — no longer level-specific (see note above).
  */
-export function deriveShouldStatements(level: LevelDefinition): ShouldStatement[] {
-  const categories = level.scoringCategoriesVisible ?? [];
-  return categories.map(category => ({ type: 'scoringCategory', category }));
+export function deriveShouldStatements(_level: LevelDefinition): ShouldStatement[] {
+  return SHOULD_CATEGORIES.map(category => ({ type: 'scoringCategory', category }));
 }

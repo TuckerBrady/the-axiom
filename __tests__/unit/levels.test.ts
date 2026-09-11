@@ -119,19 +119,19 @@ describe('Kepler Belt levels', () => {
     expect(boardResume!.eyeState).toBe('blue');
   });
 
-  it('K1-10 shows the four real scoring categories, not the always-zero speedBonus', () => {
+  // REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
+  // removed from LevelDefinition entirely — under v1 it curated which
+  // categories a level surfaced (and specifically existed to hide the
+  // always-zero speedBonus); under v2 every category (including the
+  // Speed-Bonus-replacing signalDepth) is always structurally meaningful,
+  // so no level needs to declare visibility at all. The results screen and
+  // Spec Sheet now source their category lists from fixed constants
+  // (GameplayModals.tsx, specSheet.ts) instead of a per-level field.
+  it('no longer declares scoringCategoriesVisible — v2 categories are always shown', () => {
     const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
-    expect(k10.scoringCategoriesVisible).toContain('efficiency');
-    expect(k10.scoringCategoriesVisible).toContain('chainIntegrity');
-    expect(k10.scoringCategoriesVisible).toContain('protocolPrecision');
-    expect(k10.scoringCategoriesVisible).toContain('disciplineBonus');
-    // v3 Q2: speedBonus dropped sector-wide (Speed scores 0 in the live engine).
-    expect(k10.scoringCategoriesVisible).not.toContain('speedBonus');
-  });
-
-  it('no Kepler level lists the always-zero speedBonus category', () => {
+    expect((k10 as unknown as Record<string, unknown>).scoringCategoriesVisible).toBeUndefined();
     for (const level of KEPLER_LEVELS) {
-      expect(level.scoringCategoriesVisible ?? []).not.toContain('speedBonus');
+      expect((level as unknown as Record<string, unknown>).scoringCategoriesVisible).toBeUndefined();
     }
   });
 
@@ -245,10 +245,9 @@ describe('K1-1 v3 economy fields', () => {
     expect(level.topologyRequirements?.minDirectionChanges).toBe(2);
   });
 
-  it('does not show protocolPrecision (no Protocol pieces present)', () => {
-    expect(k1().scoringCategoriesVisible).not.toContain('protocolPrecision');
-    expect(k1().scoringCategoriesVisible).toContain('efficiency');
-    expect(k1().scoringCategoriesVisible).toContain('chainIntegrity');
+  // REQ-62: scoringCategoriesVisible removed — see the K1-10 note above.
+  it('does not declare scoringCategoriesVisible', () => {
+    expect((k1() as unknown as Record<string, unknown>).scoringCategoriesVisible).toBeUndefined();
   });
 
   it('freeTapes includes IN', () => {

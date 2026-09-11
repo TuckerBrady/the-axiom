@@ -11,9 +11,6 @@ function breakdown(over: Partial<ScoreBreakdown> = {}): ScoreBreakdown {
   return {
     completion: 0, pathIntegrity: 0, signalDepth: 0, investment: 0, diversity: 0, discipline: 0,
     forfeitedPurchasedCount: 0,
-    completionBonus: 0, machineComplexity: 0, protocolPrecision: 0, speedBonus: 0, elaboration: 0,
-    purchasedTouchedCount: 0,
-    efficiency: 0, chainIntegrity: 0, disciplineBonus: 0,
     ...over,
   };
 }
@@ -41,19 +38,19 @@ describe('buildSpecChecklist — SHALL reflects the win condition', () => {
   });
 });
 
+// REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
+// removed — deriveShouldStatements now always returns the same fixed
+// subset (pathIntegrity/signalDepth/discipline; see specSheet.ts) for
+// every level, not a per-level list.
 describe('buildSpecChecklist — SHOULD reflects the score breakdown', () => {
-  const level = {
-    ...levelA1_1,
-    scoringCategoriesVisible: ['efficiency', 'chainIntegrity', 'speedBonus'],
-  } as LevelDefinition;
-
   it('full marks = met, partial points = partial, zero = missed', () => {
     const items = buildSpecChecklist(
-      level,
-      breakdown({ efficiency: 30, chainIntegrity: 0, speedBonus: 5 }), // max 30/20/10
+      levelA1_1,
+      breakdown({ pathIntegrity: 15, signalDepth: 0, discipline: 5 }), // max 15/14/10
     );
     const should = items.filter(i => i.section === 'SHOULD');
-    expect(should.find(i => /few pieces|route cleanly/i.test(i.text))?.status).toBe('met');
+    expect(should).toHaveLength(3);
+    expect(should.find(i => /participate in the signal chain/i.test(i.text))?.status).toBe('met');
     const statuses = should.map(i => i.status);
     expect(statuses).toContain('met');
     expect(statuses).toContain('partial');

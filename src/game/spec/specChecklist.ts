@@ -31,15 +31,18 @@ export interface SpecCheckItem {
 }
 
 // Per-category point ceilings used to grade SHOULD compliance. Mirrors the
-// denominators the results score strip already shows the player, so the
-// checklist agrees with the numbers on the same card.
+// denominators the results score strip already shows the player (scoring.ts
+// ScoreBreakdown), so the checklist agrees with the numbers on the same card.
+// REQ-62: v2 category names/maxes (only the three specSheetCopy.ts has
+// honest copy for — see that file's note — appear in practice, but the full
+// six-entry map costs nothing and keeps this in sync with ScoreBreakdown).
 const CATEGORY_MAX: Record<ScoringCategory, number> = {
-  efficiency: 30,
-  protocolPrecision: 25,
-  chainIntegrity: 20,
-  disciplineBonus: 15,
-  speedBonus: 10,
-  elaboration: 15,
+  completion: 25,
+  pathIntegrity: 15,
+  signalDepth: 14,
+  investment: 25,
+  diversity: 11,
+  discipline: 10,
 };
 
 /**

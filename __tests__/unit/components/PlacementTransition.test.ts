@@ -61,7 +61,10 @@ describe('settingsStore — arcWheelPosition', () => {
 
 describe('successHandlers — purchasedTapeTypes integration', () => {
   it('SuccessParams includes optional purchasedTapeTypes', () => {
-    expect(successSrc).toMatch(/purchasedTapeTypes\?:\s*string\[\]/);
+    // REQ-38 (scoring-algorithm-v2.md, AXM-010): typed as TapeType[] now,
+    // not a loose string[] — 'TRAIL' | 'OUT', matching requisitionStore's
+    // getPurchasedTapeTypes() return type.
+    expect(successSrc).toMatch(/purchasedTapeTypes\?:\s*TapeType\[\]/);
   });
 
   it('defaults purchasedTapeTypes to empty array', () => {

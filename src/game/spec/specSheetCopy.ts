@@ -64,20 +64,26 @@ export function shallStatementToCopy(s: ShallStatement): string {
 
 // ─── SHOULD (2/3-star guidance) ─────────────────────────────────────────────
 
-// One line per scoring category the level surfaces. The weights are global and
-// locked (Efficiency 30, Protocol Precision 25, ...), so the copy describes the
-// behaviour the category rewards, not a number.
-const SHOULD_COPY: Record<ScoringCategory, string> = {
-  efficiency: 'The machine SHOULD route cleanly, without pieces that do nothing.',
-  protocolPrecision: 'Protocol pieces SHOULD activate only when the data requires it.',
-  chainIntegrity: 'Every placed piece SHOULD participate in the signal chain.',
-  disciplineBonus: 'The solution SHOULD reflect the discipline you trained in.',
-  speedBonus: 'The machine SHOULD lock without wasted time.',
-  elaboration: 'The machine SHOULD make full use of the pieces you requisitioned.',
+// REQ-62 (scoring-algorithm-v2.md, AXM-010): the v1 category keys are gone
+// (types.ts's ScoringCategory is now the six v2 names). Rather than author
+// new COGS copy for completion/investment/diversity — a wording decision
+// needing Tucker's sign-off (Design Principle 2), same as REQ-59's dialogue
+// rewrite, not this mission's — this map only covers the three categories
+// (see specSheet.ts's SHOULD_CATEGORIES) whose v1 sentence still describes
+// the v2 category honestly, reused verbatim rather than rewritten:
+//   - pathIntegrity was v1's "chainIntegrity" line
+//   - discipline was v1's "disciplineBonus" line
+//   - signalDepth was v1's "elaboration" line
+// completion/investment/diversity intentionally have no SHOULD line yet —
+// they're not surfaced in the Spec Sheet until Design provides real copy.
+const SHOULD_COPY: Partial<Record<ScoringCategory, string>> = {
+  pathIntegrity: 'Every placed piece SHOULD participate in the signal chain.',
+  discipline: 'The solution SHOULD reflect the discipline you trained in.',
+  signalDepth: 'The machine SHOULD make full use of the pieces you requisitioned.',
 };
 
 export function shouldStatementToCopy(s: ShouldStatement): string {
-  return SHOULD_COPY[s.category];
+  return SHOULD_COPY[s.category] ?? '';
 }
 
 // ─── A1-1 activation hook (SE-TM-033) ───────────────────────────────────────

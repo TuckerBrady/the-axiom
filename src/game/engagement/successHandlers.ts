@@ -6,10 +6,14 @@ import type {
 } from '../types';
 import type { ScoreResult } from '../scoring';
 import type { Discipline } from '../../store/playerStore';
+import type { TapeType } from '../../store/requisitionStore';
 import {
   calculateScore,
+  calculatePayout,
+  defaultBaseReward,
   getCOGSScoreComment,
   getTutorialCOGSComment,
+  TUTORIAL_FLAT_PAYOUT,
 } from '../scoring';
 import {
   evaluateMayConditions,
@@ -24,10 +28,9 @@ export interface SuccessParams {
   level: LevelDefinition;
   pieces: PlacedPiece[];
   discipline: Discipline;
-  engageDurationMs: number;
   lockedElapsed: number;
   levelSpent: number;
-  purchasedTapeTypes?: string[];
+  purchasedTapeTypes?: TapeType[];
 
   setScoreResult: (r: ScoreResult | null) => void;
   setCogsScoreComment: (c: string) => void;
@@ -61,7 +64,6 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     level,
     pieces,
     discipline,
-    engageDurationMs,
     lockedElapsed,
     levelSpent,
     purchasedTapeTypes = [],
@@ -98,8 +100,10 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     depthCeiling: level.depthCeiling,
     forfeitedPurchasedCount,
     discipline: currentDiscipline,
-    engageDurationMs,
-    elapsedSeconds: lockedElapsed,
+    // REQ-60 (scoring-algorithm-v2.md): Speed Bonus is removed entirely —
+    // elapsed time no longer affects score, so calculateScore no longer
+    // takes engageDurationMs/elapsedSeconds. lockedElapsed is still read
+    // below (COGS commentary, unrelated to scoring).
   });
 
   const displayStars = isTutorial ? 3 : result.stars;
@@ -120,10 +124,23 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
   const isFirst = completeLevel(levelId, starsEarned);
   setFirstTimeBonus(isFirst);
 
-  const cappedMult = Math.min(1.0 + (result.breakdown.purchasedTouchedCount * 0.1), 1.5);
-  setElaborationMult(cappedMult);
-  if (result.stars === 3) earnCredits(Math.floor((levelSpent + 25) * cappedMult));
-  else if (result.stars === 2) earnCredits(Math.floor(Math.ceil(levelSpent * 0.5) * cappedMult));
+  // REQ-34/35/37 (scoring-algorithm-v2.md): credit payout is now a function
+  // of the score against the level's baseReward, not a fraction of what was
+  // spent this level — the virtuous cycle is "build well, score well, earn
+  // back more than a well-built machine cost," not "get some spend back."
+  // Tutorial levels are free to play: flat payout, no score scaling.
+  // levelSpent no longer drives payout directly (v1 mechanic, replaced),
+  // kept on SuccessParams only because callers still pass it through.
+  void levelSpent;
+  if (isTutorial) {
+    setElaborationMult(1);
+    earnCredits(TUTORIAL_FLAT_PAYOUT);
+  } else {
+    const baseReward = level.baseReward ?? defaultBaseReward(level);
+    const payout = calculatePayout(result.total, baseReward);
+    setElaborationMult(result.total / 100);
+    earnCredits(payout);
+  }
   if (isFirst) {
     earnCredits(25);
     addLivesCredits(25);

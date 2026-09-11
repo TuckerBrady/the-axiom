@@ -105,25 +105,20 @@ describe('deriveShallStatements', () => {
   });
 });
 
-describe('deriveShouldStatements (from visible scoring categories)', () => {
-  it('A1-1: single efficiency category', () => {
-    expect(deriveShouldStatements(levelA1_1)).toEqual(scoring(['efficiency']));
-  });
+// REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
+// removed from LevelDefinition — deriveShouldStatements no longer reads a
+// per-level list (v1's categories weren't all universally meaningful; v2's
+// are). It now returns the same fixed subset (pathIntegrity/signalDepth/
+// discipline — the three with Tucker-approved SHOULD copy today, see
+// specSheetCopy.ts) for every level, Axiom included.
+describe('deriveShouldStatements (fixed v2 category subset, same for every level)', () => {
+  const fixedCategories = scoring(['pathIntegrity', 'signalDepth', 'discipline']);
 
-  it('A1-2: efficiency + chainIntegrity', () => {
-    expect(deriveShouldStatements(levelA1_2)).toEqual(scoring(['efficiency', 'chainIntegrity']));
-  });
-
-  it('A1-7: three visible categories', () => {
-    expect(deriveShouldStatements(levelA1_7)).toEqual(
-      scoring(['efficiency', 'chainIntegrity', 'protocolPrecision']),
-    );
-  });
-
-  it('A1-8: five visible categories (capstone)', () => {
-    expect(deriveShouldStatements(levelA1_8)).toEqual(
-      scoring(['efficiency', 'chainIntegrity', 'protocolPrecision', 'disciplineBonus', 'speedBonus']),
-    );
+  it('A1-1, A1-2, A1-7, A1-8 all derive the same fixed three categories', () => {
+    expect(deriveShouldStatements(levelA1_1)).toEqual(fixedCategories);
+    expect(deriveShouldStatements(levelA1_2)).toEqual(fixedCategories);
+    expect(deriveShouldStatements(levelA1_7)).toEqual(fixedCategories);
+    expect(deriveShouldStatements(levelA1_8)).toEqual(fixedCategories);
   });
 });
 
