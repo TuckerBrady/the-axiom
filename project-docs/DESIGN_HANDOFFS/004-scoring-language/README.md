@@ -39,34 +39,58 @@ tape elements were "the only game objects with no Codex entry, so they never
 get the discovery beat." That is wrong and I have amended it. I read the
 playtest report's blocker and did not check whether it had since been cleared.
 
-**What actually remains is DEC-1 item 6** — the scoring-language rewrite. That
-is in `SCORING_LANGUAGE.md`, and it is bigger than a copy pass.
+**What actually remains is DEC-1 item 6** — the scoring-language rewrite,
+delivered here as `OPTION_A_FULL_PASS.md`. It is bigger than a copy pass: 56
+lines, three section headings, the discipline's definition in the usage note,
+and both paragraphs of the §3 preamble.
 
 ---
 
 ## Files in this bundle
 
-| File | What it is |
-|---|---|
-| `SCORING_LANGUAGE.md` | **The deliverable.** The Field Operative problem, rewrite rules, and draft replacement lines for sign-off. |
-| `README.md` | This file. Scope, corrections, and what routes where. |
+| File | What it is | Read order |
+|---|---|---|
+| `OPTION_A_FULL_PASS.md` | **The deliverable.** All 56 changed lines, current beside draft, in document order. Needs line-level sign-off. | 1 |
+| `SCORING_LANGUAGE.md` | The reasoning: why this is not a vocabulary swap, and the Option A/B analysis that produced the decision. | 2, as background |
+| `README.md` | This file. Scope, corrections, routing. | — |
 
 ---
 
 ## The one-line version
 
-Ratifying scoring v2 does not just change some adjectives in
-`DIALOGUE_SYSTEM.md`. It deletes the metric that one of the three
-disciplines is built on. The Field Operative is currently defined, in COGS's
-own words, as *"watching for lean solutions. Every unnecessary piece is a
-failure of the discipline."* Under v2, unnecessary pieces are worth points and
-the Field Operative is defined by using both systems (3 active Protocol +
-3 active Physics). The character's stated standard now contradicts the
-scoring engine.
+Ratifying scoring v2 deletes the metric one of the three disciplines is built
+on. The Field Operative was defined, in COGS's own words, as *"watching for
+lean solutions — every unnecessary piece is a failure of the discipline."*
+Under v2, unnecessary pieces are worth points and the discipline is defined by
+using both systems (3 active Protocol + 3 active Physics).
 
-That needs a design decision about who the Field Operative is, not a
-find-and-replace. `SCORING_LANGUAGE.md` puts two options in front of you and
-recommends one.
+**Option A ratified 2026-09-10:** the Field Operative becomes the breadth
+discipline. Its standard is now *did the Engineer use both systems, and use
+each for what it is good at.* Count is never mentioned. COGS's voice toward
+the discipline is unchanged; only his criterion moves.
+
+## Structure ratified 2026-09-10 — line-level sign-off is all that remains
+
+Option A collapses two existing sections into each other. §3A was "played to
+type — lean solution, near-optimal count" and §3C was "played mixed but
+inefficiently." Under a breadth standard, **playing to type IS playing
+mixed** — they describe the same behavior, separated only by a metric that no
+longer exists.
+
+The pass proposes this split, which keeps all three sections and matches how
+v2 actually counts (it scores *active* pieces, so a piece the signal never
+touches is not load-bearing):
+
+- **3A Played to Type** — both systems used, both doing real work
+- **3B Played Against Type** — one system carried the machine
+- **3C Played Without Commitment** — both present, one placed but not leveraged
+
+3C is the more interesting failure state under v2 anyway: the Engineer who
+technically satisfied 3+3 without meaning it.
+
+**Ratified**, along with rewriting the four §3 void lines that cite optimal
+piece count. The drafts in `OPTION_A_FULL_PASS.md` are final-form against both
+decisions.
 
 ---
 
@@ -100,8 +124,11 @@ me.
 
 ## Routing
 
-- `SCORING_LANGUAGE.md` — needs Tucker's decision on Option A vs B, then the
-  draft lines need sign-off before they enter `DIALOGUE_SYSTEM.md`.
+- `OPTION_A_FULL_PASS.md` — needs the §3C structural confirmation, then
+  line-level sign-off before anything enters `DIALOGUE_SYSTEM.md`.
+- **Scoring engine** — DEC-1's ratification makes `src/game/scoring.ts` a work
+  item in its own right: it implements the superseded model (Efficiency 30,
+  Speed Bonus 10). Systems task, outside this bundle.
 - SPEC-02 / UX-01 — route to dev against
   `BRIEF_UX01_DIALOGUE_CARD_ANCHORS.md`. No design work outstanding.
 - CONTENT-01 — close it. Delivered 2026-06-12.
