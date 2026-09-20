@@ -1,0 +1,35 @@
+# Set the dev-only board-size override from the BOARD_SIZE env var.
+#
+# PROMPT_159 task 3: the sweep changes the board from the dev toggle, never
+# from a source edit, so one `npm run shots` run shoots every candidate size.
+# The Settings control exposes the whole legal column/row range, so this
+# subflow works for any size the runner is given.
+#
+# Requires a build where SHOW_DEV_TOOLS is true: __DEV__ or the `testflight`
+# EAS profile. In a `production` build the section is absent and this subflow
+# fails loudly, which is the correct outcome.
+appId: com.tuckbrady.theaxiom
+env:
+  BOARD_SIZE: ""
+---
+- runFlow: enter-hub.yaml
+- tapOn:
+    id: "engineer-tab"
+- assertVisible: "BOARD SIZE OVERRIDE (DEV)"
+- evalScript: ${output.columns = BOARD_SIZE.split('x')[0]}
+- evalScript: ${output.rows = BOARD_SIZE.split('x')[1]}
+- scrollUntilVisible:
+    element:
+      id: "dev-board-columns-${output.columns}"
+    direction: DOWN
+- tapOn:
+    id: "dev-board-columns-${output.columns}"
+- scrollUntilVisible:
+    element:
+      id: "dev-board-rows-${output.rows}"
+    direction: DOWN
+- tapOn:
+    id: "dev-board-rows-${output.rows}"
+- assertVisible:
+    id: "dev-board-size-value"
+    text: "${BOARD_SIZE}"

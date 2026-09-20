@@ -60,6 +60,8 @@ import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
 import { shallStatementToCopy } from '../game/spec/specSheetCopy';
 import { evaluateTopologyGate } from '../game/objectives';
+import { resolveBoardSize } from '../utils/boardSizeOverride';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -288,6 +290,7 @@ export default function GameplayScreen({ navigation }: Props) {
     levelSpent: s.levelSpent,
   })));
   const arcWheelPosition = useSettingsStore(s => s.arcWheelPosition);
+  const devBoardSizeOverride = useSettingsStore(s => s.devBoardSizeOverride);
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
   const arcWheelPieces = useRequisitionStore(useShallow(s => s.inventory.pieces.filter(p => !p.placed))) as ArcWheelPiece[];
@@ -512,8 +515,18 @@ export default function GameplayScreen({ navigation }: Props) {
     [pieces],
   );
 
-  const numColumns = level?.gridWidth ?? 8;
-  const numRows = level?.gridHeight ?? 7;
+  // PROMPT_159 task 3: the board-size sweep changes the board from the
+  // dev-only Settings toggle, never from a source edit, so one shots run can
+  // shoot the same level at every candidate size. `resolveBoardSize` returns
+  // the level's own size whenever SHOW_DEV_TOOLS is false, which is every
+  // `production` build.
+  const sweptBoardSize = resolveBoardSize(
+    { columns: level?.gridWidth ?? 8, rows: level?.gridHeight ?? 7 },
+    devBoardSizeOverride,
+    SHOW_DEV_TOOLS,
+  );
+  const numColumns = sweptBoardSize.columns;
+  const numRows = sweptBoardSize.rows;
   const availW = canvasLayout.w - CANVAS_PAD * 2;
   const availH = canvasLayout.h - CANVAS_PAD * 2;
   const CELL_SIZE = availW > 0 && availH > 0
@@ -1618,6 +1631,11 @@ export default function GameplayScreen({ navigation }: Props) {
                   return (
                     <TouchableOpacity
                       key={`ghost-${x}-${y}`}
+                      // PROMPT_159: a stable handle for Maestro to place a
+                      // piece on a known cell. Added to the existing
+                      // TouchableOpacity — no new host, and nothing animated
+                      // here.
+                      testID={`board-cell-${x}-${y}`}
                       style={[
                         styles.ghostCell,
                         { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },

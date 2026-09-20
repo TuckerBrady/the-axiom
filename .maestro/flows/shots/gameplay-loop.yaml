@@ -1,0 +1,97 @@
+# PROMPT_159 task 2 — the real loop, captured at every stage.
+#
+# Plays one level end to end and shoots each stage: mission dossier,
+# REQUISITION store before and after a purchase, the board on entry, piece
+# placement from the tray via the Arc Wheel, a Conveyor rotate tap, ENGAGE,
+# signal running mid-beam, and the results screen with the score breakdown.
+#
+# UNVERIFIED SELECTORS. This flow has never been executed: the harness was
+# built on a Windows host with no iOS simulator (see
+# project-docs/REPORTS/PROMPT_159_REPORT.md). Every step below was derived by
+# reading the source, not by watching it run. Selectors marked [VERIFY] are
+# the ones most likely to need adjusting on the first real run — they depend
+# on level content or on the Arc Wheel's drag geometry rather than on a
+# literal string in the source. Adjust them, do not delete the step.
+appId: com.tuckbrady.theaxiom
+env:
+  SHOT_DIR: "__shots__/unlabelled"
+  SHOT_PREFIX: ""
+  SHOT_LEVEL: "A1-3"
+---
+- runFlow: ../../subflows/enter-hub.yaml
+
+# ── Mission dossier ────────────────────────────────────────────────────────
+- tapOn:
+    id: "sectors-tab"
+- assertVisible: "SECTORS"
+- tapOn: "THE AXIOM"           # [VERIFY] sector tile label
+- tapOn: "${SHOT_LEVEL}"       # [VERIFY] level node label on the sector map
+- assertVisible: "LAUNCH MISSION"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}01-mission-dossier
+
+# ── REQUISITION store, before and after a purchase ─────────────────────────
+- tapOn: "LAUNCH MISSION"
+- assertVisible: "REQUISITION"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}02-requisition-before
+# [VERIFY] the first affordable Physics piece card. The requisition panel
+# labels its columns PHYSICS / PROTOCOL / DATA; the card itself is a piece
+# icon with an accessibility label of "<LABEL>, <n> available".
+- tapOn: "PHYSICS"
+- tapOn:
+    below: "PHYSICS"
+    index: 0
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}03-requisition-after
+
+# ── Board on entry ─────────────────────────────────────────────────────────
+- tapOn: "CONFIRM"             # [VERIFY] requisition confirm control
+- assertVisible:
+    id: "board-cell-0-0"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}04-board-on-entry
+
+# ── Piece placement from the tray ──────────────────────────────────────────
+# The tray exposes each piece as "<LABEL>, <n> available" via
+# accessibilityLabel (src/components/gameplay/PieceTray.tsx). Tap-to-pick-up
+# then tap-a-cell is the Axiom-sector path; the Arc Wheel drag path is shot
+# separately below.
+- tapOn: "CONV, .* available"  # [VERIFY] exact count in the label
+- tapOn:
+    id: "board-cell-2-3"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}05-piece-placed
+
+# ── Arc Wheel placement (Kepler+ levels only) ──────────────────────────────
+# [VERIFY] The Arc Wheel renders only when the level is outside the Axiom
+# sector and requisitionPhase === 'placement'. On an Axiom level this block
+# is expected to be skipped; `optional: true` keeps the run green and the
+# gap gets reported rather than faked.
+- runFlow:
+    when:
+      visible:
+        id: "arc-wheel"
+    commands:
+      - takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}06-arc-wheel
+
+# ── Conveyor rotate tap ────────────────────────────────────────────────────
+# Only Conveyor rotates on tap (the plumber model). Tapping the cell the
+# Conveyor was just placed in cycles its orientation.
+- tapOn:
+    id: "board-cell-2-3"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}07-conveyor-rotated
+
+# ── ENGAGE ─────────────────────────────────────────────────────────────────
+- tapOn: "ENGAGE MACHINE"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}08-engage
+
+# ── Signal running, mid-beam ───────────────────────────────────────────────
+# The beam is a three-phase CHARGE/BEAM/LOCK animation. This is a timed shot,
+# not an assertion: there is no stable element that means "mid-beam".
+# [VERIFY] the delay against the real animation length.
+- extendedWaitUntil:
+    notVisible: "ENGAGE MACHINE"
+    timeout: 5000
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}09-signal-mid-beam
+
+# ── Results screen with the score breakdown ────────────────────────────────
+- extendedWaitUntil:
+    visible: "CONTINUE"
+    timeout: 30000
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}10-results

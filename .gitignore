@@ -23,6 +23,14 @@ coverage/
 # Maestro
 .maestro/.env
 
+# Driven screenshot harness (PROMPT_159). Runs are disposable by default —
+# nobody reviews a pull request full of PNGs. The one exception is the
+# board-size standard set, committed once under
+# project-docs/SHOTS/board-size-standard/.
+__shots__/
+# Compiled output of `npm run shots`.
+.shots-build/
+
 # EAS
 google-services-key.json
 *.p8

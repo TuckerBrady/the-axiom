@@ -1,0 +1,97 @@
+# PROMPT_159 task 4 — animation-host safety as a driven run (REQ-A-1..A-3).
+#
+# Deliberately crosses the state transitions where a native-driven
+# `Animated.Value` could change host. A pass is: no crash, no redbox, and no
+# `Animated` warnings in the device log. The runner captures the log
+# alongside these shots (any flow named *animation-host* gets a log stream)
+# and fails the run on a crash signature — a green Maestro result with
+# SIGABRT in the log is not a pass.
+#
+# Transitions this flow crosses:
+#   1. signal start and stop (ENGAGE, then the beam completing)
+#   2. piece placement and long-press return to tray
+#   3. a Config Node cycle mid-run
+#   4. screen backgrounding during a beam
+#   5. navigation away mid-animation
+#
+# UNVERIFIED SELECTORS: never executed — no macOS host. See
+# project-docs/REPORTS/PROMPT_159_REPORT.md. The gap list in that report is
+# the authoritative statement of what this flow does and does not cover.
+appId: com.tuckbrady.theaxiom
+env:
+  SHOT_DIR: "__shots__/unlabelled"
+  SHOT_PREFIX: ""
+  SHOT_LEVEL: "A1-3"
+---
+- runFlow: ../../subflows/enter-hub.yaml
+- tapOn:
+    id: "sectors-tab"
+- tapOn: "THE AXIOM"           # [VERIFY] sector tile label
+- tapOn: "${SHOT_LEVEL}"       # [VERIFY] level node label
+- tapOn: "LAUNCH MISSION"
+- runFlow:
+    when:
+      visible: "REQUISITION"
+    commands:
+      - tapOn: "CONFIRM"       # [VERIFY] requisition confirm control
+- assertVisible:
+    id: "board-cell-0-0"
+
+# ── Transition 2a: piece placement ─────────────────────────────────────────
+- tapOn: "CONV, .* available"  # [VERIFY]
+- tapOn:
+    id: "board-cell-2-3"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}a-placed
+
+# ── Transition 2b: long-press return to tray ───────────────────────────────
+# Long press returns the piece directly to the tray — no ghost, no held
+# state. The placement animation is mid-flight when the press lands, which
+# is the point.
+- longPressOn:
+    id: "board-cell-2-3"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}b-returned-to-tray
+
+# Put it back so there is something to run.
+- tapOn: "CONV, .* available"  # [VERIFY]
+- tapOn:
+    id: "board-cell-2-3"
+
+# ── Transition 3: Config Node cycle ────────────────────────────────────────
+# Config Node tap cycles configValue (0/1). [VERIFY] this block is skipped
+# on a level with no Config Node in the tray; that is reported, not faked.
+- runFlow:
+    when:
+      visible: "CFG, .* available"
+    commands:
+      - tapOn: "CFG, .* available"
+      - tapOn:
+          id: "board-cell-3-3"
+      - tapOn:
+          id: "board-cell-3-3"
+      - takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}c-config-cycled
+
+# ── Transition 1a: signal start ────────────────────────────────────────────
+- tapOn: "ENGAGE MACHINE"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}d-signal-started
+
+# ── Transition 4: backgrounding during a beam ──────────────────────────────
+# The single highest-value transition here: a native-driven value whose host
+# unmounts while the app is not foregrounded is exactly the SIGABRT class.
+- pressKey: Home
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}e-backgrounded
+- launchApp:
+    clearState: false
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}f-foregrounded
+
+# ── Transition 5: navigation away mid-animation ────────────────────────────
+# Abandon the mission while the beam is still running.
+- runFlow:
+    when:
+      visible: "ABANDON MISSION"
+    commands:
+      - tapOn: "ABANDON MISSION"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}g-navigated-away
+
+# ── Transition 1b: signal stop, observed from a clean re-entry ─────────────
+- runFlow: ../../subflows/enter-hub.yaml
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}h-recovered

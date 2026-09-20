@@ -1,0 +1,11 @@
+# Launch to the hub. Shared by every shots flow.
+#
+# `clearState: false` on purpose — a sweep run re-enters the app once per
+# board size and must not lose the dev override it just set.
+appId: com.tuckbrady.theaxiom
+---
+- launchApp:
+    clearState: false
+- assertVisible: "THE AXIOM"
+- tapOn: "ENTER"
+- assertVisible: "HUB"

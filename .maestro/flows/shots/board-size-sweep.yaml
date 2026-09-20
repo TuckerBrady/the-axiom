@@ -1,0 +1,57 @@
+# PROMPT_159 task 3 — the board-size sweep.
+#
+# The same level, shot at one board size, on whichever device the runner
+# booted. The runner invokes this flow once per `--sizes` entry and passes
+# BOARD_SIZE in; three sizes across three devices is nine images, which is
+# the set the board-size standard gets decided from.
+#
+# The size comes from the dev-only Settings override, never a source edit —
+# that is what makes the sweep one run. Requires a build with SHOW_DEV_TOOLS
+# true (__DEV__ or the `testflight` EAS profile).
+#
+# UNVERIFIED SELECTORS: never executed — no macOS host. See
+# project-docs/REPORTS/PROMPT_159_REPORT.md. [VERIFY] marks the steps that
+# depend on level content rather than a literal string in the source.
+appId: com.tuckbrady.theaxiom
+env:
+  SHOT_DIR: "__shots__/unlabelled"
+  SHOT_PREFIX: ""
+  SHOT_LEVEL: "A1-3"
+  BOARD_SIZE: ""
+---
+- runFlow: ../../subflows/set-board-size.yaml
+
+# Straight into the level. The dossier and requisition shots belong to the
+# gameplay-loop flow; this one exists to photograph the board itself.
+- tapOn:
+    id: "sectors-tab"
+- assertVisible: "SECTORS"
+- tapOn: "THE AXIOM"           # [VERIFY] sector tile label
+- tapOn: "${SHOT_LEVEL}"       # [VERIFY] level node label
+- tapOn: "LAUNCH MISSION"
+- runFlow:
+    when:
+      visible: "REQUISITION"
+    commands:
+      - tapOn: "CONFIRM"       # [VERIFY] requisition confirm control
+- assertVisible:
+    id: "board-cell-0-0"
+
+# The empty board at this size — cell size, touch targets, piece legibility.
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}board-empty
+
+# One piece placed, so cell occupancy and icon legibility are visible at
+# this size rather than inferred from an empty grid.
+- tapOn: "CONV, .* available"  # [VERIFY] exact count in the label
+- tapOn:
+    id: "board-cell-1-1"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}board-occupied
+
+# The far corner cell proves the widest column is still on screen and still
+# tappable at this size — the failure REQ-G-01 was about.
+- evalScript: ${output.lastColumn = Number(BOARD_SIZE.split('x')[0]) - 1}
+- evalScript: ${output.lastRow = Number(BOARD_SIZE.split('x')[1]) - 1}
+- tapOn: "CONV, .* available"  # [VERIFY]
+- tapOn:
+    id: "board-cell-${output.lastColumn}-${output.lastRow}"
+- takeScreenshot: ${SHOT_DIR}/${SHOT_PREFIX}board-far-corner
