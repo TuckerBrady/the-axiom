@@ -147,7 +147,12 @@ describe('buildRunPlan', () => {
   });
 
   it('propagates the sweep guard', () => {
-    expect(() => buildRunPlan(args(['--label', 'sweep']), [SWEEP])).toThrow(/no --sizes was given/);
+    // `--sizes` defaults to the board-size standard since 2026-09-20, so the
+    // guard is no longer reachable from the command line. It still has to
+    // fire for a caller that supplies no sizes at all, which is what this
+    // asserts — and `requireSizesForBoardSweep` is covered directly above.
+    const noSizes = { ...args(['--label', 'sweep']), sizes: null };
+    expect(() => buildRunPlan(noSizes, [SWEEP])).toThrow(/no --sizes was given/);
   });
 });
 

@@ -11,16 +11,27 @@
  */
 
 import { formatBoardSize, type BoardSize } from '../utils/boardSizeOverride';
-import type { DeviceSpec } from './devices';
+import type { CommonDeviceSpec, ShotPlatform } from './devices';
 
-/** Bumped whenever the manifest shape changes incompatibly. */
-export const MANIFEST_SCHEMA_VERSION = 1;
+/**
+ * Bumped whenever the manifest shape changes incompatibly.
+ *
+ * v2 (2026-09-20): every shot and every device entry now names its
+ * `platform`, and the device entry's `simulatorName` became the
+ * platform-neutral `target`. The Android run had to be impossible to
+ * mistake for an iOS one after the fact — a folder of board screenshots
+ * with no platform on it is exactly the artefact that gets misread six
+ * months later.
+ */
+export const MANIFEST_SCHEMA_VERSION = 2;
 
 export const MANIFEST_FILENAME = 'manifest.json';
 
 export interface ManifestShot {
   /** Flow-declared step name, e.g. `mission-dossier`. */
   step: string;
+  /** `ios` or `android`. Never inferred — always written. */
+  platform: ShotPlatform;
   /** Human device label. */
   device: string;
   deviceAlias: string;
@@ -39,12 +50,22 @@ export interface ManifestShot {
 export interface Manifest {
   schemaVersion: number;
   label: string;
+  /** The platform the whole run was driven on. */
+  platform: ShotPlatform;
   runDirectory: string;
   startedAt: string;
   finishedAt: string;
   appVersion: string;
   gitSha: string;
-  devices: { alias: string; label: string; simulatorName: string; width: number; height: number }[];
+  devices: {
+    alias: string;
+    platform: ShotPlatform;
+    label: string;
+    /** Simulator name on iOS, AVD name on Android. */
+    target: string;
+    width: number;
+    height: number;
+  }[];
   flows: string[];
   boardSizes: string[] | null;
   shots: ManifestShot[];
@@ -90,12 +111,13 @@ export function stepName(step: string, boardSize: BoardSize | null): string {
 
 export interface BuildManifestInput {
   label: string;
+  platform: ShotPlatform;
   runDirectory: string;
   startedAt: string;
   finishedAt: string;
   appVersion: string;
   gitSha: string;
-  devices: readonly DeviceSpec[];
+  devices: readonly CommonDeviceSpec[];
   flows: readonly string[];
   boardSizes: readonly BoardSize[] | null;
   shots: readonly ManifestShot[];
@@ -105,6 +127,7 @@ export function buildManifest(input: BuildManifestInput): Manifest {
   return {
     schemaVersion: MANIFEST_SCHEMA_VERSION,
     label: input.label,
+    platform: input.platform,
     runDirectory: input.runDirectory,
     startedAt: input.startedAt,
     finishedAt: input.finishedAt,
@@ -112,8 +135,9 @@ export function buildManifest(input: BuildManifestInput): Manifest {
     gitSha: input.gitSha,
     devices: input.devices.map(d => ({
       alias: d.alias,
+      platform: d.platform,
       label: d.label,
-      simulatorName: d.simulatorName,
+      target: d.target,
       width: d.points.width,
       height: d.points.height,
     })),

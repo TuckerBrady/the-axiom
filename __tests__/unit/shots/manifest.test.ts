@@ -15,6 +15,7 @@ import {
 
 const SHOT: ManifestShot = {
   step: 'board-empty',
+  platform: 'ios',
   device: 'iPhone SE (3rd gen)',
   deviceAlias: 'se',
   boardSize: '10x9',
@@ -72,6 +73,7 @@ describe('stepName', () => {
 describe('buildManifest', () => {
   const manifest = buildManifest({
     label: 'board-size-sweep',
+    platform: 'ios',
     runDirectory: '__shots__/2026-09-20-board-size-sweep',
     startedAt: '2026-09-20T10:00:00.000Z',
     finishedAt: '2026-09-20T10:12:00.000Z',
@@ -99,10 +101,12 @@ describe('buildManifest', () => {
   });
 
   it('records device widths so a shot can be read without knowing the matrix', () => {
+    // Schema v2: every device entry names its platform, and the iOS-only
+    // `simulatorName` became the platform-neutral `target`.
     expect(manifest.devices).toEqual([
-      { alias: 'se', label: 'iPhone SE (3rd gen)', simulatorName: 'iPhone SE (3rd generation)', width: 375, height: 667 },
-      { alias: '15', label: 'iPhone 15', simulatorName: 'iPhone 15', width: 393, height: 852 },
-      { alias: 'max', label: 'iPhone 15 Pro Max', simulatorName: 'iPhone 15 Pro Max', width: 430, height: 932 },
+      { alias: 'se', platform: 'ios', label: 'iPhone SE (3rd gen)', target: 'iPhone SE (3rd generation)', width: 375, height: 667 },
+      { alias: '15', platform: 'ios', label: 'iPhone 15', target: 'iPhone 15', width: 393, height: 852 },
+      { alias: 'max', platform: 'ios', label: 'iPhone 15 Pro Max', target: 'iPhone 15 Pro Max', width: 430, height: 932 },
     ]);
   });
 
@@ -113,6 +117,7 @@ describe('buildManifest', () => {
   it('records null board sizes when the run was not a sweep', () => {
     const plain = buildManifest({
       label: 'loop',
+      platform: 'ios',
       runDirectory: '__shots__/2026-09-20-loop',
       startedAt: 'a',
       finishedAt: 'b',
@@ -130,6 +135,7 @@ describe('buildManifest', () => {
     const shots: ManifestShot[] = [SHOT];
     const built = buildManifest({
       label: 'loop',
+      platform: 'ios',
       runDirectory: 'x',
       startedAt: 'a',
       finishedAt: 'b',
@@ -150,6 +156,7 @@ describe('serializeManifest', () => {
     const json = serializeManifest(
       buildManifest({
         label: 'loop',
+        platform: 'ios',
         runDirectory: 'x',
         startedAt: 'a',
         finishedAt: 'b',
@@ -186,6 +193,7 @@ describe('writeManifest', () => {
 
   const manifest = buildManifest({
     label: 'loop',
+    platform: 'ios',
     runDirectory: '__shots__/2026-09-20-loop',
     startedAt: 'a',
     finishedAt: 'b',

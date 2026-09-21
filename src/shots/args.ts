@@ -10,9 +10,17 @@ import {
   DEFAULT_DEVICE_ALIASES,
   parseDeviceList,
   resolveDevices,
-  type DeviceSpec,
+  type CommonDeviceSpec,
+  type ShotPlatform,
 } from './devices';
 import {
+  DEFAULT_ANDROID_DEVICE_ALIASES,
+  parseAndroidDeviceList,
+  resolveAndroidDevices,
+} from './androidDevices';
+import {
+  BOARD_SIZE_STANDARD,
+  formatBoardSize,
   parseBoardSizeList,
   type BoardSize,
 } from '../utils/boardSizeOverride';
@@ -26,15 +34,29 @@ export const DEFAULT_OUT_ROOT = '__shots__';
 export interface ShotsArgs {
   /** Run label — becomes part of the run directory name. Required. */
   label: string;
-  devices: DeviceSpec[];
+  /**
+   * Which matrix `--devices` resolves against, and which shell `cli.ts`
+   * drives.
+   *
+   * Defaults to `ios` so the behaviour PROMPT_159 specified is unchanged by
+   * the Android work: an existing command line keeps meaning exactly what it
+   * meant, and Android is something you opt into.
+   */
+  platform: ShotPlatform;
+  devices: CommonDeviceSpec[];
   flowsGlob: string;
   /**
-   * Board sizes for the sweep, or null when the caller did not ask for one.
+   * Board sizes for the sweep.
    *
-   * There is deliberately no default trio: the three candidate sizes are a
-   * design decision that is not settled in PROMPT_159, and inventing one
-   * here would bury it in code. A board-size flow selected without `--sizes`
-   * is a hard error (see `requireSizesForBoardSweep`).
+   * Defaults to `BOARD_SIZE_STANDARD` — 8x6, 10x7, 10x9 — which Tucker set
+   * on 2026-09-20. Until that date there was deliberately no default: the
+   * trio was an open design decision and inventing one here would have
+   * buried it in code. Now that it is decided, the default is the decision,
+   * and `--sizes` still overrides it for any future candidate set.
+   *
+   * Null is still reachable (`--sizes` given an explicitly empty run is not,
+   * but the `--help` path returns null), and `requireSizesForBoardSweep`
+   * still refuses a board-size flow with no sizes.
    */
   sizes: BoardSize[] | null;
   /**
@@ -66,15 +88,17 @@ export const USAGE = [
   '',
   'Options:',
   '  --label <name>        Required. Names the run directory.',
-  '  --devices <list>      Comma-separated: se,15,max. Default: se,15,max.',
+  '  --platform <name>     ios or android. Default: ios.',
+  '  --devices <list>      iOS: se,15,max (default all three).',
+  '                        Android: compact,standard,large (default all three).',
   '  --flows <glob>        Flow glob. Default: ' + DEFAULT_FLOWS_GLOB,
-  '  --sizes <list>        Board sizes for the sweep, e.g. 8x7,9x8,10x9.',
-  '                        Required when a board-size flow is in the set.',
+  '  --sizes <list>        Board sizes for the sweep. Default: ' +
+    BOARD_SIZE_STANDARD.map(formatBoardSize).join(',') + ' (S,M,L).',
   '  --level <id>          Level the flows drive, e.g. A1-3. Recorded per shot.',
   '  --out <dir>           Output root. Default: ' + DEFAULT_OUT_ROOT,
   '  --date <YYYY-MM-DD>   Override the run date. Default: today.',
   '  --build-if-missing    Build and install the dev client when absent.',
-  '  --keep-booted         Do not shut the simulators down afterwards.',
+  '  --keep-booted         Do not shut the simulators/emulators down afterwards.',
   '  --dry-run             Print the plan; boot nothing, run nothing.',
   '  --help                Print this text.',
 ].join('\n');
@@ -83,6 +107,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const FLAGS_WITH_VALUES = new Set([
   '--label',
+  '--platform',
   '--devices',
   '--flows',
   '--sizes',
@@ -143,6 +168,7 @@ export function parseShotsArgs(argv: readonly string[], options: ParseOptions): 
   if (help) {
     return {
       label: '',
+      platform: 'ios',
       devices: [],
       flowsGlob: DEFAULT_FLOWS_GLOB,
       sizes: null,
@@ -161,16 +187,32 @@ export function parseShotsArgs(argv: readonly string[], options: ParseOptions): 
     throw new ShotsArgError(`--label is required.\n\n${USAGE}`);
   }
 
-  let devices: DeviceSpec[];
+  const platformRaw = (raw['--platform'] ?? 'ios').trim().toLowerCase();
+  if (platformRaw !== 'ios' && platformRaw !== 'android') {
+    throw new ShotsArgError(
+      `--platform must be ios or android, got "${platformRaw}".
+
+${USAGE}`,
+    );
+  }
+  const platform: ShotPlatform = platformRaw;
+
+  let devices: CommonDeviceSpec[];
   try {
-    devices = raw['--devices']
-      ? parseDeviceList(raw['--devices'])
-      : resolveDevices(DEFAULT_DEVICE_ALIASES);
+    if (platform === 'android') {
+      devices = raw['--devices']
+        ? parseAndroidDeviceList(raw['--devices'])
+        : resolveAndroidDevices(DEFAULT_ANDROID_DEVICE_ALIASES);
+    } else {
+      devices = raw['--devices']
+        ? parseDeviceList(raw['--devices'])
+        : resolveDevices(DEFAULT_DEVICE_ALIASES);
+    }
   } catch (error) {
     throw new ShotsArgError(`${(error as Error).message}\n\n${USAGE}`);
   }
 
-  let sizes: BoardSize[] | null = null;
+  let sizes: BoardSize[] | null = BOARD_SIZE_STANDARD.map(size => ({ ...size }));
   if (raw['--sizes'] !== undefined) {
     try {
       sizes = parseBoardSizeList(raw['--sizes']);
@@ -196,6 +238,7 @@ export function parseShotsArgs(argv: readonly string[], options: ParseOptions): 
 
   return {
     label,
+    platform,
     devices,
     flowsGlob,
     sizes,

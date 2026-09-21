@@ -11,7 +11,7 @@
  */
 
 import { formatBoardSize, type BoardSize } from '../utils/boardSizeOverride';
-import type { DeviceSpec } from './devices';
+import type { CommonDeviceSpec } from './devices';
 import { runDirectoryName } from './manifest';
 import type { ShotsArgs } from './args';
 
@@ -44,6 +44,17 @@ export const SHOT_DIR_ENV = 'SHOT_DIR';
 /** Env var carrying the level id the flows should drive. */
 export const SHOT_LEVEL_ENV = 'SHOT_LEVEL';
 
+/**
+ * Env vars carrying the board size split into its two numbers.
+ *
+ * The flows used to derive these from BOARD_SIZE with `evalScript`. That
+ * form parsed, reported COMPLETED, and resolved to an empty string inside a
+ * selector — producing a silent lookup for `dev-board-columns-` that could
+ * never match. The runner has the numbers already, so it passes them.
+ */
+export const BOARD_COLUMNS_ENV = 'BOARD_COLUMNS';
+export const BOARD_ROWS_ENV = 'BOARD_ROWS';
+
 export interface FlowFile {
   /** Repo-relative path, e.g. `.maestro/flows/shots/gameplay-loop.yaml`. */
   path: string;
@@ -52,7 +63,7 @@ export interface FlowFile {
 }
 
 export interface ShotJob {
-  device: DeviceSpec;
+  device: CommonDeviceSpec;
   flow: FlowFile;
   /** null when this flow does not sweep board sizes. */
   boardSize: BoardSize | null;
@@ -60,6 +71,15 @@ export interface ShotJob {
   shotDirectory: string;
   /** Device log path, or null when this flow does not capture one. */
   logFile: string | null;
+  /**
+   * Where Maestro writes this job's own artifacts (`--test-output-dir`).
+   *
+   * Maestro 2.10 refuses a `takeScreenshot` path that resolves outside the
+   * run's artifact folder, so the harness cannot ask a flow to write
+   * straight into the run directory. It points Maestro at a per-job folder
+   * instead and lifts `takeScreenshot/*.png` out of it afterwards.
+   */
+  artifactDirectory: string;
   /** `-e KEY=VALUE` pairs handed to Maestro. */
   env: Record<string, string>;
 }
@@ -137,15 +157,21 @@ export function buildRunPlan(args: ShotsArgs, flows: readonly FlowFile[]): RunPl
         if (args.levelId) env[SHOT_LEVEL_ENV] = args.levelId;
         if (boardSize) {
           env[BOARD_SIZE_ENV] = formatBoardSize(boardSize);
+          env[BOARD_COLUMNS_ENV] = String(boardSize.columns);
+          env[BOARD_ROWS_ENV] = String(boardSize.rows);
           env[SHOT_PREFIX_ENV] = `${formatBoardSize(boardSize)}-`;
         } else {
           env[SHOT_PREFIX_ENV] = '';
         }
+        const jobSlug = boardSize
+          ? `${flow.name}-${formatBoardSize(boardSize)}`
+          : flow.name;
         jobs.push({
           device,
           flow,
           boardSize,
           shotDirectory,
+          artifactDirectory: `${shotDirectory}/.maestro/${jobSlug}`,
           logFile: capturesDeviceLog(flow)
             ? `${shotDirectory}/${flow.name}.device.log`
             : null,
@@ -178,6 +204,8 @@ export function maestroCommand(
     args.push('-e', `${key}=${value}`);
   }
   args.push(
+    '--test-output-dir',
+    job.artifactDirectory,
     '--format',
     'junit',
     '--output',

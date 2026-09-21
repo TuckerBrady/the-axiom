@@ -14,7 +14,15 @@ export type DeviceAlias = 'se' | '15' | 'max';
 export interface DeviceSpec {
   /** Short alias accepted by `--devices`. */
   alias: DeviceAlias;
-  /** Exact `xcrun simctl` device name. */
+  /** Always `ios` — this matrix is the iOS half of the harness. */
+  platform: 'ios';
+  /**
+   * Platform-neutral name of the thing the runner boots. On iOS this is the
+   * simulator name; `androidDevices.ts` uses the same field for the AVD
+   * name, so `plan.ts` and `manifest.ts` can stay platform-agnostic.
+   */
+  target: string;
+  /** Exact `xcrun simctl` device name. Same string as `target`. */
   simulatorName: string;
   /** Directory segment under the run folder. */
   slug: string;
@@ -27,6 +35,8 @@ export interface DeviceSpec {
 export const DEVICE_MATRIX: readonly DeviceSpec[] = Object.freeze([
   Object.freeze({
     alias: 'se' as const,
+    platform: 'ios' as const,
+    target: 'iPhone SE (3rd generation)',
     simulatorName: 'iPhone SE (3rd generation)',
     slug: 'iphone-se-3rd-gen',
     label: 'iPhone SE (3rd gen)',
@@ -34,6 +44,8 @@ export const DEVICE_MATRIX: readonly DeviceSpec[] = Object.freeze([
   }),
   Object.freeze({
     alias: '15' as const,
+    platform: 'ios' as const,
+    target: 'iPhone 15',
     simulatorName: 'iPhone 15',
     slug: 'iphone-15',
     label: 'iPhone 15',
@@ -41,6 +53,8 @@ export const DEVICE_MATRIX: readonly DeviceSpec[] = Object.freeze([
   }),
   Object.freeze({
     alias: 'max' as const,
+    platform: 'ios' as const,
+    target: 'iPhone 15 Pro Max',
     simulatorName: 'iPhone 15 Pro Max',
     slug: 'iphone-15-pro-max',
     label: 'iPhone 15 Pro Max',
@@ -97,4 +111,23 @@ export function parseDeviceList(raw: string): DeviceSpec[] {
     .map(part => part.trim())
     .filter(part => part.length > 0);
   return resolveDevices(aliases);
+}
+
+/**
+ * Either platform's device spec.
+ *
+ * `plan.ts` and `manifest.ts` only ever touch the fields both matrices
+ * share — `alias`, `platform`, `target`, `slug`, `label`, `points` — so they
+ * do not branch on platform at all. Only `cli.ts` does, where it has to
+ * choose between `simctl.ts` and `adb.ts`.
+ */
+export type ShotPlatform = 'ios' | 'android';
+
+export interface CommonDeviceSpec {
+  alias: string;
+  platform: ShotPlatform;
+  target: string;
+  slug: string;
+  label: string;
+  points: { width: number; height: number };
 }

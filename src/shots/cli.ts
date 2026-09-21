@@ -11,12 +11,28 @@
  *                    --level A1-3
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
 import type { ChildProcess } from 'child_process';
 
 import { parseShotsArgs, ShotsArgError, USAGE } from './args';
 import { assertMacHost, HostError, scanLogForFailures } from './host';
+import type { AndroidDeviceSpec } from './androidDevices';
+import type { DeviceSpec } from './devices';
+import { scanLogcatForFailures } from './androidLog';
+import {
+  adbPath,
+  assertAndroidToolAvailable,
+  bootAvd,
+  defaultApkPath,
+  installApk,
+  isAppInstalled as isAndroidAppInstalled,
+  readLog as readAndroidLog,
+  shutdownAvd,
+  startLogcatCapture,
+  stillAnimations,
+  stopLogcatCapture,
+} from './adb';
 import {
   buildManifest,
   writeManifest,
@@ -73,14 +89,59 @@ function discoverFlows(glob: string): string[] {
     .map(name => `${dir}/${name}`);
 }
 
-function listPngs(directory: string): Set<string> {
-  const absolute = resolve(REPO_ROOT, directory);
-  if (!existsSync(absolute)) return new Set();
-  return new Set(readdirSync(absolute).filter(name => name.endsWith('.png')));
-}
-
 function stepFromFilename(filename: string): string {
   return filename.replace(/\.png$/, '');
+}
+
+/**
+ * Lift a job's screenshots out of Maestro's artifact folder into the run
+ * directory.
+ *
+ * Maestro 2.10 writes `takeScreenshot` output to
+ * `<--test-output-dir>/takeScreenshot/<name>.png` and refuses to write
+ * anywhere else, so the layout PROMPT_159 specifies
+ * (`__shots__/<date>-<label>/<device>/<step>.png`) has to be assembled by
+ * the runner rather than by the flow. Returns the filenames copied.
+ */
+function collectShots(artifactDirectory: string, shotDirectory: string): string[] {
+  const root = resolve(REPO_ROOT, artifactDirectory);
+  if (!existsSync(root)) return [];
+  const target = resolve(REPO_ROOT, shotDirectory);
+  mkdirSync(target, { recursive: true });
+  const copied: string[] = [];
+  for (const source of findScreenshotDirs(root)) {
+    for (const filename of readdirSync(source)) {
+      if (!filename.endsWith('.png')) continue;
+      copyFileSync(`${source}/${filename}`, `${target}/${filename}`);
+      copied.push(filename);
+    }
+  }
+  return copied.sort();
+}
+
+/**
+ * Every `takeScreenshot` directory under a job's artifact folder.
+ *
+ * Maestro nests its output as
+ * `<--test-output-dir>/<timestamp>/<flow>/takeScreenshot/`, and the
+ * timestamp segment is not predictable from anything the runner knows.
+ * `--flatten-debug-output` is documented to remove it but produced no
+ * output at all when combined with `--test-output-dir`, so the runner walks
+ * for the directory instead of trying to compute its path.
+ */
+function findScreenshotDirs(root: string): string[] {
+  const found: string[] = [];
+  const walk = (dir: string, depth: number): void => {
+    if (depth > 4) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const child = `${dir}/${entry.name}`;
+      if (entry.name === 'takeScreenshot') found.push(child);
+      else walk(child, depth + 1);
+    }
+  };
+  walk(root, 0);
+  return found.sort();
 }
 
 export function main(argv: readonly string[]): number {
@@ -111,6 +172,7 @@ export function main(argv: readonly string[]): number {
   }
 
   if (args.dryRun) {
+    console.log(`Platform: ${args.platform}`);
     console.log(`Run directory: ${plan.runDirectory}`);
     for (const job of plan.jobs) {
       const size = job.boardSize ? `${job.boardSize.columns}x${job.boardSize.rows}` : '-';
@@ -120,10 +182,22 @@ export function main(argv: readonly string[]): number {
     return 0;
   }
 
+  const isAndroid = args.platform === 'android';
+
   try {
-    assertMacHost();
-    assertToolAvailable('xcrun', ['simctl', 'help']);
-    assertToolAvailable('maestro', ['--version']);
+    if (isAndroid) {
+      // No host guard on this path: the Android SDK and Maestro run on
+      // Windows, Linux and macOS alike.
+      assertAndroidToolAvailable(adbPath(), ['version']);
+      assertAndroidToolAvailable('maestro', ['--version']);
+    } else {
+      // The iOS path stays guarded. PROMPT_159 fixed it to the simulator and
+      // gave it no fallback, and the AXM-011 scope change did not move that:
+      // REQ-A-1..A-3 still waits for a Mac.
+      assertMacHost();
+      assertToolAvailable('xcrun', ['simctl', 'help']);
+      assertToolAvailable('maestro', ['--version']);
+    }
   } catch (error) {
     if (error instanceof HostError) {
       console.error(error.message);
@@ -141,29 +215,50 @@ export function main(argv: readonly string[]): number {
 
   try {
     for (const job of plan.jobs) {
-      const udid = findUdid(job.device);
+      const udid = isAndroid
+        ? bootAvd(job.device as AndroidDeviceSpec)
+        : findUdid(job.device as unknown as DeviceSpec);
       if (!bootedUdids.has(udid)) {
-        bootDevice(udid);
-        bootedUdids.add(udid);
-        if (!isAppInstalled(udid)) {
-          if (!args.buildIfMissing) {
-            console.error(
-              `The Axiom is not installed on ${job.device.label}. ` +
-                'Re-run with --build-if-missing, or install a testflight-profile build first.',
-            );
-            return 3;
+        if (isAndroid) {
+          // Platform transition animations off, so a screenshot is of a
+          // settled frame rather than a half-finished fade.
+          stillAnimations(udid);
+          if (!isAndroidAppInstalled(udid)) {
+            if (!args.buildIfMissing) {
+              console.error(
+                `The Axiom is not installed on ${job.device.label}. ` +
+                  'Re-run with --build-if-missing, or install a release APK built ' +
+                  'with EXPO_PUBLIC_SHOW_DEV_TOOLS=true first.',
+              );
+              return 3;
+            }
+            installApk(udid, defaultApkPath(REPO_ROOT));
           }
-          buildAndInstall(job.device, REPO_ROOT);
+        } else {
+          bootDevice(udid);
+          if (!isAppInstalled(udid)) {
+            if (!args.buildIfMissing) {
+              console.error(
+                `The Axiom is not installed on ${job.device.label}. ` +
+                  'Re-run with --build-if-missing, or install a testflight-profile build first.',
+              );
+              return 3;
+            }
+            buildAndInstall(job.device as unknown as DeviceSpec, REPO_ROOT);
+          }
         }
+        bootedUdids.add(udid);
       }
 
       const absoluteShotDir = resolve(REPO_ROOT, job.shotDirectory);
       mkdirSync(absoluteShotDir, { recursive: true });
-      const before = listPngs(job.shotDirectory);
 
       let logProcess: ChildProcess | null = null;
       if (job.logFile) {
-        logProcess = startLogCapture(udid, resolve(REPO_ROOT, job.logFile));
+        const logPath = resolve(REPO_ROOT, job.logFile);
+        logProcess = isAndroid
+          ? startLogcatCapture(udid, logPath)
+          : startLogCapture(udid, logPath);
       }
 
       const { command, args: maestroArgs } = maestroCommand(job, udid);
@@ -171,22 +266,40 @@ export function main(argv: readonly string[]): number {
       let exitCode = runMaestro(command, maestroArgs, env, REPO_ROOT);
 
       if (logProcess) {
-        stopLogCapture(logProcess);
-        const hits = scanLogForFailures(readLog(resolve(REPO_ROOT, job.logFile!)));
+        const logPath = resolve(REPO_ROOT, job.logFile!);
+        let hits: string[];
+        if (isAndroid) {
+          stopLogcatCapture(logProcess);
+          hits = scanLogcatForFailures(readAndroidLog(logPath));
+        } else {
+          stopLogCapture(logProcess);
+          hits = scanLogForFailures(readLog(logPath));
+        }
         if (hits.length > 0) {
+          // On Android this says "the run did not actually work" — a native
+          // crash, a redbox or an ANR. It is deliberately NOT reported as
+          // evidence about REQ-A-1..A-3, which is a macOS question.
           console.error(
-            `Animation-host safety FAILED on ${job.device.label}: ${hits.length} ` +
-              `offending log line(s). First: ${hits[0]}`,
+            `${isAndroid ? 'Log scan' : 'Animation-host safety'} FAILED on ` +
+              `${job.device.label}: ${hits.length} offending log line(s). ` +
+              `First: ${hits[0]}`,
           );
           exitCode = exitCode === 0 ? 1 : exitCode;
         }
       }
 
-      const after = listPngs(job.shotDirectory);
-      for (const filename of after) {
-        if (before.has(filename)) continue;
+      // The manifest is built from what the collector actually copied out of
+      // this job's own artifact folder, not from a before/after diff of the
+      // device directory. The diff silently dropped a shot whenever a file
+      // of the same name was already there — which happens the moment a run
+      // is repeated with the same date and label, and is exactly how a
+      // stale image from an earlier run can end up sitting in a folder while
+      // the manifest says nothing about it.
+      const collected = collectShots(job.artifactDirectory, job.shotDirectory);
+      for (const filename of collected) {
         shots.push({
           step: stepFromFilename(filename),
+          platform: args.platform,
           device: job.device.label,
           deviceAlias: job.device.alias,
           boardSize: job.boardSize
@@ -204,12 +317,16 @@ export function main(argv: readonly string[]): number {
     }
   } finally {
     if (!args.keepBooted) {
-      for (const udid of bootedUdids) shutdownDevice(udid);
+      for (const udid of bootedUdids) {
+        if (isAndroid) shutdownAvd(udid);
+        else shutdownDevice(udid);
+      }
     }
   }
 
   const manifest = buildManifest({
     label: args.label,
+    platform: args.platform,
     runDirectory: plan.runDirectory,
     startedAt,
     finishedAt: new Date().toISOString(),

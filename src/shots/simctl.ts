@@ -149,6 +149,9 @@ export function runMaestro(
     env,
     stdio: 'inherit',
     encoding: 'utf8',
+    // Windows ships Maestro as `maestro.bat`, which CreateProcess cannot
+    // run directly. See NEEDS_SHELL in `adb.ts`.
+    shell: process.platform === 'win32',
   });
   if (result.error) {
     throw new HostError(`Could not run "${command}": ${result.error.message}`);

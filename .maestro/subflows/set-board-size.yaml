@@ -1,35 +1,55 @@
 # Set the dev-only board-size override from the BOARD_SIZE env var.
 #
-# PROMPT_159 task 3: the sweep changes the board from the dev toggle, never
-# from a source edit, so one `npm run shots` run shoots every candidate size.
-# The Settings control exposes the whole legal column/row range, so this
-# subflow works for any size the runner is given.
+# AXM-011 / PROMPT_159 task 3: the sweep changes the board from the dev
+# toggle, never from a source edit, so one `npm run shots` run shoots every
+# candidate size. The Settings control exposes the whole legal column/row
+# range, so this subflow works for any size the runner is given.
 #
-# Requires a build where SHOW_DEV_TOOLS is true: __DEV__ or the `testflight`
-# EAS profile. In a `production` build the section is absent and this subflow
-# fails loudly, which is the correct outcome.
-appId: com.tuckbrady.theaxiom
-env:
-  BOARD_SIZE: ""
+# Requires a build where SHOW_DEV_TOOLS is true: __DEV__, the `testflight`
+# EAS profile, or any build made with EXPO_PUBLIC_SHOW_DEV_TOOLS=true. In a
+# `production` build the section is absent and this subflow fails loudly,
+# which is the correct outcome.
+appId: com.tuckerbrady.theaxiom
+# No `env:` defaults block on purpose. Declaring `BOARD_COLUMNS: ""` here
+# does not act as a fallback — the empty default wins over the value passed
+# with `-e`, and the selector silently resolves to `dev-board-columns-`.
+# Leaving the keys undeclared makes a missing value a loud failure instead.
 ---
 - runFlow: enter-hub.yaml
+
 - tapOn:
     id: "engineer-tab"
-- assertVisible: "BOARD SIZE OVERRIDE (DEV)"
-- evalScript: ${output.columns = BOARD_SIZE.split('x')[0]}
-- evalScript: ${output.rows = BOARD_SIZE.split('x')[1]}
+- extendedWaitUntil:
+    visible: "SETTINGS"
+    timeout: 20000
+
+# Columns and rows arrive as their own env vars rather than being split out
+# of BOARD_SIZE with `evalScript`. The evalScript form parsed and reported
+# COMPLETED but resolved to an empty string in the selector, producing a
+# silent `id: dev-board-columns-` lookup. The runner already has the numbers
+# — `plan.ts` sets BOARD_COLUMNS and BOARD_ROWS beside BOARD_SIZE — so
+# passing them straight in removes the failure mode entirely.
+
+# The chip rows are horizontal ScrollViews inside the vertical settings
+# ScrollView, so the scroll here is only ever vertical — every legal column
+# (3..10) and row (3..12) chip is already laid out along its own row.
 - scrollUntilVisible:
     element:
-      id: "dev-board-columns-${output.columns}"
+      id: "dev-board-columns-${BOARD_COLUMNS}"
     direction: DOWN
+    timeout: 30000
 - tapOn:
-    id: "dev-board-columns-${output.columns}"
+    id: "dev-board-columns-${BOARD_COLUMNS}"
+
 - scrollUntilVisible:
     element:
-      id: "dev-board-rows-${output.rows}"
+      id: "dev-board-rows-${BOARD_ROWS}"
     direction: DOWN
+    timeout: 30000
 - tapOn:
-    id: "dev-board-rows-${output.rows}"
+    id: "dev-board-rows-${BOARD_ROWS}"
+
+# Proof the override actually took, before anything is photographed.
 - assertVisible:
     id: "dev-board-size-value"
     text: "${BOARD_SIZE}"

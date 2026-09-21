@@ -1,6 +1,23 @@
 # Decision needed — the three candidate board sizes
 
-**Raised by:** PROMPT_159 / AXM-011 · **Date:** 2026-09-20 · **Status:** OPEN
+> **CLOSED 2026-09-20.** Tucker named the three sizes:
+>
+> | Name | Columns × Rows |
+> |------|----------------|
+> | S    | 8 × 6          |
+> | M    | 10 × 7         |
+> | L    | 10 × 9         |
+>
+> They are wired as the default `--sizes` set in
+> `BOARD_SIZE_STANDARD` (`src/utils/boardSizeOverride.ts`) and remain
+> overridable from the command line. The sweep that photographs them has
+> been run — on **Android**, not iOS — and the nine images are committed
+> under `project-docs/SHOTS/board-size-standard/`. See
+> `PROMPT_159_REPORT.md` for the run and the read on which size wins where.
+>
+> Everything below is the original write-up, kept for the reasoning.
+
+**Raised by:** PROMPT_159 / AXM-011 · **Date:** 2026-09-20 · **Status:** CLOSED 2026-09-20
 
 ---
 
@@ -49,6 +66,8 @@ Any three sizes inside those bounds can be swept the moment they are named. No c
 needed — only the `--sizes` value.
 
 ## What is needed to close this
+
+*(Answered above on 2026-09-20.)*
 
 A single line naming the three candidate sizes as `<columns>x<rows>`, from the design canvas or
 from Tucker directly. For example:

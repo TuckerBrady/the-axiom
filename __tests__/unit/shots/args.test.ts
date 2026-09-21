@@ -24,7 +24,14 @@ describe('parseShotsArgs', () => {
     expect(args.flowsGlob).toBe(DEFAULT_FLOWS_GLOB);
     expect(args.outRoot).toBe(DEFAULT_OUT_ROOT);
     expect(args.date).toBe('2026-09-20');
-    expect(args.sizes).toBeNull();
+    // Tucker set the board-size standard on 2026-09-20, which closed the
+    // decision PROMPT_159 deferred. Before that date the harness refused to
+    // default `--sizes` at all; now the default IS the decision.
+    expect(args.sizes).toEqual([
+      { columns: 8, rows: 6 },
+      { columns: 10, rows: 7 },
+      { columns: 10, rows: 9 },
+    ]);
     expect(args.levelId).toBeNull();
     expect(args.dryRun).toBe(false);
     expect(args.buildIfMissing).toBe(false);
@@ -63,8 +70,10 @@ describe('parseShotsArgs', () => {
   });
 
   it('rejects an unknown argument instead of ignoring it', () => {
-    expect(() => parse(['--label', 'loop', '--platform', 'web'])).toThrow(
-      /Unknown argument "--platform"/,
+    // `--platform` used to be the example of an unknown flag here. It is a
+    // real flag now, so the check moved to one that is still unknown.
+    expect(() => parse(['--label', 'loop', '--simulator', 'web'])).toThrow(
+      /Unknown argument "--simulator"/,
     );
     expect(() => parse(['--label', 'loop', 'stray'])).toThrow(/Unknown argument "stray"/);
   });
@@ -106,5 +115,56 @@ describe('parseShotsArgs', () => {
     } catch (error) {
       expect((error as Error).message).toContain('Usage: npm run shots');
     }
+  });
+});
+
+describe('--platform', () => {
+  it('defaults to ios, so an existing command line means what it always meant', () => {
+    const args = parse(['--label', 'loop']);
+    expect(args.platform).toBe('ios');
+    expect(args.devices.map(d => d.alias)).toEqual(['se', '15', 'max']);
+  });
+
+  it('switches --devices to the Android matrix', () => {
+    const args = parse(['--label', 'loop', '--platform', 'android']);
+    expect(args.platform).toBe('android');
+    expect(args.devices.map(d => d.alias)).toEqual(['compact', 'standard', 'large']);
+    expect(args.devices.map(d => d.points.width)).toEqual([360, 411, 448]);
+  });
+
+  it('resolves an explicit Android device list', () => {
+    const args = parse([
+      '--label', 'loop',
+      '--platform', 'android',
+      '--devices', 'large,compact',
+    ]);
+    expect(args.devices.map(d => d.slug)).toEqual([
+      'android-compact-360dp',
+      'android-large-448dp',
+    ]);
+  });
+
+  it('rejects an iOS alias under --platform android', () => {
+    expect(() =>
+      parse(['--label', 'loop', '--platform', 'android', '--devices', 'se']),
+    ).toThrow(/Unknown Android device "se"/);
+  });
+
+  it('rejects an unknown platform by name', () => {
+    expect(() => parse(['--label', 'loop', '--platform', 'web'])).toThrow(
+      ShotsArgError,
+    );
+    expect(() => parse(['--label', 'loop', '--platform', 'web'])).toThrow(
+      /--platform must be ios or android, got "web"/,
+    );
+  });
+
+  it('is case insensitive', () => {
+    expect(parse(['--label', 'l', '--platform', 'ANDROID']).platform).toBe('android');
+  });
+
+  it('still lets --sizes override the standard', () => {
+    const args = parse(['--label', 'l', '--platform', 'android', '--sizes', '9x8']);
+    expect(args.sizes).toEqual([{ columns: 9, rows: 8 }]);
   });
 });
