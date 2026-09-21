@@ -33,6 +33,7 @@ import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
 import ArcWheel, { WHEEL_WIDTH, type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
+import DamagedCell from '../components/gameplay/DamagedCell';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
@@ -315,6 +316,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // Phase 1 extraction — failure state (blownCells, failCount, helpers).
   const {
     blownCells, setBlownCells,
+    liveBurnCells, settleLiveBurns,
     failCount, setFailCount,
     voidQuoteIndex, setVoidQuoteIndex,
     blownCellsRef,
@@ -806,6 +808,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     hapticMedium();
+    // Any crater from a previous run stops smouldering the moment a new run
+    // begins — it settles to plain terrain damage (see DamagedCell).
+    settleLiveBurns();
     // Increment run ID before any async work so stale callbacks from the
     // previous run can detect the mismatch and no-op. (A1-7 crash fix.)
     beam.runIdRef.current += 1;
@@ -1465,39 +1470,21 @@ export default function GameplayScreen({ navigation }: Props) {
                 )),
               )}
 
-              {/* Blown cell scars */}
+              {/* Damaged cells — "missing plate" (Tucker approved 2026-09-20).
+                  Terrain damage (level.damagedCells) and failure craters are
+                  the same hole in the deck; a cell blown during the CURRENT
+                  run additionally carries a live ember. Drawing lives in
+                  DamagedCell so this screen stays a layout file. */}
               {Array.from(blownCells).map(key => {
                 const [gx, gy] = key.split(',').map(Number);
-                const cx = gx * CELL_SIZE + CELL_SIZE / 2;
-                const cy = gy * CELL_SIZE + CELL_SIZE / 2;
-                // Blast crater — a charred recess with a copper-scorched rim and
-                // radial cracks. Used for BOTH pre-existing blown cells (worn
-                // Kepler boards) and cells the player blows by failing a run.
-                // REQ-G-15: scorched rim -> Colors.copper, inner crater
-                // ring -> Colors.red, at the same opacities as the old
-                // off-token oranges. Geometry unchanged.
                 return (
-                  <G key={`scar-${key}`}>
-                    {/* Blast pit */}
-                    <Circle
-                      cx={cx} cy={cy} r={CELL_SIZE * 0.34}
-                      fill="rgba(18,8,5,0.55)"
-                      stroke={hexToRgba(Colors.copper, 0.55)}
-                      strokeWidth={1.5}
-                    />
-                    {/* Charred hole */}
-                    <Circle
-                      cx={cx} cy={cy} r={CELL_SIZE * 0.16}
-                      fill="rgba(0,0,0,0.6)"
-                      stroke={hexToRgba(Colors.red, 0.5)}
-                      strokeWidth={1}
-                    />
-                    {/* Radial scorch cracks */}
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.4} y2={cy - CELL_SIZE * 0.34} stroke={hexToRgba(Colors.copper, 0.45)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.42} y2={cy - CELL_SIZE * 0.26} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.3} y2={cy + CELL_SIZE * 0.4} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.32} y2={cy + CELL_SIZE * 0.36} stroke={hexToRgba(Colors.copper, 0.35)} strokeWidth={1} />
-                  </G>
+                  <DamagedCell
+                    key={`damaged-${key}`}
+                    size={CELL_SIZE}
+                    x={gx * CELL_SIZE}
+                    y={gy * CELL_SIZE}
+                    live={liveBurnCells.has(key)}
+                  />
                 );
               })}
             </Svg>
