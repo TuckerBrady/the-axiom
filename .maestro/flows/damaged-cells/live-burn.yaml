@@ -1,0 +1,126 @@
+# PR #48 — damaged cells as a live burn.
+#
+# Builds a machine that must fail, runs it, and photographs the crater the
+# failure leaves with its live ember lit (the cell blew during THIS run).
+#
+# Run with --level K1-2. Why that level and that machine:
+#   - Cells only blow outside the Axiom tutorial sector
+#     (failureHandlers.ts, `if (!isAxiomLevel)`), so an A-sector level can
+#     never show a live burn — the first version of this flow used A1-3 and
+#     got INSUFFICIENT PULSES with nothing blown.
+#   - K1-2's expected output is its input, same length, so the OUT tape is
+#     the live gate: a machine that never writes OUT is an OUTPUT MISMATCH.
+#   - On a wrong output the piece that blows is the Transmitter
+#     (useGameplayFailure.findBlownPiece). So the machine is K1-2's one
+#     included Transmitter placed off the signal path: it never fires, OUT stays
+#     blank, the run fails, and the Transmitter's cell blows.
+#
+# Kepler boards have no placement highlights, so any empty cell accepts the
+# Transmitter. The point tap is a coordinate — the one non-selector step,
+# same as gameplay-loop.yaml — and it aims at the top row, well clear of the
+# Source/Terminal row. If it ever misses the board, nothing blows, and the
+# RESET BOARD assertion below fails the flow rather than passing it.
+#
+# Not captured: the ember settling when the NEXT run starts. After OUTPUT
+# MISMATCH, RETRY leaves the store's isExecuting set, which hides ENGAGE and
+# the tray, so no next run can be started from the board. That is a
+# pre-existing gameplay bug on master, reported separately; a settled crater
+# renders identically to terrain damage, which terrain.yaml covers.
+#
+# Lives outside flows/shots/ on purpose: the default `npm run shots` glob
+# runs every flow there with one --level, and this flow needs its own:
+#   npm run shots -- --label damaged-live-burn --platform android \
+#     --flows ".maestro/flows/damaged-cells/live-burn.yaml" --level K1-2
+appId: com.tuckerbrady.theaxiom
+---
+- runFlow: ../../subflows/reset-board-size.yaml
+
+- scrollUntilVisible:
+    element:
+      text: "KEPLER BELT"
+    direction: DOWN
+    timeout: 30000
+- repeat:
+    times: 4
+    while:
+      notVisible: "${SHOT_LEVEL}"
+    commands:
+      # Start from the THIRD visible chip, never the first: the first sits
+      # at the left edge, and on a 360dp screen a swipe from there is too
+      # short to register — Android reads it as a tap and opens K1-1.
+      - swipe:
+          from:
+            text: "K1-[0-9]+"
+            index: 2
+          direction: LEFT
+- tapOn: "${SHOT_LEVEL}"
+
+- extendedWaitUntil:
+    visible: "LAUNCH MISSION"
+    timeout: 30000
+- tapOn: "LAUNCH MISSION"
+- extendedWaitUntil:
+    visible: "ENGAGE MACHINE"
+    timeout: 45000
+# The first Kepler entry on a device plays a one-time COGS credits card
+# ("TAP TO CONTINUE") over the whole screen, drawer included.
+- runFlow: ../../subflows/clear-board-overlays.yaml
+
+# ── Requisition: confirm, buy nothing ──────────────────────────────────────
+# K1-2 already includes one Transmitter in its tray (INCLUDED x1), so nothing
+# is purchased; the requisition is only confirmed, closing the store the way
+# a player would before building. The store is a pull-up drawer whose list
+# starts below mid-screen on a 360dp device, so a plain scrollUntilVisible
+# swipes the budget row instead of the list — swipe the list itself, from
+# one of its own + controls, until the confirm button is on screen.
+- tapOn: "REQUISITION STORE.*"
+- repeat:
+    times: 6
+    while:
+      notVisible: "Confirm requisition"
+    commands:
+      - swipe:
+          from: "Add one .*"
+          direction: UP
+- tapOn: "Confirm requisition"
+
+- runFlow: ../../subflows/clear-board-overlays.yaml
+
+# ── Place it off the signal path ───────────────────────────────────────────
+# The tray is a vertical carousel; swipe it from a chip that is always on
+# screen until XMIT comes into view.
+- repeat:
+    times: 4
+    while:
+      notVisible: "XMIT, .* available"
+    commands:
+      - swipe:
+          from: "SCAN, .* available"
+          direction: UP
+- tapOn: "XMIT, .* available"
+- tapOn:
+    point: "40%,49%"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: ${SHOT_PREFIX}01-before-run
+
+# ── Run it into a wrong output ─────────────────────────────────────────────
+- tapOn: "ENGAGE MACHINE"
+- extendedWaitUntil:
+    visible: "OUTPUT MISMATCH"
+    timeout: 60000
+# RESET BOARD is only offered when blownCells is non-empty: proof a cell
+# actually blew before anything is photographed as a burn.
+- assertVisible: "RESET BOARD.*"
+- takeScreenshot: ${SHOT_PREFIX}02-output-mismatch
+
+# ── Live burn: back on the board, ember lit ────────────────────────────────
+- tapOn: "RETRY"
+- extendedWaitUntil:
+    notVisible: "OUTPUT MISMATCH"
+    timeout: 20000
+# The ember animates, so the screen never settles; this wait runs to its
+# short timeout and only lets the modal's exit finish.
+- waitForAnimationToEnd:
+    timeout: 3000
+- takeScreenshot: ${SHOT_PREFIX}03-live-burn
