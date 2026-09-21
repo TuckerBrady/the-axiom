@@ -13,6 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
+    "audit": "node scripts/audit-gate.mjs",
     "build:info": "node ./scripts/write-build-info.js",
     "postinstall": "node ./scripts/write-build-info.js && patch-package",
     "prestart": "node ./scripts/write-build-info.js"
@@ -67,5 +68,9 @@
     "ts-jest": "^29.4.9",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "brace-expansion": "^1.1.21",
+    "postcss": "^8.5.28"
+  }
 }

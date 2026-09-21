@@ -1,0 +1,17 @@
+{
+  "_note": "High and critical advisories the dependency gate is allowed to pass, each with a reason and a date it has to be looked at again. Anything not on this list fails the build. An entry that no longer matches anything also fails the build, so the list cannot rot.",
+  "allow": [
+    {
+      "advisory": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+      "package": "image-size",
+      "reason": "Reached only through metro 0.83.3, which pins image-size ^1.2.0 and is itself pinned by expo 54. The advisory is a denial of service in the JXL/HEIF/ICNS parsers, and metro only ever calls it on asset files already inside this repo at bundle time - it never sees a file from a user or from the network, and none of it ships in the app. Overriding to image-size 2.x was tried on 2026-09-20 and breaks the bundler outright ('The list argument must be an instance of SharedArrayBuffer'), so the only real fix is Expo 57, which is an SDK migration and not an audit fix.",
+      "review_by": "2026-12-01"
+    },
+    {
+      "advisory": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+      "package": "image-size",
+      "reason": "Same package, same path, same reasoning as the advisory above: metro's build-time asset reader on files already in this repo, nothing user-supplied, nothing shipped. The ICNS parser in particular is only reached by a .icns file, which this project does not have. Goes away with Expo 57.",
+      "review_by": "2026-12-01"
+    }
+  ]
+}
