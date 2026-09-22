@@ -26,13 +26,22 @@ import {
   bootAvd,
   defaultApkPath,
   installApk,
+  installedApkSha256,
   isAppInstalled as isAndroidAppInstalled,
+  localApk,
   readLog as readAndroidLog,
   shutdownAvd,
   startLogcatCapture,
   stillAnimations,
   stopLogcatCapture,
 } from './adb';
+import {
+  buildProvenance,
+  decideInstall,
+  describeInstallDecision,
+  type BuildProvenance,
+  type LocalArtifact,
+} from './install';
 import {
   buildManifest,
   writeManifest,
@@ -54,11 +63,14 @@ import {
   findUdid,
   gitSha,
   isAppInstalled,
+  readIosInstallMarkers,
   readLog,
+  recordIosInstall,
   runMaestro,
   shutdownDevice,
   startLogCapture,
   stopLogCapture,
+  treeFingerprint,
 } from './simctl';
 
 const REPO_ROOT = resolve(__dirname, '..', '..');
@@ -212,6 +224,13 @@ export function main(argv: readonly string[]): number {
   const shots: ManifestShot[] = [];
   const results: JobResult[] = [];
   const bootedUdids = new Set<string>();
+  const provenanceByUdid = new Map<string, BuildProvenance>();
+  // What the harness would install: the local APK (hashed once; it is
+  // ~90 MB), or on iOS the working tree it would build from.
+  const local: LocalArtifact | null = isAndroid
+    ? localApk(REPO_ROOT)
+    : { path: null, fingerprint: treeFingerprint(REPO_ROOT), modifiedAt: null };
+  const iosMarkers = isAndroid ? {} : readIosInstallMarkers(REPO_ROOT);
 
   try {
     for (const job of plan.jobs) {
@@ -223,30 +242,40 @@ export function main(argv: readonly string[]): number {
           // Platform transition animations off, so a screenshot is of a
           // settled frame rather than a half-finished fade.
           stillAnimations(udid);
-          if (!isAndroidAppInstalled(udid)) {
-            if (!args.buildIfMissing) {
-              console.error(
-                `The Axiom is not installed on ${job.device.label}. ` +
-                  'Re-run with --build-if-missing, or install a release APK built ' +
-                  'with EXPO_PUBLIC_SHOW_DEV_TOOLS=true first.',
-              );
-              return 3;
-            }
-            installApk(udid, defaultApkPath(REPO_ROOT));
-          }
         } else {
           bootDevice(udid);
-          if (!isAppInstalled(udid)) {
-            if (!args.buildIfMissing) {
-              console.error(
-                `The Axiom is not installed on ${job.device.label}. ` +
-                  'Re-run with --build-if-missing, or install a testflight-profile build first.',
-              );
-              return 3;
-            }
+        }
+
+        // Install whenever the device's build is not provably the local one.
+        // Before this, an emulator holding an older build was used as-is and
+        // a run after rebuilding the APK photographed the stale build.
+        const installed = isAndroid ? isAndroidAppInstalled(udid) : isAppInstalled(udid);
+        let installedFingerprint: string | null = null;
+        if (installed) {
+          installedFingerprint = isAndroid ? installedApkSha256(udid) : iosMarkers[udid] ?? null;
+        }
+        const decision = decideInstall({
+          local,
+          installed,
+          installedFingerprint,
+          installNeedsBuild: !isAndroid,
+          buildIfMissing: args.buildIfMissing,
+        });
+        const message = describeInstallDecision(decision, job.device.label, args.platform);
+        if (decision.action === 'fail') {
+          console.error(message);
+          return 3;
+        }
+        if (message) console.log(message);
+        if (decision.action === 'install') {
+          if (isAndroid) {
+            installApk(udid, defaultApkPath(REPO_ROOT));
+          } else {
             buildAndInstall(job.device as unknown as DeviceSpec, REPO_ROOT);
+            recordIosInstall(REPO_ROOT, udid, local!.fingerprint);
           }
         }
+        provenanceByUdid.set(udid, buildProvenance(decision, local, installedFingerprint));
         bootedUdids.add(udid);
       }
 
@@ -310,6 +339,7 @@ export function main(argv: readonly string[]): number {
           gitSha: sha,
           flow: job.flow.path,
           file: `${job.device.slug}/${filename}`,
+          build: provenanceByUdid.get(udid)!,
         });
       }
 

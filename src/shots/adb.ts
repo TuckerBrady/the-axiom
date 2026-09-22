@@ -18,12 +18,14 @@ import {
   type ChildProcess,
   type SpawnSyncReturns,
 } from 'child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'fs';
+import { createHash } from 'crypto';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, statSync } from 'fs';
 import { dirname } from 'path';
 
 import type { AndroidDeviceSpec } from './androidDevices';
 import { HostError } from './host';
 import { emulatorSerialForAvd, parseAdbDevices } from './androidLog';
+import { parsePmPathBaseApk, parseSha256sum, type LocalArtifact } from './install';
 
 /**
  * Android application id. Matches `android.package` in `app.json` and the
@@ -194,6 +196,27 @@ export function isAppInstalled(serial: string, appId: string = ANDROID_APP_ID): 
   return result.status === 0 && result.stdout.includes(`package:${appId}`);
 }
 
+/**
+ * SHA-256 of the APK installed on the device, or null when it cannot be read.
+ *
+ * `adb install` copies the APK byte for byte to `base.apk`, so this is
+ * directly comparable with the hash of the local file. Needs toybox
+ * `sha256sum` (API 26+); a null here makes the harness reinstall rather than
+ * trust a build it could not check.
+ */
+export function installedApkSha256(
+  serial: string,
+  appId: string = ANDROID_APP_ID,
+): string | null {
+  const paths = run(adbPath(), ['-s', serial, 'shell', 'pm', 'path', appId]);
+  if (paths.status !== 0) return null;
+  const baseApk = parsePmPathBaseApk(paths.stdout);
+  if (!baseApk) return null;
+  // Single-quoted for the device shell: the path carries `~~` and `==`.
+  const sum = run(adbPath(), ['-s', serial, 'shell', 'sha256sum', `'${baseApk}'`]);
+  return sum.status === 0 ? parseSha256sum(sum.stdout) : null;
+}
+
 /** Install (or reinstall) an already-built APK. */
 export function installApk(serial: string, apkPath: string): void {
   if (!existsSync(apkPath)) {
@@ -219,8 +242,25 @@ export function installApk(serial: string, apkPath: string): void {
  * for the whole run, and a dev-server disconnect mid-flow would look like a
  * flow failure. Release bundles the JS, so a run is self-contained.
  */
+export const DEFAULT_APK_RELATIVE_PATH =
+  'android/app/build/outputs/apk/release/app-release.apk';
+
 export function defaultApkPath(repoRoot: string): string {
-  return `${repoRoot}/android/app/build/outputs/apk/release/app-release.apk`;
+  return `${repoRoot}/${DEFAULT_APK_RELATIVE_PATH}`;
+}
+
+/**
+ * The local release APK — path, SHA-256 and mtime — or null when it has not
+ * been built. Hashed once per run; it is ~90 MB.
+ */
+export function localApk(repoRoot: string): LocalArtifact | null {
+  const absolute = defaultApkPath(repoRoot);
+  if (!existsSync(absolute)) return null;
+  return {
+    path: DEFAULT_APK_RELATIVE_PATH,
+    fingerprint: createHash('sha256').update(readFileSync(absolute)).digest('hex'),
+    modifiedAt: statSync(absolute).mtime.toISOString(),
+  };
 }
 
 /** Start streaming logcat for our package into a file. */

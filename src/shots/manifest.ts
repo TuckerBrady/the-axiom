@@ -12,6 +12,7 @@
 
 import { formatBoardSize, type BoardSize } from '../utils/boardSizeOverride';
 import type { CommonDeviceSpec, ShotPlatform } from './devices';
+import type { BuildProvenance } from './install';
 
 /**
  * Bumped whenever the manifest shape changes incompatibly.
@@ -22,8 +23,13 @@ import type { CommonDeviceSpec, ShotPlatform } from './devices';
  * mistake for an iOS one after the fact — a folder of board screenshots
  * with no platform on it is exactly the artefact that gets misread six
  * months later.
+ *
+ * v3 (2026-09-21): every shot carries `build` — the APK path, mtime and
+ * SHA-256 it was taken with, and whether that is verified. A rebuilt APK
+ * that never reached the emulator used to produce shots of the old build
+ * with nothing in the manifest to say so.
  */
-export const MANIFEST_SCHEMA_VERSION = 2;
+export const MANIFEST_SCHEMA_VERSION = 3;
 
 export const MANIFEST_FILENAME = 'manifest.json';
 
@@ -45,6 +51,8 @@ export interface ManifestShot {
   flow: string;
   /** Path relative to the run directory. */
   file: string;
+  /** The build on the device when the shot was taken. */
+  build: BuildProvenance;
 }
 
 export interface Manifest {
