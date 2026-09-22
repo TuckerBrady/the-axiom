@@ -25,7 +25,8 @@ const panelSrc = fs.readFileSync(
 );
 
 function styleBlock(name: string): string {
-  const m = panelSrc.match(new RegExp(`\\n  ${name}: \\{([\\s\\S]*?)\\n?  \\},?\\n`));
+  // Style entries here hold no nested braces; tolerant of CRLF checkouts.
+  const m = panelSrc.match(new RegExp(`\\n\\s*${name}:\\s*\\{([^}]*)\\}`));
   if (!m) throw new Error(`style block "${name}" not found`);
   return m[1];
 }

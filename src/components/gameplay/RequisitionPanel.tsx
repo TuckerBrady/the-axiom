@@ -463,34 +463,39 @@ export default function RequisitionPanel({
             />
           </View>
 
-          {/* Warning text */}
-          <View style={styles.warningRow}>
-            <Text style={styles.warningText}>
-              This store closes after confirmation. Requisition carefully.
-            </Text>
+          {/* Fixed footer — never shrinks. On a compact screen the list
+              above gives up height instead, so the confirm control can
+              never be pushed below the bottom edge. */}
+          <View style={styles.footer}>
+            {/* Warning text */}
+            <View style={styles.warningRow}>
+              <Text style={styles.warningText}>
+                This store closes after confirmation. Requisition carefully.
+              </Text>
+            </View>
+
+            {/* Insufficient credits message */}
+            {!canAffordRequisition && totalSpend > 0 && (
+              <Text style={styles.insufficientText}>
+                Insufficient credits to cover selection.
+              </Text>
+            )}
+
+            {/* Confirm button — REQ-G-03: one fixed accent, not tabColor.
+                The primary CTA changing color with the selected tab read as
+                the confirm action itself being Physics- or Protocol-flavored,
+                which it isn't; matches the game's other primary-confirm CTA
+                (Button variant="gradient") copper/amber accent. */}
+            <TouchableOpacity
+              style={[styles.confirmBtn, (dismissing || (!canAffordRequisition && totalSpend > 0)) && styles.confirmBtnDisabled]}
+              onPress={handleConfirmPress}
+              disabled={dismissing || (!canAffordRequisition && totalSpend > 0)}
+              activeOpacity={0.8}
+              accessibilityLabel="Confirm requisition"
+            >
+              <Text style={styles.confirmBtnText}>REQUISITION</Text>
+            </TouchableOpacity>
           </View>
-
-          {/* Insufficient credits message */}
-          {!canAffordRequisition && totalSpend > 0 && (
-            <Text style={styles.insufficientText}>
-              Insufficient credits to cover selection.
-            </Text>
-          )}
-
-          {/* Confirm button — REQ-G-03: one fixed accent, not tabColor.
-              The primary CTA changing color with the selected tab read as
-              the confirm action itself being Physics- or Protocol-flavored,
-              which it isn't; matches the game's other primary-confirm CTA
-              (Button variant="gradient") copper/amber accent. */}
-          <TouchableOpacity
-            style={[styles.confirmBtn, (dismissing || (!canAffordRequisition && totalSpend > 0)) && styles.confirmBtnDisabled]}
-            onPress={handleConfirmPress}
-            disabled={dismissing || (!canAffordRequisition && totalSpend > 0)}
-            activeOpacity={0.8}
-            accessibilityLabel="Confirm requisition"
-          >
-            <Text style={styles.confirmBtnText}>REQUISITION</Text>
-          </TouchableOpacity>
         </>
       )}
     </Animated.View>
@@ -500,7 +505,12 @@ export default function RequisitionPanel({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // flexShrink: the drawer sits in GameplayScreen's column under HUDChrome
+  // and the tape display, above the ENGAGE row. Without it, its natural
+  // height overflowed a 640dp screen and put the confirm button off the
+  // bottom edge (the canvas, flex:1, had already shrunk to nothing).
   root: {
+    flexShrink: 1,
     backgroundColor: 'rgba(6,10,20,0.96)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(74,158,255,0.15)',
@@ -553,7 +563,10 @@ const styles = StyleSheet.create({
   // REQ-G-17: contentScroll's maxHeight is now set inline per-render from
   // contentMaxHeight (derived from screen height); the static entry here
   // no longer carries one.
-  contentWrap: { position: 'relative' },
+  // The list is the one part of the drawer that gives up height when the
+  // column is short; contentMaxHeight caps it when there is room to spare.
+  contentWrap: { position: 'relative', flexShrink: 1 },
+  footer: { flexShrink: 0 },
   contentScroll: {},
   contentInner: { paddingHorizontal: Spacing.lg, paddingVertical: 8, gap: 8 },
   // Bottom fade signaling more content below (REQ-G-17).
