@@ -24,6 +24,13 @@ const SHOT: ManifestShot = {
   gitSha: 'abc1234',
   flow: '.maestro/flows/shots/board-size-sweep.yaml',
   file: 'iphone-se-3rd-gen/10x9-board-empty.png',
+  build: {
+    artifact: null,
+    artifactModifiedAt: null,
+    sha256: 'c'.repeat(64),
+    verified: true,
+    installedThisRun: false,
+  },
 };
 
 describe('slugifyLabel', () => {
@@ -98,6 +105,20 @@ describe('buildManifest', () => {
     expect(shot.appVersion).toBe('0.9.265');
     expect(shot.gitSha).toBe('abc1234');
     expect(shot.flow).toBe('.maestro/flows/shots/board-size-sweep.yaml');
+  });
+
+  it('records which build every shot was taken with (schema v3)', () => {
+    // A rebuilt APK that never reached the emulator produced shots of the
+    // old build with nothing in the manifest to say so. Every shot now
+    // carries the artefact it was taken with.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(3);
+    expect(manifest.shots[0].build).toEqual({
+      artifact: null,
+      artifactModifiedAt: null,
+      sha256: 'c'.repeat(64),
+      verified: true,
+      installedThisRun: false,
+    });
   });
 
   it('records device widths so a shot can be read without knowing the matrix', () => {
