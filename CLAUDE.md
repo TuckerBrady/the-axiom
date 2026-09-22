@@ -132,7 +132,7 @@ Every new piece must follow docs/PIECE_CREATION_STANDARD.md checklist.
 ## Design Principles — NEVER VIOLATE
 
 1. No emojis. Not in UI, not in commits, not in comments. Ever.
-2. Tone is load-bearing. Every word of copy matters. Do not change text without Tucker sign-off.
+2. Tone is load-bearing. Every word of copy matters. COGS dialogue is team-authored and ships through PR voice review (COGS DIALOGUE DOCTRINE, docs/NARRATIVE.md). UI copy that is not COGS speaking still needs Tucker sign-off.
 3. Player is always The Engineer. Never "you." Never a chosen name before Deep Void.
 4. Animations are cinematic. 0.6s cubic-bezier minimum.
 5. Button-driven. Explicit Confirm press only.
@@ -271,7 +271,8 @@ See docs/WORKFLOW_GENERAL.md for the full workflow reference.
 ## What NOT To Do
 
 - Do not start coding without reading this file
-- Do not change COGS dialogue without Tucker approval
+- Do not write COGS dialogue without reading docs/NARRATIVE.md voice rules first, and do not invent canon in a line
+- Do not revert or rewrite a COGS line Tucker wrote or edited without asking him
 - Do not change any UI copy without Tucker approval
 - Do not break the CI pipeline
 - Do not use emojis anywhere
