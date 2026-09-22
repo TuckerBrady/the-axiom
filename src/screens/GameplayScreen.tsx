@@ -137,7 +137,6 @@ import {
   handleSuccess,
   handleWrongOutput,
   handleVoidFailure,
-  PIECE_ANIM_INITIAL,
   type Pt,
   type EngagementContext,
   type GlowTravelerLayer,
@@ -237,6 +236,7 @@ export default function GameplayScreen({ navigation }: Props) {
     selectPlaced,
     engage,
     reset,
+    endRun,
     toggleConfiguration,
     setDebugMode,
     debugNext,
@@ -262,6 +262,7 @@ export default function GameplayScreen({ navigation }: Props) {
     selectPlaced: s.selectPlaced,
     engage: s.engage,
     reset: s.reset,
+    endRun: s.endRun,
     toggleConfiguration: s.toggleConfiguration,
     setDebugMode: s.setDebugMode,
     debugNext: s.debugNext,
@@ -383,7 +384,7 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // Phase 2 extraction — elapsed-seconds timer with pause/lock/reset API.
   const timer = useGameplayTimer(level?.id, tutorialIsActiveRef, showPauseModal);
-  const { elapsedSeconds, lockTimer, resetTimer } = timer;
+  const { elapsedSeconds, lockTimer, resetTimer, resumeTimer } = timer;
 
   // Phase 3 extraction — tape visual state (highlights, overrides, glow traveler, refs).
   const tape = useGameplayTape(level);
@@ -1318,24 +1319,22 @@ export default function GameplayScreen({ navigation }: Props) {
   }, [setShowCompletionCard, setShowResults]);
 
   // ── Wrong Output RETRY handler (passed to GameplayModals) ──
-  // Dismisses the diagnostic modal, checks the lives gate, and
-  // resets transient beam/piece-anim state while leaving the
-  // board configuration intact.
+  // Dismisses the diagnostic modal, checks the lives gate, and ends
+  // the run while leaving the board configuration (and blown cells)
+  // intact. endRun() clears the store's isExecuting — without it the
+  // ENGAGE row, tray and placement stay locked (soft-lock, K1-2).
   const handleWrongOutputRetry = useCallback(() => {
     setShowWrongOutput(false);
     setWrongOutputData(null);
+    beam.resetBeam();
+    tape.resetTape();
+    endRun();
     if (lives <= 0) {
       setShowOutOfLives(true);
+    } else {
+      resumeTimer();
     }
-    setBeamState(prev => ({
-      ...prev,
-      heads: [],
-      trails: [],
-      branchTrails: [],
-      litWires: new Set(),
-    }));
-    setPieceAnimState(PIECE_ANIM_INITIAL);
-  }, [lives, setShowOutOfLives, setShowWrongOutput, setWrongOutputData]);
+  }, [lives, endRun, resumeTimer, setShowOutOfLives, setShowWrongOutput, setWrongOutputData]);
 
   // ── No-level guard (after all hooks) ──
   if (!level) {
