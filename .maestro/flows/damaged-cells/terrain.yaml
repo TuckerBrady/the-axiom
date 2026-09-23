@@ -1,0 +1,61 @@
+# PR #48 — damaged cells as terrain: the "missing plate".
+#
+# Photographs a level's own damagedCells at the level's own board size, with
+# nothing placed and nothing run, so the only damage on screen is terrain.
+# Run with --level on a Kepler level that has damagedCells (K1-10 has three).
+#
+# The live-burn half of the treatment needs a failed run and lives in
+# live-burn.yaml.
+#
+# Lives outside flows/shots/ on purpose: the default `npm run shots` glob
+# runs every flow there with one --level, and this flow needs its own:
+#   npm run shots -- --label damaged-terrain --platform android \
+#     --flows ".maestro/flows/damaged-cells/terrain.yaml" --level K1-10
+appId: com.tuckerbrady.theaxiom
+---
+- runFlow: ../../subflows/reset-board-size.yaml
+
+# Every level with terrain damage is in the Kepler Belt (K1-5..K1-10), and
+# the JUMP TO LEVEL chips sit in one horizontal ScrollView per sector. The
+# later Kepler chips are off-screen to the right, so a vertical scroll alone
+# never finds them: bring the Kepler row up, then swipe that row left until
+# the requested chip is on screen. The swipe starts on a Kepler chip, so it
+# drags the chip row and not the page.
+- scrollUntilVisible:
+    element:
+      text: "KEPLER BELT"
+    direction: DOWN
+    timeout: 30000
+- repeat:
+    times: 4
+    while:
+      notVisible: "${SHOT_LEVEL}"
+    commands:
+      # Start from the THIRD visible chip, never the first: the first sits
+      # at the left edge, and on a 360dp screen a swipe from there is too
+      # short to register — Android reads it as a tap and opens K1-1.
+      - swipe:
+          from:
+            text: "K1-[0-9]+"
+            index: 2
+          direction: LEFT
+- tapOn: "${SHOT_LEVEL}"
+
+- extendedWaitUntil:
+    visible: "LAUNCH MISSION"
+    timeout: 30000
+- tapOn: "LAUNCH MISSION"
+
+- runFlow:
+    when:
+      visible: "REQUISITION"
+    commands:
+      - tapOn: "CONFIRM"
+
+- extendedWaitUntil:
+    visible: "ENGAGE MACHINE"
+    timeout: 45000
+
+- runFlow: ../../subflows/clear-board-overlays.yaml
+
+- takeScreenshot: ${SHOT_PREFIX}01-terrain-missing-plate

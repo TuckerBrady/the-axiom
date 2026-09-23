@@ -1,0 +1,74 @@
+# Launch to the hub. Shared by every shots flow.
+#
+# `clearState: false` on purpose — a sweep run re-enters the app once per
+# board size and must not lose the dev override it just set.
+#
+# Three things can stand between a launch and the hub, and all three are
+# conditional because which ones appear depends on the device's state:
+#
+#   1. First-run onboarding, on a fresh emulator (see complete-onboarding).
+#   2. The DAILY TRANSMISSION modal, which appears on the first launch of a
+#      calendar day and covers the hub until it is collected.
+#   3. The "THE AXIOM / BEGIN" title screen.
+#
+# Every selector here was confirmed against a running Android build on
+# 2026-09-20. The version shipped in PR #47 tapped an "ENTER" button that
+# does not exist (the real control is "BEGIN"), asserted a screen called
+# "HUB" that is actually "COMMAND DECK", and had the app id misspelled as
+# `com.tuckbrady.theaxiom`. None of it had been caught because none of it
+# had ever been run.
+appId: com.tuckerbrady.theaxiom
+---
+- launchApp:
+    clearState: false
+
+# Settle before branching.
+#
+# The boot log is a typewriter animation: its last line, the one onboarding
+# is entered from, does not exist for the first several seconds. Branching
+# straight after `launchApp` reads a half-drawn screen and takes the wrong
+# path — which is what happened on the first real run, and again with only
+# `waitForAnimationToEnd`, which returns as soon as nothing is moving and so
+# returns while the splash is still up.
+#
+# The wait below names every screen a launch can legitimately land on, so it
+# returns as soon as any one of them is up and no sooner:
+#
+#   THE AXIOM.*         the boot-log header, and the title screen
+#   DAILY TRANSMISSION  the daily modal, which covers the hub entirely
+#   COMMAND DECK        the hub itself
+#
+# Note the `.*`, here and on several selectors below. Maestro text selectors
+# are FULL-match regexes: `"THE AXIOM"` does not match the boot-log header
+# "THE AXIOM - SYSTEM BOOT LOG". That is the single biggest reason the
+# PR #47 selectors could never have worked.
+- extendedWaitUntil:
+    visible: "(THE AXIOM.*|DAILY TRANSMISSION|COMMAND DECK)"
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 20000
+
+- runFlow:
+    when:
+      visible: ".*SYSTEM BOOT LOG.*"
+    commands:
+      - extendedWaitUntil:
+          visible: ".*Tap anywhere to receive.*"
+          timeout: 60000
+      - runFlow: complete-onboarding.yaml
+
+- runFlow:
+    when:
+      visible: "DAILY TRANSMISSION"
+    commands:
+      - tapOn: "COLLECT"
+
+- runFlow:
+    when:
+      visible: "BEGIN"
+    commands:
+      - tapOn: "BEGIN"
+
+- extendedWaitUntil:
+    visible: "COMMAND DECK"
+    timeout: 20000

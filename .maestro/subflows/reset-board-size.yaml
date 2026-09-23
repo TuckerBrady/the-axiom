@@ -1,0 +1,25 @@
+# Clear the dev-only board-size override back to LEVEL DEFAULT.
+#
+# The board-size sweep leaves its last size set on the device (enter-hub
+# launches with `clearState: false` so the sweep can keep it). Any flow that
+# photographs a level at its OWN board, or taps a board cell by point, has
+# to clear that first — a leftover 10x9 moves every cell.
+#
+# Leaves us on the Settings screen, same as set-board-size.
+appId: com.tuckerbrady.theaxiom
+---
+- runFlow: enter-hub.yaml
+
+- tapOn:
+    id: "engineer-tab"
+- extendedWaitUntil:
+    visible: "SETTINGS"
+    timeout: 20000
+
+- scrollUntilVisible:
+    element:
+      id: "dev-board-size-default"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "dev-board-size-default"

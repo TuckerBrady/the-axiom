@@ -41,6 +41,13 @@ module.exports = {
     '!src/components/*.tsx',
     '!src/screens/**',
     '!src/navigation/**',
+    // Imperative shells for the shots harness: `xcrun simctl` / Maestro
+    // process wiring and the CLI entry point. They can only execute on a
+    // macOS host with a simulator, so unit coverage of them would be
+    // fiction. Every judgement they act on lives in src/shots/{args,
+    // devices,manifest,plan,host}.ts, which are fully covered.
+    '!src/shots/cli.ts',
+    '!src/shots/simctl.ts',
   ],
   coverageThreshold: {
     global: {

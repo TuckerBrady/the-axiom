@@ -33,6 +33,14 @@ import {
   ClipboardIcon,
 } from '../components/icons/SettingsIcons';
 import { useSettingsStore } from '../store/settingsStore';
+import {
+  BOARD_COLUMN_CHOICES,
+  BOARD_ROW_CHOICES,
+  DEFAULT_OVERRIDE_COLUMNS,
+  DEFAULT_OVERRIDE_ROWS,
+  formatBoardSize,
+  parseBoardSize,
+} from '../utils/boardSizeOverride';
 import { useEconomyStore } from '../store/economyStore';
 import { useLivesStore } from '../store/livesStore';
 import { ALL_LEVELS, getLevelById } from '../game/levels';
@@ -283,6 +291,7 @@ export default function SettingsScreen({ navigation }: Props) {
     cogsHintsEnabled, setCogsHintsEnabled,
     notificationsEnabled, setNotificationsEnabled,
     devForceRequisitionGate, setDevForceRequisitionGate,
+    devBoardSizeOverride, setDevBoardSizeOverride,
   } = useSettingsStore();
   const credits = useEconomyStore(s => s.credits);
   const [forceShowTutorial, setForceShowTutorial] = useState(false);
@@ -452,6 +461,73 @@ export default function SettingsScreen({ navigation }: Props) {
                   onChange={setDevForceRequisitionGate}
                   delay={710}
                 />
+                <View style={styles.divider} />
+                {/* PROMPT_159 task 3 — board-size sweep control.
+                    The sweep must change the board without a source edit, so
+                    `npm run shots` can shoot one level at every candidate
+                    size in a single run. The chips expose the whole legal
+                    range (MIN..MAX) rather than a chosen trio: which three
+                    sizes become the standard is a design decision, not this
+                    screen's to bake in. Dev-only — the whole block sits
+                    inside SHOW_DEV_TOOLS, so it is absent from `production`.
+                    Plain Views and TouchableOpacitys: nothing animated here,
+                    no host to swap. */}
+                <View style={styles.devLevelJumpWrap}>
+                  <Text style={styles.devLevelJumpLabel}>BOARD SIZE OVERRIDE (DEV)</Text>
+                  <Text style={styles.devLevelJumpSector} testID="dev-board-size-value">
+                    {devBoardSizeOverride ?? 'LEVEL DEFAULT'}
+                  </Text>
+                  <View style={styles.devLevelJumpGroup}>
+                    <Text style={styles.devLevelJumpSector}>COLUMNS</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.devLevelJumpChips}>
+                      {BOARD_COLUMN_CHOICES.map(columns => (
+                        <TouchableOpacity
+                          key={`cols-${columns}`}
+                          testID={`dev-board-columns-${columns}`}
+                          style={styles.devLevelJumpChip}
+                          activeOpacity={0.7}
+                          onPress={() => setDevBoardSizeOverride(
+                            formatBoardSize({
+                              columns,
+                              rows: parseBoardSize(devBoardSizeOverride)?.rows ?? DEFAULT_OVERRIDE_ROWS,
+                            }),
+                          )}
+                        >
+                          <Text style={styles.devLevelJumpChipText}>{columns}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.devLevelJumpGroup}>
+                    <Text style={styles.devLevelJumpSector}>ROWS</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.devLevelJumpChips}>
+                      {BOARD_ROW_CHOICES.map(rows => (
+                        <TouchableOpacity
+                          key={`rows-${rows}`}
+                          testID={`dev-board-rows-${rows}`}
+                          style={styles.devLevelJumpChip}
+                          activeOpacity={0.7}
+                          onPress={() => setDevBoardSizeOverride(
+                            formatBoardSize({
+                              columns: parseBoardSize(devBoardSizeOverride)?.columns ?? DEFAULT_OVERRIDE_COLUMNS,
+                              rows,
+                            }),
+                          )}
+                        >
+                          <Text style={styles.devLevelJumpChipText}>{rows}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <TouchableOpacity
+                    testID="dev-board-size-default"
+                    style={styles.devLevelJumpChip}
+                    activeOpacity={0.7}
+                    onPress={() => setDevBoardSizeOverride(null)}
+                  >
+                    <Text style={styles.devLevelJumpChipText}>LEVEL DEFAULT</Text>
+                  </TouchableOpacity>
+                </View>
                 <View style={styles.divider} />
                 <TapRow
                   icon={<Text style={{ color: Colors.red, fontSize: 14, fontWeight: 'bold' }}>!</Text>}
