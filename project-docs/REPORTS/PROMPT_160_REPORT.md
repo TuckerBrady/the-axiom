@@ -136,8 +136,18 @@ piece-colour badges and no chips.
    master for the Axiom tray.** A1-2 shows it with none of this PR's layout changes involved.
    Tap-placement was never affected, because it resolves from the cell itself.
 
-**Not run:** `axiom_compact` (360dp) and `axiom_large` (448dp). K1-10 on 360dp is the
-tightest case for the chip row. Expectation: nine 56pt items still slide; this is unverified.
+**Re-shot 2026-09-22 23:15 after master (with #46, the restored conveyor) was merged in.** The
+standard-phone K1-1 and K1-10 frames above come from that build.
+
+**Compact, 360dp** (`android-compact-360dp-*.WITH-PR54.png`): on master, and on this branch
+alone, Kepler can't get past the REQUISITION store at 360dp, because the confirm button sits below
+the screen edge. That's #54's bug, not this PR's. To check the tray at 360dp I made a **local,
+unpushed** build of this branch with #54 merged in. On it, K1-10's chip row and tray fit, five
+items show with the sixth under the edge fade, the slide and PROTOCOL filter behave as on standard,
+and a dragged Conveyor lands under the finger (8 → 7). The tutorial dialog leaves the chip row
+visible here, and it sits on ALL. **Until #54 merges, no 360dp player reaches this tray.**
+
+**Not run:** `axiom_large` (448dp).
 
 ## Copy: "wheel" → "tray"
 
