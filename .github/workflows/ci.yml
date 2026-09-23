@@ -73,7 +73,10 @@ jobs:
         run: npm ci
 
       - name: Run dependency audit
-        run: npm audit --audit-level=high
+        # Every high and critical advisory fails the build unless .audit-allowlist.json names it
+        # with a reason and a review date. Stale and expired entries fail the build too, so the
+        # list cannot quietly become a blanket pass. See AXM-012.
+        run: node scripts/audit-gate.mjs
 
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@main

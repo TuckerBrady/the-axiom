@@ -13,6 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:ci": "jest --ci --coverage --watchAll=false",
+    "audit": "node scripts/audit-gate.mjs",
     "build:info": "node ./scripts/write-build-info.js",
     "shots": "tsc -p tsconfig.shots.json && node .shots-build/shots/cli.js",
     "postinstall": "node ./scripts/write-build-info.js && patch-package",
