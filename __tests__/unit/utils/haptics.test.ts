@@ -5,6 +5,8 @@ jest.mock('expo-haptics', () => ({
     Medium: 'Medium',
     Heavy: 'Heavy',
   },
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
+  NotificationFeedbackType: { Error: 'Error' },
 }));
 
 jest.mock('../../../src/store/settingsStore', () => ({
@@ -15,7 +17,7 @@ jest.mock('../../../src/store/settingsStore', () => ({
 
 import * as Haptics from 'expo-haptics';
 import { useSettingsStore } from '../../../src/store/settingsStore';
-import { hapticLight, hapticMedium, hapticHeavy } from '../../../src/utils/haptics';
+import { hapticLight, hapticMedium, hapticHeavy, hapticError } from '../../../src/utils/haptics';
 
 const mockGetState = useSettingsStore.getState as jest.Mock;
 const mockImpact = Haptics.impactAsync as jest.Mock;
@@ -92,5 +94,22 @@ describe('haptics utility', () => {
       hapticHeavy();
       await Promise.resolve();
     });
+  });
+});
+
+describe('hapticError (AXM-013 blown-cell rejection)', () => {
+  const mockNotify = Haptics.notificationAsync as jest.Mock;
+  beforeEach(() => jest.clearAllMocks());
+
+  it('fires the Error notification when haptics are on', () => {
+    mockGetState.mockReturnValue({ hapticsEnabled: true });
+    hapticError();
+    expect(mockNotify).toHaveBeenCalledWith('Error');
+  });
+
+  it('stays silent when haptics are off', () => {
+    mockGetState.mockReturnValue({ hapticsEnabled: false });
+    hapticError();
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 });

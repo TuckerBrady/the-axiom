@@ -37,28 +37,6 @@ describe('PlacementTransition — source contract', () => {
   });
 });
 
-describe('settingsStore — arcWheelPosition', () => {
-  it('has arcWheelPosition field defaulting to right', () => {
-    expect(settingsSrc).toMatch(/arcWheelPosition.*'right'|'right'.*arcWheelPosition/);
-  });
-
-  it('exports ArcWheelPosition type', () => {
-    expect(settingsSrc).toMatch(/export type ArcWheelPosition/);
-  });
-
-  it('has setArcWheelPosition action', () => {
-    expect(settingsSrc).toMatch(/setArcWheelPosition/);
-  });
-
-  it('persists arcWheelPosition to AsyncStorage', () => {
-    expect(settingsSrc).toMatch(/arcWheelPosition.*persist|persist.*arcWheelPosition/);
-  });
-
-  it('hydrates arcWheelPosition and validates only left/right', () => {
-    expect(settingsSrc).toMatch(/'left'.*'right'|arcWheelPosition.*left.*right/);
-  });
-});
-
 describe('successHandlers — purchasedTapeTypes integration', () => {
   it('SuccessParams includes optional purchasedTapeTypes', () => {
     // REQ-38 (scoring-algorithm-v2.md, AXM-010): typed as TapeType[] now,

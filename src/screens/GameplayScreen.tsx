@@ -26,12 +26,13 @@ import TapeBarShell from '../components/gameplay/TapeBarShell';
 import BoardGrid from '../components/gameplay/BoardGrid';
 import WireOverlay from '../components/gameplay/WireOverlay';
 import BeamOverlay from '../components/gameplay/BeamOverlay';
-import PieceTray from '../components/gameplay/PieceTray';
+import PieceTray, { type DragState, type TrayItem } from '../components/gameplay/PieceTray';
+import DragGhostSnapBack from '../components/gameplay/DragGhostSnapBack';
+import { groupTrayPieces, shouldShowFilterChips, type TrayPiece } from '../components/gameplay/trayGrouping';
 import { PieceIcon } from '../components/PieceIcon';
 import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
-import ArcWheel, { WHEEL_WIDTH, type ArcWheelPiece, type DragState } from '../components/gameplay/ArcWheel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
 import DamagedCell from '../components/gameplay/DamagedCell';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
@@ -40,7 +41,6 @@ import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
-import { useSettingsStore } from '../store/settingsStore';
 import { useRequisitionStore, buildInventoryForLevel } from '../store/requisitionStore';
 import { useShallow } from 'zustand/react/shallow';
 import { TutorialHint } from '../components/TutorialHint';
@@ -49,7 +49,8 @@ import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
 import { getPieceCost, BLANK } from '../game/types';
-import { hapticLight, hapticMedium, hapticHeavy } from '../utils/haptics';
+import { hapticLight, hapticMedium, hapticHeavy, hapticError } from '../utils/haptics';
+import { placeFromKeplerInventory, shouldMountTray } from '../game/trayPlacement';
 import { resolveDropCell } from '../utils/dropTarget';
 import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
 import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
@@ -288,10 +289,11 @@ export default function GameplayScreen({ navigation }: Props) {
     resetLevelBudget: s.resetLevelBudget,
     levelSpent: s.levelSpent,
   })));
-  const arcWheelPosition = useSettingsStore(s => s.arcWheelPosition);
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
-  const arcWheelPieces = useRequisitionStore(useShallow(s => s.inventory.pieces.filter(p => !p.placed))) as ArcWheelPiece[];
+  // Whole inventory (placed and unplaced). The store replaces the array on
+  // every change, so the plain selector is already reference-stable.
+  const inventoryPieces = useRequisitionStore(s => s.inventory.pieces) as TrayPiece[];
 
   // Level-derived values needed by extracted hooks. Computed before
   // hook calls so hook order stays stable across renders.
@@ -372,7 +374,6 @@ export default function GameplayScreen({ navigation }: Props) {
     inputTapeRowRef,
     outputTapeRowRef,
     dataTrailRowRef,
-    arcWheelMainRef,
     specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,
@@ -411,6 +412,11 @@ export default function GameplayScreen({ navigation }: Props) {
   const [showRequiredNotEngaged, setShowRequiredNotEngaged] = useState(false);
   const [requiredNotEngagedLine, setRequiredNotEngagedLine] = useState('');
   const [dragState, setDragState] = useState<DragState>({ active: false, pieceId: null, type: null, x: 0, y: 0 });
+  // Where the current drag began, for the blown-cell snap-back.
+  const dragOriginRef = useRef({ x: 0, y: 0 });
+  const [snapBack, setSnapBack] = useState<{
+    id: number; type: PieceType; from: { x: number; y: number }; to: { x: number; y: number };
+  } | null>(null);
   const boardScreenPos = useRef({ x: 0, y: 0 });
   const cellSizeRef = useRef(52);
 
@@ -597,6 +603,40 @@ export default function GameplayScreen({ navigation }: Props) {
     return map;
   }, [trayPieceTypes, trayCosts, credits, levelSpent]);
 
+  // ── Tray items (AXM-013: one tray, every sector) ──
+  // Kepler+: one item per type from the unplaced inventory, with the count
+  // split by source; a type leaves the tray when its count reaches zero.
+  const keplerGroups = useMemo(() => groupTrayPieces(inventoryPieces), [inventoryPieces]);
+  // Chips are decided from the whole inventory (placed or not), so the count
+  // is fixed for the level and the chip row never appears or vanishes mid-level.
+  const keplerTrayItemCount = useMemo(
+    () => groupTrayPieces(inventoryPieces.map(p => ({ ...p, placed: false }))).length,
+    [inventoryPieces],
+  );
+  const trayItems = useMemo<TrayItem[]>(() => (
+    isAxiomLevel
+      ? trayPieceTypes.map(pt => ({
+          key: pt,
+          type: pt,
+          isTape: false,
+          count: availableCounts[pt] || 0,
+          dimmed: !(trayAffordable[pt] ?? true),
+        }))
+      : keplerGroups.map(g => ({
+          key: g.key,
+          type: g.type,
+          isTape: g.isTape,
+          count: g.count,
+          preAssignedCount: g.preAssignedCount,
+          requisitionedCount: g.requisitionedCount,
+        }))
+  ), [isAxiomLevel, trayPieceTypes, availableCounts, trayAffordable, keplerGroups]);
+  const traySelectedKey = useMemo(() => {
+    if (isAxiomLevel) return selectedPieceFromTray;
+    const sel = inventoryPieces.find(p => p.id === selectedInventoryId && !p.placed);
+    return sel ? `${sel.type}:${sel.isTape ? 'tape' : 'piece'}` : null;
+  }, [isAxiomLevel, selectedPieceFromTray, inventoryPieces, selectedInventoryId]);
+
   // ── Auto-orientation: face away from Source if adjacent ──
   const getAutoRotation = useCallback((gridX: number, gridY: number): number => {
     const source = pieces.find(p => p.type === 'source');
@@ -650,16 +690,19 @@ export default function GameplayScreen({ navigation }: Props) {
         selectPlaced(null);
       }
     } else {
-      // Kepler+: Arc Wheel placement (no tray)
-      const storeState = useRequisitionStore.getState();
-      const { selectedInventoryId: selId, inventory } = storeState;
+      // Kepler+: tray placement from the requisitioned inventory. Credits were
+      // spent in the REQUISITION store; placement never charges.
+      const { selectedInventoryId: selId, inventory } = useRequisitionStore.getState();
       if (selId) {
         const invPiece = inventory.pieces.find(p => p.id === selId && !p.placed);
         if (!invPiece) return;
-        if (blownCells.has(`${gridX},${gridY}`)) return;
+        if (blownCells.has(`${gridX},${gridY}`)) {
+          hapticError();
+          return;
+        }
+        if (!placeFromKeplerInventory(invPiece.type)) return;
         const rotation = getAutoRotation(gridX, gridY);
         placePiece(invPiece.type, gridX, gridY, rotation);
-        storeState.placeInventoryPiece(invPiece.type);
         hapticLight();
       } else if (selectedPlacedPiece) {
         if (blownCells.has(`${gridX},${gridY}`)) return;
@@ -697,7 +740,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // All other piece types: no tap action
   }, [isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, rotatePiece, updatePiece, tutorialOnPieceTapped]);
 
-  // ── Long press returns piece to tray / Arc Wheel (no ghost/held state) ──
+  // ── Long press returns piece to the tray (no ghost/held state) ──
   const handlePieceLongPress = useCallback((pieceId: string) => {
     if (isExecuting || showResults || showVoid || showWrongOutput || showInsufficientPulses || showRequiredNotEngaged) return;
     const piece = machineState.pieces.find(p => p.id === pieceId);
@@ -705,7 +748,8 @@ export default function GameplayScreen({ navigation }: Props) {
     if (piece.isPrePlaced) return;
     deletePiece(piece.id);
     hapticLight();
-    // For Kepler+ levels, return piece to Arc Wheel inventory (REQ-64)
+    // For Kepler+ levels, return the piece to the tray inventory (REQ-64);
+    // the store restores its count and source (pre-assigned first).
     if (!isAxiomLevel) {
       useRequisitionStore.getState().unplaceInventoryPiece(piece.type);
     }
@@ -738,14 +782,33 @@ export default function GameplayScreen({ navigation }: Props) {
     useRequisitionStore.getState().beginPlacement();
   }, []);
 
-  // ── Arc Wheel interaction ──
-  const handleArcWheelSelect = useCallback((id: string) => {
-    useRequisitionStore.getState().selectInventoryPiece(id);
+  // ── Tray interaction ──
+  const handleTrayPickup = useCallback((key: string | null) => {
+    if (isAxiomLevel) {
+      selectFromTray(key as PieceType | null);
+      return;
+    }
+    const group = key ? keplerGroups.find(g => g.key === key) : undefined;
+    useRequisitionStore.getState().selectInventoryPiece(group ? group.repId : null);
+  }, [isAxiomLevel, selectFromTray, keplerGroups]);
+
+  // Where the board is, in the same space as a touch's pageX/pageY. Found on
+  // device (AXM-013): measureInWindow is not that space, and drops resolved
+  // one to two rows below the finger in every sector; measure()'s pageX/pageY
+  // is. The board's onLayout also only fires when its own frame changes, not
+  // when a sibling (the tray mounting at placement start, the chip row, the
+  // tape rows) moves it, so a drag re-measures when it starts.
+  const measureBoardOnScreen = useCallback(() => {
+    boardGridRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      boardScreenPos.current = { x: pageX, y: pageY };
+    });
   }, []);
 
   const handleDragStart = useCallback((drag: DragState) => {
+    dragOriginRef.current = { x: drag.x, y: drag.y };
+    measureBoardOnScreen();
     setDragState(drag);
-  }, []);
+  }, [measureBoardOnScreen]);
 
   const handleDragMove = useCallback((x: number, y: number) => {
     setDragState(prev => ({ ...prev, x, y }));
@@ -754,7 +817,7 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleDragEnd = useCallback((x: number, y: number) => {
     // Compute which board cell the drop landed in
     const boardPos = boardScreenPos.current;
-    const { gridX, gridY, valid } = resolveDropCell({
+    const { gridX, gridY, valid, inBounds } = resolveDropCell({
       x,
       y,
       boardX: boardPos.x,
@@ -767,24 +830,24 @@ export default function GameplayScreen({ navigation }: Props) {
     });
     const currentDrag = dragState;
 
-    // Reject drops on cells physically behind the Arc Wheel so pieces can't
-    // get stranded under it (the wheel's PanResponder would block long-press
-    // retrieval of anything placed there).
-    const cellLeft = boardPos.x + gridX * cellSizeRef.current;
-    const cellRight = cellLeft + cellSizeRef.current;
-    const underWheel = !isAxiomLevel && (
-      (arcWheelPosition === 'right' && cellRight > screenWidth - WHEEL_WIDTH) ||
-      (arcWheelPosition === 'left'  && cellLeft  < WHEEL_WIDTH)
-    );
-
-    if (currentDrag.type && valid && !underWheel) {
-      const rotation = getAutoRotation(gridX, gridY);
-      placePiece(currentDrag.type, gridX, gridY, rotation);
-      hapticLight();
-      if (isAxiomLevel) {
-        tutorialOnPiecePlaced(currentDrag.type, gridX, gridY);
-      } else {
-        useRequisitionStore.getState().placeInventoryPiece(currentDrag.type);
+    // A drop on a blown cell is rejected: error haptic, and the ghost snaps
+    // back to where the drag began so it reads as the scar, not a miss.
+    if (currentDrag.type && inBounds && blownCellsRef.current.has(`${gridX},${gridY}`)) {
+      hapticError();
+      setSnapBack({
+        id: Date.now(),
+        type: currentDrag.type,
+        from: { x, y },
+        to: { ...dragOriginRef.current },
+      });
+    } else if (currentDrag.type && valid) {
+      // Kepler+ consumes an inventory instance first (never credits); a drop
+      // with nothing left of that type places nothing.
+      if (isAxiomLevel || placeFromKeplerInventory(currentDrag.type)) {
+        const rotation = getAutoRotation(gridX, gridY);
+        placePiece(currentDrag.type, gridX, gridY, rotation);
+        hapticLight();
+        if (isAxiomLevel) tutorialOnPiecePlaced(currentDrag.type, gridX, gridY);
       }
     }
     setDragState({ active: false, pieceId: null, type: null, x: 0, y: 0 });
@@ -1184,7 +1247,7 @@ export default function GameplayScreen({ navigation }: Props) {
     // damage failure. Tucker confirmed 2026-05-01.)
     if (!wrongOutput && metPulseRequirement && level.requiredPieces?.length) {
       const placedPieces = useGameStore.getState().machineState.pieces;
-      // Run states carry the instance id (which may be an Arc Wheel inventory
+      // Run states carry the instance id (which may be a Kepler+ inventory
       // id like inv-NN); evaluateRequiredPieces resolves it to the piece type
       // via the placedPieces array (REQ-REQPIECES-MAP-1).
       const runStates = placedPieces.map(p => ({
@@ -1442,13 +1505,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View
             ref={boardGridRef}
             style={[styles.canvas, { width: gridW, height: gridH }]}
-            onLayout={() => {
-              if (boardGridRef.current) {
-                boardGridRef.current.measureInWindow((x, y) => {
-                  boardScreenPos.current = { x, y };
-                });
-              }
-            }}
+            onLayout={measureBoardOnScreen}
           >
             {/* Dot grid + blown-cell scars (static across beam animation) */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
@@ -1624,7 +1681,7 @@ export default function GameplayScreen({ navigation }: Props) {
         </View>
 
 
-        {/* ── Parts Tray (all Axiom levels) ── */}
+        {/* ── Parts Tray (every sector; AXM-013 removed the Kepler+ selector) ── */}
         {/* REQ-G-02 (Handoff 003): stays mounted for the whole level —
             conditionally unmounting it on !isExecuting removed 72pt of
             siblings the instant ENGAGE fired, translating the board ~64pt
@@ -1632,21 +1689,24 @@ export default function GameplayScreen({ navigation }: Props) {
             is flex:1, justifyContent:'center'). `hidden` now drives
             opacity/pointerEvents instead of existence; the run-state gate
             (isExecuting/showResults/showVoid/debugMode) is unchanged, only
-            its effect is. */}
-        {isAxiomLevel && (
+            its effect is. Kepler+ mounts it when placement begins (never beside
+            the REQUISITION store) and it stays for the rest of the level. One
+            element for both cases: the sectors differ only in props. */}
+        {shouldMountTray({ isAxiomLevel: !!isAxiomLevel, phase: requisitionPhase }) && (
           <PieceTray
-            trayPieceTypes={trayPieceTypes}
-            availableCounts={availableCounts}
-            selectedPieceFromTray={selectedPieceFromTray}
-            costs={trayCosts}
-            affordable={trayAffordable}
+            items={trayItems}
+            selectedKey={traySelectedKey}
             refs={tutorialTrayRefs}
-            onPickup={selectFromTray}
+            onPickup={handleTrayPickup}
             onDragStart={handleDragStart}
             onDragMove={handleDragMove}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
             hidden={isExecuting || showResults || showVoid || debugMode}
+            showSourceSplit={!isAxiomLevel}
+            showFilterChips={!isAxiomLevel && shouldShowFilterChips(keplerTrayItemCount)}
+            forceFilterAll={tutorialIsActive}
+            resetKey={level?.id}
           />
         )}
 
@@ -1742,23 +1802,7 @@ export default function GameplayScreen({ navigation }: Props) {
         <PlacementTransition onComplete={handleTransitionComplete} />
       )}
 
-      {/* ── Arc Wheel (Kepler+, placement phase) ── */}
-      {!isAxiomLevel && requisitionPhase === 'placement' && !isExecuting && !showResults && !showVoid && (
-        <ArcWheel
-          pieces={arcWheelPieces}
-          side={arcWheelPosition}
-          selectedId={selectedInventoryId}
-          disabled={isExecuting}
-          mainNodeRef={arcWheelMainRef}
-          onSelect={handleArcWheelSelect}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        />
-      )}
-
-      {/* ── Ghost piece during Arc Wheel drag ── */}
+      {/* ── Ghost piece during a tray drag ── */}
       {dragState.active && dragState.type && (
         <View
           pointerEvents="none"
@@ -1773,6 +1817,19 @@ export default function GameplayScreen({ navigation }: Props) {
             color={getPieceColor(dragState.type)}
           />
         </View>
+      )}
+
+      {/* ── Blown-cell rejection: the ghost glides back to the tray ── */}
+      {snapBack && (
+        <DragGhostSnapBack
+          key={snapBack.id}
+          type={snapBack.type}
+          color={getPieceColor(snapBack.type)}
+          size={CELL_SIZE}
+          from={snapBack.from}
+          to={snapBack.to}
+          onDone={() => setSnapBack(null)}
+        />
       )}
 
       {/* ── All full-screen modal overlays (Phase 1 extraction) ── */}
@@ -1854,7 +1911,7 @@ export default function GameplayScreen({ navigation }: Props) {
           remounts at its persisted step once the run resolves. */}
       {/* Axiom runs the overlay from mount. Kepler+ runs it only in the
           placement phase, after the REQUISITION store closes — that is when the
-          board and Arc Wheel are mounted, so 'boardGrid'/'arcWheelMain' measure
+          board and tray are mounted, so 'boardGrid'/'tray*' targets measure
           reliably (the requisition-phase store screen is not a tutorial target). */}
       {(forceTutorial || (!tutorialComplete && !tutorialSkipped && !isLevelPreviouslyCompleted)) &&
         !isExecuting && (level?.tutorialSteps?.length ?? 0) > 0 &&
@@ -1950,7 +2007,7 @@ const styles = StyleSheet.create({
     zIndex: 150,
   },
 
-  // Ghost piece during Arc Wheel drag
+  // Ghost piece during a tray drag
   ghostDragPiece: {
     position: 'absolute',
     alignItems: 'center',

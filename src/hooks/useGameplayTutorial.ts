@@ -36,7 +36,7 @@ export interface UseGameplayTutorialResult {
   outputTapeRowRef: React.RefObject<View | null>;
   dataTrailRowRef: React.RefObject<View | null>;
   // PieceTray tutorial refs. All Axiom levels drag from the tray;
-  // the prior Arc Wheel path was removed in favor of these refs so
+  // these refs are forwarded to every tray item so
   // tutorial spotlights can attach to individual tray slots.
   trayConveyorRef: React.RefObject<View | null>;
   trayGearRef: React.RefObject<View | null>;
@@ -44,8 +44,6 @@ export interface UseGameplayTutorialResult {
   traySplitterRef: React.RefObject<View | null>;
   trayScannerRef: React.RefObject<View | null>;
   trayTransmitterRef: React.RefObject<View | null>;
-  // Kepler+ Arc Wheel selected-node ref (targetRef 'arcWheelMain').
-  arcWheelMainRef: React.RefObject<View | null>;
   // HUD Spec Sheet button ref (targetRef 'specSheetBtn').
   specSheetBtnRef: React.RefObject<View | null>;
   // Bundled TutorialTrayRefs object for forwarding to <PieceTray>.
@@ -90,9 +88,6 @@ export function useGameplayTutorial(
   const traySplitterRef = useRef<View>(null);
   const trayScannerRef = useRef<View>(null);
   const trayTransmitterRef = useRef<View>(null);
-  // Kepler+ Arc Wheel: the selected wheel node, for wheel-onboarding tutorial
-  // steps (targetRef 'arcWheelMain'). Forwarded to ArcWheel's mainNodeRef.
-  const arcWheelMainRef = useRef<View>(null);
   // HUD Spec Sheet (info) button, for the A1-1 final tutorial step
   // (targetRef 'specSheetBtn'). Forwarded to HUDChrome.
   const specSheetBtnRef = useRef<View>(null);
@@ -133,7 +128,6 @@ export function useGameplayTutorial(
       traySplitter: traySplitterRef,
       trayScanner: trayScannerRef,
       trayTransmitter: trayTransmitterRef,
-      arcWheelMain: arcWheelMainRef,
       specSheetBtn: specSheetBtnRef,
       placedPiece: placedPieceRef,
     }),
@@ -306,7 +300,6 @@ export function useGameplayTutorial(
     traySplitterRef,
     trayScannerRef,
     trayTransmitterRef,
-    arcWheelMainRef,
     specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,
