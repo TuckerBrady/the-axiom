@@ -380,6 +380,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   endRun: () => {
     const { machineState, currentLevel } = get();
     const inputTape = currentLevel?.inputTape;
+    // Clear per-run piece memory (Latch values, Counter counts, fired flags)
+    // now, not at the next ENGAGE, so the board never shows the last run's.
+    resetRunState(machineState.pieces);
     set({
       executionSteps: [],
       isExecuting: false,
@@ -391,6 +394,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         status: 'idle',
         signalPath: [],
         currentSignalStep: 0,
+        // executeMachine writes the trail in place; restore the level's own
+        // copy so the next run starts where a fresh one would.
+        dataTrail: currentLevel
+          ? { ...currentLevel.dataTrail, cells: [...currentLevel.dataTrail.cells] }
+          : machineState.dataTrail,
         inputTape: inputTape ? [...inputTape] : undefined,
         outputTape: inputTape
           ? (new Array(inputTape.length).fill(BLANK) as OutputTapeValue[])
