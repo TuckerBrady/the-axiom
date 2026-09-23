@@ -2,9 +2,11 @@ module.exports = {
   projects: [
     {
       displayName: 'unit',
+      // tsconfig.jest.json only swaps jsx to react-jsx so a component under
+      // src/ can render through react-test-renderer (AXM-020).
       testMatch: ['<rootDir>/__tests__/unit/**/*.test.{ts,tsx}'],
       transform: {
-        '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+        '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
       },
       moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
       moduleNameMapper: {
