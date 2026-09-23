@@ -15,8 +15,9 @@
  *   - anything high or critical that is not on the list at all      (the original job)
  *
  * Usage:
- *   node scripts/audit-gate.mjs                 run npm audit and judge it
- *   node scripts/audit-gate.mjs --input x.json  judge a saved `npm audit --json` (used by tests)
+ *   node scripts/audit-gate.mjs                     run npm audit and judge it
+ *   node scripts/audit-gate.mjs --input x.json      judge a saved `npm audit --json` (used by tests)
+ *   node scripts/audit-gate.mjs --allowlist a.json  judge against another allowlist (used by tests)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -90,9 +91,14 @@ export function judge(findings, allowlist, now) {
   return problems;
 }
 
+function argValue(argv, flag) {
+  const i = argv.indexOf(flag);
+  return i >= 0 && argv[i + 1] ? argv[i + 1] : null;
+}
+
 function readReport(argv) {
-  const i = argv.indexOf('--input');
-  if (i >= 0 && argv[i + 1]) return JSON.parse(readFileSync(argv[i + 1], 'utf8'));
+  const input = argValue(argv, '--input');
+  if (input) return JSON.parse(readFileSync(input, 'utf8'));
   // npm audit exits non-zero when it finds anything, which is not an error here
   try {
     return JSON.parse(execFileSync('npm', ['audit', '--json'], { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' }));
@@ -104,7 +110,8 @@ function readReport(argv) {
 
 function main(argv) {
   const report = readReport(argv);
-  const allowlist = existsSync(ALLOWLIST) ? JSON.parse(readFileSync(ALLOWLIST, 'utf8')) : { allow: [] };
+  const allowlistPath = argValue(argv, '--allowlist') ?? ALLOWLIST;
+  const allowlist = existsSync(allowlistPath) ? JSON.parse(readFileSync(allowlistPath, 'utf8')) : { allow: [] };
   const findings = findingsOf(report);
   const problems = judge(findings, allowlist, Date.now());
 

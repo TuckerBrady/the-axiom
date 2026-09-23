@@ -1,0 +1,4 @@
+{
+  "_note": "High and critical advisories the dependency gate is allowed to pass, each with a reason and a date it has to be looked at again. Anything not on this list fails the build. An entry that no longer matches anything also fails the build, so the list cannot rot. Empty since #51 cleared every high finding on master (AXM-012); add an entry only with a reason and a review_by date.",
+  "allow": []
+}
