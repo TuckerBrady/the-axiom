@@ -1,7 +1,9 @@
 import {
   ANDROID_LOG_FAILURE_PATTERNS,
   emulatorSerialForAvd,
+  logcatDumpArgs,
   parseAdbDevices,
+  parsePidof,
   scanLogcatForFailures,
 } from '../../../src/shots/androidLog';
 
@@ -91,5 +93,49 @@ describe('scanLogcatForFailures', () => {
     // Android pattern list must not claim to cover the iOS crash class.
     const source = ANDROID_LOG_FAILURE_PATTERNS.map(String).join(' ');
     expect(source).not.toMatch(/RCTFatal/);
+  });
+});
+
+describe('parsePidof', () => {
+  it('reads a single pid', () => {
+    expect(parsePidof('4321\n')).toBe('4321');
+  });
+
+  it('takes the first pid when the package has more than one process', () => {
+    expect(parsePidof('4321 4400\r\n')).toBe('4321');
+  });
+
+  it('is null when the app is not running', () => {
+    expect(parsePidof('')).toBeNull();
+    expect(parsePidof('\n')).toBeNull();
+  });
+
+  it('is null on anything that is not a pid', () => {
+    expect(parsePidof('pidof: not found')).toBeNull();
+  });
+});
+
+describe('logcatDumpArgs', () => {
+  it('dumps the buffer scoped to the app process when a pid is known', () => {
+    expect(logcatDumpArgs('emulator-5554', '4321')).toEqual([
+      '-s',
+      'emulator-5554',
+      'logcat',
+      '-d',
+      '-v',
+      'time',
+      '--pid=4321',
+    ]);
+  });
+
+  it('dumps unscoped when there is no pid', () => {
+    expect(logcatDumpArgs('emulator-5554', null)).toEqual([
+      '-s',
+      'emulator-5554',
+      'logcat',
+      '-d',
+      '-v',
+      'time',
+    ]);
   });
 });

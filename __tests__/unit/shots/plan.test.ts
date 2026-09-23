@@ -1,3 +1,6 @@
+import { readFileSync, readdirSync } from 'fs';
+import { resolve } from 'path';
+
 import { parseShotsArgs, type ShotsArgs } from '../../../src/shots/args';
 import {
   BOARD_SIZE_ENV,
@@ -7,9 +10,11 @@ import {
   basenameWithoutExtension,
   buildRunPlan,
   capturesDeviceLog,
+  describeSkippedFlow,
   isBoardSizeSweepFlow,
   maestroCommand,
   overallExitCode,
+  parseFlowPlatforms,
   requireSizesForBoardSweep,
   summarize,
   toFlowFile,
@@ -19,6 +24,17 @@ import {
 const LOOP = toFlowFile('.maestro/flows/shots/gameplay-loop.yaml');
 const SWEEP = toFlowFile('.maestro/flows/shots/board-size-sweep.yaml');
 const ANIM = toFlowFile('.maestro/flows/shots/animation-host-safety.yaml');
+
+function lines(...text: string[]): string {
+  return text.join('\n');
+}
+
+const ANIM_IOS_ONLY = toFlowFile(
+  '.maestro/flows/shots/animation-host-safety.yaml',
+  lines('# REQ-A-1..A-3', '# platforms: ios', 'appId: com.tuckerbrady.theaxiom', '---', '- launchApp', ''),
+);
+
+const REPO_ROOT = resolve(__dirname, '..', '..', '..');
 
 function args(argv: string[]): ShotsArgs {
   return parseShotsArgs(argv, { today: '2026-09-20' });
@@ -220,5 +236,92 @@ describe('summarize', () => {
     const text = summarize([{ job: plan.jobs[0], exitCode: 0 }]);
     expect(text).toContain('PASS');
     expect(text).toContain('All 1 flow runs passed.');
+  });
+});
+
+describe('parseFlowPlatforms', () => {
+  it('reads a platforms marker from the flow header', () => {
+    expect(parseFlowPlatforms(lines('# platforms: ios', 'appId: x', '---'))).toEqual(['ios']);
+  });
+
+  it('accepts a list, in any case and spacing', () => {
+    expect(parseFlowPlatforms(lines('#platforms:  iOS , android', '---'))).toEqual([
+      'ios',
+      'android',
+    ]);
+  });
+
+  it('is null when the flow names no platforms, meaning it runs everywhere', () => {
+    expect(parseFlowPlatforms(lines('# a comment', 'appId: x', '---', '- launchApp'))).toBeNull();
+  });
+
+  it('only reads the header, not a comment in the command list', () => {
+    expect(parseFlowPlatforms(lines('appId: x', '---', '# platforms: ios', '- launchApp'))).toBeNull();
+  });
+
+  it('tolerates Windows line endings', () => {
+    expect(parseFlowPlatforms('# platforms: ios\r\nappId: x\r\n---\r\n')).toEqual(['ios']);
+  });
+
+  it('refuses an unknown platform rather than silently running nowhere', () => {
+    expect(() => parseFlowPlatforms(lines('# platforms: windows', '---'))).toThrow(/windows/);
+  });
+});
+
+describe('platform filtering', () => {
+  it('carries the platforms marker on the flow file', () => {
+    expect(ANIM_IOS_ONLY.platforms).toEqual(['ios']);
+    expect(LOOP.platforms).toBeNull();
+  });
+
+  it('skips an iOS-only flow on an android run and reports it', () => {
+    const plan = buildRunPlan(
+      args(['--label', 'loop', '--platform', 'android', '--devices', 'compact']),
+      [ANIM_IOS_ONLY, LOOP],
+    );
+    expect(plan.jobs.map(j => j.flow.name)).toEqual(['gameplay-loop']);
+    expect(plan.skippedFlows).toEqual([ANIM_IOS_ONLY]);
+  });
+
+  it('keeps an iOS-only flow on an ios run', () => {
+    const plan = buildRunPlan(args(['--label', 'anim', '--devices', 'se']), [ANIM_IOS_ONLY, LOOP]);
+    expect(plan.jobs.map(j => j.flow.name)).toEqual(['animation-host-safety', 'gameplay-loop']);
+    expect(plan.skippedFlows).toEqual([]);
+  });
+
+  it('refuses a run where every flow was filtered out', () => {
+    expect(() =>
+      buildRunPlan(
+        args(['--label', 'anim', '--platform', 'android', '--devices', 'compact']),
+        [ANIM_IOS_ONLY],
+      ),
+    ).toThrow(/No flows left to run on android/);
+  });
+
+  it('says clearly which flow was skipped and why', () => {
+    const line = describeSkippedFlow(ANIM_IOS_ONLY, 'android');
+    expect(line).toContain('.maestro/flows/shots/animation-host-safety.yaml');
+    expect(line).toContain('android');
+    expect(line).toContain('platforms: ios');
+  });
+});
+
+describe('the shipped flows', () => {
+  const flowDirs = ['.maestro/flows/shots', '.maestro/flows/damaged-cells'];
+  const flowPaths = flowDirs.flatMap(dir =>
+    readdirSync(resolve(REPO_ROOT, dir))
+      .filter(name => name.endsWith('.yaml'))
+      .map(name => `${dir}/${name}`),
+  );
+
+  it('marks the animation-host flow iOS-only, so an android run skips it', () => {
+    const path = '.maestro/flows/shots/animation-host-safety.yaml';
+    const flow = toFlowFile(path, readFileSync(resolve(REPO_ROOT, path), 'utf8'));
+    expect(flow.platforms).toEqual(['ios']);
+  });
+
+  it.each(flowPaths)('%s targets the real application id', path => {
+    const contents = readFileSync(resolve(REPO_ROOT, path), 'utf8');
+    expect(contents).toMatch(/^appId: com\.tuckerbrady\.theaxiom\r?$/m);
   });
 });
