@@ -318,4 +318,33 @@ describe('PieceTray centre-select (AXM-020)', () => {
     const scaled = r.root.findAll((n: Node) => n.type === 'AnimatedView' && n.props.testID === 'tray-item-scale-conveyor');
     expect(scaled).toHaveLength(1);
   });
+
+  // Vaughn's PR #57 conditions. The native half of the swipe fix
+  // (onShouldBlockNativeResponder) can't run in jest; this is the half that
+  // can: a swipe the ScrollView takes arrives as a terminate before the hold
+  // fires, and must leave no drag, no selection change and no scroll behind.
+  it('a swipe the ScrollView takes (terminate before the hold) starts no drag and selects nothing', () => {
+    const onDragStart = jest.fn();
+    const { r, spy } = mount({ items: FIVE, onDragStart });
+    spy.mockClear();
+    scrollTo.mockClear();
+    const host = byTestId(r, 'tray-item-scanner');
+    TestRenderer.act(() => { host.props.onResponderGrant(touch); });
+    TestRenderer.act(() => { jest.advanceTimersByTime(100); });
+    TestRenderer.act(() => { host.props.onResponderTerminate(); });
+    TestRenderer.act(() => { jest.advanceTimersByTime(200); });
+    expect(onDragStart).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('a selection set from outside the tray (a tutorial step) moves the frame to it', () => {
+    const { spy } = mount({ items: FIVE });
+    scrollTo.mockClear();
+    spy.mockClear();
+    TestRenderer.act(() => { setSelectedExternally('scanner'); });
+    expect(scrollTo).toHaveBeenLastCalledWith({ x: 192, animated: true });
+    // The tray follows the outside selection; it does not fight it.
+    expect(spy).not.toHaveBeenCalled();
+  });
 });

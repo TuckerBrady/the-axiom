@@ -198,7 +198,7 @@ export const PanResponder = {
     },
   }),
 };
-export const StatusBar ={ setBarStyle: () => undefined, setHidden: () => undefined };
+export const StatusBar = { setBarStyle: () => undefined, setHidden: () => undefined };
 export const Alert = { alert: () => undefined };
 export const Linking = { openURL: () => Promise.resolve(), canOpenURL: () => Promise.resolve(true) };
 
