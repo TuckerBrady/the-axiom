@@ -248,9 +248,19 @@ function PieceTrayComponent({
     if (target !== null) scrollRef.current?.scrollTo({ x: target, animated: true });
   }, [selectedKey]);
 
+  // A filter change re-lays the row from its start. Without this the old
+  // offset survives: slide to the end, narrow the filter, and the filtered
+  // items sit off-screen to the left (found on device, K1-10). A selection
+  // that survives the filter is re-revealed from its new onLayout.
+  useEffect(() => {
+    scrollXRef.current = 0;
+    scrollRef.current?.scrollTo({ x: 0, animated: false });
+    refreshFade();
+  }, [effectiveFilter, refreshFade]);
+
   // Selected by tap or programmatically (a tutorial step): scroll it fully
   // into view.
-  useEffect(() => { revealSelected(); }, [revealSelected, effectiveFilter]);
+  useEffect(() => { revealSelected(); }, [revealSelected]);
 
   const handleItemLayout = useCallback((key: string, e: LayoutChangeEvent) => {
     const { x, width } = e.nativeEvent.layout;
