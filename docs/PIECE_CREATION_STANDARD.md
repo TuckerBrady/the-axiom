@@ -44,8 +44,8 @@ No piece ships without completing every item on this checklist.
 - [ ] type: 'Physics' | 'Protocol'
 - [ ] status: 'unlocked'
 - [ ] description: 2-3 sentences. Facts only. No marketing language.
-- [ ] cogsNote: one line, COGS voice. Tucker sign-off required.
-      Tag [PROPOSED] until approved.
+- [ ] cogsNote: one line, COGS voice. Team-authored; listed in the PR
+      body for voice review.
 - [ ] firstEncountered: "THE AXIOM — A1-X Level Name"
 - [ ] tmCorrespondence (optional): one line. TM-core pieces get their TM-component
       correspondence (SE-TM-021). Board/physics pieces get their "what it actually
@@ -57,7 +57,7 @@ No piece ships without completing every item on this checklist.
 ## Tutorial
 - [ ] Tutorial step defined in levels.ts if piece appears in a
       tutorial level
-- [ ] Step has: id, targetRef, eyeState, message (Tucker sign-off),
+- [ ] Step has: id, targetRef, eyeState, message (COGS voice, team-authored),
       codexEntryId
 
 ## Gameplay Integration
@@ -66,6 +66,7 @@ No piece ships without completing every item on this checklist.
 - [ ] Free-to-play solvable with zero credits using tray pieces only
 
 ## COGS Voice Rule
-All proposed COGS lines require Tucker's explicit sign-off before
-entering the codebase. Tag all proposed lines [PROPOSED]. This applies
-to every piece, every sprint, forever.
+COGS lines are team-authored and ship through T-Bot's PR voice review.
+No [PROPOSED] tag, no per-line sign-off. Read the COGS voice section of
+docs/NARRATIVE.md before writing one. Full rule: COGS DIALOGUE DOCTRINE
+in docs/NARRATIVE.md (2026-09-21).
