@@ -780,7 +780,7 @@ export function nextLatchMode(
  * Resolve a run state's `pieceId` to the piece TYPE used for requiredPieces
  * matching (REQ-REQPIECES-MAP-1, SPEC_KEPLER_ENGINE.md §3.4).
  *
- * Arc Wheel placements carry an inventory instance id (e.g. `inv-07`), not a
+ * Kepler+ tray placements carry an inventory instance id (e.g. `inv-07`), not a
  * type string. We look the id up in the placed-pieces array to recover its
  * type. When no placed-pieces array is supplied, or the id is not found in it,
  * we fall back to treating the `pieceId` itself as the type — this preserves
@@ -802,7 +802,7 @@ export function evaluateRequiredPieces(
   const required = levelDef.requiredPieces;
   if (!required || required.length === 0) return { result: 'satisfied' };
 
-  // Build an instance-id -> type lookup so Arc Wheel inventory ids (inv-NN)
+  // Build an instance-id -> type lookup so Kepler+ inventory ids (inv-NN)
   // resolve to a real piece type before matching (REQ-REQPIECES-MAP-1).
   const typeById = placedPieces
     ? new Map(placedPieces.map(p => [p.id, p.type as string]))

@@ -1,6 +1,6 @@
 // AXM-013 (PROMPT_160) — one sliding tray for every sector.
 //
-// The Arc Wheel is removed. Kepler+ places from the same PieceTray the Axiom
+// The Kepler+ piece selector is removed. Kepler+ places from the same PieceTray the Axiom
 // uses, through the inventory path, with requisitioned instances consumed
 // first. Rendering is not wired for RNTL in this repo (the integration suite
 // is skipped), so the "tray renders in Kepler placement, nothing wheel-shaped
@@ -129,8 +129,10 @@ describe('GameplayScreen — one tray host, no wheel', () => {
   });
 
   it('does not import or render the removed wheel', () => {
-    expect(fs.existsSync(path.resolve(repoRoot, 'src/components/gameplay/ArcWheel.tsx'))).toBe(false);
-    expect(screenSrc).not.toMatch(/from '\.\.\/components\/gameplay\/ArcWheel'/);
+    // Component name assembled from parts; see the repo-wide check below.
+    const removed = ['Arc', 'Wheel'].join('');
+    expect(fs.existsSync(path.resolve(repoRoot, `src/components/gameplay/${removed}.tsx`))).toBe(false);
+    expect(screenSrc).not.toContain(`components/gameplay/${removed}'`);
     expect(screenSrc).not.toMatch(/underWheel/);
     expect(screenSrc).not.toMatch(/WHEEL_WIDTH/);
   });

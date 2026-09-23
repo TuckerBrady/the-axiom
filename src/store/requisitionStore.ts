@@ -6,9 +6,10 @@ import {
   PHYSICS_PIECE_TYPES,
   PROTOCOL_PIECE_TYPES,
   getRequisitionPrice,
-  arcWheelSortKey,
+  traySortKey,
   NIBBLE_PRICE,
 } from '../game/piecePrices';
+import { nextPlacementIndex, nextReturnIndex } from '../components/gameplay/trayGrouping';
 import { useCodexStore } from './codexStore';
 import { useSettingsStore } from './settingsStore';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
@@ -56,7 +57,7 @@ interface RequisitionStoreState {
   requisition: RequisitionState;
   inventory: InventoryState;
 
-  // Which inventory piece is currently selected on the Arc Wheel (null = none)
+  // Which inventory piece is currently selected in the tray (null = none)
   selectedInventoryId: string | null;
 
   // Internal: level data needed during the requisition phase
@@ -142,8 +143,8 @@ function buildInventoryFromLevel(
     }
   }
 
-  // Sort by Arc Wheel ordering (category first, price ascending)
-  pieces.sort((a, b) => arcWheelSortKey(a.type) - arcWheelSortKey(b.type));
+  // Sort by tray ordering (category first, price ascending)
+  pieces.sort((a, b) => traySortKey(a.type) - traySortKey(b.type));
 
   const hasPurchasedTrail = purchases.some(p => p.type === 'TRAIL_TAPE' && p.quantity > 0);
   const hasPurchasedOut = purchases.some(p => p.type === 'OUT_TAPE' && p.quantity > 0);
@@ -281,9 +282,11 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
     set({ selectedInventoryId: id });
   },
 
+  // AXM-013: requisitioned instances are consumed first and pre-assigned ones
+  // returned first, so the unspent requisitioned count is always the forfeit.
   placeInventoryPiece: (type) => {
     const { inventory } = get();
-    const idx = inventory.pieces.findIndex(p => p.type === type && !p.placed);
+    const idx = nextPlacementIndex(inventory.pieces, type);
     if (idx === -1) return;
     const pieces = [...inventory.pieces];
     pieces[idx] = { ...pieces[idx], placed: true };
@@ -292,7 +295,7 @@ export const useRequisitionStore = create<RequisitionStoreState>((set, get) => (
 
   unplaceInventoryPiece: (type) => {
     const { inventory } = get();
-    const idx = inventory.pieces.findIndex(p => p.type === type && p.placed);
+    const idx = nextReturnIndex(inventory.pieces, type);
     if (idx === -1) return;
     const pieces = [...inventory.pieces];
     pieces[idx] = { ...pieces[idx], placed: false };

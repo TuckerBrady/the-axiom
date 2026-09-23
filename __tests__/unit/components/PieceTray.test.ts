@@ -28,8 +28,8 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(traySrc).toMatch(/export interface TutorialTrayRefs/);
   });
 
-  it('renders a touchable per tray piece type', () => {
-    expect(traySrc).toMatch(/trayPieceTypes\.map\(pt =>/);
+  it('renders a touchable per visible tray item', () => {
+    expect(traySrc).toMatch(/visibleItems\.map\(item =>/);
     expect(traySrc).toMatch(/<TouchableOpacity/);
   });
 
@@ -46,15 +46,15 @@ describe('PieceTray — extracted parts tray component', () => {
 
   it('GameplayScreen imports and renders <PieceTray /> with the tutorial tray refs', () => {
     expect(screenSrc).toMatch(
-      /import PieceTray from '\.\.\/components\/gameplay\/PieceTray'/,
+      /import PieceTray(, \{[^}]*\})? from '\.\.\/components\/gameplay\/PieceTray'/,
     );
     expect(screenSrc).toMatch(/<PieceTray/);
-    // PROMPT_124 wires the per-piece tutorial refs into the tray for
-    // all Axiom levels (the Axiom Arc Wheel path is gone).
+    // PROMPT_124 wires the per-piece tutorial refs into the tray; since
+    // AXM-013 the same tray serves every sector.
     expect(screenSrc).toMatch(/refs=\{tutorialTrayRefs\}/);
   });
 
-  it('useGameplayTutorial exposes the tray refs plus the Kepler Arc Wheel ref', () => {
+  it('useGameplayTutorial exposes the tray refs', () => {
     expect(tutorialHookSrc).toMatch(/trayConveyorRef/);
     expect(tutorialHookSrc).toMatch(/trayGearRef/);
     expect(tutorialHookSrc).toMatch(/trayConfigNodeRef/);
@@ -63,9 +63,9 @@ describe('PieceTray — extracted parts tray component', () => {
     expect(tutorialHookSrc).toMatch(/trayTransmitterRef/);
     expect(tutorialHookSrc).toMatch(/tutorialTrayRefs/);
     expect(tutorialHookSrc).toMatch(/placedPieceRef/);
-    // arcWheelMainRef is back — not for the removed Axiom focus-wheel, but for
-    // the Kepler+ Arc Wheel onboarding tutorial (targetRef 'arcWheelMain').
-    expect(tutorialHookSrc).toMatch(/arcWheelMainRef/);
+    // AXM-013: Kepler+ tutorial steps target tray items too; the hook no
+    // longer carries a ref for a second piece selector.
+    expect(tutorialHookSrc).not.toMatch(/MainRef/);
   });
 
   it('GameplayScreen memoizes per-piece costs and affordability', () => {
@@ -83,27 +83,27 @@ describe('PieceTray — extracted parts tray component', () => {
       expect(traySrc).toMatch(/onDragCancel\?:\s*\(\) => void/);
     });
 
-    it('uses the 180 ms hold threshold matching ArcWheel', () => {
+    it('uses the 180 ms hold threshold', () => {
       expect(traySrc).toMatch(/const DRAG_HOLD_MS = 180/);
     });
 
-    it('imports PanResponder from react-native and DragState from ArcWheel', () => {
+    it('imports PanResponder from react-native and owns the DragState type', () => {
       expect(traySrc).toMatch(/import\s*\{[^}]*\bPanResponder\b[^}]*\}\s*from\s*'react-native'/);
-      expect(traySrc).toMatch(/import type \{ DragState \} from '\.\/ArcWheel'/);
+      expect(traySrc).toMatch(/export interface DragState \{/);
     });
 
     it('promotes a touch to drag after DRAG_HOLD_MS via setTimeout in onPanResponderGrant', () => {
       // The grant handler starts a hold timer that fires onDragStart
       // with a DragState payload (active: true, pieceId, type, x, y).
       expect(traySrc).toMatch(/onPanResponderGrant[\s\S]*?setTimeout\([\s\S]*?DRAG_HOLD_MS\)/);
-      expect(traySrc).toMatch(/active:\s*true,[\s\S]*?pieceId:\s*ptNow,[\s\S]*?type:\s*ptNow/);
+      expect(traySrc).toMatch(/active:\s*true,[\s\S]*?pieceId:\s*keyNow,[\s\S]*?type:\s*ptNow/);
     });
 
     it('falls through to onPickup when the press releases before the timer fires', () => {
       // onPanResponderRelease: if isDraggingRef.current is true,
       // call onDragEnd; otherwise clear the timer and call onPickup
       // with the toggled value (null deselects when already active).
-      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?pickup\(activeNow \? null : ptNow\)/);
+      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?pickup\(activeNow \? null : keyNow\)/);
     });
 
     it('calls onDragCancel when the gesture is terminated mid-drag', () => {
@@ -117,14 +117,9 @@ describe('PieceTray — extracted parts tray component', () => {
       expect(screenSrc).toMatch(/<PieceTray[\s\S]*?onDragCancel=\{handleDragCancel\}/);
     });
 
-    it('GameplayScreen no longer contains the Axiom Arc Wheel state or render block', () => {
-      expect(screenSrc).not.toMatch(/hasAxiomArcWheel/);
-      expect(screenSrc).not.toMatch(/axiomArcWheelPieces/);
-      expect(screenSrc).not.toMatch(/axiomWheelSelectedId/);
-      expect(screenSrc).not.toMatch(/handleAxiomArcWheelSelect/);
-      // The Kepler+ Arc Wheel render now wires mainNodeRef={arcWheelMainRef}
-      // for the wheel-onboarding tutorial, so that string is EXPECTED to be
-      // present — it is no longer a marker for the removed Axiom block.
+    it('GameplayScreen has no second piece selector (AXM-013)', () => {
+      expect(screenSrc).not.toMatch(/mainNodeRef=/);
+      expect(screenSrc.match(/<PieceTray\b/g) ?? []).toHaveLength(1);
     });
   });
 
@@ -158,12 +153,12 @@ describe('PieceTray — extracted parts tray component', () => {
     });
 
     it('sets opacity 0 and pointerEvents none when hidden, without unmounting', () => {
-      expect(traySrc).toMatch(/style=\{\[styles\.partsTray, hidden && \{ opacity: 0 \}\]\}/);
+      expect(traySrc).toMatch(/styles\.partsTray,[\s\S]{0,120}?hidden && \{ opacity: 0 \},/);
       expect(traySrc).toMatch(/pointerEvents=\{hidden \? 'none' : 'auto'\}/);
     });
 
-    it('GameplayScreen mounts PieceTray unconditionally for Axiom levels (isAxiomLevel only), passing hidden for the run-state gate', () => {
-      expect(screenSrc).toMatch(/\{isAxiomLevel && \(\s*<PieceTray/);
+    it('GameplayScreen mounts PieceTray by sector/phase only (never by run state), passing hidden for the run-state gate', () => {
+      expect(screenSrc).toMatch(/\{shouldMountTray\(\{ isAxiomLevel: !!isAxiomLevel, phase: requisitionPhase \}\) && \(\s*<PieceTray/);
       expect(screenSrc).not.toMatch(
         /isAxiomLevel && !isExecuting && !showResults && !showVoid && !debugMode && \(\s*<PieceTray/,
       );
