@@ -168,6 +168,16 @@ describe('PieceTray — extracted parts tray component', () => {
     });
   });
 
+  // AXM-013, found on device: slide the tray to its end, pick a narrower
+  // filter, and the old offset left the filtered items scrolled off-screen.
+  describe('filter change (AXM-013)', () => {
+    it('returns the tray to its start whenever the effective filter changes', () => {
+      expect(traySrc).toMatch(
+        /useEffect\(\(\) => \{\s*scrollXRef\.current = 0;\s*scrollRef\.current\?\.scrollTo\(\{ x: 0, animated: false \}\);[\s\S]*?\}, \[effectiveFilter/,
+      );
+    });
+  });
+
   describe('static during drag', () => {
     it('disables ScrollView scrolling while a piece is being dragged', () => {
       // The tray must not slide left/right under the drag (Tucker 2026-06-15).
