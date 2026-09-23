@@ -596,6 +596,13 @@ function TrayItemDraggable({
       onStartShouldSetPanResponder: () => !propsRef.current.disabled,
       onMoveShouldSetPanResponder: () => !propsRef.current.disabled,
       onPanResponderTerminationRequest: () => false,
+      // Let the native ScrollView take a swipe. A PanResponder blocks the
+      // native responder by default, and when the JS grant landed before the
+      // ScrollView's intercept a swipe could never scroll the tray: the hold
+      // fired and the swipe became a drag (found on axiom_compact, AXM-020).
+      // A swipe the ScrollView takes arrives here as a terminate, which
+      // clears the hold timer. Once a drag starts, scrollEnabled goes false.
+      onShouldBlockNativeResponder: () => false,
       onPanResponderGrant: (evt: GestureResponderEvent) => {
         isDraggingRef.current = false;
         startPosRef.current = {
