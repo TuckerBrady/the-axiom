@@ -146,6 +146,18 @@ describe('GameplayScreen — one tray host, no wheel', () => {
     expect(screenSrc).toMatch(/snapBack/);
   });
 
+  // Found on device (K1-10, axiom_standard): the board's window position was
+  // captured only in its onLayout, which does not re-run when the board moves
+  // without resizing. Drops then resolved ~2 rows below the finger. The drag
+  // must re-measure the board when it starts.
+  it('re-measures the board position when a drag starts', () => {
+    const start = screenSrc.slice(
+      screenSrc.indexOf('const handleDragStart = useCallback('),
+      screenSrc.indexOf('const handleDragMove = useCallback('),
+    );
+    expect(start).toMatch(/boardGridRef\.current\?\.measureInWindow\(\(x, y\) => \{\s*boardScreenPos\.current = \{ x, y \};/);
+  });
+
   it('keeps the tray mounted through ENGAGE (hidden, not unmounted)', () => {
     expect(screenSrc).toMatch(/hidden=\{isExecuting \|\| showResults \|\| showVoid \|\| debugMode\}/);
   });
