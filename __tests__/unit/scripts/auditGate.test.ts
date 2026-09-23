@@ -11,7 +11,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, rmSync, readFileSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -129,5 +129,46 @@ describe('dependency gate', () => {
       expect(typeof e.reason).toBe('string');
       expect(Number.isNaN(Date.parse(e.review_by))).toBe(false);
     }
+  });
+});
+
+// T-Bot review of #55.
+describe('dependency gate — fails closed', () => {
+  it('fails when npm audit reported an error instead of a report', () => {
+    const { code, out } = runGate({ error: { code: 'ENOLOCK', summary: 'no lockfile' } }, { allow: [] });
+    expect(code).toBe(1);
+    expect(out).toContain('not a usable npm audit report');
+  });
+
+  it('fails when the report has no vulnerabilities or metadata section', () => {
+    const { code, out } = runGate({}, { allow: [] });
+    expect(code).toBe(1);
+    expect(out).toContain('not a usable npm audit report');
+  });
+
+  it('fails on an allowlist entry with an unreadable review_by date', () => {
+    const list = { allow: [{ advisory: JXL, package: 'image-size', reason: 'fixture', review_by: 'next spring' }] };
+    const { code, out } = runGate(imageSizeReport(), list);
+    expect(code).toBe(1);
+    expect(out).toContain('unreadable review_by');
+  });
+
+  it('runs its checks whatever the script file is named', () => {
+    const dir = mkdtempSync(path.join(tmpdir(), 'audit-gate-name-'));
+    const renamed = path.join(dir, 'dependency-check.mjs');
+    copyFileSync(GATE, renamed);
+    const reportFile = path.join(dir, 'report.json');
+    const allowFile = path.join(dir, 'allow.json');
+    writeFileSync(reportFile, JSON.stringify(reportWith('https://github.com/advisories/GHSA-x', 'bad-pkg')));
+    writeFileSync(allowFile, JSON.stringify({ allow: [] }));
+    let code = 0;
+    try {
+      execFileSync('node', [renamed, '--input', reportFile, '--allowlist', allowFile], { stdio: 'pipe' });
+    } catch (e) {
+      code = (e as { status?: number }).status ?? 1;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+    expect(code).toBe(1);
   });
 });
