@@ -188,3 +188,40 @@ Notes on the copy:
 4. **Axiom placement hints at level start:** the first item is selected on entry (as specified), so
    the copper hints show from the first frame of an Axiom level, including under the A1-1 tutorial's
    opening COGS lines. Not device-checked on A1-1 (the seed has it complete).
+
+## Vaughn's PR #57 conditions (QA ruling: APPROVE WITH CONDITIONS)
+
+1. **Terminate before the hold.** New render test: grant an off-centre item, terminate at 100 ms,
+   advance 200 ms. Asserts no drag, no selection change and no scroll. Mutation-checked: it fails with
+   the terminate path's `clearTimeout` removed. DONE, `243ec4a`.
+2. **Selection from outside the tray (the tutorial path).** New render test: setting `selectedKey` from
+   outside moves the frame (`scrollTo` 192) and the tray doesn't fight it. Mutation-checked: it fails
+   with the frame-follow block removed. DONE, `243ec4a`.
+3. **Fresh-install device check on axiom_compact.**
+   - `pm clear`, then the full first run: boot log, the relay puzzle, name, discipline.
+   - **A1-1:** the whole tutorial runs. The tray spotlight lands on the centred conveyor, and the
+     hand-off leaves the conveyor in hand with hints live (`fresh-a1-1-*`). The copper hints show
+     from the first frame, dimmed under COGS's opening line (`fresh-a1-1-first-frame-hints`), as
+     flagged.
+   - **K1-1:** seeded with A1-1..A1-8 only, so it's a true first play, with one conveyor bought.
+     All four new tray lines render in order, then `board-intro` (`fresh-k1-1-step1..5`). DONE.
+   - **Found, and not this PR:** on axiom_compact every tutorial spotlight draws about 35dp above
+     its target. The board bracket in `board-intro` is off by the same amount, not just the tray.
+     `TutorialHUDOverlay.tsx:315` positions with `UIManager.measureInWindow`, the same coordinate-space
+     mismatch AXM-013 fixed for drops (`measure()` pageX/pageY). This PR doesn't touch that file.
+     Sent to T-Bot for a ticket.
+4. **`.maestro/flows/shots/gameplay-loop.yaml`** on axiom_standard, A1-3: PASS.
+   - Every step completed. The conveyor tap-select and tap-place both work under centre-select;
+     the tap no longer toggles, and the flow never relied on the toggle.
+   - Shots `maestro-gameplay-loop-standard-a1-3-04/05/06`: the conveyor is framed on entry,
+     placed (5 to 4) and still in hand, and a tap on the placed piece rotates it.
+   - Its 04 shot now shows placement hints on entry; that's the new behaviour. DONE.
+5. **Coverage after 1 and 2:** 84.62 / 75.93 / 83.73 / 85.51. Master is 84.45 / 76.54 / 83.67 /
+   85.22. `PieceTray.tsx` is at 87.44 / 68.38 / 84.78 / 90.35. Lint 0 warnings, tsc 0, 2255 tests
+   pass, audit clean. DONE.
+
+Tracked, not blocking (with T-Bot):
+- the 17-component coverage debt
+- a Maestro tray-swipe flow on axiom_compact
+- an iOS device check of the no-fling settle
+- whether `settleAt` should honour `holdSelection`
