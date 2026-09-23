@@ -5,7 +5,7 @@
 // The core evaluateRequiredPieces logic (placed-AND-fired; bypass fails; floor solve
 // passes) is already covered by __tests__/unit/keplerRequiredPieces.test.ts
 // (REQ-RP-1 .. REQ-RP-5). This file adds ONLY the audit gap 9 requirement: a fired
-// piece carrying an Arc Wheel instance id (e.g. `inv-NN`, not a type string) MUST be
+// piece carrying a Kepler+ inventory instance id (e.g. `inv-NN`, not a type string) MUST be
 // resolved to its TYPE before matching requiredPieces, or K1-6/K1-8 silently report
 // zero engaged.
 //
@@ -21,7 +21,7 @@ import { evaluateRequiredPieces, getDefaultPorts, getPieceCategory } from '../..
 
 type PieceRunState = { pieceId: string; firedDuringRun: boolean };
 
-// Build a placed piece whose instance id is an Arc Wheel inventory id (inv-NN),
+// Build a placed piece whose instance id is a Kepler+ inventory id (inv-NN),
 // not a type string — exactly the shape that triggered audit gap 9.
 function makeInventoryPiece(
   invId: string,
@@ -50,7 +50,7 @@ describe('requiredPieces instance-to-type resolution (3.4.1)', () => {
       { type: 'merger', count: 1 },
     ]);
 
-    // Arc Wheel placements: instance ids are inventory ids, NOT type strings.
+    // Kepler+ tray placements: instance ids are inventory ids, NOT type strings.
     const placed: PlacedPiece[] = [
       makeInventoryPiece('inv-01', 'scanner', 1, 0),
       makeInventoryPiece('inv-03', 'splitter', 2, 0),

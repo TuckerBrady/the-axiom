@@ -272,16 +272,16 @@ describe('K1-1 v3 economy fields', () => {
     expect(k1().baseReward).toBe(100);
   });
 
-  it('has 6 tutorial steps (4 Arc Wheel onboarding + 2 board)', () => {
+  it('has 6 tutorial steps (4 tray onboarding + 2 board)', () => {
     const level = k1();
     expect(level.tutorialSteps).toHaveLength(6);
   });
 
-  it('the first four steps onboard the Arc Wheel, the last two teach the board', () => {
+  it('the first four steps onboard the tray (focus piece: Conveyor), the last two teach the board', () => {
     const level = k1();
     const steps = level.tutorialSteps!;
     for (const s of steps.slice(0, 4)) {
-      expect(s.targetRef).toBe('arcWheelMain');
+      expect(s.targetRef).toBe('trayConveyor');
     }
     expect(steps[4].targetRef).toBe('boardGrid');
     expect(steps[5].targetRef).toBe('boardGrid');
@@ -294,7 +294,7 @@ describe('K1-1 v3 economy fields', () => {
     }
   });
 
-  it('onboarding covers the wheel and forfeiture', () => {
+  it('onboarding covers placement and forfeiture', () => {
     const ids = k1().tutorialSteps!.map(s => s.id);
     expect(ids).toEqual(expect.arrayContaining(['wheel-intro', 'wheel-place', 'wheel-forfeit']));
   });

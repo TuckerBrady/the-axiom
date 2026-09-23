@@ -1,6 +1,6 @@
-// Arc Wheel Tutorial — useGameplayTutorial hook coverage
+// Tray tutorial — useGameplayTutorial hook coverage
 // Covers the onPiecePlaced / onPieceTapped callbacks, level-change
-// resets, and ref stability added in the arc-wheel-tutorial spec.
+// resets, and ref stability added in the (now superseded) wheel tutorial spec.
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -58,7 +58,7 @@ afterEach(async () => {
 
 const flush = () => new Promise<void>(resolve => setImmediate(resolve));
 
-describe('arc-wheel-tutorial — useGameplayTutorial', () => {
+describe('tray tutorial — useGameplayTutorial', () => {
   // ── 1: onPiecePlaced fires lastPlacedTrigger with correct type ──────────────
   it('1: onPiecePlaced fires lastPlacedTrigger with the placed piece type', async () => {
     await TestRenderer.act(async () => {
@@ -264,7 +264,7 @@ describe('arc-wheel-tutorial — useGameplayTutorial', () => {
   });
 
   // ── 11: trayConveyorRef identity is stable across renders ──────────────────
-  // PROMPT_124 replaced the arcWheelMainRef with per-piece tray refs.
+  // PROMPT_124 replaced the single wheel ref with per-piece tray refs.
   // Stability of those refs across renders is the same invariant.
   it('11: trayConveyorRef has a stable object identity across re-renders', async () => {
     let renderer!: ReturnType<typeof TestRenderer.create>;

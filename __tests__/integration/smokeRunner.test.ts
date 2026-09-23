@@ -113,7 +113,7 @@ describe.skip('Smoke Runner — Flow Completeness', () => {
     'smoke_09_signal_beam.yaml',
     'smoke_10_tape_system.yaml',
     'smoke_11_credit_economy.yaml',
-    'smoke_12_arc_wheel_tutorial.yaml',
+    'smoke_12_tray_tutorial.yaml',
     'smoke_13_hud_cogs_eye.yaml',
     'smoke_14_daily_challenge.yaml',
     'smoke_15_kepler_levels.yaml',
@@ -139,10 +139,10 @@ describe.skip('Smoke Runner — Flow Completeness', () => {
     expect(content.toLowerCase()).toContain('awaitplacement');
   });
 
-  // Clause 2.12.1 — Build 19 regression gate (arc wheel)
+  // Clause 2.12.1 — Build 19 regression gate (tray tutorial)
   test('smoke_12 references awaitPlacement boundary (REQ-A-1)', () => {
     const content = fs.readFileSync(
-      path.join(FLOWS_DIR, 'smoke_12_arc_wheel_tutorial.yaml'),
+      path.join(FLOWS_DIR, 'smoke_12_tray_tutorial.yaml'),
       'utf-8'
     );
     expect(content.toLowerCase()).toContain('awaitplacement');

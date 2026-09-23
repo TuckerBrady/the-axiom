@@ -63,9 +63,9 @@ export function hasRequisitionDiscount(type: PieceType, discipline: Discipline):
   return getRequisitionPrice(type, discipline) < (PIECE_PRICES[type] ?? 0);
 }
 
-// Piece ordering for the Arc Wheel: Physics first, Protocol second, Data (tapes) third.
+// Piece ordering for the tray: Physics first, Protocol second, Data (tapes) third.
 // Within category, price ascending.
-export function arcWheelSortKey(type: PieceType): number {
+export function traySortKey(type: PieceType): number {
   const cat = getRequisitionPieceCategory(type);
   const catOffset = cat === 'physics' ? 0 : cat === 'protocol' ? 1000 : 2000;
   return catOffset + (PIECE_PRICES[type] ?? 0);

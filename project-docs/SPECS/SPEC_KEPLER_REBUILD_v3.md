@@ -63,8 +63,8 @@ Kepler is also the FIRST sector with:
 - Consequence levels at K1-4, K1-8, K1-10 (dual penalty on void: blown cell + ship
   damage / narrative consequence). Confirmed by LEVEL_DESIGN_FRAMEWORK and all five
   reports.
-- The Arc Wheel as the primary piece-selection model (PieceTray retired for Kepler+;
-  see Section 2).
+- The REQUISITION store debut. Placement uses the same PieceTray as the Axiom (the
+  Arc Wheel was removed 2026-09-22, AXM-013; see Section 2).
 
 WITHHELD across all of Kepler (reserved for later sectors): Inverter, Capacitor,
 Confluence Node, Divergence Gate (Nova Fringe); Relay, Counter, Threshold Relay,
@@ -96,189 +96,42 @@ Withholding Inverter and Counter specifically is curriculum-load-bearing.
 
 ---
 
-## 2. ARC WHEEL INTEGRATION (full, cleaned, PROPOSED where copy is involved)
+## 2. PIECE TRAY (every sector) — replaces the Arc Wheel (AXM-013, 2026-09-22)
 
-The Arc Wheel debuts at K1-1 and is the primary piece-selection model for every
-Kepler-and-later level. Axiom keeps the PieceTray (with the documented exception
-that Axiom new-piece tutorial levels render a focus-filtered Arc Wheel). All
-player-facing copy in this section is PROPOSED.
+Tucker removed the Arc Wheel on 2026-09-22 (PROMPT_160). The wheel sections that
+stood here are history; see `project-docs/SPECS/arc-wheel-tutorial.md` and
+`project-docs/REPORTS/kepler-arc-wheel-integration.md` (both marked SUPERSEDED).
+Kepler+ places from the same `PieceTray` the Axiom uses. Do not rebuild the wheel.
 
-### 2.0 Architecture baseline
-The current `ArcWheel` (src/components/gameplay/ArcWheel.tsx) is an edge-anchored
-vertical pill rendering a windowed slice of up to 5 nodes centered on
-`selectedIndex`, with fish-eye depth scaling (selected `NODE_SIZE_MAX = 52`;
-neighbors shrink toward `NODE_SIZE_MIN = 28`). It uses 14 `Animated.Value`s, ALL
-`useNativeDriver: false`. Two PanResponders: `scrollPan` (vertical swipe cycles
-selection, wrap-around, `hapticLight()` per step) and `dismissPan` (horizontal
-swipe past `DISMISS_THRESHOLD = 40` slides off, leaving a `RECALL_STRIP_W = 5`
-recall strip). Idle: after `ACTIVE_TIMEOUT_MS = 2000` fades to `IDLE_OPACITY = 0.18`,
-re-activates on touch. Drag: `onPressIn` starts a `DRAG_HOLD_MS = 180` timer; on hold
-completion `onDragStart` fires with the piece id/type and press coordinates.
-
-GameplayScreen render gating:
-- Kepler+ placement: rendered when `!isAxiomLevel && requisitionPhase === 'placement'
-  && !isExecuting && !showResults && !showVoid`; fed by `inventory.pieces.filter(p => !p.placed)`.
-- Axiom new-piece levels: rendered filtered to `tutorialFocusPiece`, `mainNodeRef`
-  wired for COGS-orb targeting.
-
-The `requisitionStore` models the one-time window as a phase machine:
-`requisition -> transitioning -> placement`. Inventory = `availablePieces`
-(`source: 'preAssigned'`) + confirmed purchases (`source: 'requisitioned'`), sorted
-by `arcWheelSortKey` (category, then price ascending). Tapes are tracked separately
-in `inventory.tapes` and are NOT Arc Wheel nodes today (see Open Question on tape nodes).
-
-### 2.1 Behavioral contract (RFC 2119)
-What the Arc Wheel does that the PieceTray does not:
-- Per-instance inventory: a purchased third Conveyor is its own node and disappears
-  from the wheel once placed.
-- Source color coding: border encodes source (amber = pre-assigned, blue =
-  requisitioned, purple = tape if ever surfaced).
-- Dismiss/recall to free board space on large Kepler boards (up to 12x9 at K1-10).
-
-Rotation: the wheel is NOT a rotation surface. Rotation is a board-level interaction
-under the locked plumber model (only placed Conveyor rotates on tap; Config Node tap
-cycles configValue; Latch tap toggles latchMode; all others no tap action). The
-component MUST NOT introduce a node-rotation affordance. Auto-orientation on placement
-remains Source-only; wheel-placed pieces receive `getAutoRotation(gridX, gridY)` at drop.
-
-Selection:
-- Tap a node MUST select it, snap `selectedIndex`, fire `hapticLight()`, re-activate.
-- Vertical swipe past one `NODE_SLOT_H` MUST advance selection by one, wrap-around,
-  one `hapticLight()` per step.
-- `requisitionStore.selectedInventoryId` is the single source of truth; the wheel
-  mirrors via `selectedId` and MUST NOT hold authoritative selection state.
-- When a placed piece leaves `arcWheelPieces`, the parent MUST clear/re-point
-  `selectedInventoryId` (today `placeInventoryPiece` sets it null); the wheel MUST
-  tolerate `selectedId === null`.
-
-Placement gesture (canonical Kepler): press-hold-drag-release.
-1. `onPressIn` starts `DRAG_HOLD_MS` timer, records press position.
-2. After 180ms hold, `onDragStart(DragState)` fires; parent renders floating ghost.
-3. Drag follows finger; on release `onDragEnd(x, y)` resolves the target cell.
-4. `handleDragEnd` rejects out-of-bounds / occupied / blown; else places + haptics +
-   marks the instance placed.
-
-KNOWN DEFECT (MUST fix in rebuild): the ghost does not follow the finger. `ArcWheel`
-accepts `onDragMove` but never calls it (no move responder during drag). The rebuild
-MUST attach a continuous move tracker so `onDragMove(x, y)` fires during the drag.
-This is a correctness bug: the Engineer currently has no visual confirmation of where
-the piece lands.
-
-Blown-cell interaction (Kepler-first):
-- A drop onto a blown cell MUST be rejected. `handleDragEnd` already checks
-  `blownCellsRef.current.has('gx,gy')`; the rebuild MUST keep reading the ref (not
-  stale state) because scars accrue mid-session.
-- PROPOSED: give negative feedback on a rejected drop (short error haptic + ghost
-  snap-back) so the Engineer reads the rejection as a scar, not a missed gesture.
-- The wheel MUST NOT render or reason about scars; blown cells are board state.
-
-Requisition store / expanding tray:
-- Window is one-time and pre-placement. Wheel and store NEVER coexist (phase machine).
-- Wheel inventory freezes at `confirmRequisition`. Purchased instances append to
-  `inventory.pieces` with `source: 'requisitioned'` (blue-bordered nodes).
-- Player-facing copy MUST say "the wheel" or name pieces directly, never "tray"
-  (tray-to-arc-wheel-rename.md).
-- Unused-purchased-pieces-are-lost is a scoring concern; the wheel does not enforce
-  it but SHOULD keep requisitioned nodes visually distinct (blue border). PROPOSED
-  enhancement: an "unspent / will be forfeited" indicator.
-
-requiredPieces enforcement:
-- The wheel MUST make every required type reachable (present in `availablePieces`).
-- The wheel MUST NOT pre-validate or block engage on requiredPieces — enforcement is
-  deferred to post-run by design ("Failure is the curriculum"). No "you forgot the
-  Merger" wheel warning.
-
-### 2.2 Per-level Arc Wheel surface
-| Level | Wheel nodes | New wheel node | requiredPieces | Consequence | Wheel tutorial |
-|---|---|---|---|---|---|
-| K1-1 | 5 | (debut) | - | - | store steps (mis-target `tray`, MUST repoint) + NEW wheel steps |
-| K1-2 | 7 | - | - | - | none |
-| K1-3 | 8 | - (Latch pre-placed) | - | - | none |
-| K1-4 | 10 | - | - | YES | none |
-| K1-5 | 12 | Merger (codex on board) | - | - | none |
-| K1-6 | 14 | - | splitter, merger | - | none |
-| K1-7 | 12 | - (Bridge pre-placed) | - | - | none |
-| K1-8 | 16 | - | bridge, latch, splitter, merger | YES | none |
-| K1-9 | 20 | - | - | - | none |
-| K1-10 | 22 | - | - | YES (3-star req) | board-intro only |
-
-Single biggest gap: there is NO wheel-onboarding tutorial anywhere in K1, and the
-only wheel-adjacent steps (K1-1 store steps) target the wrong element.
-
-### 2.3 Tutorial introduction at K1-1 (PROPOSED copy)
-At K1-1 two new systems appear, sequenced by the phase machine and taught separately:
-- `requisition` phase -> teach the store (4 EXISTING approved steps, repointed from
-  `'tray'` to a REQUISITION-panel ref; their TEXT MUST be preserved character-for-
-  character — only `targetRef` changes).
-- `transitioning` -> `PlacementTransition`.
-- `placement` -> teach the wheel (NEW steps below), then existing `board-intro` /
-  `board-resume`.
-
-Ordering caveat: the existing K1-1 `tutorialSteps` array lists board steps BEFORE
-store steps, but the store appears first chronologically. The rebuild MUST sequence
-steps by PHASE, not by array index, or reorder the array.
-
-PROPOSED wheel-onboarding steps (placement phase, before `board-intro`):
-```
-{ id: 'wheel-intro', label: 'ARC WHEEL', targetRef: 'arcWheelMain', eyeState: 'blue',
-  message: 'PROPOSED: New hardware. The parts manifest is no longer a tray along the
-  bottom. It is this wheel. Everything requisitioned is loaded onto it.' }
-{ id: 'wheel-scroll', label: 'ARC WHEEL', targetRef: 'arcWheelMain', eyeState: 'blue',
-  message: 'PROPOSED: Swipe the wheel to bring a piece to center. The one in the middle
-  is selected. You will not see every part at once. That is the trade for the room it
-  gives the board.' }
-{ id: 'wheel-place', label: 'ARC WHEEL', targetRef: 'arcWheelMain', eyeState: 'blue',
-  message: 'PROPOSED: Press and hold a piece, then drag it onto the board. Release where
-  it belongs. No more tapping the grid. The wheel hands the piece to you directly.' }
-```
-First gesture taught after selection MUST be drag-place. Tap-select is a natural
-carryover and needs no dedicated step.
-
-Gestures deferred:
-- Dismiss/recall: deferred (convenience for large boards; K1-1 is small). PROPOSED
-  ambient line, introduce at K1-4 or K1-6 when boards grow: "PROPOSED: If the wheel
-  is in the way, swipe it off the edge. It leaves a marker. Tap the marker to bring
-  it back."
-- Idle fade and per-instance semantics: self-evident; do NOT add steps.
-
-arc-wheel-tutorial.md (APPROVED, Axiom-scoped) intersections:
-- The Axiom four-beat NOTICE/INSTRUCT/CAPTURE/TEACH targets `arcWheelMain`. Kepler
-  new-piece codex steps (K1-3 Latch, K1-5 Merger) target `boardGrid` because those
-  pieces are pre-placed. This is an inherited inconsistency (see Open Questions).
-- `mainNodeRef` forwarding, `tutorialFocusPiece`, the green-eye CAPTURE beat all
-  remain valid and reused.
-
-### 2.4 Animation invariants (ANIMATION_RULES REQ-A-1..3)
-- REQ-A-1: a native-driven `Animated.Value` MUST be consumed by exactly one
-  `Animated.View` across the lifecycle (no host-swap between conditional branches).
-- REQ-A-2: a state transition MUST NOT unmount a native-driven host; refactor to a
-  persistent host.
-- REQ-A-3: any diff touching an `Animated.View` tree MUST grep every `Animated.Value`
-  and confirm each native value appears in exactly one host (recite the attestation).
-- `useNativeDriver: false` is LOCKED for all piece animations. RECOMMENDATION: keep the
-  ENTIRE wheel JS-driven (matches today; trivially REQ-A compliant — zero native values).
-- The drag ghost is conditionally mounted on `dragState.active`; if animated it MUST be
-  plain or JS-driven (a native ghost would be a host-swap risk).
-- The real crash class lives in `TutorialHUDOverlay`'s reaction to `await*` step fields,
-  not in the wheel. The proposed wheel-onboarding steps add NO `await*` fields. Any
-  future Kepler step that does MUST be reviewed against the post-fix overlay structure;
-  `tutorialHUDOverlayTransitions.test.tsx` and `nativeDriverHostUniqueness.test.ts` MUST
-  stay green.
-
-### 2.5 Accessibility (WCAG 2.1 AA)
-- Touch targets: selected node 52pt PASSES; neighbor nodes shrink to ~28pt — MUST-FIX
-  via `hitSlop` to keep visual fish-eye while making effective targets >=44pt (or
-  document a waiver). Recall strip is 5pt wide — MUST-FIX with `hitSlop` to >=44pt.
-- Screen reader: use FULL piece names not terse codes; announce selection + position
-  ("Conveyor, pre-assigned, selected, 2 of 5"); add `accessibilityRole`
-  (`adjustable` on the pill with increment/decrement actions). PROPOSED pill label:
-  "Piece selector wheel. Swipe up or down to choose a piece."
-- Drag-to-place is inaccessible to screen-reader users: there MUST be a non-drag
-  placement path (tap-select-then-tap-board; board handler already partially supports
-  it via `selectedInventoryId`).
-- Reduced motion: net-new. MUST respect OS reduce-motion — skip staggered entrance,
-  replace dismiss slide with instant show/hide; idle fade MAY remain but SHOULD be
-  reducible.
+- **Mounting.** Axiom: the whole level. Kepler+: from the start of `placement` to the
+  end of the level. The REQUISITION store and the tray never coexist, and nothing can
+  be bought mid-level. One `<PieceTray>` element serves both sectors (props differ, the
+  host never swaps; REQ-A-1/A-2). REQ-G-02 holds: `hidden` (not unmounting) covers
+  ENGAGE, results and void, so the board does not jump when ENGAGE fires.
+- **Items.** One per piece type, with a count badge; tapes are separate items. Kepler+
+  splits the badge by source: amber `#F0B429` counts pre-assigned pieces and blue
+  `#00D4FF` counts requisitioned ones, showing only the colors present, so the unspent
+  (forfeitable) purchases are visible before ENGAGE. Tapes use Trail purple `#A97FDB`.
+  A type leaves the tray when its count reaches zero. Order: `traySortKey` (Physics,
+  Protocol, tapes; price ascending within each).
+- **Consume order.** Placement consumes requisitioned instances first; a long-press
+  return gives back pre-assigned ones first. The unspent requisitioned count is
+  therefore always exactly what was bought and never needed. Placement never charges
+  credits; they were spent in the REQUISITION store.
+- **Sliding.** Horizontal scroll with momentum; a 180 ms hold drags. A static edge fade
+  marks the side with more hidden content (none when everything fits). A selected
+  item (by tap or by a tutorial step) scrolls fully into view. No idle fade, no
+  dismiss, no edge recall.
+- **Filter chips.** Only when the level's tray holds more than 6 items
+  (`FILTER_CHIP_THRESHOLD`): ALL, PHYSICS, PROTOCOL, and TAPES when a tape item exists,
+  using the canonical Physics/Protocol split. Default ALL, reset on level entry, not
+  persisted. A filtered-out selection is cleared; a live tutorial forces ALL. The chip
+  row is part of the tray's fixed height, decided once per level.
+- **Blown cells.** A tap-place or drop on a blown cell is rejected with a short error
+  haptic; a rejected drop's ghost snaps back to where the drag began.
+- **Tutorial.** K1-1's onboarding steps target the Conveyor tray item (`trayConveyor`).
+- **Unchanged.** `requiredPieces` is enforced post-run, with no tray-level warning.
+  Placement highlights stay Axiom-only; wires render on all sectors.
 
 ---
 
@@ -334,14 +187,15 @@ permanently 0 in the live engine; listing it surfaces a category that always sco
 - computationalGoal: "Exactly two direction changes, no placement highlights. The
   Engineer decides where pieces go."
 - conceptTaught: "Non-uniform tape handling under new rules: REQUISITION store debut +
-  Arc Wheel debut + no placement highlights."
+  no placement highlights." (Arc Wheel debut removed 2026-09-22, AXM-013.)
 - prerequisiteConcept: "Axiom pipeline (Scanner reads / Config gates / Transmitter
   records); path building + direction (Conveyor, Gear)."
 - difficultyBand: intuitive
 - tutorialSteps (PROPOSED): EXISTING approved store steps `store-intro`, `store-tabs`,
   `store-forfeiture`, `store-window` (text unchanged; targetRef repointed from `'tray'`
-  to REQUISITION panel ref); NEW `wheel-intro` / `wheel-scroll` / `wheel-place`
-  (Section 2.3, targetRef `arcWheelMain`, eyeState blue); then `board-intro`,
+  to REQUISITION panel ref); `wheel-intro` / `wheel-scroll` / `wheel-place` /
+  `wheel-forfeit` (targetRef `trayConveyor` since AXM-013; copy pending rewrite, see
+  PROMPT_160_REPORT.md); then `board-intro`,
   `board-resume` (targetRef `boardGrid`). Sequence by phase, not array index.
 - consequence: NONE (confirmed — not in the K1-4/8/10 set).
 - Post-level dialogue (PROPOSED):
@@ -922,17 +776,20 @@ C. Pre-placed Latch `latchMode` not set — K1-3's pre-placed Latch must set `la
     on K1-6/K1-8? RECOMMENDATION: include reason strings (they aid the diagnostic loop) — copy PROPOSED.
 13. K1-5 optimalPieces: V2 says 9 and flags CODE's 8 as likely wrong; this needs a build-time
     floor-solve verification. RECOMMENDATION: verify by actually solving the board before locking the value.
-14. TAPE NODES ON THE WHEEL: `ArcWheelPiece.isTape` / `TAPE_COLOR` / a tape border branch exist in
+14. [SUPERSEDED by AXM-013: the tray keeps tape items separate if the inventory ever
+    carries them; none does today.] TAPE NODES ON THE WHEEL: `ArcWheelPiece.isTape` / `TAPE_COLOR` / a tape border branch exist in
     the component but `arcWheelPieces` excludes tapes — are purple tape nodes intended on the wheel,
     or is that dead code? RECOMMENDATION: treat as dead code (tapes live in the REQUISITION store)
     unless Tucker wants tape nodes.
-15. KEPLER NEW-PIECE CODEX TARGET: Axiom new-piece codex collection targets `arcWheelMain`; Kepler
+15. [Partly superseded by AXM-013: there is no wheel ref; tray-item refs remain.]
+    KEPLER NEW-PIECE CODEX TARGET: Axiom new-piece codex collection targets `arcWheelMain`; Kepler
     targets `boardGrid` (because some Kepler new pieces are pre-placed) — unify or keep the split?
     RECOMMENDATION: keep `boardGrid` for pre-placed Kepler pieces (it is where the piece actually is).
 16. CODEX ID SCHEME: all CDX-* narrative codex IDs in the narrative map are PROPOSED placeholders;
     confirm the canonical codex ID scheme and whether piece codex entries (Latch, Merger, Bridge)
     already exist to avoid duplication.
-17. WHEEL ONBOARDING COPY + DISCOVERABILITY: the proposed wheel-intro/scroll/place lines and the
+17. [SUPERSEDED by AXM-013: the tray's filter chips replace the dot-strip; the K1-1
+    onboarding copy needs a rewrite for the tray.] WHEEL ONBOARDING COPY + DISCOVERABILITY: the proposed wheel-intro/scroll/place lines and the
     deferred dismiss line need a Tucker voice pass; and the UX report recommends a discoverability
     enhancement (dot-strip / quick-jump) for the large late-Kepler inventories (up to 22 nodes at
     K1-10) — do we want it, and in what form? RECOMMENDATION: ship the copy after sign-off; add a
