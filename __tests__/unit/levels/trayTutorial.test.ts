@@ -1,4 +1,4 @@
-// Arc Wheel Tutorial — structural + dialogue integrity tests.
+// Tray tutorial (formerly the wheel tutorial spec) — structural + dialogue integrity tests.
 // These tests verify the spec was implemented without modification to
 // approved dialogue text and that all structural requirements hold.
 
@@ -32,7 +32,7 @@ const a16 = levelBlock('levelA1_6');
 const a17 = levelBlock('levelA1_7');
 const a18 = levelBlock('levelA1_8');
 
-describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
+describe('Tray tutorial — structural + dialogue integrity', () => {
 
   // ── 1: eyeStateColor green ─────────────────────────────────────────────────
   it("1: eyeStateColor('green') maps to '#00C48C' in TutorialHUDOverlay", () => {
@@ -64,7 +64,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
 
   // ── 3: Inline-reveal step IDs ──────────────────────────────────────────────
   // PROMPT_140: A1 piece intros are notice → named-reveal → teach. The
-  // Arc-Wheel-era -instruct (placement gate) and -capture (placedPiece)
+  // Wheel-era -instruct (placement gate) and -capture (placedPiece)
   // beats are gone. A1-1 is collect → reveal → board-resume.
   it('3: each piece-intro level contains step IDs in the correct order', () => {
     // A1-1
@@ -145,7 +145,7 @@ describe('Arc Wheel Tutorial — structural + dialogue integrity', () => {
   it('8: A1-1 conveyor dialogue matches the gold conveyor-collect/board-resume copy (PROMPT_129)', () => {
     // PROMPT_129 restored the gold "teach then hand over" flow:
     // catalogue the Conveyor on the first beat, then hand the board
-    // over for free play. The four Arc-Wheel-era lines are retired.
+    // over for free play. The four wheel-era lines are retired.
     expect(a11).toContain(
       'That piece is not in the Codex yet. It will be.',
     );

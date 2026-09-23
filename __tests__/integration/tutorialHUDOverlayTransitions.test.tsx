@@ -32,7 +32,7 @@ import type { TutorialStep } from '../../src/game/types';
 // or a placedPiece capture beat (Tucker direction — inline codex reveal).
 // This fixture is intentionally synthetic: it exercises the overlay's
 // dimOpacity single-host invariant across an awaitPlacement on/off boundary,
-// a capability the engine still supports for Kepler+ Arc Wheel levels.
+// a capability the engine still supports for Kepler+ tray levels.
 // ---------------------------------------------------------------------------
 // Steps 0-4: no awaitPlacement (regular advance-on-tap flow)
 // Step 5: awaitPlacement: 'conveyor' (pauses tutorial until piece placed)
