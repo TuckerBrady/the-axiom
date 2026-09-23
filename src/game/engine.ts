@@ -753,6 +753,9 @@ export function resetRunState(arg: PlacedPiece[] | MachineState): void {
     if (p.type === 'latch') {
       p.storedValue = null;
     }
+    if (p.type === 'counter') {
+      p.count = 0;
+    }
   }
 }
 

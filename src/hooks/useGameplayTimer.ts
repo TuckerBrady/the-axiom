@@ -4,6 +4,7 @@ export interface UseGameplayTimerResult {
   elapsedSeconds: number;
   lockTimer: () => number;
   resetTimer: () => void;
+  resumeTimer: () => void;
   lockedRef: React.MutableRefObject<boolean>;
 }
 
@@ -70,10 +71,24 @@ export function useGameplayTimer(
     timerRunning.current = true;
   }, [tutorialIsActiveRef]);
 
+  // Unlocks after lockTimer() and keeps counting from the locked value.
+  // Used by the wrong-output RETRY, which keeps the board and the attempt.
+  const resumeTimer = useCallback(() => {
+    lockedRef.current = false;
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      if (timerRunning.current && !tutorialIsActiveRef.current) {
+        setElapsedSeconds(prev => prev + 1);
+      }
+    }, 1000);
+    timerRunning.current = true;
+  }, [tutorialIsActiveRef]);
+
   return {
     elapsedSeconds,
     lockTimer,
     resetTimer,
+    resumeTimer,
     lockedRef,
   };
 }

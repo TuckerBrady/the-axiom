@@ -46,6 +46,7 @@ interface GameState {
   selectPlaced: (pieceId: string | null) => void;
   engage: () => ExecutionStep[];
   reset: () => void;
+  endRun: () => void;
   toggleConfiguration: () => void;
   setDebugMode: (on: boolean) => void;
   debugNext: () => void;
@@ -370,6 +371,40 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (currentLevel) {
       get().setLevel(currentLevel);
     }
+  },
+
+  // Ends a finished run without reloading the level. The wrong-output
+  // RETRY keeps the player's board, so it cannot go through reset() —
+  // but it still has to clear isExecuting, or every control gated on
+  // !isExecuting stays hidden (ENGAGE row, tray, placement).
+  endRun: () => {
+    const { machineState, currentLevel } = get();
+    const inputTape = currentLevel?.inputTape;
+    // Clear per-run piece memory (Latch values, Counter counts, fired flags)
+    // now, not at the next ENGAGE, so the board never shows the last run's.
+    resetRunState(machineState.pieces);
+    set({
+      executionSteps: [],
+      isExecuting: false,
+      stars: 0,
+      debugStepIndex: 0,
+      machineState: {
+        ...machineState,
+        isRunning: false,
+        status: 'idle',
+        signalPath: [],
+        currentSignalStep: 0,
+        // executeMachine writes the trail in place; restore the level's own
+        // copy so the next run starts where a fresh one would.
+        dataTrail: currentLevel
+          ? { ...currentLevel.dataTrail, cells: [...currentLevel.dataTrail.cells] }
+          : machineState.dataTrail,
+        inputTape: inputTape ? [...inputTape] : undefined,
+        outputTape: inputTape
+          ? (new Array(inputTape.length).fill(BLANK) as OutputTapeValue[])
+          : undefined,
+      },
+    });
   },
 
   toggleConfiguration: () => {
