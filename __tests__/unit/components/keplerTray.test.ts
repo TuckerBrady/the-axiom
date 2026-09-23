@@ -146,16 +146,23 @@ describe('GameplayScreen — one tray host, no wheel', () => {
     expect(screenSrc).toMatch(/snapBack/);
   });
 
-  // Found on device (K1-10, axiom_standard): the board's window position was
-  // captured only in its onLayout, which does not re-run when the board moves
-  // without resizing. Drops then resolved ~2 rows below the finger. The drag
-  // must re-measure the board when it starts.
+  // Found on device (axiom_standard, K1-10 and A1-2): drops resolved one to
+  // two rows below the finger. Two causes: the position was taken only in the
+  // board's onLayout (stale once a sibling moves the board without resizing
+  // it), and it came from measureInWindow, which is not the coordinate space
+  // of a touch's pageX/pageY. measure()'s pageX/pageY are.
   it('re-measures the board position when a drag starts', () => {
     const start = screenSrc.slice(
       screenSrc.indexOf('const handleDragStart = useCallback('),
       screenSrc.indexOf('const handleDragMove = useCallback('),
     );
-    expect(start).toMatch(/boardGridRef\.current\?\.measureInWindow\(\(x, y\) => \{\s*boardScreenPos\.current = \{ x, y \};/);
+    expect(start).toMatch(/measureBoardOnScreen\(\)/);
+  });
+
+  it('measures the board in the touch coordinate space (measure pageX/pageY)', () => {
+    const fn = screenSrc.slice(screenSrc.indexOf('const measureBoardOnScreen = useCallback('));
+    expect(fn).toMatch(/boardGridRef\.current\?\.measure\(\(_x, _y, _w, _h, pageX, pageY\) => \{\s*boardScreenPos\.current = \{ x: pageX, y: pageY \};/);
+    expect(screenSrc).not.toMatch(/measureInWindow\(\(x, y\) => \{\s*boardScreenPos/);
   });
 
   it('keeps the tray mounted through ENGAGE (hidden, not unmounted)', () => {
