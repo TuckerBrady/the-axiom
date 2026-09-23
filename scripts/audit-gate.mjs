@@ -22,7 +22,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -108,8 +108,28 @@ function readReport(argv) {
   }
 }
 
+/**
+ * A usable report has a vulnerabilities section and no error. `npm audit` prints
+ * `{"error": ...}` with a non-zero exit when it cannot audit (no lockfile, registry down);
+ * judging that as zero findings would pass the gate on a report that says nothing.
+ */
+export function reportProblem(report) {
+  if (!report || typeof report !== 'object') return 'the report is not a JSON object';
+  if (report.error) return `npm audit returned an error: ${JSON.stringify(report.error)}`;
+  if (!report.vulnerabilities || typeof report.vulnerabilities !== 'object') return 'the report has no vulnerabilities section';
+  return null;
+}
+
 function main(argv) {
   const report = readReport(argv);
+  const unusable = reportProblem(report);
+  if (unusable) {
+    console.error(`Dependency gate: FAILED
+
+  - not a usable npm audit report: ${unusable}
+`);
+    return 1;
+  }
   const allowlistPath = argValue(argv, '--allowlist') ?? ALLOWLIST;
   const allowlist = existsSync(allowlistPath) ? JSON.parse(readFileSync(allowlistPath, 'utf8')) : { allow: [] };
   const findings = findingsOf(report);
@@ -126,6 +146,8 @@ function main(argv) {
   return 1;
 }
 
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('audit-gate.mjs')) {
+// Run when executed directly, under any file name. (A file:// string compare breaks on Windows
+// paths, and a name check silently skipped the gate for a renamed copy.)
+if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) {
   process.exit(main(process.argv.slice(2)));
 }
