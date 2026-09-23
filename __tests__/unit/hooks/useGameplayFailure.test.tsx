@@ -312,4 +312,99 @@ describe('useGameplayFailure', () => {
       expect(captured!.getBlownCellCOGSLine(7)).toMatch(/fewer failed attempts/);
     });
   });
+
+  // Damaged-cell treatment (Tucker approved 2026-09-20). Terrain damage and a
+  // failure crater are drawn as the same missing deck plate; only a cell blown
+  // during the CURRENT run carries an ember, and it settles on the next run.
+  describe('liveBurnCells / settleLiveBurns', () => {
+    const mount = (level: LevelDefinition | null) => {
+      TestRenderer.act(() => {
+        TestRenderer.create(
+          React.createElement(Harness, { level, isAxiomLevel: true }),
+        );
+      });
+    };
+
+    it('treats level damagedCells as terrain, never as a live burn', () => {
+      const level = { ...makeLevel('K1-9'), damagedCells: [{ gridX: 3, gridY: 3 }] };
+      mount(level);
+      expect(captured!.blownCells.has('3,3')).toBe(true);
+      expect(captured!.liveBurnCells.size).toBe(0);
+    });
+
+    it('marks a cell blown this run as a live burn', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => {
+        captured!.setBlownCells(new Set(['2,4']));
+      });
+      expect(captured!.liveBurnCells.has('2,4')).toBe(true);
+      expect(captured!.liveBurnCells.size).toBe(1);
+    });
+
+    it('settles the burn on the next run, keeping the cell blown', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => {
+        captured!.setBlownCells(new Set(['2,4']));
+      });
+      TestRenderer.act(() => {
+        captured!.settleLiveBurns();
+      });
+      expect(captured!.liveBurnCells.size).toBe(0);
+      expect(captured!.blownCells.has('2,4')).toBe(true);
+    });
+
+    it('only the newest crater burns when an older one has settled', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['1,1'])); });
+      TestRenderer.act(() => { captured!.settleLiveBurns(); });
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['1,1', '6,2'])); });
+      expect(captured!.liveBurnCells.has('6,2')).toBe(true);
+      expect(captured!.liveBurnCells.has('1,1')).toBe(false);
+    });
+
+    it('settleLiveBurns is idempotent — a second call changes nothing', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['1,1'])); });
+      TestRenderer.act(() => { captured!.settleLiveBurns(); });
+      const first = captured!.liveBurnCells;
+      TestRenderer.act(() => { captured!.settleLiveBurns(); });
+      expect(captured!.liveBurnCells).toBe(first);
+    });
+
+    it('a retry that clears the board lets the same cell burn again', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['4,4'])); });
+      TestRenderer.act(() => { captured!.settleLiveBurns(); });
+      TestRenderer.act(() => { captured!.setBlownCells(new Set()); });
+      TestRenderer.act(() => { captured!.settleLiveBurns(); });
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['4,4'])); });
+      expect(captured!.liveBurnCells.has('4,4')).toBe(true);
+    });
+
+    it('re-seeds terrain (and no burns) when the level changes', () => {
+      let renderer!: { update: (el: React.ReactElement) => void; unmount: () => void };
+      TestRenderer.act(() => {
+        renderer = TestRenderer.create(
+          React.createElement(Harness, { level: makeLevel('A1-1'), isAxiomLevel: true }),
+        );
+      });
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['0,0'])); });
+      expect(captured!.liveBurnCells.size).toBe(1);
+
+      const next = { ...makeLevel('K1-3'), damagedCells: [{ gridX: 7, gridY: 1 }] };
+      TestRenderer.act(() => {
+        renderer.update(React.createElement(Harness, { level: next, isAxiomLevel: false }));
+      });
+      expect(captured!.blownCells.has('7,1')).toBe(true);
+      expect(captured!.liveBurnCells.size).toBe(0);
+    });
+
+    it('liveBurnCells is always a subset of blownCells', () => {
+      mount(makeLevel('A1-1'));
+      TestRenderer.act(() => { captured!.setBlownCells(new Set(['1,1', '2,2'])); });
+      captured!.liveBurnCells.forEach(k => {
+        expect(captured!.blownCells.has(k)).toBe(true);
+      });
+    });
+  });
 });

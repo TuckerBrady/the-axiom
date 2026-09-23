@@ -1,0 +1,27 @@
+# Clear every COGS card standing between the flow and the board.
+#
+# Levels open with two kinds of card and a level can stack several of each:
+# teaching hints (dismissed with SKIP) and COGS narration ("TAP TO
+# CONTINUE", e.g. K1-10's credits card). A green run once produced a
+# damaged-cell shot that was nothing but a COGS card over a dimmed board —
+# so this does not just try to dismiss; it ends by ASSERTING neither card is
+# left, and a covered board fails the flow instead of passing it.
+appId: com.tuckerbrady.theaxiom
+---
+- repeat:
+    times: 8
+    commands:
+      - runFlow:
+          when:
+            visible: "TAP TO CONTINUE"
+          commands:
+            - tapOn: "TAP TO CONTINUE"
+      - runFlow:
+          when:
+            visible: "SKIP"
+          commands:
+            - tapOn: "SKIP"
+- waitForAnimationToEnd:
+    timeout: 15000
+- assertNotVisible: "TAP TO CONTINUE"
+- assertNotVisible: "SKIP"

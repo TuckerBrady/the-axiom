@@ -1,0 +1,90 @@
+# Drive the first-run onboarding, end to end.
+#
+# A fresh emulator lands in the boot log, not the hub, and there is no way to
+# skip past it — the hub does not exist until onboarding is finished. Every
+# step below was derived by driving a real Android emulator on 2026-09-20 and
+# reading the view hierarchy at each stage, not by reading the source.
+#
+# Called conditionally from `enter-hub.yaml`: on a device that has already
+# been through onboarding this whole file is skipped.
+#
+# Two things make this flow look more defensive than it is:
+#
+#   1. Maestro text selectors are FULL-match regexes. "TAP TO CONTINUE" does
+#      not match the on-screen "TAP TO CONTINUE  →", hence the `.*` suffixes.
+#   2. Almost every screen types its text out character by character, and the
+#      control only mounts once the typing finishes. So every tap is preceded
+#      by an explicit wait rather than assuming the control is already there.
+appId: com.tuckerbrady.theaxiom
+---
+# ── Boot log ───────────────────────────────────────────────────────────────
+# "THE AXIOM — SYSTEM BOOT LOG", ending in "> Tap anywhere to receive."
+- tapOn: ".*Tap anywhere to receive.*"
+
+# ── C.O.G.S distress signal, TRANSMISSION 01..03 ───────────────────────────
+# The advance control is NOT the same on every card: 01 and 02 say
+# "TAP TO CONTINUE  →" and 03 says "PROCEED TO REPAIR BAY  →". Matching
+# either keeps the block honest about what is on screen instead of tapping
+# blind coordinates.
+- repeat:
+    times: 3
+    commands:
+      - extendedWaitUntil:
+          visible: "(TAP TO CONTINUE|PROCEED TO REPAIR BAY).*"
+          timeout: 30000
+      - tapOn: "(TAP TO CONTINUE|PROCEED TO REPAIR BAY).*"
+
+# ── The opening tutorial: a 3-cell board, one CONV to place ────────────────
+# Source cell, one empty slot (rendered as a "+"), Output cell. The tray
+# holds a single Conveyor. This is the one level that must be solved to get
+# anywhere, so it is driven rather than skipped.
+- extendedWaitUntil:
+    visible: "Connect the relay. Source to Output."
+    timeout: 30000
+- tapOn: "CONV"
+- tapOn: '\+'
+- tapOn: "ENGAGE MACHINE"
+
+# ── INTRODUCTION 01..03 ────────────────────────────────────────────────────
+- repeat:
+    times: 3
+    commands:
+      - extendedWaitUntil:
+          visible: "(TAP TO CONTINUE|PROCEED TO REPAIR BAY).*"
+          timeout: 30000
+      - tapOn: "(TAP TO CONTINUE|PROCEED TO REPAIR BAY).*"
+
+# ── Name entry ─────────────────────────────────────────────────────────────
+# The field is a real EditText with the placeholder "Enter your name".
+- extendedWaitUntil:
+    visible: "Enter your name"
+    timeout: 30000
+- tapOn: "Enter your name"
+- inputText: "ENGINEER"
+- tapOn: "CONFIRM"
+
+# ── Name reveal ("THE ENGINEER") ───────────────────────────────────────────
+- extendedWaitUntil:
+    visible: "TAP TO CONTINUE.*"
+    timeout: 30000
+- tapOn: "TAP TO CONTINUE.*"
+
+# ── Discipline select ──────────────────────────────────────────────────────
+# Three cards: PROTOCOL (Systems Architect), PHYSICS (Drive Engineer),
+# BALANCED (Field Operative). BALANCED is chosen because it is the one that
+# does not bias the requisition store toward a piece family, which keeps the
+# board-size shots comparable between runs.
+- extendedWaitUntil:
+    visible: "YOUR DISCIPLINE"
+    timeout: 30000
+- tapOn: "Field Operative"
+# CONFIRM DISCIPLINE only mounts once a card is selected, and on the 360 dp
+# compact device it lands below the fold — three full-height cards plus a
+# button do not fit in 640 dp. Scrolling to it rather than asserting it keeps
+# the flow working on every width in the matrix.
+- scrollUntilVisible:
+    element:
+      text: "CONFIRM DISCIPLINE"
+    direction: DOWN
+    timeout: 20000
+- tapOn: "CONFIRM DISCIPLINE"

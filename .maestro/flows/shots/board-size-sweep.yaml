@@ -1,0 +1,87 @@
+# AXM-011 / PROMPT_159 task 3 — the board-size sweep.
+#
+# The same level, shot at one board size, on whichever device the runner
+# booted. The runner invokes this flow once per `--sizes` entry and passes
+# BOARD_SIZE / BOARD_COLUMNS / BOARD_ROWS in; three sizes across three
+# devices is nine images, which is the set the board-size standard gets
+# decided from.
+#
+# The size comes from the dev-only Settings override, never a source edit —
+# that is what makes the sweep one run. Requires a build with SHOW_DEV_TOOLS
+# true (__DEV__, the `testflight` EAS profile, or any build made with
+# EXPO_PUBLIC_SHOW_DEV_TOOLS=true).
+#
+# Every selector below was confirmed against a running Android build on
+# 2026-09-20.
+appId: com.tuckerbrady.theaxiom
+---
+# Sets the override and leaves us on the Settings screen.
+- runFlow: ../../subflows/set-board-size.yaml
+
+# Straight into the level via the dev JUMP TO LEVEL chips. The sector-map
+# route is the player's route and belongs to the gameplay-loop flow; this
+# flow exists to photograph the board itself, and the dev jump removes three
+# screens of navigation that could each fail for reasons unrelated to board
+# size.
+# Scroll to the level chip itself, not to the "JUMP TO LEVEL" heading.
+# `visibilityPercentage` is lowered from the default 100 because a chip that
+# is one pixel under the tab bar is still perfectly tappable, and demanding
+# full visibility made the scroll overshoot and fail on an element that was
+# already on screen.
+- scrollUntilVisible:
+    element:
+      text: "${SHOT_LEVEL}"
+    direction: DOWN
+    visibilityPercentage: 60
+    timeout: 30000
+- tapOn: "${SHOT_LEVEL}"
+
+# The dev jump lands on the mission dossier (MISSION n / BEST TIME / STAR
+# RATING), not on the board.
+- extendedWaitUntil:
+    visible: "LAUNCH MISSION"
+    timeout: 30000
+- tapOn: "LAUNCH MISSION"
+
+# The requisition gate sits between the dossier and the board on some levels.
+- runFlow:
+    when:
+      visible: "REQUISITION"
+    commands:
+      - tapOn: "CONFIRM"
+
+# ENGAGE MACHINE is the reliable "the board is mounted and interactive"
+# marker: it is the one control present on every gameplay screen regardless
+# of level, board size or which pieces are in the tray.
+- extendedWaitUntil:
+    visible: "ENGAGE MACHINE"
+    timeout: 45000
+
+# Dismiss the COGS hint card.
+#
+# A1-3 opens with a teaching overlay that sits over the lower half of the
+# board and dims the rest of it. A board-size shot taken through it shows a
+# dimmed, half-covered grid and is worthless for judging cell size or
+# legibility — which is exactly what the first real run produced. Levels
+# carry more than one hint card, so this taps SKIP until none is left.
+- repeat:
+    times: 4
+    commands:
+      - runFlow:
+          when:
+            visible: "SKIP"
+          commands:
+            - tapOn: "SKIP"
+
+- waitForAnimationToEnd:
+    timeout: 15000
+
+# The board at this size — cell size, touch targets, piece legibility.
+# Screenshot names are plain, with no directory.
+#
+# Maestro 2.10 sandboxes `takeScreenshot` to the run's own artifact folder
+# and rejects any path that resolves outside it, so the SHOT_DIR-prefixed
+# absolute path this flow used to carry could never have worked. The runner
+# instead points `--test-output-dir` at a per-job folder and collects
+# `takeScreenshot/*.png` out of it into the run directory.
+- takeScreenshot: ${SHOT_PREFIX}board-empty

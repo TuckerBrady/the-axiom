@@ -130,6 +130,10 @@ Anywhere. Not in UI, commits, comments, code, or any artifact produced for the p
 
 Every level solvable without spending real money.
 
+### Piece tray, not a wheel (2026-09-22, AXM-013)
+
+Tucker removed the Kepler+ Arc Wheel on 2026-09-22: it never worked well enough (it covered the board edge, its drag ghost never followed the finger, and it hid most of a 20-piece inventory), and too much time had gone into it. Every sector now places from one horizontally sliding PieceTray with filter chips above 6 items; do not rebuild the wheel in any shape or behind a flag.
+
 ## Section 4 — Working Practices
 
 ### Quality gates (non-negotiable)
