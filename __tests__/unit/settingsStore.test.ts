@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useSettingsStore } from '../../src/store/settingsStore';
+import { useSettingsStore, migrateSettings } from '../../src/store/settingsStore';
 
 beforeEach(async () => {
   await AsyncStorage.clear();
@@ -100,5 +100,38 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().devForceRequisitionGate).toBe(true);
     const raw = await AsyncStorage.getItem('axiom_settings');
     expect(JSON.parse(raw!).devForceRequisitionGate).toBe(true);
+  });
+});
+
+// AXM-013 — the tray-side setting went with the removed wheel. A save written
+// by an older build still carries it; hydration must ignore it and the next
+// write must drop it.
+describe('settingsStore — legacy tray-side key migration', () => {
+  const LEGACY_KEY = ['arc', 'Wheel', 'Position'].join('');
+
+  it('migrateSettings strips the legacy key and keeps everything else', () => {
+    const migrated = migrateSettings({ sfxEnabled: false, [LEGACY_KEY]: 'left' });
+    expect(migrated).toEqual({ sfxEnabled: false });
+  });
+
+  it('migrateSettings tolerates non-object input', () => {
+    expect(migrateSettings(null)).toEqual({});
+    expect(migrateSettings('garbage')).toEqual({});
+  });
+
+  it('hydrates an old save without error and rewrites it without the legacy key', async () => {
+    await AsyncStorage.setItem('axiom_settings', JSON.stringify({ musicEnabled: false, [LEGACY_KEY]: 'left' }));
+    await useSettingsStore.getState().hydrate();
+    expect(useSettingsStore.getState().musicEnabled).toBe(false);
+    expect(LEGACY_KEY in useSettingsStore.getState()).toBe(false);
+    const raw = JSON.parse((await AsyncStorage.getItem('axiom_settings'))!);
+    expect(LEGACY_KEY in raw).toBe(false);
+    expect(raw.musicEnabled).toBe(false);
+  });
+
+  it('never writes the legacy key', async () => {
+    useSettingsStore.getState().setSfxEnabled(false);
+    const raw = JSON.parse((await AsyncStorage.getItem('axiom_settings'))!);
+    expect(LEGACY_KEY in raw).toBe(false);
   });
 });
