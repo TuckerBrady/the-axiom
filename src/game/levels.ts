@@ -776,20 +776,20 @@ export const levelK1_1: LevelDefinition = {
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
   // Onboarding runs in the placement phase (after the REQUISITION store closes),
-  // so it targets the tray and the board. AXM-013 removed the old Kepler piece
-  // selector: the steps now point at the tray item for the focus piece (the
-  // Conveyor). Copy changed noun-only; wheel-intro and wheel-scroll describe the
-  // removed selector and are listed for rewrite in PROMPT_160_REPORT.md.
-  // PROPOSED copy — pending Tucker sign-off.
+  // so it targets the tray and the board, at the tray item for the focus piece
+  // (the Conveyor). AXM-020 rewrote the four tray steps for the centre-select
+  // tray under the COGS dialogue doctrine (docs/NARRATIVE.md); the tray itself
+  // is the one the Engineer used in the Axiom, so the new thing here is what
+  // is loaded into it.
   tutorialSteps: [
-    { id: 'wheel-intro', targetRef: 'trayConveyor', eyeState: 'amber',
-      message: 'Requisitions complete. The parts you ordered are loaded here — on the wheel. Out here the manifest is not a tray along the bottom of the board anymore. It is this. One piece at center at a time.' },
-    { id: 'wheel-scroll', targetRef: 'trayConveyor', eyeState: 'blue',
-      message: 'Swipe the wheel to bring a piece to the center. The one in the middle is the one you are holding. You will not see every part at once — that is the trade for the room it gives the board.' },
-    { id: 'wheel-place', targetRef: 'trayConveyor', eyeState: 'blue',
-      message: 'Press and hold a piece, then drag it onto the board and release. No more tapping the grid. The tray hands the piece to you directly.' },
-    { id: 'wheel-forfeit', targetRef: 'trayConveyor', eyeState: 'amber',
-      message: 'Anything left on the tray when the mission ends is forfeited — used or not. Requisition what the machine needs. Nothing more.' },
+    { id: 'tray-intro', targetRef: 'trayConveyor', eyeState: 'amber',
+      message: 'Requisitions complete. Your order is loaded into the tray beside the parts the mission issued. Amber counts what was issued. Blue counts what you paid for.' },
+    { id: 'tray-scroll', targetRef: 'trayConveyor', eyeState: 'blue',
+      message: 'Swipe the tray to bring a piece into the frame, or tap it. The one in the frame is the one you are holding. You will not see every part at once. That is the trade for the room it gives the board.' },
+    { id: 'tray-place', targetRef: 'trayConveyor', eyeState: 'blue',
+      message: 'Tap an open cell and the piece in the frame goes there. Or press and hold any piece in the tray and drag it onto the board. It does not have to be in the frame first.' },
+    { id: 'tray-forfeit', targetRef: 'trayConveyor', eyeState: 'amber',
+      message: 'Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition what the machine needs. Nothing more.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',

@@ -124,6 +124,11 @@ which purchases are still unspent, and will be forfeited, before
 ENGAGE. Placement uses requisitioned pieces first, so the blue
 count is exactly what was bought and not yet needed.
 
+Settled for good by Tucker, 2026-09-23 (AXM-020, PROMPT_161): the
+split badge stays in the centre-select tray. Option B's single
+neutral badge is overruled; unused bought pieces are forfeited, so
+the Engineer has to see what is still unspent.
+
 ### What This Means
 
 Every design decision — scoring, economy, level layout, piece

@@ -2,9 +2,31 @@ module.exports = {
   projects: [
     {
       displayName: 'unit',
-      // tsconfig.jest.json only swaps jsx to react-jsx so a component under
-      // src/ can render through react-test-renderer (AXM-020).
       testMatch: ['<rootDir>/__tests__/unit/**/*.test.{ts,tsx}'],
+      transform: {
+        '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.json' }],
+      },
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
+      moduleNameMapper: {
+        '@react-native-async-storage/async-storage': '<rootDir>/__tests__/__mocks__/async-storage.ts',
+        '^react-native$': '<rootDir>/__tests__/__mocks__/react-native.ts',
+        '^expo-haptics$': '<rootDir>/__tests__/__mocks__/expo-haptics.ts',
+      },
+      globals: {
+        __DEV__: false,
+      },
+    },
+    {
+      // AXM-020: rendered component tests. Same mocks as the unit tier, but
+      // tsconfig.jest.json emits JSX (react-jsx) so a component under src/
+      // can render through react-test-renderer. Kept to its own project so
+      // the unit tier's coverage collection is unchanged. It instruments only
+      // the components a render test actually drives: without the ignore
+      // pattern every other .tsx component would join the coverage totals at
+      // 0% (the unit tier can't parse their JSX, so today they are skipped).
+      displayName: 'render',
+      testMatch: ['<rootDir>/__tests__/render/**/*.test.{ts,tsx}'],
+      coveragePathIgnorePatterns: ['/node_modules/', '^(?!.*[\\\\/]PieceTray\\.tsx$).*\\.tsx$'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
       },

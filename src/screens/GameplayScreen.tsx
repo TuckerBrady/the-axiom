@@ -1725,6 +1725,7 @@ export default function GameplayScreen({ navigation }: Props) {
             showFilterChips={!isAxiomLevel && shouldShowFilterChips(keplerTrayItemCount)}
             forceFilterAll={tutorialIsActive}
             resetKey={level?.id}
+            holdSelection={selectedPlacedPiece !== null}
           />
         )}
 

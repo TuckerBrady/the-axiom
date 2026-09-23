@@ -99,11 +99,13 @@ describe('PieceTray — extracted parts tray component', () => {
       expect(traySrc).toMatch(/active:\s*true,[\s\S]*?pieceId:\s*keyNow,[\s\S]*?type:\s*ptNow/);
     });
 
-    it('falls through to onPickup when the press releases before the timer fires', () => {
+    it('falls through to a tap when the press releases before the timer fires', () => {
       // onPanResponderRelease: if isDraggingRef.current is true,
-      // call onDragEnd; otherwise clear the timer and call onPickup
-      // with the toggled value (null deselects when already active).
-      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?pickup\(activeNow \? null : keyNow\)/);
+      // call onDragEnd; otherwise clear the timer and tap the item.
+      // AXM-020 (PROMPT_161) superseded the old toggle: a tap centres the
+      // item and selects it, and never deselects. Behaviour is covered in
+      // pieceTrayCentreSelect.test.tsx.
+      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?tapNow\(keyNow\)/);
     });
 
     it('calls onDragCancel when the gesture is terminated mid-drag', () => {

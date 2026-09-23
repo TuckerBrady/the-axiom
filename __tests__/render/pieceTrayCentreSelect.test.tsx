@@ -6,15 +6,15 @@
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 import * as React from 'react';
-import type { TrayItem, DragState } from '../../../src/components/gameplay/PieceTray';
+import type { TrayItem, DragState } from '../../src/components/gameplay/PieceTray';
 
-jest.mock('../../../src/components/PieceIcon', () => ({ PieceIcon: () => null }));
+jest.mock('../../src/components/PieceIcon', () => ({ PieceIcon: () => null }));
 jest.mock('expo-linear-gradient', () => ({ LinearGradient: () => null }));
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const TestRenderer = require('react-test-renderer');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const PieceTray = require('../../../src/components/gameplay/PieceTray').default;
+const PieceTray = require('../../src/components/gameplay/PieceTray').default;
 
 type Node = { props: Record<string, any>; type: unknown };
 
@@ -225,6 +225,90 @@ describe('PieceTray centre-select (AXM-020)', () => {
     const { r, spy } = mount({ items: FIVE });
     TestRenderer.act(() => {
       r.update(<Harness items={FIVE} hidden onPickupSpy={spy} />);
+    });
+    expect(lastSelected(spy)).toBeNull();
+  });
+
+  it('a filter change re-centres on the first item of the new list and selects it', () => {
+    const kepler: TrayItem[] = [
+      item('conveyor:piece', 'conveyor', 1),
+      item('gear:piece', 'gear', 1),
+      item('scanner:piece', 'scanner', 1),
+      item('transmitter:piece', 'transmitter', 1),
+      item('configNode:piece', 'configNode', 1),
+    ];
+    const spy = jest.fn();
+    let r: any;
+    function Chips() {
+      const [sel, setSel] = React.useState<string | null>(null);
+      return (
+        <PieceTray
+          items={kepler}
+          selectedKey={sel}
+          onPickup={(k: string | null) => { spy(k); setSel(k); }}
+          showFilterChips
+          showSourceSplit
+          resetKey="K1-10"
+        />
+      );
+    }
+    TestRenderer.act(() => { r = TestRenderer.create(<Chips />, { createNodeMock }); });
+    expect(lastSelected(spy)).toBe('conveyor:piece');
+    TestRenderer.act(() => { byTestId(r, 'tray-item-gear:piece').props.onPress(); });
+    expect(lastSelected(spy)).toBe('gear:piece');
+    scrollTo.mockClear();
+    const protocol = r.root.find((n: Node) => n.props.accessibilityLabel === 'Filter PROTOCOL' && n.type === 'TouchableOpacity');
+    TestRenderer.act(() => { protocol.props.onPress(); });
+    expect(scrollTo).toHaveBeenCalledWith({ x: 0, animated: false });
+    expect(lastSelected(spy)).toBe('scanner:piece');
+  });
+
+  it('without drag wiring, a tap on an off-centre item still centres and selects it', () => {
+    const spy = jest.fn();
+    let r: any;
+    function TapOnly() {
+      const [sel, setSel] = React.useState<string | null>(null);
+      return <PieceTray items={FIVE} selectedKey={sel} onPickup={(k: string | null) => { spy(k); setSel(k); }} />;
+    }
+    TestRenderer.act(() => { r = TestRenderer.create(<TapOnly />, { createNodeMock }); });
+    const host = byTestId(r, 'tray-item-merger');
+    TestRenderer.act(() => { host.props.onPress(); });
+    expect(lastSelected(spy)).toBe('merger');
+    expect(scrollTo).toHaveBeenLastCalledWith({ x: 256, animated: true });
+  });
+
+  it('a drag released without a fling settles on the item under the frame', () => {
+    const { r, spy } = mount({ items: FIVE });
+    const sv = r.root.find((n: Node) => n.type === 'ScrollView');
+    TestRenderer.act(() => {
+      sv.props.onScrollEndDrag({ nativeEvent: { contentOffset: { x: 70, y: 0 } } });
+    });
+    TestRenderer.act(() => { jest.advanceTimersByTime(80); });
+    expect(lastSelected(spy)).toBe('gear');
+  });
+
+  it('a fling cancels the no-fling settle; momentum end decides', () => {
+    const { r, spy } = mount({ items: FIVE });
+    const sv = r.root.find((n: Node) => n.type === 'ScrollView');
+    spy.mockClear();
+    TestRenderer.act(() => {
+      sv.props.onScrollEndDrag({ nativeEvent: { contentOffset: { x: 70, y: 0 } } });
+      sv.props.onMomentumScrollBegin();
+    });
+    TestRenderer.act(() => { jest.advanceTimersByTime(200); });
+    expect(spy).not.toHaveBeenCalled();
+    TestRenderer.act(() => {
+      sv.props.onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 256, y: 0 } } });
+    });
+    expect(lastSelected(spy)).toBe('merger');
+  });
+
+  it('settling on an item with none left selects nothing', () => {
+    const spent = FIVE.map(i => (i.key === 'gear' ? { ...i, count: 0 } : i));
+    const { r, spy } = mount({ items: spent });
+    const sv = r.root.find((n: Node) => n.type === 'ScrollView');
+    TestRenderer.act(() => {
+      sv.props.onMomentumScrollEnd({ nativeEvent: { contentOffset: { x: 64, y: 0 } } });
     });
     expect(lastSelected(spy)).toBeNull();
   });
