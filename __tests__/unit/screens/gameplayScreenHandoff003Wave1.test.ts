@@ -63,15 +63,30 @@ describe('REQ-G-14 — dot grid no longer draws a phantom row/column', () => {
   });
 });
 
-describe('REQ-G-15 — blown-cell scars use palette tokens, not off-token oranges', () => {
-  it('maps the scorched rim to Colors.copper and the crater ring to Colors.red via hexToRgba', () => {
-    expect(screenSrc).toMatch(/stroke=\{hexToRgba\(Colors\.copper, 0\.55\)\}/);
-    expect(screenSrc).toMatch(/stroke=\{hexToRgba\(Colors\.red, 0\.5\)\}/);
+describe('REQ-G-15 — damaged cells use palette tokens, not off-token oranges', () => {
+  // The clause is "no off-token colour in the damaged-cell drawing". The
+  // drawing it originally described — a copper/red blast crater inlined in
+  // GameplayScreen — was replaced on 2026-09-20 by the "missing plate"
+  // treatment Tucker approved, which lives in DamagedCell.tsx and carries no
+  // colour at all. The token rule is asserted against its new home; the
+  // off-token-orange ban below is unchanged.
+  const damagedCellSrc = read('src/components/gameplay/DamagedCell.tsx');
+
+  it('draws the damaged cell from tokens only — no colour literals', () => {
+    expect(damagedCellSrc).toMatch(/from '\.\.\/\.\.\/theme\/tokens'/);
+    expect(damagedCellSrc.match(/#[0-9A-Fa-f]{3,8}/g) ?? []).toEqual([]);
+  });
+
+  it('no longer inlines the crater in GameplayScreen', () => {
+    expect(screenSrc).toMatch(/<DamagedCell\b/);
+    expect(screenSrc).not.toMatch(/Blast pit/);
   });
 
   it('no longer contains the off-token scar oranges', () => {
     expect(screenSrc).not.toMatch(/rgba\(176,106,44/);
     expect(screenSrc).not.toMatch(/rgba\(200,72,40/);
+    expect(damagedCellSrc).not.toMatch(/rgba\(176,106,44/);
+    expect(damagedCellSrc).not.toMatch(/rgba\(200,72,40/);
   });
 });
 

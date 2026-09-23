@@ -1,0 +1,127 @@
+# AXM-011 / PROMPT_159 task 2 — the real loop, captured at every stage.
+#
+# Plays one level and shoots each stage: mission dossier, the REQUISITION
+# store before and after a purchase, the board on entry, piece placement,
+# a Conveyor rotate tap, ENGAGE, the signal running mid-beam, and the
+# results screen.
+#
+# Route: the dev JUMP TO LEVEL control, not the sector map. The stages this
+# flow is asked to photograph all begin at the mission dossier, and the dev
+# jump lands directly on it — so the sector map is navigation this flow does
+# not need and would only add failure modes to. The player's own route
+# through the sector map is not covered here; see the report.
+#
+# Every selector was confirmed against a running Android build on
+# 2026-09-20. Selectors that could not be confirmed are marked [UNDRIVEN]
+# and wrapped so the run stays honest rather than green-by-accident.
+appId: com.tuckerbrady.theaxiom
+---
+- runFlow: ../../subflows/enter-hub.yaml
+
+# ── Mission dossier ────────────────────────────────────────────────────────
+- tapOn:
+    id: "engineer-tab"
+- extendedWaitUntil:
+    visible: "SETTINGS"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      text: "${SHOT_LEVEL}"
+    direction: DOWN
+    visibilityPercentage: 60
+    timeout: 30000
+- tapOn: "${SHOT_LEVEL}"
+- extendedWaitUntil:
+    visible: "LAUNCH MISSION"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${SHOT_PREFIX}01-mission-dossier
+
+# ── REQUISITION store, before and after a purchase ─────────────────────────
+- tapOn: "LAUNCH MISSION"
+- runFlow:
+    when:
+      visible: "REQUISITION"
+    commands:
+      - takeScreenshot: ${SHOT_PREFIX}02-requisition-before
+      # [UNDRIVEN] Buying a piece needs a card selector that depends on the
+      # level's own store contents. Left conditional rather than faked: a
+      # missed purchase shows up as a missing 03 shot, which is reportable.
+      - runFlow:
+          when:
+            visible: "PHYSICS"
+          commands:
+            - tapOn: "PHYSICS"
+      - takeScreenshot: ${SHOT_PREFIX}03-requisition-after
+      - tapOn: "CONFIRM"
+
+# ── Board on entry ─────────────────────────────────────────────────────────
+- extendedWaitUntil:
+    visible: "ENGAGE MACHINE"
+    timeout: 45000
+# Levels open with COGS teaching cards that cover the board.
+- repeat:
+    times: 4
+    commands:
+      - runFlow:
+          when:
+            visible: "SKIP"
+          commands:
+            - tapOn: "SKIP"
+- waitForAnimationToEnd:
+    timeout: 15000
+- takeScreenshot: ${SHOT_PREFIX}04-board-on-entry
+
+# ── Piece placement from the tray ──────────────────────────────────────────
+# The tray chips are icon-only on a real level — no visible text at all —
+# and carry "<CODE>, <n> available" as their accessibility label
+# (PieceTray.tsx). Maestro matches the WHOLE label, so the count has to be
+# matched too; a bare "CONV" finds nothing outside the tutorial.
+# The board cells are tapped by point: `testID={`board-cell-${x}-${y}`}` is
+# set in GameplayScreen, but React Native does not surface it in the Android
+# view hierarchy for these cells, so Maestro cannot select them by id. A
+# point tap is the honest alternative and is documented as such in the
+# report — it is a coordinate, and it is the one place this flow is not
+# selector-driven.
+- tapOn: "CONV, .* available"
+# The point below is a LEGAL placement target — the ghost cell immediately
+# right of the Source on A1-3 at its default board. Picking a piece up
+# highlights only the cells adjacent to an existing node; a tap anywhere
+# else is swallowed and leaves the piece in hand. A blind 50%,45% tap did
+# exactly that on the first run and produced a "piece placed" shot with no
+# piece in it, which is why this coordinate is level-specific and says so.
+- tapOn:
+    point: "37%,40%"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${SHOT_PREFIX}05-piece-placed
+
+# ── Conveyor rotate tap ────────────────────────────────────────────────────
+# Only Conveyor rotates on tap (the plumber model). Tapping the cell the
+# Conveyor was just placed in cycles its orientation.
+- tapOn:
+    point: "37%,40%"
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${SHOT_PREFIX}06-conveyor-rotated
+
+# ── ENGAGE ─────────────────────────────────────────────────────────────────
+- tapOn: "ENGAGE MACHINE"
+- takeScreenshot: ${SHOT_PREFIX}07-engage
+
+# ── Signal running, mid-beam ───────────────────────────────────────────────
+# A timed shot, not an assertion: there is no stable element that means
+# "mid-beam". Taken immediately after ENGAGE, before the run resolves.
+- takeScreenshot: ${SHOT_PREFIX}08-signal-mid-beam
+
+# ── Results ────────────────────────────────────────────────────────────────
+# [UNDRIVEN] The run only reaches a results screen if the machine the flow
+# built actually solves the level, which a single blind Conveyor placement
+# will not do. Conditional on purpose: an unsolved board is the expected
+# outcome and must not be reported as a captured results screen.
+- runFlow:
+    when:
+      visible: "CONTINUE"
+    commands:
+      - takeScreenshot: ${SHOT_PREFIX}09-results

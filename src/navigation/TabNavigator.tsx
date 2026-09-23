@@ -26,6 +26,10 @@ const Tab = createBottomTabNavigator<TabParamList>();
 export default function TabNavigator() {
   return (
     <Tab.Navigator
+      // PROMPT_159: stable tab handles for Maestro. `tabBarButtonTestID` is a
+      // navigator option on the tab button — it adds no view and wraps
+      // nothing. The names match the ids .maestro/flows/hub-navigation.yaml
+      // already expected.
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -48,6 +52,7 @@ export default function TabNavigator() {
         component={HubScreen}
         options={{
           tabBarLabel: 'Ship',
+          tabBarButtonTestID: 'ship-tab',
           tabBarIcon: ({ color }) => <ShipIcon size={20} color={color} />,
         }}
       />
@@ -56,6 +61,7 @@ export default function TabNavigator() {
         component={SectorMapScreen}
         options={{
           tabBarLabel: 'Sectors',
+          tabBarButtonTestID: 'sectors-tab',
           tabBarIcon: ({ color }) => <SectorsIcon size={20} color={color} />,
         }}
       />
@@ -64,6 +70,7 @@ export default function TabNavigator() {
         component={CodexScreen}
         options={{
           tabBarLabel: 'Codex',
+          tabBarButtonTestID: 'codex-tab',
           tabBarIcon: ({ color }) => <CodexIcon size={20} color={color} />,
         }}
       />
@@ -72,6 +79,7 @@ export default function TabNavigator() {
         component={FreeBuildScreen}
         options={{
           tabBarLabel: 'Workshop',
+          tabBarButtonTestID: 'workshop-tab',
           tabBarIcon: ({ color }) => <WorkshopIcon size={20} color={color} />,
         }}
         listeners={({ navigation }) => ({
@@ -86,6 +94,7 @@ export default function TabNavigator() {
         component={SettingsScreen}
         options={{
           tabBarLabel: 'Engineer',
+          tabBarButtonTestID: 'engineer-tab',
           tabBarIcon: ({ color }) => <EngineerIcon size={20} color={color} />,
         }}
       />

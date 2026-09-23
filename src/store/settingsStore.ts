@@ -10,12 +10,22 @@ interface SettingsState {
   cogsHintsEnabled: boolean;
   notificationsEnabled: boolean;
   devForceRequisitionGate: boolean;
+  /**
+   * Dev-only board-size override as `"<columns>x<rows>"`, or null for the
+   * level's own size. PROMPT_159 task 3: the board-size sweep changes the
+   * board from here, not from a source edit, so one `npm run shots` run can
+   * shoot every candidate size. Read through `resolveBoardSize`, which
+   * ignores it unless SHOW_DEV_TOOLS is true — so it is invisible in a
+   * `production` build.
+   */
+  devBoardSizeOverride: string | null;
   setSfxEnabled: (v: boolean) => void;
   setMusicEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
   setCogsHintsEnabled: (v: boolean) => void;
   setNotificationsEnabled: (v: boolean) => void;
   setDevForceRequisitionGate: (v: boolean) => void;
+  setDevBoardSizeOverride: (v: string | null) => void;
   hydrate: () => Promise<void>;
 }
 
@@ -27,6 +37,7 @@ function persist(state: Partial<SettingsState>) {
     cogsHintsEnabled: state.cogsHintsEnabled,
     notificationsEnabled: state.notificationsEnabled,
     devForceRequisitionGate: state.devForceRequisitionGate,
+    devBoardSizeOverride: state.devBoardSizeOverride,
   };
   AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(serializable));
 }
@@ -55,12 +66,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   cogsHintsEnabled: true,
   notificationsEnabled: false,
   devForceRequisitionGate: false,
+  devBoardSizeOverride: null,
   setSfxEnabled: (v) => { set({ sfxEnabled: v }); persist({ ...get(), sfxEnabled: v }); },
   setMusicEnabled: (v) => { set({ musicEnabled: v }); persist({ ...get(), musicEnabled: v }); },
   setHapticsEnabled: (v) => { set({ hapticsEnabled: v }); persist({ ...get(), hapticsEnabled: v }); },
   setCogsHintsEnabled: (v) => { set({ cogsHintsEnabled: v }); persist({ ...get(), cogsHintsEnabled: v }); },
   setNotificationsEnabled: (v) => { set({ notificationsEnabled: v }); persist({ ...get(), notificationsEnabled: v }); },
   setDevForceRequisitionGate: (v) => { set({ devForceRequisitionGate: v }); persist({ ...get(), devForceRequisitionGate: v }); },
+  setDevBoardSizeOverride: (v) => { set({ devBoardSizeOverride: v }); persist({ ...get(), devBoardSizeOverride: v }); },
   hydrate: async () => {
     const raw = await AsyncStorage.getItem(SETTINGS_KEY);
     if (raw) {
@@ -74,6 +87,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           cogsHintsEnabled: parsed.cogsHintsEnabled ?? true,
           notificationsEnabled: parsed.notificationsEnabled ?? false,
           devForceRequisitionGate: parsed.devForceRequisitionGate ?? false,
+          devBoardSizeOverride:
+            typeof parsed.devBoardSizeOverride === 'string'
+              ? parsed.devBoardSizeOverride
+              : null,
         });
         // Rewrite an old save once so the retired keys stop riding along.
         if (stored && typeof stored === 'object' && RETIRED_KEYS.some(k => k in stored)) {

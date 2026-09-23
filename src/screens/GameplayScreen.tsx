@@ -34,12 +34,14 @@ import GameplayModals from '../components/gameplay/GameplayModals';
 import SpecSheetPanel from '../components/gameplay/SpecSheetPanel';
 import RequisitionPanel from '../components/gameplay/RequisitionPanel';
 import PlacementTransition from '../components/gameplay/PlacementTransition';
+import DamagedCell from '../components/gameplay/DamagedCell';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useGameStore } from '../store/gameStore';
 import { useLivesStore } from '../store/livesStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { usePlayerStore } from '../store/playerStore';
 import { useEconomyStore } from '../store/economyStore';
+import { useSettingsStore } from '../store/settingsStore';
 import { useRequisitionStore, buildInventoryForLevel } from '../store/requisitionStore';
 import { useShallow } from 'zustand/react/shallow';
 import { TutorialHint } from '../components/TutorialHint';
@@ -61,6 +63,8 @@ import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
 import { shallStatementToCopy } from '../game/spec/specSheetCopy';
 import { evaluateTopologyGate } from '../game/objectives';
+import { resolveBoardSize } from '../utils/boardSizeOverride';
+import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -289,6 +293,7 @@ export default function GameplayScreen({ navigation }: Props) {
     resetLevelBudget: s.resetLevelBudget,
     levelSpent: s.levelSpent,
   })));
+  const devBoardSizeOverride = useSettingsStore(s => s.devBoardSizeOverride);
   const requisitionPhase = useRequisitionStore(s => s.phase);
   const selectedInventoryId = useRequisitionStore(s => s.selectedInventoryId);
   // Whole inventory (placed and unplaced). The store replaces the array on
@@ -318,6 +323,7 @@ export default function GameplayScreen({ navigation }: Props) {
   // Phase 1 extraction — failure state (blownCells, failCount, helpers).
   const {
     blownCells, setBlownCells,
+    liveBurnCells, settleLiveBurns,
     failCount, setFailCount,
     voidQuoteIndex, setVoidQuoteIndex,
     blownCellsRef,
@@ -519,8 +525,18 @@ export default function GameplayScreen({ navigation }: Props) {
     [pieces],
   );
 
-  const numColumns = level?.gridWidth ?? 8;
-  const numRows = level?.gridHeight ?? 7;
+  // PROMPT_159 task 3: the board-size sweep changes the board from the
+  // dev-only Settings toggle, never from a source edit, so one shots run can
+  // shoot the same level at every candidate size. `resolveBoardSize` returns
+  // the level's own size whenever SHOW_DEV_TOOLS is false, which is every
+  // `production` build.
+  const sweptBoardSize = resolveBoardSize(
+    { columns: level?.gridWidth ?? 8, rows: level?.gridHeight ?? 7 },
+    devBoardSizeOverride,
+    SHOW_DEV_TOOLS,
+  );
+  const numColumns = sweptBoardSize.columns;
+  const numRows = sweptBoardSize.rows;
   const availW = canvasLayout.w - CANVAS_PAD * 2;
   const availH = canvasLayout.h - CANVAS_PAD * 2;
   const CELL_SIZE = availW > 0 && availH > 0
@@ -870,6 +886,9 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     hapticMedium();
+    // Any crater from a previous run stops smouldering the moment a new run
+    // begins — it settles to plain terrain damage (see DamagedCell).
+    settleLiveBurns();
     // Increment run ID before any async work so stale callbacks from the
     // previous run can detect the mismatch and no-op. (A1-7 crash fix.)
     beam.runIdRef.current += 1;
@@ -1521,39 +1540,21 @@ export default function GameplayScreen({ navigation }: Props) {
                 )),
               )}
 
-              {/* Blown cell scars */}
+              {/* Damaged cells — "missing plate" (Tucker approved 2026-09-20).
+                  Terrain damage (level.damagedCells) and failure craters are
+                  the same hole in the deck; a cell blown during the CURRENT
+                  run additionally carries a live ember. Drawing lives in
+                  DamagedCell so this screen stays a layout file. */}
               {Array.from(blownCells).map(key => {
                 const [gx, gy] = key.split(',').map(Number);
-                const cx = gx * CELL_SIZE + CELL_SIZE / 2;
-                const cy = gy * CELL_SIZE + CELL_SIZE / 2;
-                // Blast crater — a charred recess with a copper-scorched rim and
-                // radial cracks. Used for BOTH pre-existing blown cells (worn
-                // Kepler boards) and cells the player blows by failing a run.
-                // REQ-G-15: scorched rim -> Colors.copper, inner crater
-                // ring -> Colors.red, at the same opacities as the old
-                // off-token oranges. Geometry unchanged.
                 return (
-                  <G key={`scar-${key}`}>
-                    {/* Blast pit */}
-                    <Circle
-                      cx={cx} cy={cy} r={CELL_SIZE * 0.34}
-                      fill="rgba(18,8,5,0.55)"
-                      stroke={hexToRgba(Colors.copper, 0.55)}
-                      strokeWidth={1.5}
-                    />
-                    {/* Charred hole */}
-                    <Circle
-                      cx={cx} cy={cy} r={CELL_SIZE * 0.16}
-                      fill="rgba(0,0,0,0.6)"
-                      stroke={hexToRgba(Colors.red, 0.5)}
-                      strokeWidth={1}
-                    />
-                    {/* Radial scorch cracks */}
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.4} y2={cy - CELL_SIZE * 0.34} stroke={hexToRgba(Colors.copper, 0.45)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.42} y2={cy - CELL_SIZE * 0.26} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx + CELL_SIZE * 0.3} y2={cy + CELL_SIZE * 0.4} stroke={hexToRgba(Colors.copper, 0.4)} strokeWidth={1} />
-                    <Line x1={cx} y1={cy} x2={cx - CELL_SIZE * 0.32} y2={cy + CELL_SIZE * 0.36} stroke={hexToRgba(Colors.copper, 0.35)} strokeWidth={1} />
-                  </G>
+                  <DamagedCell
+                    key={`damaged-${key}`}
+                    size={CELL_SIZE}
+                    x={gx * CELL_SIZE}
+                    y={gy * CELL_SIZE}
+                    live={liveBurnCells.has(key)}
+                  />
                 );
               })}
             </Svg>
@@ -1674,6 +1675,11 @@ export default function GameplayScreen({ navigation }: Props) {
                   return (
                     <TouchableOpacity
                       key={`ghost-${x}-${y}`}
+                      // PROMPT_159: a stable handle for Maestro to place a
+                      // piece on a known cell. Added to the existing
+                      // TouchableOpacity — no new host, and nothing animated
+                      // here.
+                      testID={`board-cell-${x}-${y}`}
                       style={[
                         styles.ghostCell,
                         { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },
