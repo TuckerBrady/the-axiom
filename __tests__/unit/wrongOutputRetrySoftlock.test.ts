@@ -154,3 +154,47 @@ describe('GameplayScreen wrong-output RETRY handler', () => {
     expect(body).not.toMatch(/\bhandleReset\(\)/);
   });
 });
+
+// T-Bot review of #53: executeMachine writes the data trail and Counter
+// counts in place, and endRun (unlike reset → setLevel) did not restore
+// them, so the run after a RETRY inherited the previous run's memory.
+describe('endRun — the next run starts from a clean slate', () => {
+  const STATEFUL_LEVEL: LevelDefinition = {
+    ...TAPE_LEVEL,
+    id: 'retry-stateful',
+    dataTrail: { cells: [0, 0, 0], headPosition: 0 },
+  };
+
+  function buildStatefulBoard() {
+    const s = useGameStore.getState();
+    s.placePiece('conveyor', 2, 3);
+    s.placePiece('scanner', 3, 3);
+    s.placePiece('counter', 4, 3);
+    s.placePiece('conveyor', 5, 3);
+  }
+
+  const stepTrace = (steps: { pieceId: string; success: boolean; message?: string }[]) =>
+    steps.map(st => `${st.pieceId}|${st.success}|${st.message ?? ''}`);
+
+  it('restores the level data trail and zeroes every Counter', () => {
+    useGameStore.getState().setLevel(STATEFUL_LEVEL);
+    buildStatefulBoard();
+    useGameStore.getState().engage();
+    useGameStore.getState().endRun();
+    const s = useGameStore.getState();
+    expect(s.machineState.dataTrail).toEqual(STATEFUL_LEVEL.dataTrail);
+    expect(s.machineState.dataTrail.cells).not.toBe(STATEFUL_LEVEL.dataTrail.cells);
+    for (const p of s.machineState.pieces.filter(pc => pc.type === 'counter')) {
+      expect(p.count ?? 0).toBe(0);
+    }
+  });
+
+  it('a run after RETRY produces exactly the steps of a fresh run', () => {
+    useGameStore.getState().setLevel(STATEFUL_LEVEL);
+    buildStatefulBoard();
+    const fresh = stepTrace(useGameStore.getState().engage());
+    useGameStore.getState().endRun();
+    const afterRetry = stepTrace(useGameStore.getState().engage());
+    expect(afterRetry).toEqual(fresh);
+  });
+});
