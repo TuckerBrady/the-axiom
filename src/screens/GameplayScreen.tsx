@@ -792,6 +792,13 @@ export default function GameplayScreen({ navigation }: Props) {
 
   const handleDragStart = useCallback((drag: DragState) => {
     dragOriginRef.current = { x: drag.x, y: drag.y };
+    // The board's onLayout only fires when its own frame changes, not when a
+    // sibling (the tray mounting at placement start, the chip row, the tape
+    // rows) moves it without resizing it. Re-measure at every drag start so the
+    // drop resolves against where the board actually is (found on device).
+    boardGridRef.current?.measureInWindow((x, y) => {
+      boardScreenPos.current = { x, y };
+    });
     setDragState(drag);
   }, []);
 
