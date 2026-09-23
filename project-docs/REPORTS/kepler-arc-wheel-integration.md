@@ -1,3 +1,7 @@
+> **SUPERSEDED 2026-09-22 (AXM-013, Arc Wheel removed).** Kept as history. Kepler+ now
+> places from the same PieceTray as the Axiom; see `SPEC_KEPLER_REBUILD_v3.md` Section 2
+> and `docs/TRIBAL_KNOWLEDGE.md`. Do not rebuild the wheel.
+
 # ARC WHEEL — KEPLER BELT INTEGRATION SPEC
 
 ### Canonical Behavioral / Tutorial / Animation / Accessibility Spec for the Kepler Belt Rebuild

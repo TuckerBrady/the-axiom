@@ -87,8 +87,8 @@ appId: com.tuckerbrady.theaxiom
 - runFlow: ../../subflows/clear-board-overlays.yaml
 
 # ── Place it off the signal path ───────────────────────────────────────────
-# The tray is a vertical carousel; swipe it from a chip that is always on
-# screen until XMIT comes into view.
+# The tray slides horizontally (AXM-013, #56 replaced the vertical selector);
+# swipe it left from a chip that is always on screen until XMIT comes into view.
 - repeat:
     times: 4
     while:
@@ -96,7 +96,7 @@ appId: com.tuckerbrady.theaxiom
     commands:
       - swipe:
           from: "SCAN, .* available"
-          direction: UP
+          direction: LEFT
 - tapOn: "XMIT, .* available"
 - tapOn:
     point: "40%,49%"

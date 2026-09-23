@@ -7,7 +7,7 @@ import {
   getRequisitionPieceCategory,
   getRequisitionPrice,
   hasRequisitionDiscount,
-  arcWheelSortKey,
+  traySortKey,
 } from '../../src/game/piecePrices';
 
 describe('piecePrices — PIECE_PRICES constant', () => {
@@ -112,23 +112,23 @@ describe('hasRequisitionDiscount', () => {
   });
 });
 
-describe('arcWheelSortKey', () => {
+describe('traySortKey', () => {
   it('orders physics before protocol', () => {
-    expect(arcWheelSortKey('conveyor')).toBeLessThan(arcWheelSortKey('configNode'));
-    expect(arcWheelSortKey('bridge')).toBeLessThan(arcWheelSortKey('scanner'));
+    expect(traySortKey('conveyor')).toBeLessThan(traySortKey('configNode'));
+    expect(traySortKey('bridge')).toBeLessThan(traySortKey('scanner'));
   });
 
   it('orders cheaper pieces first within a category', () => {
-    expect(arcWheelSortKey('conveyor')).toBeLessThan(arcWheelSortKey('splitter'));
-    expect(arcWheelSortKey('configNode')).toBeLessThan(arcWheelSortKey('inverter'));
+    expect(traySortKey('conveyor')).toBeLessThan(traySortKey('splitter'));
+    expect(traySortKey('configNode')).toBeLessThan(traySortKey('inverter'));
   });
 
   it('includes all physics and protocol types', () => {
     for (const t of PHYSICS_PIECE_TYPES) {
-      expect(arcWheelSortKey(t)).toBeDefined();
+      expect(traySortKey(t)).toBeDefined();
     }
     for (const t of PROTOCOL_PIECE_TYPES) {
-      expect(arcWheelSortKey(t)).toBeDefined();
+      expect(traySortKey(t)).toBeDefined();
     }
   });
 });
