@@ -4,7 +4,7 @@
 // color/crossfade half of REQ-G-05 lives in beamAnimation.test.ts,
 // BeamOverlay.test.ts and chargePhase.test.ts; REQ-G-16 lives in
 // interactions.test.ts; REQ-G-17 in RequisitionPanel.test.ts; REQ-G-03 in
-// ArcWheel.test.ts, RequisitionPanel.test.ts and SpecSheetPanel.test.ts).
+// RequisitionPanel.test.ts and SpecSheetPanel.test.ts).
 // GameplayScreen.tsx is exercised end-to-end on device via Maestro — here
 // the contract is verified by source inspection, matching this file's
 // established convention (see WireOverlay.test.ts, TapeColorsAndBeam.test.ts).

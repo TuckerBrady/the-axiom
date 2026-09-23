@@ -49,7 +49,7 @@ describe('GameplayScreen Zustand selector usage', () => {
     expect(source).not.toMatch(/=\s*useRequisitionStore\(\)/);
   });
 
-  it('wraps the arcWheelPieces filter selector with useShallow (no raw filter selector)', () => {
+  it('never selects a freshly filtered inventory array (no raw filter selector)', () => {
     // .filter() returns a new array reference on every invocation, so a
     // bare `useRequisitionStore(s => s.inventory.pieces.filter(...))`
     // produces an unstable getSnapshot result and re-triggers the

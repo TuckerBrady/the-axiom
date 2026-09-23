@@ -128,7 +128,7 @@ export const levelA1_1: LevelDefinition = {
       // Inline reveal beat (Tucker direction): COGS notices the new piece
       // in the tray and reveals it to the Codex immediately. No placement
       // gate, no orb-chase to a placed piece — chase-down is reserved for
-      // Kepler+ Arc Wheel. The '???' label is retained (Tucker approved);
+      // Kepler+ tray levels. The '???' label is retained (Tucker approved);
       // codexEntryId 'conveyor' triggers the A1-1 batch reveal
       // (source + terminal + conveyor) in TutorialHUDOverlay.handlePrimary.
       id: 'conveyor-collect',
@@ -776,18 +776,20 @@ export const levelK1_1: LevelDefinition = {
   difficultyBand: 'intuitive',
   narrativeFrame: 'First repair in the mining corridor. Simple but unfamiliar territory.',
   // Onboarding runs in the placement phase (after the REQUISITION store closes),
-  // so it targets the Arc Wheel and the board. Introduces the wheel, explains why
-  // it replaced the tray, teaches the drag gesture, and restates forfeiture.
+  // so it targets the tray and the board. AXM-013 removed the old Kepler piece
+  // selector: the steps now point at the tray item for the focus piece (the
+  // Conveyor). Copy changed noun-only; wheel-intro and wheel-scroll describe the
+  // removed selector and are listed for rewrite in PROMPT_160_REPORT.md.
   // PROPOSED copy — pending Tucker sign-off.
   tutorialSteps: [
-    { id: 'wheel-intro', targetRef: 'arcWheelMain', eyeState: 'amber',
+    { id: 'wheel-intro', targetRef: 'trayConveyor', eyeState: 'amber',
       message: 'Requisitions complete. The parts you ordered are loaded here — on the wheel. Out here the manifest is not a tray along the bottom of the board anymore. It is this. One piece at center at a time.' },
-    { id: 'wheel-scroll', targetRef: 'arcWheelMain', eyeState: 'blue',
+    { id: 'wheel-scroll', targetRef: 'trayConveyor', eyeState: 'blue',
       message: 'Swipe the wheel to bring a piece to the center. The one in the middle is the one you are holding. You will not see every part at once — that is the trade for the room it gives the board.' },
-    { id: 'wheel-place', targetRef: 'arcWheelMain', eyeState: 'blue',
-      message: 'Press and hold a piece, then drag it onto the board and release. No more tapping the grid. The wheel hands the piece to you directly.' },
-    { id: 'wheel-forfeit', targetRef: 'arcWheelMain', eyeState: 'amber',
-      message: 'Anything left on the wheel when the mission ends is forfeited — used or not. Requisition what the machine needs. Nothing more.' },
+    { id: 'wheel-place', targetRef: 'trayConveyor', eyeState: 'blue',
+      message: 'Press and hold a piece, then drag it onto the board and release. No more tapping the grid. The tray hands the piece to you directly.' },
+    { id: 'wheel-forfeit', targetRef: 'trayConveyor', eyeState: 'amber',
+      message: 'Anything left on the tray when the mission ends is forfeited — used or not. Requisition what the machine needs. Nothing more.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',

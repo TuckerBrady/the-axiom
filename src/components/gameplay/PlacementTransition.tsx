@@ -6,8 +6,8 @@ import { Colors, Fonts, FontSizes } from '../../theme/tokens';
 //
 // Step 1: Board powers up — subtle pulse/glow at board position (0.6s)
 // Step 2: "PLACEMENT PHASE" text fades in, holds, fades out (0.6s each)
-// Step 3: Arc Wheel enters from the side (driven externally; this component
-//         signals readiness via onComplete so the parent can unmount the panel)
+// Step 3: the piece tray mounts (driven externally; this component signals
+//         readiness via onComplete so the parent can unmount the panel)
 
 interface Props {
   onComplete: () => void;

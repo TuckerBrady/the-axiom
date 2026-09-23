@@ -61,56 +61,6 @@ describe('REQ-G-10 — specific instances named in the spec', () => {
   });
 });
 
-// ─── REQ-G-13 — Arc Wheel inventory is legible ───────────────────────────────
-describe('REQ-G-13 — Arc Wheel overview and distance-scaling floors', () => {
-  const wheelSrc = read('src/components/gameplay/ArcWheel.tsx');
-
-  it('overview icons render at 32pt (was 20)', () => {
-    expect(wheelSrc).toMatch(/<PieceIcon type=\{group\.type\} size=\{32\} color=\{color\} \/>/);
-  });
-
-  it('overview labels are at the FontSizes.floor (overviewCount was already there)', () => {
-    expect(wheelSrc).toMatch(/overviewLabel:\s*\{[\s\S]*?fontSize:\s*FontSizes\.floor,/);
-    expect(wheelSrc).toMatch(/overviewCount:\s*\{[\s\S]*?fontSize:\s*11,/);
-  });
-
-  it('clamps the smallest collapsed node to >= 32pt and distanceOpacity to >= 0.45', () => {
-    expect(wheelSrc).toMatch(
-      /const nodeSize = Math\.max\(32, NODE_SIZE_MAX \* scaleFactor\);/,
-    );
-    expect(wheelSrc).toMatch(
-      /const distanceOpacity = Math\.max\(0\.45, 1 - \(absDistance \/ \(maxVisible \+ 1\)\) \* 0\.7\);/,
-    );
-  });
-});
-
-// ─── REQ-G-18 — Arc Wheel category quick-jump ────────────────────────────────
-describe('REQ-G-18 — Arc Wheel quick-jump dot strip', () => {
-  const wheelSrc = read('src/components/gameplay/ArcWheel.tsx');
-
-  it('renders a dot per group, only while the wheel is active and has more than one group', () => {
-    expect(wheelSrc).toMatch(/\{isActive && groups\.length > 1 && \(/);
-    expect(wheelSrc).toMatch(/styles\.quickJumpStrip/);
-  });
-
-  it('tapping a dot jumps the wheel via the same handleTapSelect used by node taps', () => {
-    expect(wheelSrc).toMatch(/onPress=\{\(\) => handleTapSelect\(idx\)\}/);
-  });
-
-  it('colors each dot by category (tape purple, else the type-based physics/protocol color), highlighting the selected one', () => {
-    expect(wheelSrc).toMatch(
-      /const dotColor = group\.isTape \? TAPE_COLOR : getPieceColor\(group\.type\);/,
-    );
-    expect(wheelSrc).toMatch(/isSel && styles\.quickJumpDotActive/);
-  });
-
-  it('scrolls horizontally without a visible indicator, so the strip never forces the 72pt pill wider', () => {
-    expect(wheelSrc).toMatch(
-      /<ScrollView\s*\n\s*horizontal\s*\n\s*showsHorizontalScrollIndicator=\{false\}\s*\n\s*contentContainerStyle=\{styles\.quickJumpInner\}/,
-    );
-  });
-});
-
 // ─── REQ-G-09 — Void COGS lines stack ────────────────────────────────────────
 describe('REQ-G-09 — void COGS lines stack instead of splitting into columns', () => {
   const modalsSrc = read('src/components/gameplay/GameplayModals.tsx');

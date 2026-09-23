@@ -8,3 +8,11 @@ export const ImpactFeedbackStyle = {
 } as const;
 
 export const impactAsync = jest.fn(() => Promise.resolve());
+
+export const NotificationFeedbackType = {
+  Success: 'success',
+  Warning: 'warning',
+  Error: 'error',
+} as const;
+
+export const notificationAsync = jest.fn(() => Promise.resolve());

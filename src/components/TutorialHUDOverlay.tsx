@@ -59,7 +59,7 @@ interface Props {
   // to false so existing call sites keep their current behavior;
   // GameplayScreen passes `beamState.phase !== 'idle'`.
   isBeamActive?: boolean;
-  // Arc Wheel tutorial — external event signals for awaitPlacement and awaitPieceTap.
+  // Tray tutorial — external event signals for awaitPlacement and awaitPieceTap.
   // Incremented sequence numbers prevent duplicate-fire when the same type repeats.
   lastPlacedTrigger?: PlacedTrigger | null;
   lastTappedTrigger?: TappedTrigger | null;
