@@ -790,17 +790,23 @@ export default function GameplayScreen({ navigation }: Props) {
     useRequisitionStore.getState().selectInventoryPiece(group ? group.repId : null);
   }, [isAxiomLevel, selectFromTray, keplerGroups]);
 
+  // Where the board is, in the same space as a touch's pageX/pageY. Found on
+  // device (AXM-013): measureInWindow is not that space, and drops resolved
+  // one to two rows below the finger in every sector; measure()'s pageX/pageY
+  // is. The board's onLayout also only fires when its own frame changes, not
+  // when a sibling (the tray mounting at placement start, the chip row, the
+  // tape rows) moves it, so a drag re-measures when it starts.
+  const measureBoardOnScreen = useCallback(() => {
+    boardGridRef.current?.measure((_x, _y, _w, _h, pageX, pageY) => {
+      boardScreenPos.current = { x: pageX, y: pageY };
+    });
+  }, []);
+
   const handleDragStart = useCallback((drag: DragState) => {
     dragOriginRef.current = { x: drag.x, y: drag.y };
-    // The board's onLayout only fires when its own frame changes, not when a
-    // sibling (the tray mounting at placement start, the chip row, the tape
-    // rows) moves it without resizing it. Re-measure at every drag start so the
-    // drop resolves against where the board actually is (found on device).
-    boardGridRef.current?.measureInWindow((x, y) => {
-      boardScreenPos.current = { x, y };
-    });
+    measureBoardOnScreen();
     setDragState(drag);
-  }, []);
+  }, [measureBoardOnScreen]);
 
   const handleDragMove = useCallback((x: number, y: number) => {
     setDragState(prev => ({ ...prev, x, y }));
@@ -1494,13 +1500,7 @@ export default function GameplayScreen({ navigation }: Props) {
           <View
             ref={boardGridRef}
             style={[styles.canvas, { width: gridW, height: gridH }]}
-            onLayout={() => {
-              if (boardGridRef.current) {
-                boardGridRef.current.measureInWindow((x, y) => {
-                  boardScreenPos.current = { x, y };
-                });
-              }
-            }}
+            onLayout={measureBoardOnScreen}
           >
             {/* Dot grid + blown-cell scars (static across beam animation) */}
             <Svg width={gridW} height={gridH} style={StyleSheet.absoluteFill}>
