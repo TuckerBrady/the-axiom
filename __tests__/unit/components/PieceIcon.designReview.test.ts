@@ -14,9 +14,28 @@ const read = (p: string) => fs.readFileSync(path.resolve(repoRoot, p), 'utf8');
 
 const src = read('src/components/PieceIcon.tsx');
 
+// CONVEYOR EXEMPTION — Tucker's decision, 2026-09-19: the pre-D-01
+// conveyor design (60x36 viewBox rendered s x s*0.6, amber #F0B429
+// intake drum, green #00C48C output drum) is restored, overruling D-01
+// and D-03/D-04 FOR THE CONVEYOR ONLY. The D-01 and D-03/D-04 checks
+// below run against `srcExceptConveyor`, so those rules still hold for
+// every other piece. No other rule is exempted.
+const conveyorStart = src.indexOf("case 'conveyor':");
+const conveyorEnd = src.indexOf("case 'source':");
+const conveyorCase = src.slice(conveyorStart, conveyorEnd);
+const srcExceptConveyor = src.slice(0, conveyorStart) + src.slice(conveyorEnd);
+
+describe('PieceIcon — conveyor exemption (Tucker overrule 2026-09-19) stays narrow', () => {
+  it('isolates exactly one case: the conveyor', () => {
+    expect(conveyorStart).toBeGreaterThan(-1);
+    expect(conveyorEnd).toBeGreaterThan(conveyorStart);
+    expect(conveyorCase.match(/case '/g)).toEqual(["case '"]);
+  });
+});
+
 // Matches every <Svg ...> opening tag body so its attributes can be
 // inspected together (viewBox, width, height on the same element).
-const svgOpenTags = src.match(/<Svg\b[^>]*>/g) ?? [];
+const svgOpenTags = srcExceptConveyor.match(/<Svg\b[^>]*>/g) ?? [];
 
 describe('PieceIcon — D-01: uniform viewBox', () => {
   it('never renders an <Svg> case with a viewBox other than "0 0 40 40"', () => {
@@ -25,14 +44,14 @@ describe('PieceIcon — D-01: uniform viewBox', () => {
   });
 
   it('has no viewBox other than "0 0 40 40" anywhere in the file', () => {
-    const viewBoxes = [...src.matchAll(/viewBox="([^"]*)"/g)].map(m => m[1]);
+    const viewBoxes = [...srcExceptConveyor.matchAll(/viewBox="([^"]*)"/g)].map(m => m[1]);
     expect(viewBoxes.length).toBeGreaterThan(0);
     expect(viewBoxes.every(vb => vb === '0 0 40 40')).toBe(true);
   });
 
   it('every case renders width={s} height={s} with no exceptions (no s * factor)', () => {
-    expect(src).not.toMatch(/height=\{s \* [\d.]+\}/);
-    expect(src).not.toMatch(/width=\{s \* [\d.]+\}/);
+    expect(srcExceptConveyor).not.toMatch(/height=\{s \* [\d.]+\}/);
+    expect(srcExceptConveyor).not.toMatch(/width=\{s \* [\d.]+\}/);
   });
 });
 
@@ -68,7 +87,7 @@ describe('PieceIcon — D-02: opacity floor and stroke widths', () => {
 
 describe('PieceIcon — D-03/D-04: reserved beam hues', () => {
   const animationFlags = ['charging', 'locking', 'gating', 'splitting', 'transmitting', 'rolling', 'scanning'];
-  const lines = src.split('\n');
+  const lines = srcExceptConveyor.split('\n');
   // A hex literal counts as "guarded" if an animation flag appears
   // within a small window of surrounding lines — the JSX for a single
   // guarded element (comment + attributes) commonly spans several lines.
@@ -98,7 +117,9 @@ describe('PieceIcon — D-03/D-04: reserved beam hues', () => {
 
   it('static Physics accents use copper, static Protocol accents use lavender/protocol token', () => {
     // Spot-check a representative sample of the D-03 per-piece edit table.
-    expect(src).toMatch(/Start drum — filled[\s\S]{0,120}fill=\{Colors\.copper\}/);
+    // The conveyor "Start drum — filled ... Colors.copper" spot-check was
+    // removed: the conveyor is exempt from D-03/D-04 per Tucker's
+    // 2026-09-19 overrule (see CONVEYOR EXEMPTION above).
     expect(src).toMatch(/centre pivot|center pivot/i);
     expect(src).toMatch(/fill=\{Colors\.circuit\}/); // scanner/transmitter/inverter lavender accents
   });

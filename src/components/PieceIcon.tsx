@@ -309,30 +309,32 @@ export const PieceIcon = React.memo(function PieceIcon({
 
   switch (type) {
     case 'conveyor':
-      // D-01 — moved onto the shared 0 0 40 40 canvas, rendered s x s
-      // with no exceptions, so optical mass matches every other piece
-      // at tray/board size. D-03/D-04 — both drums are Physics copper;
-      // start vs end is now told by FORM (filled vs hollow), not hue.
+      // Pre-D-01 design restored by Tucker's decision on 2026-09-19,
+      // overruling D-01 (shared 40x40 canvas) and D-03/D-04 (amber
+      // reserved for the beam) for the conveyor only. D-02 deliberately
+      // kept: the two belt lines carry the floor values (strokeWidth 1.2,
+      // strokeOpacity 0.45) rather than the old 0.8/0.4.
       return (
-        <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Rect x="3" y="13" width="34" height="14" rx="7" fill="#0e1f36" stroke={color ?? Colors.blue} strokeWidth="2" />
+        <Svg width={s} height={s * 0.6} viewBox="0 0 60 36">
+          <Rect x="5" y="10" width="50" height="16" rx="8" fill="#0e1f36" stroke={color ?? Colors.blue} strokeWidth="1.5" />
           <AnimatedLine
-            x1="15" y1="17" x2="25" y2="17"
-            stroke={Colors.copper} strokeWidth="1.2" strokeOpacity="0.5"
-            strokeDasharray="3,2"
+            x1="10" y1="14" x2="50" y2="14"
+            stroke={Colors.copper} strokeWidth="1.2" strokeOpacity="0.45"
+            strokeDasharray="4,2"
             strokeDashoffset={rolling ? (rollDash as unknown as number) : 0}
           />
           <AnimatedLine
-            x1="15" y1="23" x2="25" y2="23"
-            stroke={Colors.copper} strokeWidth="1.2" strokeOpacity="0.5"
-            strokeDasharray="3,2"
+            x1="10" y1="22" x2="50" y2="22"
+            stroke={Colors.copper} strokeWidth="1.2" strokeOpacity="0.45"
+            strokeDasharray="4,2"
             strokeDashoffset={rolling ? (rollDash as unknown as number) : 0}
           />
-          {/* Start drum — filled */}
-          <Circle cx="9" cy="20" r="6.5" fill={Colors.copper} stroke={Colors.copper} strokeWidth="1.5" />
-          {/* End drum — hollow (form differentiates output from input) */}
-          <Circle cx="31" cy="20" r="6.5" fill="none" stroke={Colors.copper} strokeWidth="1.5" />
-          <Path d="M 18 16 L 23 20 L 18 24" stroke={Colors.copper} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <Circle cx="13" cy="18" r="8" fill="#0a1628" stroke="#F0B429" strokeWidth="1.5" />
+          <Circle cx="13" cy="18" r="3.5" fill="#F0B429" />
+          <Circle cx="47" cy="18" r="8" fill="#0a1628" stroke="#00C48C" strokeWidth="1.5" />
+          <Circle cx="47" cy="18" r="3.5" fill="#00C48C" />
+          <Path d="M 23 14 L 29 18 L 23 22" stroke="#F0B429" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+          <Path d="M 30 14 L 36 18 L 30 22" stroke="#F0B429" strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5" />
         </Svg>
       );
 
