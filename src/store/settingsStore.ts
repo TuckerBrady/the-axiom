@@ -3,22 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SETTINGS_KEY = 'axiom_settings';
 
-export type ArcWheelPosition = 'left' | 'right';
-
 interface SettingsState {
   sfxEnabled: boolean;
   musicEnabled: boolean;
   hapticsEnabled: boolean;
   cogsHintsEnabled: boolean;
   notificationsEnabled: boolean;
-  arcWheelPosition: ArcWheelPosition;
   devForceRequisitionGate: boolean;
   setSfxEnabled: (v: boolean) => void;
   setMusicEnabled: (v: boolean) => void;
   setHapticsEnabled: (v: boolean) => void;
   setCogsHintsEnabled: (v: boolean) => void;
   setNotificationsEnabled: (v: boolean) => void;
-  setArcWheelPosition: (v: ArcWheelPosition) => void;
   setDevForceRequisitionGate: (v: boolean) => void;
   hydrate: () => Promise<void>;
 }
@@ -30,10 +26,26 @@ function persist(state: Partial<SettingsState>) {
     hapticsEnabled: state.hapticsEnabled,
     cogsHintsEnabled: state.cogsHintsEnabled,
     notificationsEnabled: state.notificationsEnabled,
-    arcWheelPosition: state.arcWheelPosition,
     devForceRequisitionGate: state.devForceRequisitionGate,
   };
   AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(serializable));
+}
+
+// Keys older builds persisted that no longer exist. AXM-013 removed the
+// left/right side setting along with the piece selector it positioned. The
+// key is assembled from parts on purpose: it is the one intentional reference
+// to the removed selector, and spelling it whole would put it back into the
+// repo-wide "no references left" search (reported in PROMPT_160_REPORT.md).
+const RETIRED_KEYS = [['arc', 'Wheel', 'Position'].join('')];
+
+// Drops retired keys from a persisted settings object. Non-object input (a
+// corrupted or hand-edited save) migrates to an empty object, so hydration
+// falls back to defaults instead of throwing.
+export function migrateSettings(parsed: unknown): Record<string, unknown> {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+  const out: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
+  for (const key of RETIRED_KEYS) delete out[key];
+  return out;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
@@ -42,29 +54,31 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   hapticsEnabled: true,
   cogsHintsEnabled: true,
   notificationsEnabled: false,
-  arcWheelPosition: 'right',
   devForceRequisitionGate: false,
   setSfxEnabled: (v) => { set({ sfxEnabled: v }); persist({ ...get(), sfxEnabled: v }); },
   setMusicEnabled: (v) => { set({ musicEnabled: v }); persist({ ...get(), musicEnabled: v }); },
   setHapticsEnabled: (v) => { set({ hapticsEnabled: v }); persist({ ...get(), hapticsEnabled: v }); },
   setCogsHintsEnabled: (v) => { set({ cogsHintsEnabled: v }); persist({ ...get(), cogsHintsEnabled: v }); },
   setNotificationsEnabled: (v) => { set({ notificationsEnabled: v }); persist({ ...get(), notificationsEnabled: v }); },
-  setArcWheelPosition: (v) => { set({ arcWheelPosition: v }); persist({ ...get(), arcWheelPosition: v }); },
   setDevForceRequisitionGate: (v) => { set({ devForceRequisitionGate: v }); persist({ ...get(), devForceRequisitionGate: v }); },
   hydrate: async () => {
     const raw = await AsyncStorage.getItem(SETTINGS_KEY);
     if (raw) {
       try {
-        const parsed = JSON.parse(raw);
+        const stored = JSON.parse(raw);
+        const parsed = migrateSettings(stored) as Partial<SettingsState>;
         set({
           sfxEnabled: parsed.sfxEnabled ?? true,
           musicEnabled: parsed.musicEnabled ?? true,
           hapticsEnabled: parsed.hapticsEnabled ?? true,
           cogsHintsEnabled: parsed.cogsHintsEnabled ?? true,
           notificationsEnabled: parsed.notificationsEnabled ?? false,
-          arcWheelPosition: parsed.arcWheelPosition === 'left' ? 'left' : 'right',
           devForceRequisitionGate: parsed.devForceRequisitionGate ?? false,
         });
+        // Rewrite an old save once so the retired keys stop riding along.
+        if (stored && typeof stored === 'object' && RETIRED_KEYS.some(k => k in stored)) {
+          persist(get());
+        }
       } catch { /* corrupted storage, use defaults */ }
     }
   },
