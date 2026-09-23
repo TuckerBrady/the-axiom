@@ -112,8 +112,16 @@ deliberate decisions about every piece they requisition.
 ### Visual Distinction
 
 Purchased pieces appear in the tray identically to pre-assigned
-pieces (Option B — unified). Once you buy it, it is yours. No
-visual distinction between free and purchased pieces in the tray.
+pieces (Option B — unified). Once you buy it, it is yours. The
+piece itself carries no visual distinction, in the tray or on the
+board.
+
+Amended 2026-09-22 (AXM-013, PROMPT_160): the tray's count badge
+is the one exception. In Kepler+ it splits by source (amber counts
+pre-assigned, blue counts requisitioned) so the Engineer can see
+which purchases are still unspent, and will be forfeited, before
+ENGAGE. Placement uses requisitioned pieces first, so the blue
+count is exactly what was bought and not yet needed.
 
 ### What This Means
 
