@@ -1,10 +1,20 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LevelDefinition, PlacedPiece, ExecutionStep } from '../game/types';
 import { useGameStore } from '../store/gameStore';
 
 export interface UseGameplayFailureResult {
   blownCells: Set<string>;
   setBlownCells: React.Dispatch<React.SetStateAction<Set<string>>>;
+  // Cells blown during the CURRENT run — a strict subset of blownCells.
+  // Terrain damage (level.damagedCells) is never in here, and a failure
+  // crater leaves it the moment the next run starts (settleLiveBurns).
+  // Drives the "live burn" ember on DamagedCell; see
+  // src/components/gameplay/DamagedCell.tsx.
+  liveBurnCells: Set<string>;
+  // Called at the top of every run: everything currently blown becomes
+  // settled terrain, so the board remembers the failure as a plain missing
+  // plate rather than keeping an ember on it forever.
+  settleLiveBurns: () => void;
   failCount: number;
   setFailCount: React.Dispatch<React.SetStateAction<number>>;
   // REQ-G-08 part 1: the void quote's index is drawn once, on entering the
@@ -44,6 +54,11 @@ export function useGameplayFailure(
   const [failCount, setFailCount] = useState(0);
   const [voidQuoteIndex, setVoidQuoteIndex] = useState(0);
   const blownCellsRef = useRef<Set<string>>(seedBlownCells(level));
+  // Everything the board has already "accepted" as terrain: the level's own
+  // damage plus any crater from a previous run. blownCells minus this is the
+  // live-burn set. Keeping it as state (not a ref) is deliberate — the
+  // derived set has to recompute when a run settles.
+  const [settledCells, setSettledCells] = useState<Set<string>>(() => seedBlownCells(level));
 
   useEffect(() => {
     blownCellsRef.current = blownCells;
@@ -52,8 +67,31 @@ export function useGameplayFailure(
   useEffect(() => {
     // Re-seed pre-existing craters on level change; failures then add to them.
     setBlownCells(seedBlownCells(level));
+    setSettledCells(seedBlownCells(level));
     setFailCount(0);
   }, [level?.id]);
+
+  const liveBurnCells = useMemo(() => {
+    const live = new Set<string>();
+    blownCells.forEach(key => {
+      if (!settledCells.has(key)) live.add(key);
+    });
+    return live;
+  }, [blownCells, settledCells]);
+
+  const settleLiveBurns = useCallback(() => {
+    setSettledCells(prev => {
+      const current = blownCellsRef.current;
+      // A retry clears blownCells entirely; settled must shrink with it so a
+      // cell blown again later still reads as a fresh burn.
+      if (prev.size === current.size) {
+        let same = true;
+        current.forEach(k => { if (!prev.has(k)) same = false; });
+        if (same) return prev;
+      }
+      return new Set(current);
+    });
+  }, []);
 
   const findBlownPiece = useCallback(
     (
@@ -113,6 +151,8 @@ export function useGameplayFailure(
   return {
     blownCells,
     setBlownCells,
+    liveBurnCells,
+    settleLiveBurns,
     failCount,
     setFailCount,
     voidQuoteIndex,
