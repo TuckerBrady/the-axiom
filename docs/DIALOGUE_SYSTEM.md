@@ -29,7 +29,7 @@
 >
 > **On tone across phases:** Early-game COGS is assessing. Mid-game COGS has formed opinions. Late-game COGS has a relationship with the Engineer whether he admits it or not. The same behavior gets a different response depending on where in the game it occurs. This is intentional.
 >
-> All content marked **[PROPOSED]** requires Tucker Brady sign-off before implementation.
+> COGS dialogue here is team-authored and ships without per-line sign-off. See the COGS DIALOGUE DOCTRINE in `docs/NARRATIVE.md` (2026-09-21). Remaining [PROPOSED] tags are retired, not a gate.
 
 ---
 
@@ -858,6 +858,6 @@
 
 ---
 
-*All content in this document is proposed. Tucker Brady has final sign-off on every line. Nothing enters the codebase without explicit approval.*
+*COGS dialogue in this document is team-authored under the COGS DIALOGUE DOCTRINE in `docs/NARRATIVE.md`. Tucker can rewrite any line at any time, and his edits win.*
 
 *Version 1.0 — April 2026. Initial build of the COGS post-level dialogue system. Full matrix across three disciplines, three behavioral states, four performance tiers, three game phases. Special cases and arc lines included. Companion to Narrative Design Document v1.2.*

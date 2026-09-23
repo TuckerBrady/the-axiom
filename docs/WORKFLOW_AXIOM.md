@@ -174,16 +174,18 @@ recommended fix."
 
 ### Narrative / Dialogue Work
 
-Always goes through Cowork. Code never writes COGS dialogue.
+Any seat may write COGS dialogue (COGS DIALOGUE DOCTRINE, docs/NARRATIVE.md).
+New lore or canon still goes to Tucker.
 
 ```
 "Read docs/NARRATIVE.md. Write COGS dialogue for Kepler Belt
 levels K1-1 through K1-5. Follow the voice rules: dry, precise,
-reluctantly warm. Tag all lines [PROPOSED]. Write to
-/project-docs/SPECS/kepler-dialogue.md."
+reluctantly warm. Write the lines into docs/NARRATIVE.md and
+the level data, and list every line verbatim in the PR body."
 ```
 
-Tucker reviews and approves. Then Code implements the approved text.
+T-Bot reviews voice at the PR. Tucker reads the list whenever he likes
+and edits anything he wants; his edits win.
 
 ### Sprint Planning
 
