@@ -296,7 +296,7 @@ describe('K1-1 v3 economy fields', () => {
 
   it('onboarding covers placement and forfeiture', () => {
     const ids = k1().tutorialSteps!.map(s => s.id);
-    expect(ids).toEqual(expect.arrayContaining(['wheel-intro', 'wheel-place', 'wheel-forfeit']));
+    expect(ids).toEqual(expect.arrayContaining(['tray-intro', 'tray-place', 'tray-forfeit']));
   });
 
   it('tutorial step IDs are unique', () => {

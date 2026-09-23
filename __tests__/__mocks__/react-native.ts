@@ -181,6 +181,23 @@ export const TextInput = 'TextInput';
 export const ActivityIndicator = 'ActivityIndicator';
 export const Switch = 'Switch';
 export const KeyboardAvoidingView = 'KeyboardAvoidingView';
+// PanResponder: panHandlers expose the config's callbacks under the
+// responder prop names a host View receives, so a rendered test can drive a
+// gesture by calling those props on the host.
+type PanConfig = Record<string, ((...args: unknown[]) => unknown) | undefined>;
+export const PanResponder = {
+  create: (config: PanConfig) => ({
+    panHandlers: {
+      onStartShouldSetResponder: (e: unknown) => config.onStartShouldSetPanResponder?.(e, {}),
+      onMoveShouldSetResponder: (e: unknown) => config.onMoveShouldSetPanResponder?.(e, {}),
+      onResponderTerminationRequest: (e: unknown) => config.onPanResponderTerminationRequest?.(e, {}),
+      onResponderGrant: (e: unknown) => config.onPanResponderGrant?.(e, {}),
+      onResponderMove: (e: unknown) => config.onPanResponderMove?.(e, {}),
+      onResponderRelease: (e: unknown) => config.onPanResponderRelease?.(e, {}),
+      onResponderTerminate: (e: unknown) => config.onPanResponderTerminate?.(e, {}),
+    },
+  }),
+};
 export const StatusBar = { setBarStyle: () => undefined, setHidden: () => undefined };
 export const Alert = { alert: () => undefined };
 export const Linking = { openURL: () => Promise.resolve(), canOpenURL: () => Promise.resolve(true) };

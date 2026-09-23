@@ -193,9 +193,9 @@ permanently 0 in the live engine; listing it surfaces a category that always sco
 - difficultyBand: intuitive
 - tutorialSteps (PROPOSED): EXISTING approved store steps `store-intro`, `store-tabs`,
   `store-forfeiture`, `store-window` (text unchanged; targetRef repointed from `'tray'`
-  to REQUISITION panel ref); `wheel-intro` / `wheel-scroll` / `wheel-place` /
-  `wheel-forfeit` (targetRef `trayConveyor` since AXM-013; copy pending rewrite, see
-  PROMPT_160_REPORT.md); then `board-intro`,
+  to REQUISITION panel ref); `tray-intro` / `tray-scroll` / `tray-place` /
+  `tray-forfeit` (targetRef `trayConveyor` since AXM-013; renamed from `wheel-*` and
+  rewritten for the centre-select tray in AXM-020, see PROMPT_161_REPORT.md); then `board-intro`,
   `board-resume` (targetRef `boardGrid`). Sequence by phase, not array index.
 - consequence: NONE (confirmed — not in the K1-4/8/10 set).
 - Post-level dialogue (PROPOSED):

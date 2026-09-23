@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   ScrollView,
@@ -16,9 +17,20 @@ import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import { Colors, Fonts, FontSizes } from '../../theme/tokens';
 import { applyTrayFilter, trayFilterChips, type TrayFilter } from './trayGrouping';
+import {
+  TRAY_ITEM_GAP,
+  TRAY_ITEM_W,
+  centrePadding,
+  frameKeyAfterItemsChange,
+  frameKeyForFilter,
+  indexAtOffset,
+  offsetForIndex,
+  selectableKey,
+  snapOffsets,
+} from './trayCentre';
 
 // Hold threshold (ms) before a touch promotes from a tap candidate to a
-// drag. A shorter press is a tap (select / deselect).
+// drag. A shorter press is a tap: centre the item and select it.
 const DRAG_HOLD_MS = 180;
 
 // AXM-013 — every sector places from this one tray. The row is a fixed
@@ -28,6 +40,16 @@ const DRAG_HOLD_MS = 180;
 const TRAY_ROW_H = 72;
 const CHIP_ROW_H = 32;
 const EDGE_FADE_W = 28;
+
+// AXM-020 — the centre frame: the piece in hand. Fixed; items slide under it.
+const FRAME_COLOR = '#F0B429';
+const FRAME_SIZE = 64;
+// The selected item grows a little. Keyed to selection, never to the scroll
+// offset (REQ-A: no per-item animation driven by scrolling).
+const SELECTED_SCALE = 1.06;
+const SCALE_MS = 120;
+// A drag that ends without a fling settles here unless momentum takes over.
+const SETTLE_NO_MOMENTUM_MS = 80;
 
 // Source colors for the Kepler+ split count badge: amber counts pre-assigned
 // pieces, blue counts requisitioned ones (unspent requisitioned pieces are
@@ -118,20 +140,6 @@ export function edgeFadeSide(scrollX: number, contentW: number, viewportW: numbe
   return hiddenLeft > hiddenRight ? 'left' : 'right';
 }
 
-// Scroll offset that brings [itemX, itemX + itemW] fully into view, or null
-// when it already is.
-export function scrollToReveal(
-  itemX: number,
-  itemW: number,
-  scrollX: number,
-  viewportW: number,
-  pad: number,
-): number | null {
-  if (itemX - pad < scrollX) return Math.max(0, itemX - pad);
-  if (itemX + itemW + pad > scrollX + viewportW) return itemX + itemW + pad - viewportW;
-  return null;
-}
-
 interface Props {
   items: TrayItem[];
   selectedKey: string | null;
@@ -139,7 +147,7 @@ interface Props {
   onPickup: (key: string | null) => void;
   // Optional drag wiring. When all four are provided, a hold-to-drag
   // PanResponder is mounted per item: a 180 ms hold promotes the touch
-  // to a drag; a shorter press falls through to onPickup (tap).
+  // to a drag; a shorter press is a tap (centre and select).
   // When the drag props are absent, the TouchableOpacity tap path is
   // rendered so non-drag call sites keep working.
   onDragStart?: (drag: DragState) => void;
@@ -162,6 +170,9 @@ interface Props {
   forceFilterAll?: boolean;
   // Changes on level entry; the filter resets to ALL and doesn't persist.
   resetKey?: string;
+  // AXM-020: a placed piece is selected on the board, so the tray does not
+  // put its framed item back in hand until that selection clears.
+  holdSelection?: boolean;
 }
 
 // React.memo with default shallow comparison. `items` and `refs` must be
@@ -184,6 +195,7 @@ function PieceTrayComponent({
   showFilterChips,
   forceFilterAll,
   resetKey,
+  holdSelection,
 }: Props) {
   const dragEnabled =
     !!onDragStart && !!onDragMove && !!onDragEnd && !!onDragCancel;
@@ -196,26 +208,16 @@ function PieceTrayComponent({
 
   // ── Filtering ──
   const [filter, setFilter] = useState<TrayFilter>('ALL');
-  useEffect(() => { setFilter('ALL'); }, [resetKey]);
-  useEffect(() => { if (forceFilterAll) setFilter('ALL'); }, [forceFilterAll]);
   const effectiveFilter: TrayFilter = showFilterChips && !forceFilterAll ? filter : 'ALL';
-  const visibleItems = applyTrayFilter(items, effectiveFilter);
+  const visibleItems = useMemo(() => applyTrayFilter(items, effectiveFilter), [items, effectiveFilter]);
   const chips = showFilterChips ? trayFilterChips(items) : [];
 
-  // A selection the filter hides is cleared rather than left invisible.
-  const selectedHidden =
-    selectedKey !== null && items.some(i => i.key === selectedKey) &&
-    !visibleItems.some(i => i.key === selectedKey);
-  useEffect(() => {
-    if (selectedHidden) onPickup(null);
-  }, [selectedHidden, onPickup]);
-
-  // ── Sliding: edge fade + scroll-into-view ──
+  // ── Sliding: edge fade ──
   const scrollRef = useRef<ScrollView>(null);
   const scrollXRef = useRef(0);
   const viewportWRef = useRef(0);
   const contentWRef = useRef(0);
-  const itemLayoutsRef = useRef<Record<string, { x: number; width: number }>>({});
+  const [viewportW, setViewportW] = useState(0);
   const [fadeSide, setFadeSide] = useState<FadeSide>('none');
 
   const refreshFade = useCallback(() => {
@@ -230,6 +232,7 @@ function PieceTrayComponent({
 
   const handleViewportLayout = useCallback((e: LayoutChangeEvent) => {
     viewportWRef.current = e.nativeEvent.layout.width;
+    setViewportW(e.nativeEvent.layout.width);
     refreshFade();
   }, [refreshFade]);
 
@@ -238,35 +241,124 @@ function PieceTrayComponent({
     refreshFade();
   }, [refreshFade]);
 
-  const revealSelected = useCallback(() => {
-    if (!selectedKey) return;
-    const layout = itemLayoutsRef.current[selectedKey];
-    if (!layout) return;
-    const target = scrollToReveal(
-      layout.x, layout.width, scrollXRef.current, viewportWRef.current, styles.partsTrayInner.paddingHorizontal,
-    );
-    if (target !== null) scrollRef.current?.scrollTo({ x: target, animated: true });
-  }, [selectedKey]);
+  // ── Centre frame (AXM-020) ──
+  // The frame holds one item, tracked by key so a list change around it never
+  // hands the frame to a different piece. The item in the frame is the
+  // selection, except while the tray is hidden for a run or a placed piece is
+  // selected on the board (holdSelection).
+  const [frameKey, setFrameKey] = useState<string | null>(null);
+  const prevVisibleRef = useRef(visibleItems);
+  // Level entry and a filter change both re-centre on the first item.
+  const recentreRef = useRef(true);
+
+  const scrollToKey = useCallback((key: string | null, list: readonly TrayItem[], animated: boolean) => {
+    const idx = key === null ? -1 : list.findIndex(i => i.key === key);
+    if (idx === -1) return;
+    const x = offsetForIndex(idx);
+    if (Math.abs(x - scrollXRef.current) < 1) return;
+    scrollXRef.current = x;
+    scrollRef.current?.scrollTo({ x, animated });
+  }, []);
+
+  useEffect(() => {
+    setFilter('ALL');
+    recentreRef.current = true;
+  }, [resetKey]);
+  useEffect(() => { if (forceFilterAll) setFilter('ALL'); }, [forceFilterAll]);
 
   // A filter change re-lays the row from its start. Without this the old
   // offset survives: slide to the end, narrow the filter, and the filtered
-  // items sit off-screen to the left (found on device, K1-10). A selection
-  // that survives the filter is re-revealed from its new onLayout.
+  // items sit off-screen to the left (found on device, K1-10). The first item
+  // of the new list takes the frame.
   useEffect(() => {
     scrollXRef.current = 0;
     scrollRef.current?.scrollTo({ x: 0, animated: false });
     refreshFade();
+    recentreRef.current = true;
   }, [effectiveFilter, refreshFade]);
 
-  // Selected by tap or programmatically (a tutorial step): scroll it fully
-  // into view.
-  useEffect(() => { revealSelected(); }, [revealSelected]);
+  // The item list changed: a placement, a long-press return, level entry or a
+  // filter change. Work out which item holds the frame now. Deliberately keyed
+  // to the list alone; selection is reconciled by the effect below.
+  useEffect(() => {
+    const prev = prevVisibleRef.current;
+    prevVisibleRef.current = visibleItems;
+    if (recentreRef.current) {
+      recentreRef.current = false;
+      setFrameKey(frameKeyForFilter(visibleItems));
+      if (!hidden && !holdSelection) onPickup(selectableKey(visibleItems[0]));
+      return;
+    }
+    setFrameKey(current => {
+      const next = frameKeyAfterItemsChange(prev, visibleItems, current);
+      scrollToKey(next, visibleItems, next !== current);
+      return next;
+    });
+  }, [visibleItems]);
 
-  const handleItemLayout = useCallback((key: string, e: LayoutChangeEvent) => {
-    const { x, width } = e.nativeEvent.layout;
-    itemLayoutsRef.current[key] = { x, width };
-    if (key === selectedKey) revealSelected();
-  }, [selectedKey, revealSelected]);
+  // Keep the selection and the frame in step.
+  useEffect(() => {
+    if (hidden) {
+      if (selectedKey !== null) onPickup(null);
+      return;
+    }
+    if (selectedKey !== null && visibleItems.some(i => i.key === selectedKey)) {
+      // Selected from outside the tray (a tutorial step): bring it to the frame.
+      if (selectedKey !== frameKey) {
+        setFrameKey(selectedKey);
+        scrollToKey(selectedKey, visibleItems, true);
+      }
+      return;
+    }
+    if (holdSelection || disabled) return;
+    const want = selectableKey(visibleItems.find(i => i.key === frameKey));
+    if (want !== selectedKey) onPickup(want);
+  }, [hidden, holdSelection, disabled, selectedKey, frameKey, visibleItems, onPickup, scrollToKey]);
+
+  // Whatever sits in the frame when scrolling settles is the selection.
+  const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearSettleTimer = useCallback(() => {
+    if (settleTimerRef.current) {
+      clearTimeout(settleTimerRef.current);
+      settleTimerRef.current = null;
+    }
+  }, []);
+  useEffect(() => clearSettleTimer, [clearSettleTimer]);
+
+  const settleAt = useCallback((x: number) => {
+    clearSettleTimer();
+    scrollXRef.current = x;
+    const idx = indexAtOffset(x, visibleItems.length);
+    if (idx === -1) return;
+    const item = visibleItems[idx];
+    setFrameKey(item.key);
+    if (hidden) return;
+    const want = selectableKey(item);
+    if (want !== selectedKey) onPickup(want);
+  }, [visibleItems, hidden, selectedKey, onPickup, clearSettleTimer]);
+
+  const handleMomentumEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    settleAt(e.nativeEvent.contentOffset.x);
+  }, [settleAt]);
+
+  // iOS sends no momentum events for a drag released without a fling.
+  const handleScrollEndDrag = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    clearSettleTimer();
+    settleTimerRef.current = setTimeout(() => settleAt(x), SETTLE_NO_MOMENTUM_MS);
+  }, [settleAt, clearSettleTimer]);
+
+  // Tapping any visible item slides it into the frame and selects it.
+  const handleItemTap = useCallback((key: string) => {
+    const item = visibleItems.find(i => i.key === key);
+    if (!item) return;
+    setFrameKey(key);
+    scrollToKey(key, visibleItems, true);
+    const want = selectableKey(item);
+    if (want !== selectedKey) onPickup(want);
+  }, [visibleItems, selectedKey, onPickup, scrollToKey]);
+
+  const sidePad = centrePadding(viewportW);
 
   return (
     <View
@@ -301,14 +393,19 @@ function PieceTrayComponent({
           })}
         </View>
       )}
-      <View style={styles.trayRow} onLayout={handleViewportLayout}>
+      <View style={styles.trayRow} onLayout={handleViewportLayout} testID="tray-viewport">
         <ScrollView
           ref={scrollRef}
           horizontal
           scrollEnabled={!dragActive}
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.partsTrayInner}
+          contentContainerStyle={[styles.partsTrayInner, { paddingHorizontal: sidePad }]}
+          snapToOffsets={snapOffsets(visibleItems.length)}
+          decelerationRate="fast"
           onScroll={handleScroll}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollBegin={clearSettleTimer}
+          onMomentumScrollEnd={handleMomentumEnd}
           scrollEventThrottle={32}
           onContentSizeChange={handleContentSize}
         >
@@ -366,12 +463,11 @@ function PieceTrayComponent({
                   itemKey={item.key}
                   pt={pt}
                   measureRef={measureRef}
-                  onLayout={handleItemLayout}
                   disabled={itemDisabled}
                   isActive={isActive}
                   itemStyle={itemStyle}
                   accessibilityLabel={accessibilityLabel}
-                  onPickup={onPickup}
+                  onTap={handleItemTap}
                   onDragStart={onDragStart!}
                   onDragMove={onDragMove!}
                   onDragEnd={onDragEnd!}
@@ -388,24 +484,29 @@ function PieceTrayComponent({
                 key={item.key}
                 ref={measureRef}
                 collapsable={false}
-                onLayout={e => handleItemLayout(item.key, e)}
               >
-                <TouchableOpacity
-                  style={itemStyle}
-                  onPress={() => {
-                    if (itemDisabled) return;
-                    onPickup(isActive ? null : item.key);
-                  }}
-                  activeOpacity={0.7}
-                  disabled={itemDisabled}
-                  accessibilityLabel={accessibilityLabel}
-                >
-                  {innerContent}
-                </TouchableOpacity>
+                <TrayItemScale itemKey={item.key} isActive={isActive}>
+                  <TouchableOpacity
+                    testID={`tray-item-${item.key}`}
+                    style={itemStyle}
+                    onPress={() => {
+                      if (itemDisabled) return;
+                      handleItemTap(item.key);
+                    }}
+                    activeOpacity={0.7}
+                    disabled={itemDisabled}
+                    accessibilityLabel={accessibilityLabel}
+                  >
+                    {innerContent}
+                  </TouchableOpacity>
+                </TrayItemScale>
               </View>
             );
           })}
         </ScrollView>
+        <View style={styles.frameWrap} pointerEvents="none">
+          <View testID="tray-frame" style={styles.frame} pointerEvents="none" />
+        </View>
         {fadeSide !== 'none' && (
           <LinearGradient
             pointerEvents="none"
@@ -423,7 +524,7 @@ function PieceTrayComponent({
 // ── TrayItemDraggable ────────────────────────────────────────────────────
 // Per-item touch wrapper used only when all four drag callbacks are
 // provided. Implements the hold-to-drag pattern:
-//   • 0–180 ms hold + release  → tap → onPickup(key) (or null to deselect)
+//   • 0–180 ms hold + release  → tap → onTap(key): centre it and select it
 //   • >= 180 ms hold           → drag → onDragStart, onDragMove, onDragEnd
 //   • interruption mid-drag    → onDragCancel
 //
@@ -435,12 +536,11 @@ interface TrayItemDraggableProps {
   itemKey: string;
   pt: PieceType;
   measureRef: React.Ref<View> | undefined;
-  onLayout: (key: string, e: LayoutChangeEvent) => void;
   disabled: boolean;
   isActive: boolean;
   itemStyle: unknown;
   accessibilityLabel: string;
-  onPickup: (key: string | null) => void;
+  onTap: (key: string) => void;
   onDragStart: (drag: DragState) => void;
   onDragMove: (x: number, y: number) => void;
   onDragEnd: (x: number, y: number) => void;
@@ -454,12 +554,11 @@ function TrayItemDraggable({
   itemKey,
   pt,
   measureRef,
-  onLayout,
   disabled,
   isActive,
   itemStyle,
   accessibilityLabel,
-  onPickup,
+  onTap,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -473,12 +572,12 @@ function TrayItemDraggable({
 
   const propsRef = useRef({
     itemKey, pt, disabled, isActive,
-    onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
+    onTap, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
   });
   useEffect(() => {
     propsRef.current = {
       itemKey, pt, disabled, isActive,
-      onPickup, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
+      onTap, onDragStart, onDragMove, onDragEnd, onDragCancel, onDragActiveChange,
     };
   });
 
@@ -497,6 +596,13 @@ function TrayItemDraggable({
       onStartShouldSetPanResponder: () => !propsRef.current.disabled,
       onMoveShouldSetPanResponder: () => !propsRef.current.disabled,
       onPanResponderTerminationRequest: () => false,
+      // Let the native ScrollView take a swipe. A PanResponder blocks the
+      // native responder by default, and when the JS grant landed before the
+      // ScrollView's intercept a swipe could never scroll the tray: the hold
+      // fired and the swipe became a drag (found on axiom_compact, AXM-020).
+      // A swipe the ScrollView takes arrives here as a terminate, which
+      // clears the hold timer. Once a drag starts, scrollEnabled goes false.
+      onShouldBlockNativeResponder: () => false,
       onPanResponderGrant: (evt: GestureResponderEvent) => {
         isDraggingRef.current = false;
         startPosRef.current = {
@@ -538,10 +644,10 @@ function TrayItemDraggable({
           );
           return;
         }
-        // Short press: treat as a tap. Toggle selection.
-        const { itemKey: keyNow, isActive: activeNow, onPickup: pickup } =
-          propsRef.current;
-        pickup(activeNow ? null : keyNow);
+        // Short press: a tap. The item slides into the frame and is
+        // selected (AXM-020); tapping the item already there keeps it.
+        const { itemKey: keyNow, onTap: tapNow } = propsRef.current;
+        tapNow(keyNow);
       },
       onPanResponderTerminate: () => {
         if (holdTimerRef.current) {
@@ -558,15 +664,46 @@ function TrayItemDraggable({
   ).current;
 
   return (
-    <View ref={measureRef} collapsable={false} onLayout={e => onLayout(itemKey, e)}>
-      <View
-        {...panResponder.panHandlers}
-        style={itemStyle as object}
-        accessibilityLabel={accessibilityLabel}
-      >
-        {children}
-      </View>
+    <View ref={measureRef} collapsable={false}>
+      <TrayItemScale itemKey={itemKey} isActive={isActive}>
+        <View
+          {...panResponder.panHandlers}
+          testID={`tray-item-${itemKey}`}
+          style={itemStyle as object}
+          accessibilityLabel={accessibilityLabel}
+        >
+          {children}
+        </View>
+      </TrayItemScale>
     </View>
+  );
+}
+
+// ── TrayItemScale ────────────────────────────────────────────────────────
+// The selected item grows to SELECTED_SCALE. JS-driven (useNativeDriver:
+// false) and keyed to selection changes only. One Animated.View per item for
+// the item's whole life; nothing here swaps its host (REQ-A-1 / A-2).
+function TrayItemScale({
+  itemKey,
+  isActive,
+  children,
+}: {
+  itemKey: string;
+  isActive: boolean;
+  children: React.ReactNode;
+}) {
+  const scale = useRef(new Animated.Value(isActive ? SELECTED_SCALE : 1)).current;
+  useEffect(() => {
+    Animated.timing(scale, {
+      toValue: isActive ? SELECTED_SCALE : 1,
+      duration: SCALE_MS,
+      useNativeDriver: false,
+    }).start();
+  }, [isActive, scale]);
+  return (
+    <Animated.View testID={`tray-item-scale-${itemKey}`} style={[styles.scaleHost, { transform: [{ scale }] }]}>
+      {children}
+    </Animated.View>
   );
 }
 
@@ -597,10 +734,31 @@ const styles = StyleSheet.create({
     height: TRAY_ROW_H,
     justifyContent: 'center',
   },
+  // paddingHorizontal comes from centrePadding(viewport) at render, so the
+  // first and the last item can both reach the frame.
   partsTrayInner: {
-    paddingHorizontal: 20,
-    gap: 8,
+    gap: TRAY_ITEM_GAP,
     alignItems: 'center',
+  },
+  frameWrap: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  frame: {
+    width: FRAME_SIZE,
+    height: FRAME_SIZE,
+    borderWidth: 2,
+    borderColor: FRAME_COLOR,
+    borderRadius: 14,
+  },
+  scaleHost: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   edgeFade: {
     position: 'absolute',
@@ -609,8 +767,8 @@ const styles = StyleSheet.create({
     width: EDGE_FADE_W,
   },
   trayItem: {
-    width: 56,
-    height: 56,
+    width: TRAY_ITEM_W,
+    height: TRAY_ITEM_W,
     borderWidth: 1,
     borderColor: 'rgba(74,158,255,0.2)',
     borderRadius: 12,

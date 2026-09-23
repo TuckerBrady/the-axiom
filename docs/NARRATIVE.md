@@ -612,6 +612,19 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "Kepler Belt. Former mining corridor, mostly decommissioned. Some salvage activity remains. We have been here before. The charts confirm it."
 > [PROPOSED | cogsLine | BLUE]
 
+*K1-1 placement onboarding (tutorialSteps, AXM-020, team-written under the doctrine above):*
+> "Requisitions complete. Your order is loaded into the tray beside the parts the mission issued. Amber counts what was issued. Blue counts what you paid for."
+> [tray-intro | tutorialStep | AMBER]
+
+> "Swipe the tray to bring a piece into the frame, or tap it. The one in the frame is the one you are holding. You will not see every part at once. That is the trade for the room it gives the board."
+> [tray-scroll | tutorialStep | BLUE]
+
+> "Tap an open cell and the piece in the frame goes there. Or press and hold any piece in the tray and drag it onto the board. It does not have to be in the frame first."
+> [tray-place | tutorialStep | BLUE]
+
+> "Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition what the machine needs. Nothing more."
+> [tray-forfeit | tutorialStep | AMBER]
+
 **K1-2 — Relay Splice**
 > "The primary relay chain out here was built to last. It has lasted past the people responsible for maintaining it. That is a common condition in this corridor."
 > [PROPOSED | cogsLine | BLUE]

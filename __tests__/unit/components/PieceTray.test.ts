@@ -99,11 +99,13 @@ describe('PieceTray — extracted parts tray component', () => {
       expect(traySrc).toMatch(/active:\s*true,[\s\S]*?pieceId:\s*keyNow,[\s\S]*?type:\s*ptNow/);
     });
 
-    it('falls through to onPickup when the press releases before the timer fires', () => {
+    it('falls through to a tap when the press releases before the timer fires', () => {
       // onPanResponderRelease: if isDraggingRef.current is true,
-      // call onDragEnd; otherwise clear the timer and call onPickup
-      // with the toggled value (null deselects when already active).
-      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?pickup\(activeNow \? null : keyNow\)/);
+      // call onDragEnd; otherwise clear the timer and tap the item.
+      // AXM-020 (PROMPT_161) superseded the old toggle: a tap centres the
+      // item and selects it, and never deselects. Behaviour is covered in
+      // pieceTrayCentreSelect.test.tsx.
+      expect(traySrc).toMatch(/onPanResponderRelease[\s\S]*?if \(isDraggingRef\.current\)[\s\S]*?onDragEnd[\s\S]*?tapNow\(keyNow\)/);
     });
 
     it('calls onDragCancel when the gesture is terminated mid-drag', () => {
@@ -190,6 +192,17 @@ describe('PieceTray — extracted parts tray component', () => {
       // both the release and terminate paths re-enable scrolling
       const offCalls = (traySrc.match(/onDragActiveChange\(false\)/g) ?? []).length;
       expect(offCalls).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  // AXM-020, found on device (axiom_compact): a PanResponder blocks the
+  // native responder by default, so once the JS grant lands before the
+  // ScrollView's own intercept, a swipe on an item can never scroll the
+  // tray; the 180 ms hold fires and the swipe becomes a drag. With the
+  // centre-select tray, swiping is how the Engineer chooses a piece.
+  describe('swipe scrolls the tray, hold drags (AXM-020)', () => {
+    it('never blocks the native ScrollView from taking a swipe', () => {
+      expect(traySrc).toMatch(/onShouldBlockNativeResponder: \(\) => false/);
     });
   });
 });
