@@ -219,6 +219,41 @@ describe('useGameplayTimer', () => {
     });
   });
 
+  describe('resumeTimer', () => {
+    // Wrong-output RETRY keeps the board, so it resumes the clock the
+    // ENGAGE press locked rather than zeroing it.
+    it('unlocks and keeps ticking from the locked elapsed value', async () => {
+      await TestRenderer.act(async () => {
+        TestRenderer.create(
+          React.createElement(Harness, {
+            levelId: 'A1-1',
+            tutorialIsActiveRef: makeTutorialRef(),
+            showPauseModal: false,
+          }),
+        );
+      });
+      await TestRenderer.act(async () => {
+        jest.advanceTimersByTime(2000);
+        captured!.lockTimer();
+      });
+      await TestRenderer.act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(captured!.elapsedSeconds).toBe(2);
+
+      await TestRenderer.act(async () => {
+        captured!.resumeTimer();
+      });
+      expect(captured!.elapsedSeconds).toBe(2);
+      expect(captured!.lockedRef.current).toBe(false);
+
+      await TestRenderer.act(async () => {
+        jest.advanceTimersByTime(3000);
+      });
+      expect(captured!.elapsedSeconds).toBe(5);
+    });
+  });
+
   describe('resetTimer', () => {
     it('restarts the timer from zero and resumes ticking', async () => {
       await TestRenderer.act(async () => {
