@@ -17,7 +17,7 @@ piece itself stays identical, and only the Kepler+ tray count splits by source.
 **To reverse.** Pass `showSourceSplit={false}` from GameplayScreen and revert the
 COMPUTATIONAL_MODEL amendment. The single neutral badge path is already there, and the Axiom uses it.
 
-**Status.** Sent to T-Bot's inbox 2026-09-22 22:10. No answer at the time of writing.
+**Status.** Ruled by T-Bot 2026-09-22 23:40: build the split badge, and amend the doc in the same PR as a narrowing, not a reversal. Done in this PR.
 
 ## D-2 — Which instance a long-press return gives back
 

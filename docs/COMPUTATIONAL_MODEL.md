@@ -116,8 +116,9 @@ pieces (Option B — unified). Once you buy it, it is yours. The
 piece itself carries no visual distinction, in the tray or on the
 board.
 
-Amended 2026-09-22 (AXM-013, PROMPT_160): the tray's count badge
-is the one exception. In Kepler+ it splits by source (amber counts
+Narrowed, not reversed, 2026-09-22 (AXM-013, PROMPT_160; ruled by
+T-Bot): the pieces stay identical. Only the tray's count badge
+encodes source. In Kepler+ it splits by source (amber counts
 pre-assigned, blue counts requisitioned) so the Engineer can see
 which purchases are still unspent, and will be forfeited, before
 ENGAGE. Placement uses requisitioned pieces first, so the blue
