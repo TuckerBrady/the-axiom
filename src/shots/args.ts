@@ -69,7 +69,10 @@ export interface ShotsArgs {
   date: string;
   /** Print the plan and exit without booting anything. */
   dryRun: boolean;
-  /** Build + install the dev client when the simulator does not have it. */
+  /**
+   * iOS: build + install when the simulator lacks the current tree's build.
+   * Android ignores it: the local APK is installed whenever it differs.
+   */
   buildIfMissing: boolean;
   /** Leave the simulators booted after the run. */
   keepBooted: boolean;
@@ -97,7 +100,8 @@ export const USAGE = [
   '  --level <id>          Level the flows drive, e.g. A1-3. Recorded per shot.',
   '  --out <dir>           Output root. Default: ' + DEFAULT_OUT_ROOT,
   '  --date <YYYY-MM-DD>   Override the run date. Default: today.',
-  '  --build-if-missing    Build and install the dev client when absent.',
+  '  --build-if-missing    iOS: build + install when absent or stale. Android',
+  '                        always installs the local APK if it differs.',
   '  --keep-booted         Do not shut the simulators/emulators down afterwards.',
   '  --dry-run             Print the plan; boot nothing, run nothing.',
   '  --help                Print this text.',

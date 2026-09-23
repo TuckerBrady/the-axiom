@@ -14,11 +14,18 @@ import {
   type ChildProcess,
   type SpawnSyncReturns,
 } from 'child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'fs';
+import { createHash } from 'crypto';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 
 import type { DeviceSpec } from './devices';
 import { HostError } from './host';
+import {
+  parseIosInstallMarkers,
+  serializeIosInstallMarkers,
+  withIosInstallMarker,
+  type IosInstallMarkers,
+} from './install';
 
 /** iOS bundle id, matching the `appId` in `.maestro/flows/*.yaml`. */
 export const APP_ID = 'com.tuckbrady.theaxiom';
@@ -91,7 +98,7 @@ export function isAppInstalled(udid: string, appId: string = APP_ID): boolean {
  *
  * `expo run:ios` is the supported path to a simulator build of the custom
  * dev client. Only called when `--build-if-missing` is set and the app is
- * not already on the device.
+ * absent, or installed but not built by the harness from the current tree.
  */
 export function buildAndInstall(device: DeviceSpec, repoRoot: string): void {
   const result = spawnSync(
@@ -169,4 +176,38 @@ export function appVersion(repoRoot: string): string {
   if (!existsSync(packagePath)) return 'unknown';
   const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as { version?: string };
   return pkg.version ?? 'unknown';
+}
+
+/**
+ * Fingerprint of the working tree an iOS build would be made from: HEAD, the
+ * uncommitted diff against it, and the names of untracked files. Xcode's
+ * output path is not predictable, so this stands in for the artefact hash
+ * the Android path uses.
+ */
+export function treeFingerprint(repoRoot: string): string {
+  const git = (args: string[]): string => run('git', ['-C', repoRoot, ...args]).stdout ?? '';
+  return createHash('sha256')
+    .update(git(['rev-parse', 'HEAD']))
+    .update('\0')
+    .update(git(['diff', 'HEAD', '--binary']))
+    .update('\0')
+    .update(git(['ls-files', '--others', '--exclude-standard']))
+    .digest('hex');
+}
+
+/** Where the harness records which tree it last built onto each simulator. */
+export function iosInstallMarkerPath(repoRoot: string): string {
+  return `${repoRoot}/.shots-build/ios-installs.json`;
+}
+
+export function readIosInstallMarkers(repoRoot: string): IosInstallMarkers {
+  const path = iosInstallMarkerPath(repoRoot);
+  return parseIosInstallMarkers(existsSync(path) ? readFileSync(path, 'utf8') : null);
+}
+
+export function recordIosInstall(repoRoot: string, udid: string, fingerprint: string): void {
+  const path = iosInstallMarkerPath(repoRoot);
+  mkdirSync(dirname(path), { recursive: true });
+  const markers = withIosInstallMarker(readIosInstallMarkers(repoRoot), udid, fingerprint);
+  writeFileSync(path, serializeIosInstallMarkers(markers), 'utf8');
 }

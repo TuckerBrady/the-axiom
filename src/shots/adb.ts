@@ -12,18 +12,20 @@
  * here. `assertMacHost` still guards the iOS path and must keep doing so.
  */
 
-import {
-  spawn,
-  spawnSync,
-  type ChildProcess,
-  type SpawnSyncReturns,
-} from 'child_process';
-import { createWriteStream, existsSync, mkdirSync, readFileSync } from 'fs';
+import { spawn, spawnSync, type SpawnSyncReturns } from 'child_process';
+import { createHash } from 'crypto';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { dirname } from 'path';
 
 import type { AndroidDeviceSpec } from './androidDevices';
 import { HostError } from './host';
-import { emulatorSerialForAvd, parseAdbDevices } from './androidLog';
+import {
+  emulatorSerialForAvd,
+  logcatDumpArgs,
+  parseAdbDevices,
+  parsePidof,
+} from './androidLog';
+import { parsePmPathBaseApk, parseSha256sum, type LocalArtifact } from './install';
 
 /**
  * Android application id. Matches `android.package` in `app.json` and the
@@ -194,6 +196,27 @@ export function isAppInstalled(serial: string, appId: string = ANDROID_APP_ID): 
   return result.status === 0 && result.stdout.includes(`package:${appId}`);
 }
 
+/**
+ * SHA-256 of the APK installed on the device, or null when it cannot be read.
+ *
+ * `adb install` copies the APK byte for byte to `base.apk`, so this is
+ * directly comparable with the hash of the local file. Needs toybox
+ * `sha256sum` (API 26+); a null here makes the harness reinstall rather than
+ * trust a build it could not check.
+ */
+export function installedApkSha256(
+  serial: string,
+  appId: string = ANDROID_APP_ID,
+): string | null {
+  const paths = run(adbPath(), ['-s', serial, 'shell', 'pm', 'path', appId]);
+  if (paths.status !== 0) return null;
+  const baseApk = parsePmPathBaseApk(paths.stdout);
+  if (!baseApk) return null;
+  // Single-quoted for the device shell: the path carries `~~` and `==`.
+  const sum = run(adbPath(), ['-s', serial, 'shell', 'sha256sum', `'${baseApk}'`]);
+  return sum.status === 0 ? parseSha256sum(sum.stdout) : null;
+}
+
 /** Install (or reinstall) an already-built APK. */
 export function installApk(serial: string, apkPath: string): void {
   if (!existsSync(apkPath)) {
@@ -219,27 +242,68 @@ export function installApk(serial: string, apkPath: string): void {
  * for the whole run, and a dev-server disconnect mid-flow would look like a
  * flow failure. Release bundles the JS, so a run is self-contained.
  */
+export const DEFAULT_APK_RELATIVE_PATH =
+  'android/app/build/outputs/apk/release/app-release.apk';
+
 export function defaultApkPath(repoRoot: string): string {
-  return `${repoRoot}/android/app/build/outputs/apk/release/app-release.apk`;
+  return `${repoRoot}/${DEFAULT_APK_RELATIVE_PATH}`;
 }
 
-/** Start streaming logcat for our package into a file. */
-export function startLogcatCapture(serial: string, logFile: string): ChildProcess {
-  mkdirSync(dirname(logFile), { recursive: true });
+/**
+ * The local release APK — path, SHA-256 and mtime — or null when it has not
+ * been built. Hashed once per run; it is ~90 MB.
+ */
+export function localApk(repoRoot: string): LocalArtifact | null {
+  const absolute = defaultApkPath(repoRoot);
+  if (!existsSync(absolute)) return null;
+  return {
+    path: DEFAULT_APK_RELATIVE_PATH,
+    fingerprint: createHash('sha256').update(readFileSync(absolute)).digest('hex'),
+    modifiedAt: statSync(absolute).mtime.toISOString(),
+  };
+}
+
+/** The app's main-process pid on a device, or null when it is not running. */
+export function appPid(serial: string, appId: string = ANDROID_APP_ID): string | null {
+  const result = run(adbPath(), ['-s', serial, 'shell', 'pidof', appId]);
+  return result.status === 0 ? parsePidof(result.stdout) : null;
+}
+
+/**
+ * Clear the device log before a flow, so the dump taken after it holds only
+ * that flow's lines.
+ */
+export function startLogcatCapture(serial: string): void {
   run(adbPath(), ['-s', serial, 'logcat', '-c']);
-  const stream = createWriteStream(logFile, { flags: 'a' });
-  const child = spawn(adbPath(), ['-s', serial, 'logcat', '-v', 'time'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  child.stdout?.pipe(stream);
-  child.stderr?.pipe(stream);
-  return child;
 }
 
-export function stopLogcatCapture(child: ChildProcess): void {
-  child.kill('SIGTERM');
-}
-
-export function readLog(logFile: string): string {
-  return existsSync(logFile) ? readFileSync(logFile, 'utf8') : '';
+/**
+ * Dump the flow's logcat, scoped to our process, into `logFile` and return
+ * it for scanning.
+ *
+ * The file is written fresh, never appended to: a rerun with the same date
+ * and label must not scan the previous run's crash. The dump is a
+ * synchronous `logcat -d`, so it is complete when this returns and there is
+ * no pipe left to flush (see `logcatDumpArgs` for why it is not streamed).
+ *
+ * Without a pid (our process is gone, which is what a crash looks like) the
+ * dump falls back to unscoped and says so, rather than scanning nothing.
+ */
+export function collectLogcat(
+  serial: string,
+  logFile: string,
+  appId: string = ANDROID_APP_ID,
+): string {
+  const pid = appPid(serial, appId);
+  if (!pid) {
+    console.warn(
+      `Warning: ${appId} has no running process on ${serial}; ` +
+        'the log scan reads the unscoped device log.',
+    );
+  }
+  const result = run(adbPath(), logcatDumpArgs(serial, pid));
+  const contents = `${result.stdout ?? ''}${result.stderr ?? ''}`;
+  mkdirSync(dirname(logFile), { recursive: true });
+  writeFileSync(logFile, contents, { flag: 'w' });
+  return contents;
 }

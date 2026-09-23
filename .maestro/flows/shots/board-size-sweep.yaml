@@ -43,13 +43,6 @@ appId: com.tuckerbrady.theaxiom
     timeout: 30000
 - tapOn: "LAUNCH MISSION"
 
-# The requisition gate sits between the dossier and the board on some levels.
-- runFlow:
-    when:
-      visible: "REQUISITION"
-    commands:
-      - tapOn: "CONFIRM"
-
 # ENGAGE MACHINE is the reliable "the board is mounted and interactive"
 # marker: it is the one control present on every gameplay screen regardless
 # of level, board size or which pieces are in the tray.
@@ -73,6 +66,26 @@ appId: com.tuckerbrady.theaxiom
           commands:
             - tapOn: "SKIP"
 
+# Requisition: confirm, buy nothing. On some levels the store is a pull-up
+# drawer on the board screen, not a separate screen with a CONFIRM button;
+# this is the path verified in damaged-cells/live-burn.yaml. It runs after
+# the hint cards are gone because a card covers the drawer.
+- runFlow:
+    when:
+      visible: "REQUISITION STORE.*"
+    commands:
+      - tapOn: "REQUISITION STORE.*"
+      - repeat:
+          times: 6
+          while:
+            notVisible: "Confirm requisition"
+          commands:
+            - swipe:
+                from: "Add one .*"
+                direction: UP
+      - tapOn: "Confirm requisition"
+      - runFlow: ../../subflows/clear-board-overlays.yaml
+
 - waitForAnimationToEnd:
     timeout: 15000
 
@@ -85,3 +98,8 @@ appId: com.tuckerbrady.theaxiom
 # instead points `--test-output-dir` at a per-job folder and collects
 # `takeScreenshot/*.png` out of it into the run directory.
 - takeScreenshot: ${SHOT_PREFIX}board-empty
+
+# Put the board back to LEVEL DEFAULT. enter-hub launches with
+# `clearState: false`, so a size left set here (10x9, say) would carry into
+# the next flow in the run and move every cell it taps by point.
+- runFlow: ../../subflows/reset-board-size.yaml

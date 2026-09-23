@@ -11,7 +11,7 @@
  */
 
 import { formatBoardSize, type BoardSize } from '../utils/boardSizeOverride';
-import type { CommonDeviceSpec } from './devices';
+import type { CommonDeviceSpec, ShotPlatform } from './devices';
 import { runDirectoryName } from './manifest';
 import type { ShotsArgs } from './args';
 
@@ -60,6 +60,11 @@ export interface FlowFile {
   path: string;
   /** Basename without extension, e.g. `gameplay-loop`. */
   name: string;
+  /**
+   * Platforms this flow may run on, from its `# platforms:` header marker,
+   * or null when it names none and runs everywhere.
+   */
+  platforms: ShotPlatform[] | null;
 }
 
 export interface ShotJob {
@@ -88,6 +93,65 @@ export interface RunPlan {
   runDirectory: string;
   manifestPath: string;
   jobs: ShotJob[];
+  /**
+   * Flows left out because their `# platforms:` marker excludes the run's
+   * platform. `cli.ts` logs each one, so a skip is never silent.
+   */
+  skippedFlows: FlowFile[];
+}
+
+/**
+ * Header marker restricting a flow to some platforms, e.g. `# platforms: ios`.
+ *
+ * Maestro has no per-platform switch at the flow level, and a flow that only
+ * makes sense on one platform (animation-host-safety targets an iOS-native
+ * crash class) would otherwise fail every run on the other. The marker is a
+ * YAML comment, so Maestro ignores it; only the runner reads it.
+ */
+export const FLOW_PLATFORMS_MARKER = /^#\s*platforms\s*:\s*(.*)$/i;
+
+const KNOWN_PLATFORMS: readonly ShotPlatform[] = ['ios', 'android'];
+
+/**
+ * Read a flow's `# platforms:` marker from its header — the lines before the
+ * `---` that separates Maestro's config from its commands. A marker inside
+ * the command list is a comment about a step, not about the flow, and is
+ * ignored. Null when the header names no platforms. An unknown platform
+ * throws: a typo there would otherwise skip the flow everywhere, silently.
+ */
+export function parseFlowPlatforms(contents: string): ShotPlatform[] | null {
+  for (const rawLine of contents.split('\n')) {
+    const line = rawLine.trim();
+    if (line === '---') return null;
+    const match = FLOW_PLATFORMS_MARKER.exec(line);
+    if (!match) continue;
+    const names = match[1]
+      .split(/[\s,]+/)
+      .map(name => name.toLowerCase())
+      .filter(name => name.length > 0);
+    for (const name of names) {
+      if (!KNOWN_PLATFORMS.includes(name as ShotPlatform)) {
+        throw new Error(
+          `Unknown platform "${name}" in a flow's "# platforms:" marker. ` +
+            `Expected one or more of: ${KNOWN_PLATFORMS.join(', ')}.`,
+        );
+      }
+    }
+    return names as ShotPlatform[];
+  }
+  return null;
+}
+
+export function flowRunsOn(flow: FlowFile, platform: ShotPlatform): boolean {
+  return flow.platforms === null || flow.platforms.includes(platform);
+}
+
+/** The line `cli.ts` prints for a flow the platform filter left out. */
+export function describeSkippedFlow(flow: FlowFile, platform: ShotPlatform): string {
+  return (
+    `Skipping ${flow.path} on ${platform}: the flow is marked ` +
+    `"# platforms: ${(flow.platforms ?? []).join(', ')}".`
+  );
 }
 
 export function basenameWithoutExtension(filePath: string): string {
@@ -97,8 +161,16 @@ export function basenameWithoutExtension(filePath: string): string {
   return dot > 0 ? base.slice(0, dot) : base;
 }
 
-export function toFlowFile(filePath: string): FlowFile {
-  return { path: filePath.replace(/\\/g, '/'), name: basenameWithoutExtension(filePath) };
+/**
+ * `contents` is the flow's YAML, read so its `# platforms:` marker can be
+ * honoured. Omitted, the flow is treated as running on every platform.
+ */
+export function toFlowFile(filePath: string, contents?: string): FlowFile {
+  return {
+    path: filePath.replace(/\\/g, '/'),
+    name: basenameWithoutExtension(filePath),
+    platforms: contents === undefined ? null : parseFlowPlatforms(contents),
+  };
 }
 
 export function isBoardSizeSweepFlow(flow: FlowFile): boolean {
@@ -140,14 +212,22 @@ export function buildRunPlan(args: ShotsArgs, flows: readonly FlowFile[]): RunPl
       `No flows matched "${args.flowsGlob}". Nothing to run.`,
     );
   }
-  requireSizesForBoardSweep(flows, args.sizes);
+  const runnable = flows.filter(flow => flowRunsOn(flow, args.platform));
+  const skippedFlows = flows.filter(flow => !flowRunsOn(flow, args.platform));
+  if (runnable.length === 0) {
+    throw new Error(
+      `No flows left to run on ${args.platform}: every flow matching ` +
+        `"${args.flowsGlob}" is marked for another platform.`,
+    );
+  }
+  requireSizesForBoardSweep(runnable, args.sizes);
 
   const runDirName = runDirectoryName(args.date, args.label);
   const runDirectory = `${args.outRoot}/${runDirName}`;
   const jobs: ShotJob[] = [];
 
   for (const device of args.devices) {
-    for (const flow of flows) {
+    for (const flow of runnable) {
       const sizes: (BoardSize | null)[] = isBoardSizeSweepFlow(flow)
         ? [...(args.sizes ?? [])]
         : [null];
@@ -185,6 +265,7 @@ export function buildRunPlan(args: ShotsArgs, flows: readonly FlowFile[]): RunPl
     runDirectory,
     manifestPath: `${runDirectory}/manifest.json`,
     jobs,
+    skippedFlows,
   };
 }
 
