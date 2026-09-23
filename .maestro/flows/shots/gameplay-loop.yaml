@@ -16,7 +16,10 @@
 # and wrapped so the run stays honest rather than green-by-accident.
 appId: com.tuckerbrady.theaxiom
 ---
-- runFlow: ../../subflows/enter-hub.yaml
+# Clear any board-size override first (it launches through enter-hub). The
+# sweep runs before this flow in the default glob and leaves its last size
+# set; at 10x9 the `37%,40%` placement tap below lands on the wrong cell.
+- runFlow: ../../subflows/reset-board-size.yaml
 
 # ── Mission dossier ────────────────────────────────────────────────────────
 - tapOn:
@@ -38,12 +41,32 @@ appId: com.tuckerbrady.theaxiom
     timeout: 10000
 - takeScreenshot: ${SHOT_PREFIX}01-mission-dossier
 
-# ── REQUISITION store, before and after a purchase ─────────────────────────
 - tapOn: "LAUNCH MISSION"
+- extendedWaitUntil:
+    visible: "ENGAGE MACHINE"
+    timeout: 45000
+# Levels open with COGS teaching cards that cover the board, and the
+# requisition drawer under it.
+- repeat:
+    times: 4
+    commands:
+      - runFlow:
+          when:
+            visible: "SKIP"
+          commands:
+            - tapOn: "SKIP"
+
+# ── REQUISITION store, before and after a purchase ─────────────────────────
+# The store is a pull-up drawer on the board screen, not a separate screen
+# with a CONFIRM button. Opening and confirming it follows the path verified
+# in damaged-cells/live-burn.yaml.
 - runFlow:
     when:
-      visible: "REQUISITION"
+      visible: "REQUISITION STORE.*"
     commands:
+      - tapOn: "REQUISITION STORE.*"
+      - waitForAnimationToEnd:
+          timeout: 5000
       - takeScreenshot: ${SHOT_PREFIX}02-requisition-before
       # [UNDRIVEN] Buying a piece needs a card selector that depends on the
       # level's own store contents. Left conditional rather than faked: a
@@ -54,21 +77,25 @@ appId: com.tuckerbrady.theaxiom
           commands:
             - tapOn: "PHYSICS"
       - takeScreenshot: ${SHOT_PREFIX}03-requisition-after
-      - tapOn: "CONFIRM"
+      - repeat:
+          times: 6
+          while:
+            notVisible: "Confirm requisition"
+          commands:
+            - swipe:
+                from: "Add one .*"
+                direction: UP
+      - tapOn: "Confirm requisition"
+      - repeat:
+          times: 4
+          commands:
+            - runFlow:
+                when:
+                  visible: "SKIP"
+                commands:
+                  - tapOn: "SKIP"
 
 # ── Board on entry ─────────────────────────────────────────────────────────
-- extendedWaitUntil:
-    visible: "ENGAGE MACHINE"
-    timeout: 45000
-# Levels open with COGS teaching cards that cover the board.
-- repeat:
-    times: 4
-    commands:
-      - runFlow:
-          when:
-            visible: "SKIP"
-          commands:
-            - tapOn: "SKIP"
 - waitForAnimationToEnd:
     timeout: 15000
 - takeScreenshot: ${SHOT_PREFIX}04-board-on-entry

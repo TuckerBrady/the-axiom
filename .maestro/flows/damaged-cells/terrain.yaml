@@ -46,16 +46,32 @@ appId: com.tuckerbrady.theaxiom
     timeout: 30000
 - tapOn: "LAUNCH MISSION"
 
-- runFlow:
-    when:
-      visible: "REQUISITION"
-    commands:
-      - tapOn: "CONFIRM"
-
 - extendedWaitUntil:
     visible: "ENGAGE MACHINE"
     timeout: 45000
 
 - runFlow: ../../subflows/clear-board-overlays.yaml
+
+# ── Requisition: confirm, buy nothing ──────────────────────────────────────
+# The store is a pull-up drawer on the board screen, not a separate screen
+# with a CONFIRM button; this is the path verified in live-burn.yaml. Open
+# it, swipe its list from one of its own + controls until the confirm
+# button is on screen, confirm. Nothing is bought, so the board still shows
+# only the level's own terrain.
+- runFlow:
+    when:
+      visible: "REQUISITION STORE.*"
+    commands:
+      - tapOn: "REQUISITION STORE.*"
+      - repeat:
+          times: 6
+          while:
+            notVisible: "Confirm requisition"
+          commands:
+            - swipe:
+                from: "Add one .*"
+                direction: UP
+      - tapOn: "Confirm requisition"
+      - runFlow: ../../subflows/clear-board-overlays.yaml
 
 - takeScreenshot: ${SHOT_PREFIX}01-terrain-missing-plate

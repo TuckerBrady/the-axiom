@@ -66,8 +66,13 @@ export const ANDROID_LOG_FAILURE_PATTERNS: readonly RegExp[] = Object.freeze([
 /**
  * Lines in `contents` that match a failure signature.
  *
- * `appId` scopes the crash patterns that name a package, so another app
- * misbehaving on the same emulator does not fail our run.
+ * This scans whatever it is given; it does not filter by app itself. The
+ * scoping to our app happens when the log is captured: `adb.ts` dumps
+ * logcat with `--pid=<our pid>` (see `logcatDumpArgs`), so another app
+ * crashing on the same emulator is not in the file at all. When no pid can
+ * be found, typically because our process died, the dump is unscoped and
+ * the runner warns; the ANR pattern names our package (system_server logs
+ * ANRs, not our process) so another app's ANR still cannot fail our run.
  */
 export function scanLogcatForFailures(contents: string): string[] {
   const hits: string[] = [];
@@ -79,4 +84,33 @@ export function scanLogcatForFailures(contents: string): string[] {
     }
   }
   return hits;
+}
+
+/**
+ * The pid in `adb shell pidof <package>` output, or null when the app is not
+ * running. A package with more than one process prints several pids; the
+ * first is the main process, which is the one that hosts React Native.
+ */
+export function parsePidof(stdout: string): string | null {
+  const first = stdout.trim().split(/\s+/)[0] ?? '';
+  return /^\d+$/.test(first) ? first : null;
+}
+
+/**
+ * `adb` arguments that dump the logcat buffer and exit.
+ *
+ * `-d` rather than a streamed `logcat` child: the runner is synchronous
+ * (Maestro runs under `spawnSync`), so a streamed child's pipe is never
+ * drained while the flow runs and the log file came back empty. A dump runs
+ * after the flow, returns complete, and has nothing left to flush.
+ *
+ * Scoped with `--pid` when a pid is known. The pid is resolved after the
+ * flow, not before it, because every flow relaunches the app (`launchApp`
+ * in enter-hub stops it first), so a pid taken at the start would name a
+ * process that no longer exists and scope the dump to nothing.
+ */
+export function logcatDumpArgs(serial: string, pid: string | null): string[] {
+  const args = ['-s', serial, 'logcat', '-d', '-v', 'time'];
+  if (pid) args.push(`--pid=${pid}`);
+  return args;
 }
