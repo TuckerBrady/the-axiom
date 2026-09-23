@@ -5,9 +5,35 @@
 ---
 
 > **USAGE NOTE FOR DEVELOPERS**
-> This document is the single source of truth for all story content in The Axiom. Every line of COGS dialogue, every level description, every narrative consequence, every story beat is defined here before it enters the codebase. Nothing in this document is live until Tucker Brady approves it. Where a line is marked **[PROPOSED]**, it is awaiting sign-off. Where it is marked **[APPROVED]**, it is cleared for implementation.
+> This document is the single source of truth for all story content in The Axiom. Every line of COGS dialogue, every level description, every narrative consequence, every story beat is defined here before it enters the codebase. COGS dialogue is team-authored under the doctrine below. Canon (story facts, reveals, arcs) is still Tucker's to decide.
 >
 > Story content maps to the following data fields in the codebase: `cogsLine` (level dossier), `hubAmbient` (Hub screen), `consequenceNarrative` (boss failure), `bossComplete` (standard boss completion), `bossCompleteFirstAttempt` (first attempt completion), `bossCompleteFirstAttemptThreeStars` (first attempt plus three stars), `integrityLine` (COGS integrity states), `repairBriefing` (repair puzzle), `returnBrief` (relaunch after first play), and `sectorIntro` (sector unlock moment). Each entry below specifies which field it populates.
+>
+> **COGS DIALOGUE DOCTRINE (Tucker, 2026-09-21).** The team writes COGS dialogue and ships it. No
+> per-line sign-off, no [PROPOSED] holding pen. Tucker's words: "I don't have the capacity to write
+> every line, and I trust the system now."
+>
+> - **Who writes it.** Any seat whose work needs a COGS line writes it: T-Bot in prompts and specs,
+>   Pierce in specs, Nash when a slot has no line yet. Code may write COGS dialogue.
+> - **Before writing.** Read this document's COGS voice section and `docs/DIALOGUE_SYSTEM.md`, then
+>   the lines around the slot. Match the voice; do not pattern-match off a summary.
+> - **The gate.** T-Bot's PR review checks every new or changed COGS line for voice (dry, precise,
+>   reluctantly impressed; "acceptable" is the ceiling; never "good job"; no emojis). Voice is a
+>   review criterion like any other: a line that misses gets a change request, not a Tucker ticket.
+> - **Visibility.** The PR body lists every new or changed COGS line, verbatim, with its slot. That
+>   is how Tucker reads them, from his phone, whenever he likes. Write new lines into this document
+>   (or DIALOGUE_SYSTEM.md) as well as the code, so this stays the source of truth.
+> - **Tucker's edits win.** He can rewrite any line at any time. A line he has written or edited is
+>   never reverted or "improved" by a seat without asking him.
+> - **Existing tags.** Every COGS line still tagged [PROPOSED] in this document or DIALOGUE_SYSTEM.md
+>   is cleared for implementation as of 2026-09-21. The tags are retired, not a gate; strip them when
+>   you touch the line.
+> - **Still Tucker's.** (1) The True Ending dialogue, which he pinned for himself (see "The True Ending
+>   Dialogue — PINNED"). (2) Canon: a line may voice the story, never invent it. New lore, breadcrumb reveals,
+>   Maker facts, character-arc turns, and saga mysteries are decisions, not dialogue; bring them to
+>   Tucker. (3) UI copy that is not COGS speaking (buttons, labels, chrome) keeps its sign-off rule.
+> - **Unchanged rules.** The chosen-name reveal after Deep Void, the "you" carveout (COGS may say
+>   "you" to the Engineer; UI chrome may not), and the eye-state color law all still bind.
 >
 > **ON COGS COMMUNICATION:** COGS speaks. The Engineer does not respond. All COGS lines are triggered by game state — repair progress, sector completion, integrity level, attempt count, star rating — not by player dialogue choices. The Engineer's voice in this story is their actions. Any reference in prior versions to "if the Engineer queries" has been replaced with a game-state trigger. COGS decides what to say and when. The player receives it.
 >
@@ -1138,7 +1164,7 @@ piece in the catalog that operates on pattern rather than
 value. This is the bridge from digital logic to something
 that feels closer to intelligence.
 
-cogsNote [PROPOSED — Tucker sign-off required]: "It does not
+cogsNote: "It does not
 process the signal. It recognizes it. I have been doing
 something similar for some time. I did not have a word for
 it until now."
