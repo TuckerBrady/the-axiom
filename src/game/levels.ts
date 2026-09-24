@@ -789,7 +789,7 @@ export const levelK1_1: LevelDefinition = {
     { id: 'tray-place', targetRef: 'trayConveyor', eyeState: 'blue',
       message: 'Tap an open cell and the piece in the frame goes there. Or press and hold any piece in the tray and drag it onto the board. It does not have to be in the frame first.' },
     { id: 'tray-forfeit', targetRef: 'trayConveyor', eyeState: 'amber',
-      message: 'Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition what the machine needs. Nothing more.' },
+      message: 'Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition for the machine you intend to build. Then build all of it.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',

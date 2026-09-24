@@ -297,7 +297,7 @@
 > [PROPOSED | resultsLine | BLUE]
 
 *Late:*
-> "Three stars. Physics-primary. The routing on this one is worth keeping on record. Not because it is exceptional. Because it is consistent. Consistency at this level is its own kind of exceptional."
+> "Three stars. Physics-primary. The routing on this one is worth keeping on record. Not because it is exceptional. Because it is consistent. Consistency is rarer than it should be."
 > [resultsLine | AMBER]
 
 *Hub follow-up (fires after three-star, to-type, mid and late):*
@@ -333,7 +333,7 @@
 > [PROPOSED | resultsLine | BLUE]
 
 *Late:*
-> "One star. A Drive Engineer at this stage of the mission should not be producing one-star routing efficiency. I am stating that plainly."
+> "One star. A Drive Engineer at this stage of the mission should not be producing one-star routing. I am stating that plainly."
 > [PROPOSED | resultsLine | AMBER]
 
 ---
@@ -389,7 +389,7 @@
 > [PROPOSED | resultsLine | BLUE]
 
 *Late:*
-> "Two stars. Protocol-primary again. I have logged this pattern. The pattern and the result are consistent with each other. Neither is optimal."
+> "Two stars. Protocol-primary again. I have logged this pattern. The pattern and the result are consistent with each other. Neither is what the discipline was built for."
 > [PROPOSED | resultsLine | BLUE]
 
 ---
@@ -397,7 +397,7 @@
 **One Star**
 
 *Early:*
-> "One star. A Drive Engineer using Protocol pieces as the primary approach. The Physics pieces in the tray would have produced a cleaner path. The rating reflects the longer route."
+> "One star. A Drive Engineer using Protocol pieces as the primary approach. The Physics pieces in the tray were built for this path. The rating reflects the work they were not given."
 > [PROPOSED | resultsLine | BLUE]
 
 *Mid:*
@@ -447,11 +447,11 @@
 **Two Stars**
 
 *Early:*
-> "Two stars. Mixed approach. The Drive Engineer discipline rewards Physics efficiency. Balancing piece types spread that advantage thin. Two stars is where the spread lands."
+> "Two stars. Mixed approach. The Drive Engineer discipline rewards a committed Physics line. Balancing piece types spread that commitment thin. Two stars is where the spread lands."
 > [PROPOSED | resultsLine | BLUE]
 
 *Mid:*
-> "Two stars. Physics and Protocol in balance. The Drive Engineer is most efficient when the balance tips toward Physics. It did not tip. Two stars."
+> "Two stars. Physics and Protocol in balance. The Drive Engineer is strongest when Physics carries the line. It did not carry it. Two stars."
 > [PROPOSED | resultsLine | BLUE]
 
 *Late:*

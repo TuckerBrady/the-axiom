@@ -215,6 +215,16 @@ describe('getLevelById', () => {
 describe('K1-1 v3 economy fields', () => {
   const k1 = () => KEPLER_LEVELS.find(l => l.id === 'K1-1')!;
 
+  // Soul of the game: purchases fund bigger machines. The forfeit step states
+  // the rule (unused purchases are lost, issued parts are not) without
+  // telling the Engineer to buy the minimum.
+  it('tray-forfeit states the forfeit rule without steering toward a minimum buy', () => {
+    const step = k1().tutorialSteps!.find(s => s.id === 'tray-forfeit')!;
+    expect(step.message).toMatch(/forfeited/);
+    expect(step.message).toMatch(/issued parts are not/);
+    expect(step.message).not.toMatch(/nothing more|only what|minimum/i);
+  });
+
   it('tray is the 6-piece Z-solution: 4 conveyors and 2 gears', () => {
     const level = k1();
     const conveyors = level.availablePieces.filter(p => p === 'conveyor');
