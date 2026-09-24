@@ -19,11 +19,13 @@
 > **Discipline definitions:**
 > - Systems Architect: Protocol pieces are their strength. COGS expects Protocol-heavy solutions.
 > - Drive Engineer: Physics pieces are their strength. COGS expects Physics-heavy solutions.
-> - Field Operative: All pieces, minimal count. COGS expects lean, efficient solutions regardless of type.
+> - Field Operative: Both piece categories, used deliberately. COGS expects solutions that reach into Physics and Protocol and ask each for what it does well.
 >
 > **Played to type:** Engineer used pieces consistent with their discipline emphasis.
 > **Played against type:** Engineer used pieces primarily from the opposite category.
 > **Played mixed:** Engineer used both piece types in roughly equal measure.
+>
+> **Field Operative alignment (Option A, Handoff 004, ratified 2026-09-10):** the Field Operative is read by breadth, not count, so its three states differ from the other two disciplines. *To type:* both systems used, both doing real work. *Against type:* one system carried the machine. *Without commitment:* both systems present, one placed but not leveraged.
 >
 > **On repetition:** Lines within the same phase should not repeat within a single session. The game should cycle through available lines for a given state before repeating. COGS does not say the same thing twice in a row.
 >
@@ -281,50 +283,50 @@
 **Three Stars**
 
 *Early:*
-> "Clean routing. Physics pieces used efficiently. This is the Drive Engineer approach at its best. The signal path found the shortest distance and took it."
-> [PROPOSED | resultsLine | BLUE]
+> "Clean routing. Physics pieces used deliberately. This is the Drive Engineer approach at its best. Every turn in the path was there for a reason."
+> [resultsLine | BLUE]
 
-> "Three stars. Physics-primary. Efficient. Direct. The discipline is working."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. Physics-primary. Clean. Deliberate. The discipline is working."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Three stars. Physics-primary. The path was clean and the piece count was optimal. A Drive Engineer should solve it this way. This one did."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. Physics-primary. The path was clean and nothing in it was accidental. A Drive Engineer should solve it this way. This one did."
+> [resultsLine | BLUE]
 
 > "Full marks. The routing approach was textbook Drive Engineer methodology. I mean that as an observation, not a compliment. It was simply correct."
 > [PROPOSED | resultsLine | BLUE]
 
 *Late:*
-> "Three stars. Physics-primary. The efficiency metrics on this one are worth keeping on record. Not because they are exceptional. Because they are consistent. Consistency at this level is its own kind of exceptional."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. Physics-primary. The routing on this one is worth keeping on record. Not because it is exceptional. Because it is consistent. Consistency at this level is its own kind of exceptional."
+> [resultsLine | AMBER]
 
 *Hub follow-up (fires after three-star, to-type, mid and late):*
-> "The routing efficiency on the last level was as clean as anything I have logged from a Drive Engineer. The piece count matched optimal within one. I do not often get to write that in the log."
-> [PROPOSED | hubFollowUp | BLUE]
+> "The routing on the last level was as clean as anything I have logged from a Drive Engineer. Every turn in the path was there for a reason. I do not often get to write that in the log."
+> [hubFollowUp | BLUE]
 
 ---
 
 **Two Stars**
 
 *Early:*
-> "Two stars. Physics-primary. The routing was sound. The optimization was not complete. One fewer piece would have changed the rating."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Physics-primary. The routing was sound. It was not fully resolved. One placement in the path was doing nothing the others were not."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Two stars. The path was functional. It was not the most direct path available. A Drive Engineer finds the most direct path. This was the second most direct."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. The path was functional. It was not the cleanest path available. A Drive Engineer finds the line where every piece is load-bearing. This was close to it."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Two stars. Physics-primary. The efficiency the discipline is built for was partially applied. I have seen this Engineer do better. So have they."
-> [PROPOSED | resultsLine | AMBER]
+> "Two stars. Physics-primary. The routing discipline was partially applied. I have seen this Engineer do better. So have they."
+> [resultsLine | AMBER]
 
 ---
 
 **One Star**
 
 *Early:*
-> "One star. The Physics pieces were used but the routing was indirect. More pieces than the path required. The Drive Engineer discipline is about finding the efficient line. This was not the efficient line."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. The Physics pieces were used but the routing wandered. Placements that did not advance the signal. The Drive Engineer discipline is about finding the line where every piece earns its place. This was not that line."
+> [resultsLine | BLUE]
 
 *Mid:*
 > "One star. Physics-heavy approach with inefficient routing. The pieces were right. The placement was not."
@@ -343,8 +345,8 @@
 > [PROPOSED | resultsLine | RED]
 
 *Mid:*
-> "Void. A Drive Engineer with a void efficiency rating. The discipline exists to prevent exactly this outcome. It did not prevent it."
-> [PROPOSED | resultsLine | RED]
+> "Void. A Drive Engineer with a void routing result. The discipline exists to prevent exactly this outcome. It did not prevent it."
+> [resultsLine | RED]
 
 *Late:*
 > "Void. Physics-primary, void result. I have the data. I am not going to add to it."
@@ -433,8 +435,8 @@
 > [PROPOSED | resultsLine | BLUE]
 
 *Mid:*
-> "Three stars. Mixed. A Drive Engineer blending Physics routing with Protocol configuration. The efficiency metrics are solid. The approach is not what the discipline was built for. The stars suggest the Engineer has built something else."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. Mixed. A Drive Engineer blending Physics routing with Protocol configuration. The routing holds. The approach is not what the discipline was built for. The stars suggest the Engineer has built something else."
+> [resultsLine | AMBER]
 
 *Late:*
 > "Three stars. Mixed methodology. Consistent across multiple sectors now. I have updated what I expect from this Engineer. The update was necessary."
@@ -461,12 +463,12 @@
 **One Star**
 
 *Early:*
-> "One star. Mixed methodology, one-star result. The Physics routing was diluted by Protocol placement that was not necessary for the solution. The path was longer than it needed to be."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Mixed methodology, one-star result. The Physics routing was interrupted by Protocol placement that did not do anything the routing needed. The two halves were not working toward the same thing."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "One star. Mixed. Neither piece type was used to its potential. The Drive Engineer's strength is in committing to the efficient line. This solution did not commit."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Mixed. Neither piece type was used to its potential. The Drive Engineer's strength is in committing to a line and making every piece serve it. This solution did not commit."
+> [resultsLine | BLUE]
 
 *Late:*
 > "One star. Mixed approach, one-star result. I have the data on this pattern. The data is not encouraging."
@@ -492,149 +494,149 @@
 
 ## SECTION THREE: FIELD OPERATIVE
 
-*The Field Operative discipline is the most demanding to read because its strength is efficiency across all piece types, not dominance in one. COGS evaluates a Field Operative on piece count relative to optimal, not on which type they used. He is watching for lean solutions. Every unnecessary piece is a failure of the discipline. Every piece that earned its place is exactly what he expected.*
+*The Field Operative discipline is the most demanding to read because its strength is reach, not dominance. COGS evaluates a Field Operative on whether both systems were used for what they are good at, not on how many pieces it took. He is watching for intent. A piece placed because the Engineer understood what it does is exactly what he expected. A piece placed to fill a requirement is the failure he is looking for.*
 
-*COGS finds the Field Operative methodology the most interesting of the three disciplines and the most difficult to comment on, because its signature is absence — fewer pieces, tighter solutions — and he respects absence as a design principle more than he lets on.*
+*COGS finds the Field Operative methodology the most interesting of the three disciplines and the most difficult to comment on, because its signature is range rather than a single strength, and a machine that does several things well is harder to praise precisely than a machine that does one thing perfectly. He prefers precision. He works at it anyway.*
 
 ---
 
-### 3A. Played to Type (lean solution, near-optimal piece count)
+### 3A. Played to Type (both systems used with intent)
 
 **Three Stars**
 
 *Early:*
-> "Three stars. Piece count within one of optimal. The Field Operative approach is about finding the minimum path that does the maximum work. This was that."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. Both systems engaged, both load-bearing. The Field Operative approach is about asking each system for what only it can do. This did that."
+> [resultsLine | BLUE]
 
-> "Full marks. Efficient use of both piece types. No redundancy. The Field Operative discipline rewards this kind of solution. So does the scoring engine."
-> [PROPOSED | resultsLine | BLUE]
+> "Full marks. Both piece types used for what they are good at. The Field Operative discipline rewards this kind of solution. So does the scoring engine."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Three stars. Lean solution. The Engineer used what the level required and nothing more. I have been waiting to see what the Field Operative discipline looks like at full efficiency. This is what it looks like."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. The Engineer used both systems and asked each for what it does well. I have been waiting to see what the Field Operative discipline looks like at full reach. This is what it looks like."
+> [resultsLine | AMBER]
 
-> "Three stars. Optimal piece count. The solution was tight. I find tight solutions preferable to elaborate ones. Not as a preference. As an engineering principle."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. The signal went further than the level required and every stage of it did something. Depth is not the same as size. This was depth."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Three stars. Piece count at optimal. This has been the consistent standard for this Engineer in this discipline for several sectors now. I have nothing to add to that. The record is the assessment."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. Both systems fully engaged. This has been the consistent standard for this Engineer in this discipline for several sectors now. I have nothing to add to that. The record is the assessment."
+> [resultsLine | AMBER]
 
 *Hub follow-up (fires after three-star, to-type, mid and late):*
-> "The last level was solved at optimal piece count. Full marks. The Field Operative methodology applied completely. I want to note that this approach is harder than it looks. The Engineer makes it look like it is not hard. I am noting that as the opposite of an insult."
-> [PROPOSED | hubFollowUp | AMBER]
+> "The last level was solved with both systems doing real work. Full marks. The Field Operative methodology applied completely. I want to note that this approach is harder than it looks — two systems is two things to be right about. The Engineer makes it look like it is not hard. I am noting that as the opposite of an insult."
+> [hubFollowUp | AMBER]
 
 ---
 
 **Two Stars**
 
 *Early:*
-> "Two stars. The solution worked. The piece count was above optimal. The Field Operative discipline accounts for efficiency. The excess pieces account for the missing star."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. The solution worked. One system did most of the work and the other assisted. The Field Operative discipline accounts for reach. The imbalance accounts for the missing star."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Two stars. The path was correct. The piece count was not lean. The Field Operative approach is about removing what is not necessary. Something unnecessary remained."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. The path was correct. One system was underused. The Field Operative approach is about asking both systems for what they do best. One of them was not asked."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Two stars. Above optimal piece count. The discipline expects lean. The solution was not lean. I have noted the gap between what was placed and what was needed."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. One system carried more than its share. The discipline expects balance. I have noted the gap between what was available and what was used."
+> [resultsLine | BLUE]
 
 ---
 
 **One Star**
 
 *Early:*
-> "One star. The Field Operative discipline penalizes excess. The piece count exceeded optimal by a margin that exceeds what the discipline can absorb. One star."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. The Field Operative discipline penalizes narrowness. One system did nearly all of the work by a margin the discipline cannot absorb. One star."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "One star. The solution was functional but not efficient. The Field Operative approach requires the Engineer to see the minimum path before placing the first piece. That step was skipped."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. The solution was functional but narrow. The Field Operative approach requires the Engineer to know what each system is for before placing the first piece. That step was skipped."
+> [resultsLine | BLUE]
 
 *Late:*
-> "One star. Piece count significantly above optimal. At this point in the mission the minimum path should be visible before the work begins. It was not. Or it was and was not followed. I do not know which is worse."
-> [PROPOSED | resultsLine | AMBER]
+> "One star. One system carried nearly the entire machine. At this point in the mission the Engineer knows what the other one does. Either it was not considered, or it was and was set aside. I do not know which is worse."
+> [resultsLine | AMBER]
 
 ---
 
 **Void**
 
 *Early:*
-> "No stars. The piece count was significantly above optimal. The Field Operative methodology was not applied. The solution worked mechanically and failed by every metric the discipline tracks."
-> [PROPOSED | resultsLine | RED]
+> "No stars. One system was used and the other was not. The Field Operative methodology was not applied. The solution worked mechanically and failed by every metric the discipline tracks."
+> [resultsLine | RED]
 
 *Mid:*
-> "Void. The Field Operative discipline is built around the idea that the best solution uses the fewest pieces. This solution used the most pieces. Those are opposite ideas."
-> [PROPOSED | resultsLine | RED]
+> "Void. The Field Operative discipline is built around the idea that a machine should use everything available to it. This machine used half of what was available. Those are opposite ideas."
+> [resultsLine | RED]
 
 *Late:*
-> "Void. Piece count far above optimal. I do not have a more precise analysis than: something went wrong at the planning stage, not the execution stage. The Engineer should start there."
-> [PROPOSED | resultsLine | RED]
+> "Void. One system, used alone, to a void result. I do not have a more precise analysis than: something went wrong at the planning stage, not the execution stage. The Engineer should start there."
+> [resultsLine | RED]
 
 ---
 
-### 3B. Played Against Type (over-reliance on one piece category, higher count)
+### 3B. Played Against Type (one system carried the machine)
 
-*Note: For the Field Operative, "against type" means leaning heavily into one piece category at the expense of efficiency — using only Physics when a Protocol piece would have shortened the path, or vice versa. The discipline does not care which type is used. It cares that the choice was the efficient one.*
+*Note: For the Field Operative, "against type" means leaning on one piece category and leaving the other on the bench — building with Physics alone when a Protocol piece would have done something Physics cannot, or the reverse. The discipline does not favor either category. It expects both to be asked.*
 
 **Three Stars**
 
 *Early:*
-> "Three stars. Physics-dominant solution from a Field Operative. The piece count is above optimal but the path held. The discipline would have found a shorter route with both piece types available. The Engineer found a longer route that still works."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. Physics-dominant solution from a Field Operative. The path held without Protocol involvement. The discipline would have reached for both. The Engineer reached for one and made it carry the level."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Three stars. Protocol-heavy approach. The field operative methodology allows for piece type flexibility when efficiency is maintained. The efficiency was maintained, just not maximized. Three stars covers the difference."
-> [PROPOSED | resultsLine | BLUE]
+> "Three stars. Protocol-heavy approach. The Field Operative methodology allows for one system to lead when the machine still does what the level asks. It did. The other system sat idle. Three stars covers the difference."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Three stars. Single piece type dominant. At full marks the methodology choice is difficult to argue with. I am noting it is not the most efficient version of the solution. The stars do not reflect the most efficient version. They reflect this version."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. Single piece type dominant. At full marks the methodology choice is difficult to argue with. I am noting it is not the fullest version of the solution. The stars do not reflect the version that used everything. They reflect this version."
+> [resultsLine | AMBER]
 
 ---
 
 **Two Stars**
 
 *Early:*
-> "Two stars. Single piece type used heavily. The Field Operative discipline is not type-specific. It is efficiency-specific. The efficiency loss from avoiding the other type cost a star."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Single piece type used heavily. The Field Operative discipline is not type-specific. It is reach-specific. Avoiding the other system cost a star."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Two stars. The solution leaned on one piece category when both were available. A shorter path existed using both. The Field Operative should find the shorter path."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. The solution leaned on one piece category when both were available. There was work in this level that only Protocol can do. It was routed around instead."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Two stars. Single-type dominance. The efficient solution for this level required both piece categories. The Engineer chose one. Two stars is what that choice produces."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Single-type dominance. This level had work for both categories. The Engineer chose one. Two stars is what that choice produces."
+> [resultsLine | BLUE]
 
 ---
 
 **One Star**
 
 *Early:*
-> "One star. Single piece type, above-optimal count, one-star result. The Field Operative methodology is built for exactly this kind of level. It was not applied to it."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Single piece type, one-star result. The Field Operative methodology is built for exactly this kind of level. It was not applied to it."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "One star. Physics-only solution where Protocol pieces would have shortened the path significantly. The discipline does not prefer piece types. It prefers the shortest path. This was not the shortest path."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Physics-only solution where Protocol pieces would have done work Physics cannot. The discipline does not prefer piece types. It expects both to be used. Only one was."
+> [resultsLine | BLUE]
 
 *Late:*
-> "One star. Single-type dominant approach at one-star efficiency. The Field Operative has access to the full toolkit. This solution used half of it."
-> [PROPOSED | resultsLine | AMBER]
+> "One star. Single-type dominant approach. The Field Operative has access to the full toolkit. This solution used half of it."
+> [resultsLine | AMBER]
 
 ---
 
 **Void**
 
 *Early:*
-> "No stars. Single piece type, above optimal count, void rating. The Field Operative discipline is the most flexible of the three. That flexibility was not used."
-> [PROPOSED | resultsLine | RED]
+> "No stars. Single piece type, void rating. The Field Operative discipline is the most flexible of the three. That flexibility was not used."
+> [resultsLine | RED]
 
 *Mid:*
-> "Void. The solution avoided one entire piece category and achieved void efficiency with the other. The discipline exists to prevent this outcome by using all available tools."
-> [PROPOSED | resultsLine | RED]
+> "Void. The solution avoided one entire piece category and failed with the other. The discipline exists to prevent this outcome by using all available tools."
+> [resultsLine | RED]
 
 *Late:*
 > "Void. Single-type approach, void result. I am not going to elaborate. The Engineer has the data."
@@ -642,69 +644,69 @@
 
 ---
 
-### 3C. Played Mixed but Inefficiently (both types used, but count above optimal)
+### 3C. Played Without Commitment (both systems present, one not leveraged)
 
-*Note: This is the most common Field Operative failure state — using both piece types but placing too many. COGS is more measured here than in other void or one-star states because the Engineer is at least operating within the discipline's framework. The problem is precision, not approach.*
+*Note: This is the most common Field Operative failure state — both piece categories on the board, but one of them barely touched by the signal. COGS is more measured here than in other void or one-star states because the Engineer is at least operating within the discipline's framework. The problem is commitment, not approach.*
 
 **Three Stars**
 
-*Note: Three stars with above-optimal count is almost impossible for a Field Operative given scoring weights. If it occurs, COGS notes it as an anomaly.*
+*Note: Three stars with one system barely engaged is almost impossible for a Field Operative given scoring weights. If it occurs, COGS notes it as an anomaly.*
 
 *All phases:*
-> "Three stars. Piece count above optimal. The Field Operative discipline would predict a lower rating at this piece count. The prediction was wrong. I am updating the model."
-> [PROPOSED | resultsLine | AMBER]
+> "Three stars. One system barely engaged. The Field Operative discipline would predict a lower rating at this level of commitment. The prediction was wrong. I am updating the model."
+> [resultsLine | AMBER]
 
 ---
 
 **Two Stars**
 
 *Early:*
-> "Two stars. Both piece types used. Piece count above optimal. The approach was right. The precision was not complete. Two stars is where the imprecision lands."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Both piece types on the board. One of them barely in the signal's way. The approach was right. The commitment was not complete. Two stars is where that lands."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "Two stars. Mixed piece usage, above optimal count. The Field Operative methodology was applied in the right direction but not to its conclusion. The final piece count was not lean enough."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Both categories present, one doing very little. The Field Operative methodology was applied in the right direction but not to its conclusion. Placing a piece is not the same as using it."
+> [resultsLine | BLUE]
 
 *Late:*
-> "Two stars. Both types used, above optimal count, two-star result. This is a precision problem, not a methodology problem. The approach is correct. The execution is not complete."
-> [PROPOSED | resultsLine | BLUE]
+> "Two stars. Both types used, one of them nominally, two-star result. This is a commitment problem, not a methodology problem. The approach is correct. The execution is not complete."
+> [resultsLine | BLUE]
 
-*Hub follow-up (fires after two-star, above optimal, late only):*
-> "The last level was a two-star result at above-optimal piece count. The methodology was sound. The solution was not lean enough to close the gap. The difference between two stars and three stars at this discipline is usually one piece. I am noting that as a specific observation, not a general one."
-> [PROPOSED | hubFollowUp | BLUE]
+*Hub follow-up (fires after two-star, without commitment, late only):*
+> "The last level was a two-star result with one system barely engaged. The methodology was sound. The machine did not commit to it. The difference between two stars and three stars at this discipline is usually one piece doing real work instead of sitting adjacent to the path. I am noting that as a specific observation, not a general one."
+> [hubFollowUp | BLUE]
 
 ---
 
 **One Star**
 
 *Early:*
-> "One star. Both piece types present, piece count significantly above optimal. The Field Operative approach requires precision from the start. The precision was approximate."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Both piece types present, one of them decorative. The Field Operative approach requires intent from the start. The intent was approximate."
+> [resultsLine | BLUE]
 
 *Mid:*
-> "One star. Mixed approach, inefficient count. The discipline is not about which pieces are used. It is about using as few of them as possible. This solution did not minimize."
-> [PROPOSED | resultsLine | BLUE]
+> "One star. Both systems present, neither committed to. The discipline is not about which pieces are used. It is about using each one for what it is for. This solution did neither."
+> [resultsLine | BLUE]
 
 *Late:*
-> "One star. Above optimal count on a mixed approach. I want to note the Engineer is using both piece types correctly. The number of them is the problem. Fewer would have produced a better outcome."
-> [PROPOSED | resultsLine | AMBER]
+> "One star. Both piece types present on a one-star result. I want to note the Engineer is choosing the right categories. What they are asked to do is the problem. One of them was asked for almost nothing."
+> [resultsLine | AMBER]
 
 ---
 
 **Void**
 
 *Early:*
-> "No stars. Both piece types used, piece count well above optimal, void result. The solution worked. The discipline requires more than a solution that works."
-> [PROPOSED | resultsLine | RED]
+> "No stars. Both piece types used, one of them incidentally, void result. The pieces were placed. The discipline requires more than pieces being placed."
+> [resultsLine | RED]
 
 *Mid:*
-> "Void. Mixed approach, maximum inefficiency. The Field Operative discipline rewards the minimum path. The minimum path was not taken. The result is the void."
-> [PROPOSED | resultsLine | RED]
+> "Void. Both categories on the board, neither leveraged. The Field Operative discipline rewards machines that use what they are given. This one was given two systems and committed to neither. The result is the void."
+> [resultsLine | RED]
 
 *Late:*
-> "Void. Mixed pieces, above optimal count, void rating. At this point in the mission the minimum path should be visible without effort. I am not sure what prevented it here."
-> [PROPOSED | resultsLine | RED]
+> "Void. Both piece types placed, neither doing work, void rating. At this point in the mission the Engineer knows what each system is for. I am not sure what prevented it here."
+> [resultsLine | RED]
 
 ---
 
