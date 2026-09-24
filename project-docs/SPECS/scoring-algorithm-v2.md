@@ -661,7 +661,9 @@ scoring change.
 REQ-60: Speed Bonus MUST be removed. The game rewards
 building elaborate machines, not building them fast. Time
 pressure contradicts the design philosophy. COGS MAY still
-comment on time taken, but it MUST NOT affect score.
+comment on time taken, but it MUST NOT affect score. As of
+AXM-022 (2026-09-23) elapsed time is also never displayed, and
+no MAY goal may test time or piece count (see Part 13, Q1).
 
 ### ScoreBreakdown interface
 
@@ -874,6 +876,14 @@ REQ-69: For each discipline, test:
    entirely. If Tucker wants to preserve some time-based
    element, it could be reframed as a tiebreaker or COGS
    commentary without affecting score. Confirm removal.
+
+   **Answered (Tucker, 2026-09-23, AXM-022): removal confirmed, no time
+   element anywhere.** The visible gameplay timer is gone from the HUD
+   and the pause screen, and the `underSeconds` and `underPieceCount`
+   MAY predicates are removed; `noProtocolPieces` is the only MAY
+   predicate type. Elapsed time is still tracked silently for COGS
+   commentary (REQ-60) and playtest data. It is never shown and never
+   scored.
 
 2. **Tape prices:** 40 CR each for TRAIL and OUT tape.
    This is a balance lever. Tucker may want to adjust.

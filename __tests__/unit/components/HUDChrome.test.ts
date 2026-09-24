@@ -23,20 +23,25 @@ describe('HUDChrome — extracted top bar component', () => {
     expect(hudSrc).not.toMatch(/litWires/);
   });
 
-  it('accepts levelTitle, levelId, timerText, pulseCounterText, onPause props', () => {
+  it('accepts levelTitle, levelId, pulseCounterText, onPause props', () => {
     // AXM-001 D-07: sectorTag (and its sectorBadge prop) was deleted
     // from the gameplay HUD -- the Mission Dossier and Sector Map
     // already establish the sector.
     expect(hudSrc).not.toMatch(/sectorBadge/);
     expect(hudSrc).toMatch(/levelId:\s*string/);
     expect(hudSrc).toMatch(/levelTitle:\s*string/);
-    expect(hudSrc).toMatch(/timerText:\s*string \| null/);
+    // AXM-022 (Tucker, 2026-09-23): the visible timer is gone.
+    expect(hudSrc).not.toMatch(/timerText/);
     expect(hudSrc).toMatch(/pulseCounterText:\s*string \| null/);
     expect(hudSrc).toMatch(/onPause:\s*\(\)\s*=>\s*void/);
   });
 
-  it('renders the timer text only when timerText is non-null', () => {
-    expect(hudSrc).toMatch(/timerText !== null && \(\s*<Text/);
+  // AXM-022 supersedes the old conditional-timer contract: elapsed time is
+  // tracked silently and never drawn, on the HUD or the pause screen.
+  it('renders no timer and passes none from GameplayScreen', () => {
+    expect(hudSrc).not.toMatch(/timerText|styles\.timer/);
+    expect(screenSrc).not.toMatch(/<HUDChrome[\s\S]{0,600}timerText/);
+    expect(screenSrc).not.toMatch(/formatMMSS/);
   });
 
   // REQ-G-02 (Handoff 003, ratified 2026-09-10) supersedes the conditional
@@ -90,12 +95,11 @@ describe('HUDChrome — AXM-001 D-07: contrast and type floor', () => {
     expect(hudSrc).toMatch(/specSheetBtn:\s*\{\s*width:\s*44,\s*height:\s*44/);
   });
 
-  it('does not merge levelTag and levelName into one collapsed string (needs Tucker sign-off)', () => {
-    // The review's proposed "A1-3 · Navigation Array" collapse is a
-    // copy change gated on sign-off (Design Principle 2) -- it must
-    // not land silently as part of this pass.
-    expect(hudSrc).not.toMatch(/·/);
-    expect(hudSrc).toMatch(/<Text style=\{styles\.levelTag\}>\{levelId\}<\/Text>/);
-    expect(hudSrc).toMatch(/<Text style=\{styles\.levelName\}>\{levelTitle\}<\/Text>/);
+  // AXM-002 part 1: Tucker approved the one-line merge 2026-09-23, which
+  // retires the sign-off gate this test used to pin (Design Principle 2).
+  it('merges levelTag and levelName into one line joined by a spaced middle dot', () => {
+    expect(hudSrc).toMatch(
+      /<Text style=\{styles\.levelLine\} numberOfLines=\{1\} ellipsizeMode="tail">\s*<Text style=\{styles\.levelTag\}>\{levelId\}<\/Text>\s*\{' · '\}\s*<Text style=\{styles\.levelName\}>\{levelTitle\}<\/Text>\s*<\/Text>/,
+    );
   });
 });

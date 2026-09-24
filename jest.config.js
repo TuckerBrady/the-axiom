@@ -24,9 +24,10 @@ module.exports = {
       // the components a render test actually drives: without the ignore
       // pattern every other .tsx component would join the coverage totals at
       // 0% (the unit tier can't parse their JSX, so today they are skipped).
+      // Each render test adds its component here (PROMPT_162: HUDChrome).
       displayName: 'render',
       testMatch: ['<rootDir>/__tests__/render/**/*.test.{ts,tsx}'],
-      coveragePathIgnorePatterns: ['/node_modules/', '^(?!.*[\\\\/]PieceTray\\.tsx$).*\\.tsx$'],
+      coveragePathIgnorePatterns: ['/node_modules/', '^(?!.*[\\\\/](?:PieceTray|HUDChrome)\\.tsx$).*\\.tsx$'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', { tsconfig: 'tsconfig.jest.json' }],
       },

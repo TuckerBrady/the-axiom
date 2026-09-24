@@ -84,7 +84,7 @@ src/components/gameplay/BoardPiece.tsx        D-04,05,06
 src/components/gameplay/BoardGrid.tsx         D-03
 src/components/hub/AxiomShip.tsx              S-00,01,04  (rebuild on canon)
 src/components/ShipRepairProgress.tsx         S-00,01,02,04  (rebuild on canon)
-src/components/icons/AxiomShipSVG.tsx         S-00  (audit — fourth non-canon hull)
+src/components/icons/AxiomShipSVG.tsx         S-00  (audit — fourth non-canon hull; deleted in AXM-002, 2026-09-23)
 src/theme/tokens.ts                           D-03, S-04  (add protocol purple; remove off-token colors)
 design/screens/ship-axiom.html                S-05  (delete)
 docs/PIECE_CREATION_STANDARD.md               D-03  (record reserved hues)

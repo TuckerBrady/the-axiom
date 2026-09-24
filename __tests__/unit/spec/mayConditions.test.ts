@@ -7,12 +7,10 @@ import {
   totalMayCreditBonus,
   type MayEvalContext,
 } from '../../../src/game/spec/mayConditions';
-import type { LevelDefinition, MayCondition } from '../../../src/game/types';
+import type { LevelDefinition, MayCondition, MayPredicate } from '../../../src/game/types';
 
 const ctx = (over: Partial<MayEvalContext> = {}): MayEvalContext => ({
-  placedPieceCount: 5,
   usedProtocolPiece: false,
-  elapsedSeconds: 30,
   ...over,
 });
 
@@ -35,19 +33,20 @@ function makeLevel(mayConditions?: MayCondition[]): LevelDefinition {
 }
 
 describe('meetsMayPredicate', () => {
-  it('underPieceCount: inclusive of the max', () => {
-    expect(meetsMayPredicate({ type: 'underPieceCount', max: 5 }, ctx({ placedPieceCount: 5 }))).toBe(true);
-    expect(meetsMayPredicate({ type: 'underPieceCount', max: 5 }, ctx({ placedPieceCount: 6 }))).toBe(false);
-  });
-
   it('noProtocolPieces: met only when no protocol piece was placed', () => {
     expect(meetsMayPredicate({ type: 'noProtocolPieces' }, ctx({ usedProtocolPiece: false }))).toBe(true);
     expect(meetsMayPredicate({ type: 'noProtocolPieces' }, ctx({ usedProtocolPiece: true }))).toBe(false);
   });
 
-  it('underSeconds: inclusive of the max', () => {
-    expect(meetsMayPredicate({ type: 'underSeconds', max: 30 }, ctx({ elapsedSeconds: 30 }))).toBe(true);
-    expect(meetsMayPredicate({ type: 'underSeconds', max: 30 }, ctx({ elapsedSeconds: 31 }))).toBe(false);
+  // AXM-022 (Tucker, 2026-09-23): the minimum-piece and beat-the-clock goals
+  // are gone. Both rewarded the smallest, fastest build, the opposite of the
+  // game's soul. The compiler is the test: neither type is a MayPredicate.
+  it('no longer accepts underPieceCount or underSeconds', () => {
+    // @ts-expect-error underPieceCount was removed from MayPredicate
+    const lean: MayPredicate = { type: 'underPieceCount', max: 5 };
+    // @ts-expect-error underSeconds was removed from MayPredicate
+    const fast: MayPredicate = { type: 'underSeconds', max: 30 };
+    expect([lean, fast]).toHaveLength(2);
   });
 });
 
@@ -58,29 +57,30 @@ describe('evaluateMayConditions', () => {
 
   it('marks each condition met/unmet against the context', () => {
     const conditions: MayCondition[] = [
-      { id: 'lean', description: 'Solve it lean.', predicate: { type: 'underPieceCount', max: 4 }, reward: { type: 'credits', amount: 50 } },
       { id: 'physics', description: 'No protocol.', predicate: { type: 'noProtocolPieces' }, reward: { type: 'credits', amount: 25 } },
     ];
-    const results = evaluateMayConditions(makeLevel(conditions), ctx({ placedPieceCount: 6, usedProtocolPiece: false }));
-    expect(results.map(r => r.met)).toEqual([false, true]);
+    expect(evaluateMayConditions(makeLevel(conditions), ctx({ usedProtocolPiece: false })).map(r => r.met)).toEqual([true]);
+    expect(evaluateMayConditions(makeLevel(conditions), ctx({ usedProtocolPiece: true })).map(r => r.met)).toEqual([false]);
   });
 });
 
 describe('totalMayCreditBonus', () => {
   it('sums credit rewards only for met conditions', () => {
     const conditions: MayCondition[] = [
-      { id: 'a', description: '', predicate: { type: 'underPieceCount', max: 10 }, reward: { type: 'credits', amount: 50 } },
-      { id: 'b', description: '', predicate: { type: 'underSeconds', max: 1 }, reward: { type: 'credits', amount: 30 } },
+      { id: 'a', description: '', predicate: { type: 'noProtocolPieces' }, reward: { type: 'credits', amount: 50 } },
+      { id: 'b', description: '', predicate: { type: 'noProtocolPieces' }, reward: { type: 'credits', amount: 30 } },
     ];
-    const results = evaluateMayConditions(makeLevel(conditions), ctx({ placedPieceCount: 3, elapsedSeconds: 99 }));
-    expect(totalMayCreditBonus(results)).toBe(50); // only the first is met
+    const met = evaluateMayConditions(makeLevel(conditions), ctx({ usedProtocolPiece: false }));
+    expect(totalMayCreditBonus(met)).toBe(80);
+    const unmet = evaluateMayConditions(makeLevel(conditions), ctx({ usedProtocolPiece: true }));
+    expect(totalMayCreditBonus(unmet)).toBe(0);
   });
 
   it('power-up rewards contribute 0 CR (stub reward type)', () => {
     const conditions: MayCondition[] = [
-      { id: 'pu', description: '', predicate: { type: 'underPieceCount', max: 10 }, reward: { type: 'powerup', powerupId: 'overclock' } },
+      { id: 'pu', description: '', predicate: { type: 'noProtocolPieces' }, reward: { type: 'powerup', powerupId: 'overclock' } },
     ];
-    const results = evaluateMayConditions(makeLevel(conditions), ctx({ placedPieceCount: 3 }));
+    const results = evaluateMayConditions(makeLevel(conditions), ctx());
     expect(results[0].met).toBe(true);
     expect(totalMayCreditBonus(results)).toBe(0);
   });

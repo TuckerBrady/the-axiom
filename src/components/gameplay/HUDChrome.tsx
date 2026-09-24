@@ -10,7 +10,9 @@ interface Props {
   // is gone from this interface.
   levelId: string;
   levelTitle: string;
-  timerText: string | null;
+  // AXM-022 (Tucker, 2026-09-23): no timer prop. Elapsed time is tracked
+  // silently in useGameplayTimer and never drawn; a visible clock told the
+  // Engineer to hurry, the opposite of building an elaborate machine.
   pulseCounterText: string | null;
   onPause: () => void;
   // SE-TM-030 — opens the Spec Sheet panel. The right-hand info icon was
@@ -24,16 +26,14 @@ interface Props {
 }
 
 // React.memo with default shallow comparison. The pause callback must
-// be useCallback-stabilized in the parent. timerText and
-// pulseCounterText are passed as primitives — null suppresses
-// rendering. The HUD itself contains no beam-state references; the
-// parent re-renders us only when the strings change identity, which
-// is once per second at most for the timer and once per pulse at most
-// for the pulse counter. PERFORMANCE_CONTRACT 4.1.3, 4.1.4.
+// be useCallback-stabilized in the parent. pulseCounterText is passed
+// as a primitive — null draws the empty row. The HUD itself contains no
+// beam-state references; the parent re-renders us only when the string
+// changes identity, once per pulse at most. PERFORMANCE_CONTRACT 4.1.3,
+// 4.1.4.
 function HUDChromeComponent({
   levelId,
   levelTitle,
-  timerText,
   pulseCounterText,
   onPause,
   onOpenSpecSheet,
@@ -50,18 +50,15 @@ function HUDChromeComponent({
         <View style={styles.pauseBar} />
       </TouchableOpacity>
       <View style={styles.topBarCenter}>
-        {/* AXM-001 D-07 — levelTag and levelName stay two separate
-            strings, unmerged. The review proposes collapsing them into
-            one combined "id, then name" line joined by a middot; that
-            join is a copy change and needs Tucker's sign-off (Design
-            Principle 2) before it lands. Only the objectively non-copy
-            fixes are applied here: levelTag raised to the 11pt floor
-            (was 8pt, unreadable) and the two live values promoted below. */}
-        <Text style={styles.levelTag}>{levelId}</Text>
-        <Text style={styles.levelName}>{levelTitle}</Text>
-        {timerText !== null && (
-          <Text style={styles.timerText}>{timerText}</Text>
-        )}
+        {/* AXM-001 D-07 — the review's one-line merge landed in
+            AXM-002 (Tucker signed it off 2026-09-23): "K1-1 · CORRIDOR
+            ENTRY", id in copper, name in starWhite, one line. The tail
+            truncates, so a long title ellipsizes and never wraps. */}
+        <Text style={styles.levelLine} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={styles.levelTag}>{levelId}</Text>
+          {' · '}
+          <Text style={styles.levelName}>{levelTitle}</Text>
+        </Text>
         {/* REQ-G-02 (Handoff 003): present and empty when idle, not
             conditionally mounted — mounting it only during 'beam' phase
             added ~19pt to the HUD in the same frame the run begins, and
@@ -110,6 +107,13 @@ const styles = StyleSheet.create({
     width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
   },
   topBarCenter: { flex: 1, alignItems: 'center' },
+  // AXM-002 — the parent run of the merged header. Its size and colour
+  // style the middot between the two runs; alignSelf stretch gives the
+  // line a width to truncate against instead of growing past the icons.
+  levelLine: {
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, color: Colors.muted,
+    alignSelf: 'stretch', textAlign: 'center',
+  },
   // D-07 — raised to the 11pt floor (was 8pt / 2.4:1-adjacent on this
   // background at that size). Copper already passes contrast at 5.9:1.
   levelTag: {
@@ -119,15 +123,6 @@ const styles = StyleSheet.create({
   levelName: {
     fontFamily: Fonts.orbitron, fontSize: FontSizes.md, fontWeight: 'bold',
     color: Colors.starWhite,
-  },
-  // D-07 — promoted: the timer is a live value the player reads at a
-  // glance, not reference chrome. 15pt, full-contrast starWhite.
-  timerText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 15,
-    color: Colors.starWhite,
-    letterSpacing: 1,
-    marginTop: 2,
   },
   // D-07 — was 9pt at the HUD's old 1.5:1 pulse color, effectively
   // invisible. Promoted to 13pt Colors.muted (7.4:1); the old fail

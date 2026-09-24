@@ -60,8 +60,8 @@ describe('buildSpecChecklist — SHOULD reflects the score breakdown', () => {
 
 describe('buildSpecChecklist — MAY reflects what was actually achieved', () => {
   const may: MayCondition[] = [
-    { id: 'lean', description: 'Solve it lean.', predicate: { type: 'underPieceCount', max: 4 }, reward: { type: 'credits', amount: 50 } },
-    { id: 'fast', description: 'Solve it fast.', predicate: { type: 'underSeconds', max: 20 }, reward: { type: 'credits', amount: 25 } },
+    { id: 'lean', description: 'Solve it lean.', predicate: { type: 'noProtocolPieces' }, reward: { type: 'credits', amount: 50 } },
+    { id: 'fast', description: 'Solve it fast.', predicate: { type: 'noProtocolPieces' }, reward: { type: 'credits', amount: 25 } },
   ];
   const level = { ...levelA1_1, mayConditions: may } as LevelDefinition;
 
