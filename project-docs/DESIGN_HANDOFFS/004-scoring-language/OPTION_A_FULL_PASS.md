@@ -1,5 +1,9 @@
 # COGS Scoring Language — Option A, Full Pass
 
+> **STATUS: LANDED 2026-09-23 (AXM-009, PROMPT_162).** Every draft below is applied to
+> `docs/DIALOGUE_SYSTEM.md` under the COGS DIALOGUE DOCTRINE (Tucker confirmed 2026-09-23 that
+> these ship). DIALOGUE_SYSTEM.md is now the source of truth; this file is the record of the change.
+
 **Handoff:** 004 · **Decision:** Option A ratified by Tucker, 2026-09-10
 **Target file:** `docs/DIALOGUE_SYSTEM.md`
 **Status:** DRAFT throughout. Nothing enters the codebase without your

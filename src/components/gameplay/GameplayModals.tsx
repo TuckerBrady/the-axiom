@@ -34,12 +34,6 @@ const STAR_ENTER_1 = FadeInUp.delay(200).duration(400);
 const STAR_ENTER_2 = FadeInUp.delay(400).duration(400);
 const STAR_ENTER_3 = FadeInUp.delay(600).duration(400);
 
-function formatMMSS(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 function renderStars(count: number) {
   const enterAnims = [STAR_ENTER_1, STAR_ENTER_2, STAR_ENTER_3];
   return [1, 2, 3].map(i => (
@@ -148,7 +142,6 @@ export interface GameplayModalsProps {
   isDailyChallenge: boolean;
 
   // Timer
-  elapsedSeconds: number;
 
   // Layout
   CELL_SIZE: number;
@@ -192,7 +185,6 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     lives, livesCredits, discipline, credits,
     loseLife, refillLives, stars,
     level, isAxiomLevel, isDailyChallenge,
-    elapsedSeconds,
     navigation, handleReset,
     onCompletionContinue, onWrongOutputRetry, onDebug,
     showRequiredNotEngaged, setShowRequiredNotEngaged, requiredNotEngagedLine,
@@ -832,11 +824,6 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                   {level.id} {(level.systemRepaired ?? level.name).toUpperCase()}
                 </Text>
 
-                <View style={styles.pauseTimerWrap}>
-                  <Text style={styles.pauseTimerBig}>{formatMMSS(elapsedSeconds)}</Text>
-                  <Text style={styles.pauseTimerLabel}>ELAPSED</Text>
-                </View>
-
                 <Button
                   variant="primary"
                   label="RESUME"
@@ -949,27 +936,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#E8F4FF',
     marginTop: 4,
+    // AXM-022: the elapsed clock that sat below this line is gone; the
+    // margin keeps RESUME from riding up against the level name.
+    marginBottom: 40,
     letterSpacing: 1,
-  },
-  pauseTimerWrap: {
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-  },
-  pauseTimerBig: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: 28,
-    fontWeight: '300',
-    color: '#E8F4FF',
-  },
-  // REQ-G-10: 9 -> FontSizes.floor.
-  pauseTimerLabel: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.floor,
-    color: '#00D4FF',
-    opacity: 0.5,
-    letterSpacing: 2,
-    marginTop: 4,
   },
   pauseModalBtn: {
     width: '100%',

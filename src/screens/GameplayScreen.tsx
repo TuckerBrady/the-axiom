@@ -122,12 +122,6 @@ function getPieceColor(type: PieceType): string {
   }
 }
 
-function formatMMSS(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-}
-
 import {
   hexToRgba,
   type TapeCellContainerMeasure,
@@ -391,7 +385,9 @@ export default function GameplayScreen({ navigation }: Props) {
 
   // Phase 2 extraction — elapsed-seconds timer with pause/lock/reset API.
   const timer = useGameplayTimer(level?.id, tutorialIsActiveRef, showPauseModal);
-  const { elapsedSeconds, lockTimer, resetTimer, resumeTimer } = timer;
+  // AXM-022: elapsed time is tracked silently (never shown, never scored),
+  // so only the lock/reset/resume controls are read here.
+  const { lockTimer, resetTimer, resumeTimer } = timer;
 
   // Phase 3 extraction — tape visual state (highlights, overrides, glow traveler, refs).
   const tape = useGameplayTape(level);
@@ -1454,7 +1450,6 @@ export default function GameplayScreen({ navigation }: Props) {
         <HUDChrome
           levelId={level.id}
           levelTitle={level.systemRepaired ? level.systemRepaired.toUpperCase() : level.name}
-          timerText={!showResults && !showVoid && !tutorialIsActive ? formatMMSS(elapsedSeconds) : null}
           pulseCounterText={
             level.inputTape && level.inputTape.length > 0 && beamState.phase === 'beam'
               ? `PULSE ${Math.min(currentPulseIndex + 1, level.inputTape.length)} / ${level.inputTape.length}${
@@ -1905,7 +1900,6 @@ export default function GameplayScreen({ navigation }: Props) {
         level={level}
         isAxiomLevel={!!isAxiomLevel}
         isDailyChallenge={isDailyChallenge}
-        elapsedSeconds={elapsedSeconds}
         CELL_SIZE={CELL_SIZE}
         navigation={navigation}
         handleReset={handleReset}

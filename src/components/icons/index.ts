@@ -3,7 +3,6 @@ export { default as SectorsIcon } from './SectorsIcon';
 export { default as CodexIcon } from './CodexIcon';
 export { default as WorkshopIcon } from './WorkshopIcon';
 export { default as EngineerIcon } from './EngineerIcon';
-export { default as AxiomShipSVG } from './AxiomShipSVG';
 export { default as PadlockIcon } from './PadlockIcon';
 export { default as StarIcon } from './StarIcon';
 export {

@@ -16,12 +16,8 @@ import type { LevelDefinition, MayCondition, MayPredicate } from '../types';
 // the completed machine state — deliberately a flat value object, not the live
 // stores, so evaluation is deterministic and testable.
 export interface MayEvalContext {
-  // Player-placed pieces only (pre-placed/fixed infrastructure excluded).
-  placedPieceCount: number;
   // True if the player placed at least one Protocol-category piece.
   usedProtocolPiece: boolean;
-  // Seconds from engage to lock.
-  elapsedSeconds: number;
 }
 
 export function meetsMayPredicate(
@@ -29,12 +25,8 @@ export function meetsMayPredicate(
   ctx: MayEvalContext,
 ): boolean {
   switch (predicate.type) {
-    case 'underPieceCount':
-      return ctx.placedPieceCount <= predicate.max;
     case 'noProtocolPieces':
       return !ctx.usedProtocolPiece;
-    case 'underSeconds':
-      return ctx.elapsedSeconds <= predicate.max;
   }
 }
 

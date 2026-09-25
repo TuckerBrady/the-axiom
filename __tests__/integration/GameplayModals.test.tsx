@@ -61,11 +61,25 @@ describe('GameplayModals — pure render contract', () => {
 
   // REQ-G-08 pt 1 (Handoff 003): the void quote index must come from props
   // (drawn once by failureHandlers.handleVoidFailure), never rolled in this
-  // component's render path — GameplayModals re-renders at least once per
-  // second while the void modal is open, driven by the elapsedSeconds prop.
+  // component's render path, where any re-render would reroll it.
   it('renders the void quote from the voidQuoteIndex prop, not Math.random()', () => {
     expect(modalsSrc).toMatch(/VOID_QUOTES\[voidQuoteIndex\]/);
     expect(modalsSrc).not.toMatch(/Math\.random/);
+  });
+});
+
+// AXM-022 (Tucker, 2026-09-23): the pause screen shows no clock. Elapsed time
+// is still tracked silently in useGameplayTimer; it is never drawn.
+describe('GameplayModals — no visible timer', () => {
+  it('the pause screen renders no elapsed clock', () => {
+    expect(modalsSrc).not.toMatch(/pauseTimer/);
+    expect(modalsSrc).not.toMatch(/ELAPSED/);
+    expect(modalsSrc).not.toMatch(/formatMMSS/);
+  });
+
+  it('GameplayModals takes no elapsedSeconds prop', () => {
+    expect(modalsSrc).not.toMatch(/elapsedSeconds/);
+    expect(screenSrc).not.toMatch(/elapsedSeconds=\{elapsedSeconds\}/);
   });
 });
 

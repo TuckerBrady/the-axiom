@@ -250,13 +250,12 @@ export type TopologyRequirements = {
 // them without engine changes.
 
 // A post-run predicate over the completed machine. Evaluated only on success.
+// AXM-022 (Tucker, 2026-09-23): `underPieceCount` and `underSeconds` were
+// removed. Minimum-piece and beat-the-clock goals reward the smallest,
+// fastest build, the opposite of the game's soul (REQ-60).
 export type MayPredicate =
-  // Solved using no more than `max` player-placed pieces.
-  | { type: 'underPieceCount'; max: number }
   // Solved without placing any Protocol-category piece.
-  | { type: 'noProtocolPieces' }
-  // Locked within `max` seconds of engaging.
-  | { type: 'underSeconds'; max: number };
+  | { type: 'noProtocolPieces' };
 
 // What meeting a MAY condition pays out. `credits` is additive to the level's
 // normal reward. `powerup` is a STUB reward type only — no power-up system

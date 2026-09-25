@@ -622,7 +622,7 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "Tap an open cell and the piece in the frame goes there. Or press and hold any piece in the tray and drag it onto the board. It does not have to be in the frame first."
 > [tray-place | tutorialStep | BLUE]
 
-> "Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition what the machine needs. Nothing more."
+> "Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition for the machine you intend to build. Then build all of it."
 > [tray-forfeit | tutorialStep | AMBER]
 
 **K1-2 — Relay Splice**

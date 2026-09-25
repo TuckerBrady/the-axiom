@@ -102,8 +102,7 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
     discipline: currentDiscipline,
     // REQ-60 (scoring-algorithm-v2.md): Speed Bonus is removed entirely —
     // elapsed time no longer affects score, so calculateScore no longer
-    // takes engageDurationMs/elapsedSeconds. lockedElapsed is still read
-    // below (COGS commentary, unrelated to scoring).
+    // takes engageDurationMs/elapsedSeconds.
   });
 
   const displayStars = isTutorial ? 3 : result.stars;
@@ -132,6 +131,11 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
   // levelSpent no longer drives payout directly (v1 mechanic, replaced),
   // kept on SuccessParams only because callers still pass it through.
   void levelSpent;
+  // AXM-022: elapsed time is tracked silently. It is never shown and never
+  // scored, and since underSeconds went there is no MAY reader either. It
+  // stays on SuccessParams for COGS time commentary (REQ-60) and playtest
+  // data, so the locked value is still carried through to here.
+  void lockedElapsed;
   if (isTutorial) {
     setElaborationMult(1);
     earnCredits(TUTORIAL_FLAT_PAYOUT);
@@ -154,11 +158,9 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
   // bonus it didn't earn.
   if (result.stars === 3 && (level.mayConditions?.length ?? 0) > 0) {
     const mayCtx: MayEvalContext = {
-      placedPieceCount: playerPieceCount,
       usedProtocolPiece: pieces.some(
         p => !p.isPrePlaced && p.category === 'protocol',
       ),
-      elapsedSeconds: lockedElapsed,
     };
     const mayResults = evaluateMayConditions(level, mayCtx);
     const bonus = totalMayCreditBonus(mayResults);
