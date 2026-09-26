@@ -52,8 +52,9 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
     // the named-reveal beats target the tray slot.
     expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?targetRef: 'trayConveyor'/);
     expect(a11).toMatch(/id: 'conveyor-reveal'[\s\S]*?targetRef: 'trayConveyor'/);
-    expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?targetRef: 'trayGear'/);
-    expect(a12).toMatch(/id: 'gear-reveal'[\s\S]*?targetRef: 'trayGear'/);
+    // AXM-026 spec 7.14.1: the Gear is discovered in A1-1 now (was a12).
+    expect(a11).toMatch(/id: 'gear-notice'[\s\S]*?targetRef: 'trayGear'/);
+    expect(a11).toMatch(/id: 'gear-reveal'[\s\S]*?targetRef: 'trayGear'/);
     expect(a13).toMatch(/id: 'confignode-notice'[\s\S]*?targetRef: 'trayConfigNode'/);
     expect(a13).toMatch(/id: 'confignode-reveal'[\s\S]*?targetRef: 'trayConfigNode'/);
     expect(a15).toMatch(/id: 'scanner-notice'[\s\S]*?targetRef: 'trayScanner'/);
@@ -69,8 +70,11 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
   it('3: each piece-intro level contains step IDs in the correct order', () => {
     // A1-1
     expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?id: 'conveyor-reveal'[\s\S]*?id: 'board-resume'/);
-    // A1-2
-    expect(a12).toMatch(/id: 'gear-notice'[\s\S]*?id: 'gear-reveal'[\s\S]*?id: 'gear-teach'/);
+    // A1-1 discovers the Gear (AXM-026 spec 7.14.1; was A1-2 notice -> reveal
+    // -> teach). A1-2 keeps the teach beat as Gear practice.
+    expect(a11).toMatch(/id: 'conveyor-reveal'[\s\S]*?id: 'gear-notice'[\s\S]*?id: 'gear-reveal'[\s\S]*?id: 'board-resume'/);
+    expect(a12).not.toMatch(/id: 'gear-notice'|id: 'gear-reveal'/);
+    expect(a12).toMatch(/id: 'gear-teach'/);
     // A1-3 (teach is split into teach-a and teach-b)
     expect(a13).toMatch(/id: 'confignode-notice'[\s\S]*?id: 'confignode-reveal'[\s\S]*?id: 'confignode-teach-a'[\s\S]*?id: 'confignode-teach-b'/);
     // A1-5
@@ -93,7 +97,9 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
         `[\\s\\S]*?id: '${prefix}-reveal'[\\s\\S]*?eyeState: 'green'` +
         `[\\s\\S]*?id: '${prefix}-teach`,
       );
-    expect(a12).toMatch(eyeSeqRe('gear'));
+    // AXM-026 spec 7.14.1: the Gear notice/reveal moved to A1-1 (was a12,
+    // eyeSeqRe('gear')); A1-1 has no gear-teach beat, so check the pair there.
+    expect(a11).toMatch(/id: 'gear-notice'[\s\S]*?eyeState: 'amber'[\s\S]*?id: 'gear-reveal'[\s\S]*?eyeState: 'green'/);
     expect(a13).toMatch(eyeSeqRe('confignode'));
     expect(a15).toMatch(eyeSeqRe('scanner'));
     expect(a17).toMatch(eyeSeqRe('transmitter'));
@@ -108,7 +114,8 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
   // while COGS is still showing the tray item. Not on -reveal or -teach.
   it('5: codexEntryId appears on the -notice step, not -reveal/teach (A1-2..A1-7)', () => {
     for (const [src, prefix, codexId] of [
-      [a12, 'gear', 'gear'], [a13, 'confignode', 'configNode'],
+      // AXM-026 spec 7.14.1: gear moved from a12 to a11.
+      [a11, 'gear', 'gear'], [a13, 'confignode', 'configNode'],
       [a15, 'scanner', 'scanner'], [a17, 'transmitter', 'transmitter'],
     ] as [string, string, string][]) {
       expect(src).toMatch(new RegExp(`id: '${prefix}-notice'[\\s\\S]*?codexEntryId: '${codexId}'[\\s\\S]*?id: '${prefix}-reveal'`));
@@ -122,7 +129,10 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
     }
     // A1-1: codexEntryId 'conveyor' lives on the '???' conveyor-collect beat.
     expect(a11).toMatch(/id: 'conveyor-collect'[\s\S]*?codexEntryId: 'conveyor'/);
-    expect(a11).not.toMatch(/id: 'conveyor-reveal'[\s\S]*?codexEntryId:/);
+    // AXM-026 spec 7.14.1: A1-1's gear-notice now follows conveyor-reveal and
+    // carries codexEntryId 'gear', so scope the check to conveyor-reveal's own
+    // step object (was an unscoped match to the end of the level).
+    expect(a11.match(/id: 'conveyor-reveal'[\s\S]*?\},/)![0]).not.toContain('codexEntryId');
   });
 
   // ── 6: no awaitPlacement / placedPiece anywhere in A1 ─────────────────────
@@ -154,8 +164,10 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
     );
   });
 
-  it('9: A1-2 gear dialogue matches approved spec character-for-character', () => {
-    expect(a12).toContain(
+  // AXM-026 spec 7.14.1: the Gear notice and reveal lines moved to A1-1
+  // verbatim (were asserted on a12); the teach line stays on A1-2.
+  it('9: Gear dialogue matches approved spec character-for-character (discovery in A1-1, teach in A1-2)', () => {
+    expect(a11).toContain(
       "The tray. There is an uncatalogued piece sitting right there.",
     );
     // PROMPT_140: the "Place it. On the board..." instruct line is retired
@@ -163,7 +175,7 @@ describe('Tray tutorial — structural + dialogue integrity', () => {
     expect(a12).not.toContain(
       "Place it. On the board. Quickly, please. I want to — I need to verify its behavior before I can file it. Place it.",
     );
-    expect(a12).toContain(
+    expect(a11).toContain(
       "Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.",
     );
     expect(a12).toContain(

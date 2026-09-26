@@ -27,8 +27,12 @@ Theme: Arrival. First contact. The work begins.
 Question answered: What is a machine and how does it work?
 
 Level concept map:
-A1-1 Emergency Power — Data movement, path building — Conveyor
-A1-2 Life Support — Direction change, routing — Gear
+A1-1 Emergency Power — Data movement, path building, one direction change — Conveyor, Gear
+A1-2 Life Support — Direction change practice, routing — Gear (practice)
+
+AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT 7.14.1, Tucker Q2 = b): Source and
+Terminal sit on opposite corners, so A1-1 already needs a bend. A1-1 teaches
+the Gear, a deliberate exception to the one-new-piece rule; A1-2 practises it.
 A1-3 Navigation Array — Conditional gating — Config Node
 A1-4 Propulsion Core — Complex routing, multi-bend — Gear advanced
 A1-5 Communication Array — Reading input, writing memory — Scanner

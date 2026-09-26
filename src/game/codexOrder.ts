@@ -16,7 +16,7 @@ export const CODEX_DISCOVERY_ORDER: string[] = [
   'source',       // 001 — A1-1 Emergency Power
   'terminal',     // 002 — A1-1 Emergency Power
   'conveyor',     // 003 — A1-1 Emergency Power
-  'gear',         // 004 — A1-2 Life Support
+  'gear',         // 004 — A1-1 Emergency Power (AXM-026 spec 7.14.1; was A1-2)
   'configNode',   // 005 — A1-3 Navigation Array
   'inputTape',    // 006 — A1-5 Communication Array
   'dataTrail',    // 007 — A1-5 Communication Array
