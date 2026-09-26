@@ -42,6 +42,8 @@ const CHIP_ROW_H = 32;
 const EDGE_FADE_W = 28;
 
 // AXM-020 — the centre frame: the piece in hand. Fixed; items slide under it.
+// It takes the colour of the selected piece's type (Tucker, build 48: one
+// square, not two). Amber when nothing in it is selected.
 const FRAME_COLOR = '#F0B429';
 const FRAME_SIZE = 64;
 // The selected item grows a little. Keyed to selection, never to the scroll
@@ -359,6 +361,10 @@ function PieceTrayComponent({
   }, [visibleItems, selectedKey, onPickup, scrollToKey]);
 
   const sidePad = centrePadding(viewportW);
+  const selectedItem = visibleItems.find(i => i.key === selectedKey);
+  const frameColor = selectedItem
+    ? selectedItem.isTape ? TAPE_COLOR : getPieceColor(selectedItem.type)
+    : FRAME_COLOR;
 
   return (
     <View
@@ -428,7 +434,7 @@ function PieceTrayComponent({
             const itemStyle = [
               styles.trayItem,
               item.isTape && { borderColor: `${TAPE_COLOR}66` },
-              isActive && { borderColor: color, backgroundColor: `${color}15` },
+              isActive && { backgroundColor: `${color}15` },
             ];
             const innerContent = (
               <>
@@ -505,7 +511,7 @@ function PieceTrayComponent({
           })}
         </ScrollView>
         <View style={styles.frameWrap} pointerEvents="none">
-          <View testID="tray-frame" style={styles.frame} pointerEvents="none" />
+          <View testID="tray-frame" style={[styles.frame, { borderColor: frameColor }]} pointerEvents="none" />
         </View>
         {fadeSide !== 'none' && (
           <LinearGradient

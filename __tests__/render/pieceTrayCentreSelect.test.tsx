@@ -85,6 +85,11 @@ function byTestId(r: any, id: string): Node {
   return r.root.find((n: Node) => n.props && n.props.testID === id && typeof n.type === 'string');
 }
 
+function frameColour(r: any): unknown {
+  const flat = [byTestId(r, 'tray-frame').props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+  return Object.assign({}, ...flat).borderColor;
+}
+
 const touch = { nativeEvent: { pageX: 100, pageY: 700 } };
 
 function tap(r: any, key: string) {
@@ -106,11 +111,46 @@ afterEach(() => {
 });
 
 describe('PieceTray centre-select (AXM-020)', () => {
-  it('renders a fixed amber centre frame that never takes touches', () => {
+  // Tucker, build-48 walkthrough: one square, not two. The fixed frame takes
+  // the colour of the piece it holds, and the selected item drops its own
+  // outline. The frame is amber only when nothing in it is selectable.
+  it('renders a fixed centre frame that never takes touches', () => {
     const { r } = mount({ items: FIVE });
     const frame = byTestId(r, 'tray-frame');
-    expect(JSON.stringify(frame.props.style)).toContain('#F0B429');
     expect(frame.props.pointerEvents).toBe('none');
+  });
+
+  it('the frame takes the colour of the selected piece type', () => {
+    const kinds: TrayItem[] = [item('conveyor', 'conveyor', 1), item('scanner', 'scanner', 1)];
+    const { r } = mount({ items: kinds });
+    expect(frameColour(r)).toBe('#4a9eff');
+    TestRenderer.act(() => { setSelectedExternally('scanner'); });
+    expect(frameColour(r)).toBe('#8B5CF6');
+  });
+
+  it('the frame takes the tape colour when a tape is selected', () => {
+    const tape: TrayItem = { key: 'tape:in', type: 'conveyor', isTape: true, count: 1 };
+    const { r } = mount({ items: [tape] });
+    expect(frameColour(r)).toBe('#A97FDB');
+  });
+
+  it('the frame is amber when nothing in it is selected', () => {
+    // A placed piece is selected on the board: the tray holds, its frame
+    // holds nothing.
+    const { r } = mount({ items: FIVE });
+    TestRenderer.act(() => {
+      r.update(<Harness items={FIVE} holdSelection onPickupSpy={jest.fn()} />);
+    });
+    TestRenderer.act(() => { setSelectedExternally(null); });
+    expect(frameColour(r)).toBe('#F0B429');
+  });
+
+  it('the selected item draws no outline of its own', () => {
+    const { r } = mount({ items: FIVE });
+    const host = byTestId(r, 'tray-item-conveyor');
+    const flat = [host.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+    const border = Object.assign({}, ...flat).borderColor;
+    expect(border).toBe('rgba(74,158,255,0.2)');
   });
 
   it('snaps to one offset per item, fast deceleration', () => {
