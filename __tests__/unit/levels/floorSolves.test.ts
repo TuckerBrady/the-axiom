@@ -7,7 +7,7 @@
 // run through that same step before it is verified: the fixture is checked
 // against the board the Engineer would actually have built.
 
-import { ALL_LEVELS } from '../../../src/game/levels';
+import { ALL_LEVELS, AXIOM_LEVELS, KEPLER_LEVELS } from '../../../src/game/levels';
 import type {
   ExecutionStep,
   LevelDefinition,
@@ -19,6 +19,7 @@ import type {
 import { BLANK } from '../../../src/game/types';
 import {
   autoConnectPhysicsPieces,
+  canSendTo,
   evaluateRequiredPieces,
   executeMachine,
 } from '../../../src/game/engine';
@@ -26,6 +27,7 @@ import { verifyPuzzle, verifyPieceAvailability } from '../../../src/game/puzzleV
 import { computeSplitterMagnets } from '../../../src/store/gameStore';
 import { calculateScore } from '../../../src/game/scoring';
 import { PIECE_PRICES } from '../../../src/game/piecePrices';
+import { buildPieceTypesForLevel } from '../../../src/store/requisitionStore';
 import {
   FLOOR_SOLVES,
   solvePieces,
@@ -88,11 +90,115 @@ const signature = (s: SolvePiece[]) =>
     .sort()
     .join('|');
 
-const SECTOR_BUFFER: Record<string, number> = { kepler: 50, nova: 75 };
+const DISCIPLINES = ['systems', 'drive', 'field'] as const;
 
-function floorCost(solve: SolvePiece[]): number {
-  return solve.reduce((sum, p) => sum + (PIECE_PRICES[p.type] ?? 0), 0);
+// Scores a solve the way successHandlers.handleSuccess does: every pulse's
+// steps, the whole board, the level's tray and depthCeiling. One total per
+// discipline.
+function scoresFor(l: LevelDefinition, solve: SolvePiece[]): number[] {
+  const { level, player } = boardFor(l, solve);
+  const { pulses, pieces } = runPulses(level, player);
+  const steps = pulses.flat();
+  return DISCIPLINES.map(discipline =>
+    calculateScore({
+      executionSteps: steps,
+      placedPieces: pieces,
+      optimalPieces: l.optimalPieces,
+      trayPieceTypes: l.availablePieces,
+      depthCeiling: l.depthCeiling,
+      discipline,
+    }).total);
 }
+
+// 7.10.3: the Codex state of an Engineer who has cleared every level before
+// `levelId` in campaign order. Discovery happens through tutorial steps.
+function discoveredBefore(levelId: string): string[] {
+  const campaign = [...AXIOM_LEVELS, ...KEPLER_LEVELS];
+  const ids = new Set<string>();
+  for (const l of campaign) {
+    if (l.id === levelId) break;
+    for (const st of l.tutorialSteps ?? []) if (st.codexEntryId) ids.add(st.codexEntryId);
+  }
+  return Array.from(ids);
+}
+
+// Asserts 7.10.1 / 7.10.3 for one level's threeStar fixture.
+function expectThreeStarReachable(id: string) {
+  const l = ALL_LEVELS.find(x => x.id === id)!;
+  const solve = solvesOf(id).threeStar!;
+  expect({ id, hasThreeStar: !!solve }).toEqual({ id, hasThreeStar: true });
+
+  const { level, player } = boardFor(l, solve);
+  const result = verifyPuzzle(level, player);
+  expect({ id, solvable: result.solvable, why: result.failReason })
+    .toEqual({ id, solvable: true, why: undefined });
+
+  // Which pieces are requisitioned: per type, everything beyond the tray count.
+  const tray: Record<string, number> = {};
+  for (const t of l.availablePieces) tray[t] = (tray[t] ?? 0) + 1;
+  const used: Record<string, number> = {};
+  for (const p of solve) used[p.type] = (used[p.type] ?? 0) + 1;
+  const bought: Record<string, number> = {};
+  for (const [t, n] of Object.entries(used)) if (n > (tray[t] ?? 0)) bought[t] = n - (tray[t] ?? 0);
+  expect({ id, buysSomething: Object.keys(bought).length > 0 }).toEqual({ id, buysSomething: true });
+
+  // 7.10.3: every piece on the board is active, so the whole tray allotment of
+  // each bought type, and every bought piece, fired.
+  const { pieces } = runPulses(level, player);
+  const idle = pieces.filter(p => !p.isPrePlaced && p.firedDuringRun !== true).map(p => `${p.type}@${p.gridX},${p.gridY}`);
+  expect({ id, idle }).toEqual({ id, idle: [] });
+
+  // Score: at least 80 for at least one discipline.
+  const best = Math.max(...scoresFor(l, solve));
+  expect({ id, best, threeStars: best >= 80 }).toEqual({ id, best, threeStars: true });
+
+  // Cost at REQUISITION base price (no discipline discount) within creditBudget.
+  const cost = Object.entries(bought).reduce((sum, [t, n]) => sum + (PIECE_PRICES[t as SolvePiece['type']] ?? 0) * n, 0);
+  expect({ id, cost, creditBudget: l.creditBudget, fits: cost <= (l.creditBudget ?? 0) })
+    .toEqual({ id, cost, creditBudget: l.creditBudget, fits: true });
+
+  // 7.10.3: each bought type is on offer in the REQUISITION store to an
+  // Engineer who has cleared every earlier level, dev tools off.
+  const offered = buildPieceTypesForLevel(l, discoveredBefore(id), false);
+  expect({ id, bought: Object.keys(bought).sort(), offered: Object.keys(bought).filter(t => offered.includes(t as SolvePiece['type'])).sort() })
+    .toEqual({ id, bought: Object.keys(bought).sort(), offered: Object.keys(bought).sort() });
+}
+
+const key = (x: number, y: number) => `${x},${y}`;
+
+// T-Bot ruling on #67: a repair puzzle must require its repair pieces. With
+// one pre-placed piece's cell closed (every other pre-placed piece left
+// passable), no open-cell route may join Source to Terminal.
+function routeExistsWithout(l: LevelDefinition, closed: PlacedPiece): boolean {
+  const s = l.prePlacedPieces.find(p => p.type === 'source')!;
+  const t = l.prePlacedPieces.find(p => p.type === 'terminal')!;
+  const blocked = new Set<string>([key(closed.gridX, closed.gridY)]);
+  for (const c of l.damagedCells ?? []) blocked.add(key(c.gridX, c.gridY));
+  for (const p of l.prePlacedPieces) if (p.type === 'obstacle') blocked.add(key(p.gridX, p.gridY));
+  const seen = new Set<string>([key(s.gridX, s.gridY)]);
+  const queue: Array<[number, number]> = [[s.gridX, s.gridY]];
+  while (queue.length) {
+    const [x, y] = queue.shift()!;
+    if (x === t.gridX && y === t.gridY) return true;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= l.gridWidth || ny >= l.gridHeight) continue;
+      const k = key(nx, ny);
+      if (seen.has(k) || blocked.has(k)) continue;
+      seen.add(k);
+      queue.push([nx, ny]);
+    }
+  }
+  return false;
+}
+
+// 7.13's exhaustive list of pre-placed infrastructure that MAY move (7.13.1).
+const MAY_MOVE: Record<string, string[]> = {
+  'K1-3': ['latch'],
+  'K1-5': ['splitter'],
+  'K1-7': ['bridge', 'splitter'],
+};
 
 function sideOf(from: { gridX: number; gridY: number }, to: { gridX: number; gridY: number }): PortSide | null {
   const dx = from.gridX - to.gridX;
@@ -193,15 +299,20 @@ describe('AXM-026 floor solves', () => {
     }
   });
 
-  it('[7.8] budget is undefined or covers the floor cost plus the sector fresh-board buffer', () => {
-    // The fresh-board buffer is defined for Kepler (50 CR) and later sectors
-    // (75 CR). The Axiom has no fresh board and charges nothing for placement,
-    // so the clause has no buffer to apply there.
-    for (const l of inScope.filter(x => SECTOR_BUFFER[x.sector] !== undefined)) {
-      if (l.budget === undefined) continue;
-      const needed = floorCost(solvesOf(l.id).floor) + SECTOR_BUFFER[l.sector];
-      expect({ id: l.id, budget: l.budget, needed, ok: l.budget >= needed })
-        .toEqual({ id: l.id, budget: l.budget, needed, ok: true });
+  it('[7.6.1] where depthCeiling is declared, depthCeiling - optimalPieces equals the master margin', () => {
+    for (const l of inScope) {
+      if (l.depthCeiling === undefined) continue;
+      const m = snapshot[l.id] as { depthCeiling?: number; optimalPieces: number };
+      expect({ id: l.id, margin: l.depthCeiling - l.optimalPieces })
+        .toEqual({ id: l.id, margin: (m.depthCeiling ?? 0) - m.optimalPieces });
+    }
+  });
+
+  it('[7.8] GUARD: budget and creditBudget deep-equal the master snapshot on every level', () => {
+    for (const l of ALL_LEVELS) {
+      const m = snapshot[l.id];
+      expect({ id: l.id, budget: l.budget, creditBudget: l.creditBudget })
+        .toEqual({ id: l.id, budget: m.budget, creditBudget: m.creditBudget });
     }
   });
 
@@ -215,38 +326,77 @@ describe('AXM-026 floor solves', () => {
     }
   });
 
-  // [7.10] cannot hold under the scoring model on master. scoring-algorithm-v2
-  // REQ-1 and REQ-3 cap a solve built only from issued pieces at one star
-  // (calculateScore tops out at 45 without a purchased piece), so no floor
-  // solve scores 80. The assertion is kept exactly as the spec states it and
-  // marked as a known failure; it turns red the day the conflict is resolved,
-  // which is the signal to drop `.failing`. Raised as an open question on the
-  // AXM-026 PR.
-  function bestFloorScore(l: LevelDefinition): number {
-    const { level, player } = boardFor(l, solvesOf(l.id).floor);
-    const { pulses, pieces } = runPulses(level, player);
-    const steps = pulses.flat();
-    return Math.max(...(['systems', 'drive', 'field'] as const).map(discipline =>
-      calculateScore({
-        executionSteps: steps,
-        placedPieces: pieces,
-        optimalPieces: l.optimalPieces,
-        trayPieceTypes: l.availablePieces,
-        depthCeiling: l.depthCeiling,
-        discipline,
-      }).total));
-  }
-
-  it.failing('[7.10] scoring the floor-solve run yields at least 80 (three stars)', () => {
+  it('[7.10] the floor solve scores 45 or less for every discipline (DEC-1 positive control)', () => {
     for (const l of inScope) {
-      expect({ id: l.id, threeStars: bestFloorScore(l) >= 80 }).toEqual({ id: l.id, threeStars: true });
+      const scores = scoresFor(l, solvesOf(l.id).floor);
+      expect({ id: l.id, atMost45: scores.every(t => t <= 45), scores })
+        .toEqual({ id: l.id, atMost45: true, scores });
     }
   });
 
-  it.failing('[7.10] K1-10 (requireThreeStars): the floor solve scores at least 80', () => {
-    const l = ALL_LEVELS.find(x => x.id === 'K1-10')!;
-    expect(l.consequence?.requireThreeStars).toBe(true);
-    expect(bestFloorScore(l)).toBeGreaterThanOrEqual(80);
+  it('[7.10.1] K1-10: the threeStar fixture solves, buys legally, scores >= 80 and fits creditBudget', () => {
+    expect(ALL_LEVELS.find(x => x.id === 'K1-10')!.consequence?.requireThreeStars).toBe(true);
+    expectThreeStarReachable('K1-10');
+  });
+
+  it('[7.10.2] every other Kepler-or-later level with a threeStar fixture meets the same bar', () => {
+    for (const l of inScope.filter(x => x.sector !== 'axiom' && x.id !== 'K1-10' && !!solvesOf(x.id).threeStar)) {
+      expectThreeStarReachable(l.id);
+    }
+  });
+
+  it('[7.13.1] pre-placed pieces off the 7.13 list stay on their master cell and both solves fire them', () => {
+    for (const l of inScope) {
+      const master = (snapshot[l.id] as { prePlacedPieces: Array<{ type: string; gridX: number; gridY: number }> }).prePlacedPieces;
+      const pinned = l.prePlacedPieces.filter(p =>
+        p.type !== 'source' && p.type !== 'terminal' && p.type !== 'obstacle'
+        && !(MAY_MOVE[l.id] ?? []).includes(p.type));
+      for (const p of pinned) {
+        const onMasterCell = master.some(m => m.type === p.type && m.gridX === p.gridX && m.gridY === p.gridY);
+        expect({ id: l.id, piece: `${p.type}@${p.gridX},${p.gridY}`, onMasterCell })
+          .toEqual({ id: l.id, piece: `${p.type}@${p.gridX},${p.gridY}`, onMasterCell: true });
+        for (const [name, solve] of [['floor', solvesOf(l.id).floor], ['alternate', solvesOf(l.id).alternate]] as const) {
+          const { level, player } = boardFor(l, solve);
+          const { pulses } = runPulses(level, player);
+          const fired = pulses.some(steps => steps.some(st => st.pieceId === p.id && st.success));
+          expect({ id: l.id, solve: name, piece: `${p.type}@${p.gridX},${p.gridY}`, fired })
+            .toEqual({ id: l.id, solve: name, piece: `${p.type}@${p.gridX},${p.gridY}`, fired: true });
+        }
+      }
+    }
+  });
+
+  it('T-Bot ruling (#67): no route around a repair puzzle\'s pre-placed repair pieces', () => {
+    for (const id of ['REPAIR-PROP-SURGE', 'REPAIR-HYPERDRIVE']) {
+      const l = ALL_LEVELS.find(x => x.id === id)!;
+      const repairPieces = l.prePlacedPieces.filter(p => !['source', 'terminal', 'obstacle'].includes(p.type));
+      expect(repairPieces.length).toBeGreaterThan(0);
+      for (const p of repairPieces) {
+        expect({ id, piece: `${p.type}@${p.gridX},${p.gridY}`, bypass: routeExistsWithout(l, p) })
+          .toEqual({ id, piece: `${p.type}@${p.gridX},${p.gridY}`, bypass: false });
+      }
+    }
+  });
+
+  it('T-Bot ruling (#67, 7.13): the K1-7 floor solve feeds the Bridge on both of its inputs', () => {
+    const l = ALL_LEVELS.find(x => x.id === 'K1-7')!;
+    const { level, player } = boardFor(l, solvesOf('K1-7').floor);
+    const { pulses, pieces } = runPulses(level, player);
+    const bridgePiece = pieces.find(p => p.type === 'bridge')!;
+    const fired = new Set(pulses.flat().filter(st => st.success).map(st => st.pieceId));
+    const feeders = pieces.filter(p => p.id !== bridgePiece.id && fired.has(p.id)
+      && Math.abs(p.gridX - bridgePiece.gridX) + Math.abs(p.gridY - bridgePiece.gridY) === 1
+      && canSendTo(p, bridgePiece));
+    expect(feeders.map(p => sideOf(p, bridgePiece)).sort()).toEqual(['left', 'top']);
+  });
+
+  it('[7.14] every Axiom tray type is introduced by the tutorial of this level or an earlier one', () => {
+    const introduced = new Set<string>();
+    for (const l of AXIOM_LEVELS) {
+      for (const st of l.tutorialSteps ?? []) if (st.codexEntryId) introduced.add(st.codexEntryId);
+      const untaught = Array.from(new Set(l.availablePieces)).filter(t => !introduced.has(t));
+      expect({ id: l.id, untaught }).toEqual({ id: l.id, untaught: [] });
+    }
   });
 
   it('[7.12] GUARD: tapes, requiredTerminalCount and objectives match master', () => {

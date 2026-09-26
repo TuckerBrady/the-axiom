@@ -37,6 +37,9 @@ export type LevelSolves = {
   floor: SolvePiece[];
   alternate: SolvePiece[];
   terminalEntrySide?: PortSide;
+  // 7.10.1 (v1.2): the floor or alternate solve plus requisitioned pieces, built
+  // to reach three stars within the level's creditBudget.
+  threeStar?: SolvePiece[];
 };
 
 const E = 0;
