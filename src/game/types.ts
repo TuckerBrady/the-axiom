@@ -405,6 +405,10 @@ export type TutorialStep = {
   allowPieceTap?: boolean;
   // Beat 4a: advance automatically when this piece type is tapped on board
   awaitPieceTap?: PieceType;
+  // AXM-031: "the piece of this type", resolved at runtime (pre-placed, then
+  // player-placed, then tray; see game/discoveryFlight.ts). Names a type,
+  // never a cell or a piece id. targetRef stays as the fallback target.
+  targetPiece?: PieceType;
 };
 
 // ─── Scoring Category Visibility ─────────────────────────────────────────────

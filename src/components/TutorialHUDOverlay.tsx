@@ -11,6 +11,7 @@ import {
   Platform,
   findNodeHandle,
   UIManager,
+  AccessibilityInfo,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep, PieceType } from '../game/types';
@@ -21,12 +22,33 @@ import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 import { toOverlaySpace } from '../game/overlaySpace';
 import { TRAY_FOCUS_SETTLE_MS } from '../game/trayFocus';
+import {
+  PERCH_ORB_SIZE,
+  DISCOVERY_FLIGHT_MS,
+  DISCOVERY_FLIGHT_BEZIER,
+  CODEX_SLIDE_MS,
+  COLLECT_CROSSFADE_MS,
+  REDUCED_MOTION_FADE_MS,
+  LOOK_IN_MS,
+  LOOK_OUT_MS,
+  isPerchStep,
+  computeDiscoveryPerch,
+  boardCellLayout,
+  planFlight,
+  flightPointAt,
+  lookOffset,
+  captionDelayMs,
+  codexDockPoint,
+  type FlightPath,
+  type PieceResolution,
+} from '../game/discoveryFlight';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const ORB_SIZE = 24;
+// AXM-031 spec 3.3: the orb and the perch math share one size.
+const ORB_SIZE = PERCH_ORB_SIZE;
 const PORTAL_PAD = 12;
 const PORTAL_MIN = 64;
 const PORTAL_MARGIN = 8;
@@ -69,6 +91,9 @@ interface Props {
   // slide it into the tray's centre frame first. Returns true when the piece
   // moved, so the spotlight waits for the scroll to land before measuring.
   bringTargetIntoView?: (targetRef: string) => boolean;
+  // AXM-031 spec 7.4: resolves a step's targetPiece (a type) to a board cell
+  // or a tray ref at runtime. Never a piece id or a coordinate from data.
+  resolveTargetPiece?: (type: PieceType) => PieceResolution;
 }
 
 // Targets that are section-level (no individual piece glow)
@@ -107,16 +132,30 @@ function TutorialHUDOverlayComponent({
   lastPlacedTrigger,
   lastTappedTrigger,
   bringTargetIntoView,
+  resolveTargetPiece,
 }: Props) {
   // Held in a ref so a new callback identity from the parent never rebuilds
   // runStep (and with it the step effects).
   const bringTargetIntoViewRef = useRef(bringTargetIntoView);
   bringTargetIntoViewRef.current = bringTargetIntoView;
+  const resolveTargetPieceRef = useRef(resolveTargetPiece);
+  resolveTargetPieceRef.current = resolveTargetPiece;
+  const cellSizeRef = useRef(spotlightCellSize);
+  cellSizeRef.current = spotlightCellSize;
   // ── State ──
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('idle');
   const [hydrated, setHydrated] = useState(false);
   const [targetLayout, setTargetLayout] = useState<Layout | null>(null);
+  // AXM-031 spec 7.5: what the current step actually points at once
+  // targetPiece is resolved. A ref key ('boardGrid', 'trayMerger', ...) or a
+  // board cell ('cell:x,y'). Every per-target branch reads this, not
+  // step.targetRef. 'fallback' marks an unresolved targetPiece (spec 7.6):
+  // rendered as a plain boardGrid codex step, no caption.
+  const [resolvedTarget, setResolvedTarget] = useState<string | null>(null);
+  const [targetFallback, setTargetFallback] = useState(false);
+  // Design DR-10: the orb rides above the Codex while docked.
+  const [orbDocked, setOrbDocked] = useState(false);
   const [codexVisible, setCodexVisible] = useState(false);
   // A1-1 batch: secondary entries catalogued silently alongside the main codex view
   const [codexAlsoCollected, setCodexAlsoCollected] = useState<PieceEntry[]>([]);
@@ -184,6 +223,19 @@ function TutorialHUDOverlayComponent({
     };
   }, []);
 
+  // ── Reduced motion (AXM-031 spec 10.1) ──
+  const reduceMotionRef = useRef(false);
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then(v => { reduceMotionRef.current = v; })
+      .catch(() => { /* platform without the setting */ });
+    const sub = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      (v: boolean) => { reduceMotionRef.current = v; },
+    );
+    return () => sub.remove();
+  }, []);
+
   // ── Animated values ──
   // Opacity-only values use native driver (the JS thread is the
   // bottleneck during beam execution; native-driver opacity halves
@@ -206,15 +258,22 @@ function TutorialHUDOverlayComponent({
   // because Animated color interpolation is not supported on the native
   // driver. Animates in when a codex entry is collected, out on dismiss.
   const orbCollectAnim = useRef(new Animated.Value(0)).current;
+  // AXM-031 spec 9.1: the orb host is always mounted; this is its visibility
+  // (0 in idle and complete). Same host as orbX/orbY, so JS driver only.
+  const orbOpacity = useRef(new Animated.Value(0)).current;
+  // Design DR-6: the core's 3dp look. Its own child host, JS driver.
+  const lookX = useRef(new Animated.Value(0)).current;
+  const lookY = useRef(new Animated.Value(0)).current;
+  // The perch the orb sits on for the current perch step, so the Codex dock
+  // can ride back down to it (design DR-12). Null off a perch.
+  const perchRef = useRef<{ x: number; y: number } | null>(null);
 
   const step = steps[currentStepIndex];
   const totalSteps = steps.length;
-  // Tucker 2026-06-13: while COGS is highlighting a piece BEFORE it is captured
-  // (the '???' notice beat), the orb reads green — same green as the named
-  // reveal beat that follows. Every other step follows its own eye state.
-  const eyeColor = step?.captionLabel === '???'
-    ? eyeStateColor('green')
-    : eyeStateColor(step?.eyeState);
+  // AXM-031 spec 5.1 (Tucker 2026-09-26): the orb follows the step's eye
+  // state on every step, so it is amber on the '???' notice beat and turns
+  // green only on collection. Replaces the 2026-06-13 green-on-'???' rule.
+  const eyeColor = eyeStateColor(step?.eyeState);
   const isCodexStep = !!(step?.codexEntryId);
 
   // ── Hydration ──
@@ -436,6 +495,99 @@ function TutorialHUDOverlayComponent({
     });
   }, [orbX, orbY, trackAnim]);
 
+  // ── Show the orb (AXM-031 spec 9.1) ──
+  const showOrb = useCallback(() => {
+    const anim = Animated.timing(orbOpacity, {
+      toValue: 1,
+      duration: REDUCED_MOTION_FADE_MS,
+      useNativeDriver: false,
+    });
+    trackAnim(anim);
+    anim.start();
+  }, [orbOpacity, trackAnim]);
+
+  const orbCentre = useCallback(() => ({
+    x: ((orbX as any)._value ?? SCREEN_W - 40) + ORB_SIZE / 2,
+    y: ((orbY as any)._value ?? 60) + ORB_SIZE / 2,
+  }), [orbX, orbY]);
+
+  // ── Discovery flight (AXM-031; design DR-1 to DR-5, spec 3.1, 10.2) ──
+  // One 600ms JS-driven timeline. A listener maps linear progress onto the
+  // arc-and-zip path (flightPointAt: 480ms zip to a 6dp overshoot, 120ms
+  // settle) and writes the orb's own orbX/orbY values, so the single orb
+  // host is unchanged. Reduced motion: fade out, jump, fade in; no travel.
+  const flyDiscovery = useCallback((cx: number, cy: number, done?: () => void) => {
+    const finish = () => {
+      if (!mountedRef.current) return;
+      done?.();
+    };
+    if (reduceMotionRef.current) {
+      const out = Animated.timing(orbOpacity, {
+        toValue: 0, duration: REDUCED_MOTION_FADE_MS, useNativeDriver: false,
+      });
+      trackAnim(out);
+      out.start(() => {
+        if (!mountedRef.current) return;
+        orbX.setValue(cx - ORB_SIZE / 2);
+        orbY.setValue(cy - ORB_SIZE / 2);
+        const back = Animated.timing(orbOpacity, {
+          toValue: 1, duration: REDUCED_MOTION_FADE_MS, useNativeDriver: false,
+        });
+        trackAnim(back);
+        back.start(finish);
+      });
+      return;
+    }
+    const path: FlightPath = planFlight(orbCentre(), { x: cx, y: cy }, { screenW: SCREEN_W, screenH: SCREEN_H });
+    const progress = new Animated.Value(0);
+    const id = progress.addListener(({ value }) => {
+      const p = flightPointAt(path, value);
+      orbX.setValue(p.x - ORB_SIZE / 2);
+      orbY.setValue(p.y - ORB_SIZE / 2);
+    });
+    const anim = Animated.timing(progress, {
+      toValue: 1,
+      duration: DISCOVERY_FLIGHT_MS,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    });
+    trackAnim(anim);
+    anim.start(() => {
+      progress.removeListener(id);
+      if (!mountedRef.current) return;
+      orbX.setValue(cx - ORB_SIZE / 2);
+      orbY.setValue(cy - ORB_SIZE / 2);
+      finish();
+    });
+  }, [orbX, orbY, orbOpacity, orbCentre, trackAnim]);
+
+  // ── Arrival look (design DR-6, DR-7) ──
+  // The core leans 3dp toward the target, holds, and returns as the '???'
+  // starts. `then` fires at the release (400ms after landing), or at once
+  // under reduced motion, which skips the look.
+  const lookAt = useCallback((target: { x: number; y: number }, then: () => void) => {
+    const delay = captionDelayMs(reduceMotionRef.current);
+    if (delay === 0) { then(); return; }
+    const off = lookOffset(orbCentre(), target);
+    const ease = Easing.bezier(...DISCOVERY_FLIGHT_BEZIER);
+    const lean = Animated.parallel([
+      Animated.timing(lookX, { toValue: off.x, duration: LOOK_IN_MS, easing: ease, useNativeDriver: false }),
+      Animated.timing(lookY, { toValue: off.y, duration: LOOK_IN_MS, easing: ease, useNativeDriver: false }),
+    ]);
+    trackAnim(lean);
+    lean.start();
+    trackTimer(setTimeout(() => {
+      if (!mountedRef.current) return;
+      const back = Animated.parallel([
+        Animated.timing(lookX, { toValue: 0, duration: LOOK_OUT_MS, easing: ease, useNativeDriver: false }),
+        Animated.timing(lookY, { toValue: 0, duration: LOOK_OUT_MS, easing: ease, useNativeDriver: false }),
+      ]);
+      trackAnim(back);
+      back.start();
+      then();
+    }, delay));
+  }, [lookX, lookY, orbCentre, trackAnim, trackTimer]);
+
   // ── Animated portal position (for board reveal) ──
   const portalLeft = useRef(new Animated.Value(0)).current;
   const portalTop = useRef(new Animated.Value(0)).current;
@@ -567,18 +719,48 @@ function TutorialHUDOverlayComponent({
     if (!s) return;
     if (!mountedRef.current) return;
 
+    // AXM-031 spec 7.1-7.6: resolve targetPiece to what this step points at.
+    // A board piece measures the boardGrid and derives its cell; a tray piece
+    // behaves exactly like an Axiom tray step on that ref; nothing found falls
+    // back to the step's own targetRef (boardGrid), rendered as master did.
+    let measureRef = s.targetRef;
+    let effective = s.targetRef;
+    let cell: { gridX: number; gridY: number } | null = null;
+    let fallback = false;
+    if (s.targetPiece) {
+      const r = resolveTargetPieceRef.current?.(s.targetPiece) ?? null;
+      if (r?.where === 'tray') {
+        measureRef = r.refKey;
+        effective = r.refKey;
+      } else if (r?.where === 'board' && (cellSizeRef.current ?? 0) > 0) {
+        measureRef = 'boardGrid';
+        effective = `cell:${r.gridX},${r.gridY}`;
+        cell = { gridX: r.gridX, gridY: r.gridY };
+      } else {
+        fallback = true;
+      }
+    }
+    const perch = !fallback && isPerchStep(steps, idx);
+    // Coming off a perch onto a non-perch step flies home with the same
+    // discovery flight (design DR-5, spec 2.9); home-to-home keeps the spring.
+    const fromPerch = !!perchRef.current;
+
     // UX-07: when this step targets the same boardGrid element as the
     // previous step, the outline is already drawn. Snap it to its settled
     // geometry and refresh only the dialogue card — do NOT tear it down
     // (resetVisualState / flying phase) or replay the expand morph, which
     // is what made the board outline reload/flicker on every tap.
     const willPersistBoard =
-      s.targetRef === 'boardGrid' &&
+      effective === 'boardGrid' &&
       previousTargetRef.current === 'boardGrid' &&
-      !!previousBoardBoxRef.current;
+      !!previousBoardBoxRef.current &&
+      !fromPerch;
+
+    setResolvedTarget(effective);
+    setTargetFallback(fallback);
 
     if (willPersistBoard) {
-      previousTargetRef.current = s.targetRef;
+      previousTargetRef.current = effective;
       setPhase('arrived');
       measureTarget(s.targetRef, (layout) => {
         if (!mountedRef.current) return;
@@ -605,17 +787,28 @@ function TutorialHUDOverlayComponent({
       return;
     }
 
-    previousTargetRef.current = s.targetRef;
+    previousTargetRef.current = effective;
     resetVisualState();
     setTargetLayout(null);
     setPhase('flying');
+    showOrb();
 
-    const moved = bringTargetIntoViewRef.current?.(s.targetRef) ?? false;
+    const moved = bringTargetIntoViewRef.current?.(measureRef) ?? false;
     const measure = (cb: (layout: Layout | null) => void) => {
-      if (!moved) { measureTarget(s.targetRef, cb); return; }
+      const run = () => {
+        if (!s.targetPiece) { measureTarget(s.targetRef, cb); return; }
+        measureTarget(measureRef, (layout) => {
+          if (layout && cell) {
+            cb(boardCellLayout(layout, cellSizeRef.current!, cell.gridX, cell.gridY));
+            return;
+          }
+          cb(layout);
+        });
+      };
+      if (!moved) { run(); return; }
       trackTimer(setTimeout(() => {
         if (!mountedRef.current) return;
-        measureTarget(s.targetRef, cb);
+        run();
       }, TRAY_FOCUS_SETTLE_MS));
     };
 
@@ -623,13 +816,14 @@ function TutorialHUDOverlayComponent({
       if (!mountedRef.current) return;
       if (!layout) {
         // Fallback: treat as center so something still shows
-        const fallback: Layout = {
+        const fallbackLayout: Layout = {
           x: SCREEN_W / 2 - ORB_SIZE / 2,
           y: SCREEN_H / 2 - ORB_SIZE / 2,
           width: ORB_SIZE,
           height: ORB_SIZE,
         };
-        setTargetLayout(fallback);
+        perchRef.current = null;
+        setTargetLayout(fallbackLayout);
         flyOrbTo(SCREEN_W / 2, SCREEN_H / 2, () => {
           if (!mountedRef.current) return;
           setPhase('arrived');
@@ -637,7 +831,7 @@ function TutorialHUDOverlayComponent({
         return;
       }
       setTargetLayout(layout);
-      const isCenter = s.targetRef === 'center';
+      const isCenter = effective === 'center';
       const box = isCenter ? null : computePortalBox(layout);
 
       // PROMPT_127 Fix 1: drive dim from the active step's target. Tray
@@ -646,15 +840,17 @@ function TutorialHUDOverlayComponent({
       // on every step transition so the board reveal feels uniform
       // regardless of which event got us here. dimOpacity lives on a
       // single always-mounted Animated.View host, so native driver is
-      // safe under REQ-A-1.
-      const trayTarget = s.targetRef?.startsWith('tray');
-      const placedPieceTarget = s.targetRef === 'placedPiece';
-      if (trayTarget || placedPieceTarget) {
+      // safe under REQ-A-1. AXM-031 DR-15: a board-piece discovery dims
+      // like a tray identify step.
+      const trayTarget = s.targetRef?.startsWith('tray') || measureRef.startsWith('tray');
+      const cellTarget = !!cell;
+      const placedPieceTarget = effective === 'placedPiece';
+      if (trayTarget || cellTarget || placedPieceTarget) {
         // PROMPT_128: a tray step that is awaiting placement is the "act"
         // step — the board must be fully in focus for the drag, so dim → 0.
         // A tray step without awaitPlacement is the "identify" step — keep
         // the light dim so the square reads. placedPiece stays 0.
-        const dimTarget = (trayTarget && !s.awaitPlacement) ? 0.45 : 0;
+        const dimTarget = ((trayTarget || cellTarget) && !s.awaitPlacement) ? 0.45 : 0;
         const dimAnim = Animated.timing(dimOpacity, {
           toValue: dimTarget,
           duration: 250,
@@ -665,28 +861,12 @@ function TutorialHUDOverlayComponent({
         dimAnim.start();
       }
 
-      // Presentation Mode (Tucker 2026-06-13): COGS stays centered on screen
-      // for every step — the "professor with a laser pointer". The orb does
-      // not chase the target; only the highlight (board outline / amber square),
-      // the '???'/name caption, and the dialogue card move to whatever COGS is
-      // pointing at. The one exception is allowPieceTap steps, where COGS steps
-      // aside (bottom-docked) so the player can tap the piece on the board.
-      let targetCx = SCREEN_W / 2;
-      let targetCy = SCREEN_H / 2;
-      if (s.allowPieceTap) {
-        const calloutLeft = Math.max(
-          12,
-          Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
-        );
-        const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
-        targetCx = calloutLeft + CALLOUT_W / 2;
-        targetCy = calloutTop - 10 - ORB_SIZE / 2;
-      }
-      flyOrbTo(targetCx, targetCy, () => {
+      // Reveal the target: portal (or board outline) and caption, then card.
+      const reveal = () => {
         if (!mountedRef.current) return;
         setPhase('arrived');
         if (box) {
-          if (s.targetRef === 'boardGrid') {
+          if (effective === 'boardGrid') {
             // UX-07: remember the settled board outline so the next step,
             // if it targets boardGrid again, can persist it without replay.
             previousBoardBoxRef.current = box;
@@ -707,9 +887,67 @@ function TutorialHUDOverlayComponent({
           trackAnim(tail);
           tail.start();
         }
-      });
+      };
+
+      // AXM-031: on a perch step COGS goes and looks. The perch sits on the
+      // callout side of the target (design DR-13) and clear of the target,
+      // the caption and the card (spec 3.2). The card position repeats the
+      // kept two-position rule from calloutPos (spec 4.1) for this step.
+      if (perch && box) {
+        const caption = s.captionLabel
+          ? { left: box.left + box.width / 2 - 100, top: box.top - 24, width: 200, height: 18 }
+          : null;
+        const hEst = (s.message?.length ?? 0) > 200 ? CALLOUT_H_EST_LONG : CALLOUT_H_EST_DEFAULT;
+        const calloutLeft = Math.max(12, Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W));
+        const calloutTop = box.top + box.height / 2 > SCREEN_H / 2
+          ? CALLOUT_UPPER_TOP
+          : SCREEN_H - NAV_HEIGHT - 16 - hEst;
+        const p = computeDiscoveryPerch({
+          target: box,
+          caption,
+          callout: { left: calloutLeft, top: calloutTop, width: CALLOUT_W, height: hEst },
+          screenW: SCREEN_W,
+          screenH: SCREEN_H,
+        });
+        const here = orbCentre();
+        perchRef.current = { x: p.cx, y: p.cy };
+        // Already there (a reveal after its notice, spec 2.7): no flight, no look.
+        if (Math.hypot(here.x - p.cx, here.y - p.cy) < 1) {
+          reveal();
+          return;
+        }
+        flyDiscovery(p.cx, p.cy, () => {
+          lookAt({ x: box.left + box.width / 2, y: box.top + box.height / 2 }, reveal);
+        });
+        return;
+      }
+
+      // Presentation Mode (Tucker 2026-06-13): COGS stays centered on screen
+      // for every step — the "professor with a laser pointer". The orb does
+      // not chase the target; only the highlight (board outline / amber square),
+      // the '???'/name caption, and the dialogue card move to whatever COGS is
+      // pointing at. The one exception is allowPieceTap steps, where COGS steps
+      // aside (bottom-docked) so the player can tap the piece on the board.
+      // AXM-031: perch steps branch above; this is still home for the rest.
+      let targetCx = SCREEN_W / 2;
+      let targetCy = SCREEN_H / 2;
+      if (s.allowPieceTap) {
+        const calloutLeft = Math.max(
+          12,
+          Math.min(SCREEN_W / 2 - CALLOUT_W / 2, SCREEN_W - 12 - CALLOUT_W),
+        );
+        const calloutTop = SCREEN_H - NAV_HEIGHT - 16 - CALLOUT_H_EST;
+        targetCx = calloutLeft + CALLOUT_W / 2;
+        targetCy = calloutTop - 10 - ORB_SIZE / 2;
+      }
+      perchRef.current = null;
+      if (fromPerch) {
+        flyDiscovery(targetCx, targetCy, reveal);
+      } else {
+        flyOrbTo(targetCx, targetCy, reveal);
+      }
     });
-  }, [steps, resetVisualState, measureTarget, trackTimer, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST, portalLeft, portalTop, portalW, portalH, portalOpacity, glowOpacity]);
+  }, [steps, resetVisualState, measureTarget, trackTimer, flyOrbTo, flyDiscovery, lookAt, showOrb, orbCentre, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST, CALLOUT_H_EST_DEFAULT, CALLOUT_H_EST_LONG, portalLeft, portalTop, portalW, portalH, portalOpacity, glowOpacity]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
@@ -764,10 +1002,11 @@ function TutorialHUDOverlayComponent({
   // The filled glow circle read as "the orb landed here" — which no longer
   // happens. Suppress it for every spotlight target (was: tray/placedPiece
   // only; the port discovery steps were the last to still show a glow).
+  const liveTarget = resolvedTarget ?? step?.targetRef ?? '';
   const isSquareOnlyTarget = !!step && step.targetRef !== 'center';
   const showPieceGlow =
     !!step &&
-    !SECTION_TARGETS.has(step.targetRef) &&
+    !SECTION_TARGETS.has(liveTarget) &&
     !isSquareOnlyTarget &&
     phase === 'arrived';
   useEffect(() => {
@@ -797,14 +1036,19 @@ function TutorialHUDOverlayComponent({
   // ── Codex slide ──
   useEffect(() => {
     if (codexVisible) {
+      if (reduceMotionRef.current) {
+        codexTranslate.setValue(0);
+        return;
+      }
       // useNativeDriver: false — codexTranslate's host is conditionally
       // mounted ({codexVisible && codexEntry && <Animated.View ...>}).
       // Each codex open/close tears down and remounts the host's native
       // node, so REQ-A-1 forbids native-driver here. See
       // project-docs/REPORTS/build21-sigsegv-investigation.md.
+      // AXM-031 spec 11.1: 600ms, the doctrine floor.
       const slide = Animated.timing(codexTranslate, {
         toValue: 0,
-        duration: 200,
+        duration: 600,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
         useNativeDriver: false,
       });
@@ -822,6 +1066,13 @@ function TutorialHUDOverlayComponent({
       return;
     }
     setPhase('complete');
+    const hide = Animated.timing(orbOpacity, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: false,
+    });
+    trackAnim(hide);
+    hide.start();
     const anim = Animated.timing(exitOpacity, {
       toValue: 0,
       duration: 250,
@@ -836,7 +1087,7 @@ function TutorialHUDOverlayComponent({
       // setState afterwards.
       after();
     });
-  }, [exitOpacity, trackAnim]);
+  }, [exitOpacity, orbOpacity, trackAnim]);
 
   // ── Step controls ──
   const advanceStep = useCallback(() => {
@@ -851,6 +1102,25 @@ function TutorialHUDOverlayComponent({
     setCurrentStepIndex(next);
     runStep(next);
   }, [currentStepIndex, totalSteps, levelId, onComplete, exitOverlay, runStep]);
+
+  // The Codex panel fills the overlay, so its dock is measured from the
+  // overlay's own rect.
+  const dockOrb = useCallback(() => {
+    const dock = codexDockPoint({ left: 0, top: 0, width: SCREEN_W, height: SCREEN_H });
+    setOrbDocked(true);
+    if (reduceMotionRef.current) {
+      orbX.setValue(dock.x - ORB_SIZE / 2);
+      orbY.setValue(dock.y - ORB_SIZE / 2);
+      return;
+    }
+    const ease = Easing.bezier(0.4, 0, 0.2, 1);
+    const ride = Animated.parallel([
+      Animated.timing(orbX, { toValue: dock.x - ORB_SIZE / 2, duration: CODEX_SLIDE_MS, easing: ease, useNativeDriver: false }),
+      Animated.timing(orbY, { toValue: dock.y - ORB_SIZE / 2, duration: CODEX_SLIDE_MS, easing: ease, useNativeDriver: false }),
+    ]);
+    trackAnim(ride);
+    ride.start();
+  }, [orbX, orbY, trackAnim]);
 
   const handlePrimary = useCallback(() => {
     if (phase === 'arrived' && step?.codexEntryId) {
@@ -872,26 +1142,21 @@ function TutorialHUDOverlayComponent({
         );
         setCodexVisible(true);
         setPhase('codex');
+        dockOrb();
         return;
       }
       // Normal: mark discovered and open the codex view for this step.
       // Discovery is monotonic — re-marking is a no-op (Prompt 92, Fix 8).
       useCodexStore.getState().markDiscovered(step.codexEntryId);
-      // Orb transitions to green during the collection sequence.
-      const colorIn = Animated.timing(orbCollectAnim, {
-        toValue: 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      });
-      trackAnim(colorIn);
-      colorIn.start();
+      // AXM-031 design DR-9: the orb rides up with the panel, still amber.
+      // It turns green when the entry is filed (UNDERSTOOD, DR-11).
       setCodexVisible(true);
       setPhase('codex');
+      dockOrb();
       return;
     }
     advanceStep();
-  }, [phase, step, levelId, advanceStep, orbCollectAnim, trackAnim]);
+  }, [phase, step, levelId, advanceStep, dockOrb]);
 
   const handleSkip = useCallback(() => {
     AsyncStorage.setItem(`axiom_tutorial_skipped_${levelId}`, '1').catch(() => {});
@@ -899,21 +1164,15 @@ function TutorialHUDOverlayComponent({
   }, [levelId, onSkip, exitOverlay]);
 
   const handleCodexUnderstood = useCallback(() => {
-    // useNativeDriver: false — see slide-in comment above and
-    // project-docs/REPORTS/build21-sigsegv-investigation.md.
-    const slideOut = Animated.timing(codexTranslate, {
-      toValue: SCREEN_H,
-      duration: 200,
-      easing: Easing.bezier(0.4, 0, 0.2, 1),
-      useNativeDriver: false,
-    });
-    trackAnim(slideOut);
-    slideOut.start(() => {
+    const reduced = reduceMotionRef.current;
+    const back = perchRef.current ?? { x: SCREEN_W / 2, y: SCREEN_H / 2 };
+    const afterSlide = () => {
       if (!mountedRef.current) return;
+      setOrbDocked(false);
       // Orb transitions back to its step eyeColor after the codex dismisses.
       const colorOut = Animated.timing(orbCollectAnim, {
         toValue: 0,
-        duration: 300,
+        duration: COLLECT_CROSSFADE_MS,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: false,
       });
@@ -922,8 +1181,43 @@ function TutorialHUDOverlayComponent({
       setCodexAlsoCollected([]);
       setCodexVisible(false);
       advanceStep();
+    };
+    // AXM-031 design DR-11: filing. Amber to green over 600ms while docked.
+    const colorIn = Animated.timing(orbCollectAnim, {
+      toValue: 1,
+      duration: COLLECT_CROSSFADE_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
     });
-  }, [codexTranslate, advanceStep, trackAnim, orbCollectAnim]);
+    trackAnim(colorIn);
+    colorIn.start(() => {
+      if (!mountedRef.current) return;
+      if (reduced) {
+        codexTranslate.setValue(SCREEN_H);
+        orbX.setValue(back.x - ORB_SIZE / 2);
+        orbY.setValue(back.y - ORB_SIZE / 2);
+        afterSlide();
+        return;
+      }
+      // useNativeDriver: false — see slide-in comment above and
+      // project-docs/REPORTS/build21-sigsegv-investigation.md.
+      // AXM-031 spec 11.1 / design DR-12: 600ms, and the orb rides down with
+      // the panel to the perch it left.
+      const ease = Easing.bezier(0.4, 0, 0.2, 1);
+      const slideOut = Animated.parallel([
+        Animated.timing(codexTranslate, {
+          toValue: SCREEN_H,
+          duration: 600,
+          easing: ease,
+          useNativeDriver: false,
+        }),
+        Animated.timing(orbX, { toValue: back.x - ORB_SIZE / 2, duration: CODEX_SLIDE_MS, easing: ease, useNativeDriver: false }),
+        Animated.timing(orbY, { toValue: back.y - ORB_SIZE / 2, duration: CODEX_SLIDE_MS, easing: ease, useNativeDriver: false }),
+      ]);
+      trackAnim(slideOut);
+      slideOut.start(afterSlide);
+    });
+  }, [codexTranslate, advanceStep, trackAnim, orbCollectAnim, orbX, orbY]);
 
   // Advance when the matching piece type is placed (awaitPlacement steps).
   // The sequence number guards against re-firing when the same type repeats
@@ -977,7 +1271,7 @@ function TutorialHUDOverlayComponent({
   const captionText = step.captionLabel;
 
   // ── Spotlight ring positions (A1-1 only) ──
-  const isBoardStep = step.targetRef === 'boardGrid';
+  const isBoardStep = liveTarget === 'boardGrid';
   const showSpotlights =
     isBoardStep &&
     levelId === 'A1-1' &&
@@ -998,7 +1292,7 @@ function TutorialHUDOverlayComponent({
   }
   // Codex steps always use amber portal border + purple circle (universal collection standard).
   // Non-codex port targets (sourceNode/outputNode) keep purple. Others use eyeColor.
-  const glowColor = (isCodexStep || (step && PORT_TARGETS.has(step.targetRef))) ? '#8B5CF6' : eyeColor;
+  const glowColor = (isCodexStep || (step && PORT_TARGETS.has(liveTarget))) ? '#8B5CF6' : eyeColor;
 
   const renderMessage = () => {
     const text = step.message;
@@ -1095,7 +1389,9 @@ function TutorialHUDOverlayComponent({
           narrow piece highlight without clipping. Fades with portalOpacity.
           Caption steps never target the board, so static portalBox geometry is
           used (no animated portalLeft/Top branch needed). */}
-      {captionText && phase !== 'flying' && phase !== 'idle' && portalBox && (
+      {/* AXM-031 spec 7.6: an unresolved targetPiece renders as a plain
+          boardGrid codex step, with no caption. */}
+      {captionText && !targetFallback && phase !== 'flying' && phase !== 'idle' && portalBox && (
         <Animated.View
           pointerEvents="none"
           style={{
@@ -1218,14 +1514,16 @@ function TutorialHUDOverlayComponent({
         </Animated.View>
       )}
 
-      {/* Orb (always above everything during tutorial) */}
-      {phase !== 'idle' && phase !== 'complete' && (
-        <Animated.View
+      {/* Orb. AXM-031 spec 9.1: always mounted, one host; visibility is
+          orbOpacity. Design DR-10: raised above the Codex (zIndex/elevation
+          250) while docked on it. */}
+      <Animated.View
           pointerEvents="none"
           style={{
             position: 'absolute',
             left: orbX,
             top: orbY,
+            opacity: orbOpacity,
             width: ORB_SIZE,
             height: ORB_SIZE,
             borderRadius: ORB_SIZE / 2,
@@ -1240,7 +1538,8 @@ function TutorialHUDOverlayComponent({
             shadowOffset: { width: 0, height: 0 },
             shadowOpacity: 0.7,
             shadowRadius: 10,
-            zIndex: 200,
+            zIndex: orbDocked ? 260 : 200,
+            elevation: orbDocked ? 260 : 0,
           }}
         >
           <Animated.View
@@ -1252,10 +1551,10 @@ function TutorialHUDOverlayComponent({
                 inputRange: [0, 1],
                 outputRange: [eyeColor, COGS_AI_ORB_COLORS.GREEN.solid],
               }),
+              transform: [{ translateX: lookX }, { translateY: lookY }],
             }}
           />
         </Animated.View>
-      )}
 
       {/* Codex overlay */}
       {codexVisible && codexEntry && (
