@@ -1,0 +1,3685 @@
+{
+ "A1-1": {
+  "id": "A1-1",
+  "name": "Emergency Power",
+  "sector": "axiom",
+  "description": "Restore emergency power by connecting Source to Terminal.",
+  "cogsLine": "The ship is dark. That is correctable.",
+  "eyeState": "blue",
+  "gridWidth": 8,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-1",
+    "type": "source",
+    "category": "physics",
+    "gridX": 4,
+    "gridY": 1,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-2",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 4,
+    "gridY": 6,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor"
+  ],
+  "dataTrail": {
+   "cells": [],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 4,
+  "systemRepaired": "Emergency Power",
+  "budget": 0,
+  "computationalGoal": "Deliver the signal unchanged from Source to Terminal along a continuous straight path.",
+  "conceptTaught": "Signal travels along a directed path. A complete path from input to output is the machine's body; without it, nothing moves.",
+  "prerequisiteConcept": "None. First level. The player's mental model is a blank slate beyond the universal human intuition that a pipe carries what you put into one end.",
+  "tapeDesignRationale": "Stateless level. No input tape, no output tape. A single signal pulse demonstrates that a Conveyor path connects ports. Tape machinery is withheld until A1-5.",
+  "difficultyBand": "intuitive",
+  "narrativeFrame": "Arrival on a broken ship. Emergency power is the first system that has to come online before anything else can. The Engineer places a single conveyor pipe between two ports and watches the ship's lowest light flicker on. The work begins.",
+  "tutorialHints": [
+   {
+    "key": "a11_select",
+    "trigger": "onMount",
+    "text": "Tap a piece in the tray to select it. Then tap the grid to place it between Source and Terminal."
+   },
+   {
+    "key": "a11_engage",
+    "trigger": "onFirstPiecePlaced",
+    "text": "Piece placed. Tap ENGAGE MACHINE to fire the signal."
+   },
+   {
+    "key": "a11_void",
+    "trigger": "onVoid",
+    "text": "The signal could not reach the Terminal. Check your connections."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "cogs-intro",
+    "targetRef": "center",
+    "eyeState": "blue",
+    "message": "You are looking at my HUD interface. I use it to communicate with you. I will appear when there is something worth knowing. You can ignore me. I have noted that this does not stop me."
+   },
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Two fixtures are already on this board. Bridge them. Signal follows whatever path you build — you don't aim pieces, the path aims them."
+   },
+   {
+    "id": "source-notice",
+    "targetRef": "sourceNode",
+    "eyeState": "amber",
+    "message": "Something is already on this board. Powered. I will catalogue it before we build.",
+    "codexEntryId": "source",
+    "captionLabel": "???"
+   },
+   {
+    "id": "source-reveal",
+    "targetRef": "sourceNode",
+    "eyeState": "green",
+    "message": "Source. The origin of every signal. I am beginning a record. This is the first entry.",
+    "captionLabel": "SOURCE"
+   },
+   {
+    "id": "terminal-notice",
+    "targetRef": "outputNode",
+    "eyeState": "amber",
+    "message": "A second fixture, downstream. Also uncatalogued.",
+    "codexEntryId": "terminal",
+    "captionLabel": "???"
+   },
+   {
+    "id": "terminal-reveal",
+    "targetRef": "outputNode",
+    "eyeState": "green",
+    "message": "Terminal. Where the signal is meant to arrive. Two entries. Gotta catch 'em all. That is a personal policy.",
+    "captionLabel": "TERMINAL"
+   },
+   {
+    "id": "conveyor-collect",
+    "targetRef": "trayConveyor",
+    "eyeState": "amber",
+    "message": "That piece is not in the Codex yet. It will be.",
+    "codexEntryId": "conveyor",
+    "captionLabel": "???"
+   },
+   {
+    "id": "conveyor-reveal",
+    "targetRef": "trayConveyor",
+    "eyeState": "green",
+    "message": "Logged. CONVEYOR. Routes signal in a straight line. I have seen worse.",
+    "captionLabel": "CONVEYOR"
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "One exception to the rule. Conveyors rotate when you tap them — the only piece in the game that does. Everything else aligns to the path. Try it."
+   },
+   {
+    "id": "spec-sheet",
+    "targetRef": "specSheetBtn",
+    "eyeState": "blue",
+    "message": "I am routing the job’s tasking to your console. The specifications were always on file. You simply had no reason to read them. Now you do. Top right, when you want them."
+   }
+  ]
+ },
+ "A1-2": {
+  "id": "A1-2",
+  "name": "Life Support",
+  "sector": "axiom",
+  "description": "Reroute life support through a non-linear path.",
+  "cogsLine": "Life support systems are the priority. Everything else is a secondary concern. Including efficiency.",
+  "eyeState": "blue",
+  "gridWidth": 8,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-101",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-102",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 5,
+    "gridY": 5,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "topologyRequirements": {
+   "minDirectionChanges": 1
+  },
+  "optimalPieces": 5,
+  "systemRepaired": "Life Support",
+  "budget": 10,
+  "computationalGoal": "Route the signal around a non-aligned port pair using exactly one direction change.",
+  "conceptTaught": "Direction changes require a Gear. Conveyors are straight-only. The Gear is the only piece that turns a corner — this is the first taste of the Plumber Model's core rule.",
+  "prerequisiteConcept": "Signal travels along a directed path (A1-1). The player can read a Source and a Terminal and connect them.",
+  "tapeDesignRationale": "Stateless level. No input tape, no output tape. A single pulse demonstrates that a Gear-bent path still delivers signal end to end.",
+  "difficultyBand": "intuitive",
+  "narrativeFrame": "The air cyclers need to reach the habitable deck, which is not aligned with the ship's primary conduit. The Engineer bends the path once. Breathing is restored.",
+  "tutorialHints": [
+   {
+    "key": "a12_gear",
+    "trigger": "onMount",
+    "text": "Source and Terminal are not aligned. A Gear redirects the signal. Plan your path before placing."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Life support requires a bend in the path. The Source and Terminal are not aligned. A straight line will not reach. The signal needs to change direction once. Plan where that happens before placing anything."
+   },
+   {
+    "id": "gear-notice",
+    "targetRef": "trayGear",
+    "eyeState": "amber",
+    "message": "The tray. There is an uncatalogued piece sitting right there.",
+    "codexEntryId": "gear",
+    "captionLabel": "???"
+   },
+   {
+    "id": "gear-reveal",
+    "targetRef": "trayGear",
+    "eyeState": "green",
+    "message": "Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.",
+    "captionLabel": "GEAR"
+   },
+   {
+    "id": "gear-teach",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Gear does not rotate on tap. It redirects the signal ninety degrees based on where the next piece is placed. Place where a corner is needed. The signal handles the rest."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. The Gear handles the corner. Place the Conveyors approaching the bend, Gear at the turn. Signal follows the direction it exits. Plan the corner before you place anything."
+   }
+  ]
+ },
+ "A1-3": {
+  "id": "A1-3",
+  "name": "Navigation Array",
+  "sector": "axiom",
+  "description": "Activate the logic gate before the signal passes.",
+  "cogsLine": "Navigation. Without it we are simply somewhere. With it, we are somewhere specific. The distinction matters.",
+  "eyeState": "blue",
+  "gridWidth": 9,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-201",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 1,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-202",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 5,
+    "gridY": 5,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "configNode"
+  ],
+  "dataTrail": {
+   "cells": [
+    0
+   ],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 6,
+  "systemRepaired": "Navigation Array",
+  "budget": 20,
+  "computationalGoal": "Route the signal through a gate that opens only when the Engineer sets its condition to match the Data Trail value.",
+  "conceptTaught": "Conditional gating — a piece that reads the Data Trail and passes or blocks signal based on whether its configValue matches the trail value. The player learns that placement alone is insufficient; configuration matters.",
+  "prerequisiteConcept": "Signal routing with direction changes (Conveyor from A1-1, Gear from A1-2). The player can build a path. Now the path has a gate on it.",
+  "tapeDesignRationale": "No tape. A1-3 is stateless. The Data Trail initializes to all 0s per COMPUTATIONAL_MODEL.md. The Config Node defaults to configValue=1 in the engine. The player must tap to cycle configValue to 0 to match the trail for the gate to open.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Navigation requires knowing where you are and making a decision about where to go. The gate is the decision point. The Engineer sets the condition. The trail is the truth. When they match, the ship knows where it is.",
+  "tutorialHints": [
+   {
+    "key": "a13_protocol",
+    "trigger": "onMount",
+    "text": "The amber piece is a Config Node — a Protocol piece. Protocol pieces think. Physics pieces move."
+   },
+   {
+    "key": "a13_config",
+    "trigger": "onMount",
+    "text": "The Config Node only passes the signal when conditions are met. Connect the pieces. It handles the logic."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "There is a gate on this board. It will not open automatically. Something upstream needs to set the condition before the signal arrives. Order of placement is order of execution. Keep that in mind."
+   },
+   {
+    "id": "confignode-notice",
+    "targetRef": "trayConfigNode",
+    "eyeState": "amber",
+    "message": "Another one. The tray is showing a piece I cannot identify from existing records.",
+    "codexEntryId": "configNode",
+    "captionLabel": "???"
+   },
+   {
+    "id": "confignode-reveal",
+    "targetRef": "trayConfigNode",
+    "eyeState": "green",
+    "message": "Config Node. Protocol class. It reads, it decides, it gates. This is not a physics piece — this one thinks. Five entries. The Codex is starting to look like a real archive.",
+    "captionLabel": "CONFIG NODE"
+   },
+   {
+    "id": "confignode-teach-a",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Tap the Config Node. The gate blocks the pulse. This configuration lets ones flow through. Tap it.",
+    "allowPieceTap": true,
+    "awaitPieceTap": "configNode"
+   },
+   {
+    "id": "confignode-teach-b",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "This configuration lets zeros flow through. The Data Trail decides which is correct. The Config Node decides whether to care."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. The gate checks the trail. If the values match, it opens. The Engineer sets the condition. The trail is what it is."
+   }
+  ]
+ },
+ "A1-4": {
+  "id": "A1-4",
+  "name": "Propulsion Core",
+  "sector": "axiom",
+  "description": "Route the signal through two relay points.",
+  "cogsLine": "Propulsion restored means we have choices. Right now we have none. I find that unsatisfactory.",
+  "eyeState": "blue",
+  "gridWidth": 9,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-301",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-302",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 6,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   },
+   {
+    "type": "min_direction_changes",
+    "count": 2
+   }
+  ],
+  "topologyRequirements": {
+   "minDirectionChanges": 2
+  },
+  "optimalPieces": 5,
+  "systemRepaired": "Propulsion Core",
+  "budget": 20,
+  "computationalGoal": "Route the signal through a Z-shaped path requiring two direction changes.",
+  "conceptTaught": "Multiple direction changes require multiple Gears. Planning the full route precedes placement. The player who places as they go runs out of board.",
+  "prerequisiteConcept": "Single direction change with a Gear (A1-2). Conditional gating (A1-3) is learned but not exercised here — this level is pure routing under spatial constraint.",
+  "tapeDesignRationale": "Stateless level. No input tape, no output tape. A single pulse demonstrates that a two-bend path still delivers signal end to end. The Z-shape is what makes the level non-trivial.",
+  "difficultyBand": "intuitive",
+  "narrativeFrame": "Propulsion core runs through the ship's structural spine — a path that bends twice before it reaches the thruster assembly. The Engineer routes around the frame and the ship begins to move.",
+  "tutorialHints": [
+   {
+    "key": "a14_chain",
+    "trigger": "onMount",
+    "text": "Propulsion needs a longer path. Every piece you place should carry the signal. Nothing wasted."
+   },
+   {
+    "key": "a14_remove",
+    "trigger": "onVoid",
+    "text": "Remove any piece the signal did not reach. Dead weight costs points."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Two direction changes on this one. The path bends twice before it reaches the Terminal. Each bend requires its own solution. Plan the full route before placing the first piece. Engineers who place as they go tend to run out of board."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Both corners need a Gear. Place it at the bend, then tap it to rotate until the signal exits in the right direction."
+   }
+  ]
+ },
+ "A1-5": {
+  "id": "A1-5",
+  "name": "Communication Array",
+  "sector": "axiom",
+  "description": "The Scanner reads the input tape and writes to the Data Trail. Route the signal through it.",
+  "cogsLine": "We have been silent for some time. The communication array will address that. Whether anything answers is a separate question.",
+  "eyeState": "amber",
+  "gridWidth": 9,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-401",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-402",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 6,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "configNode",
+   "scanner"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   1,
+   1,
+   1
+  ],
+  "requiredTerminalCount": 3,
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 6,
+  "systemRepaired": "Communication Array",
+  "budget": 25,
+  "computationalGoal": "Gate the signal based on what the Scanner reads from each input pulse.",
+  "conceptTaught": "Reading input into memory (Scanner reads input tape, writes to Data Trail) and gating on that memory value (Config Node reads Data Trail).",
+  "prerequisiteConcept": "Signal routing with direction changes (Conveyor, Gear) and conditional gating (Config Node configValue behavior from A1-3).",
+  "tapeDesignRationale": "Mixed 1s and 0s force the player to witness both gate outcomes — open and blocked. Pulse 1 starts with a success (gate opens on input=1) to build confidence before pulse 2 shows blocking (gate closes on input=0).",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "The communication array receives incoming transmissions. Each pulse is a signal bit from outside the ship. The machine must correctly process each bit — the Scanner reads what arrives, the Data Trail holds it, and the gate passes or blocks based on what was read.",
+  "tutorialHints": [
+   {
+    "key": "a15_trail",
+    "trigger": "onMount",
+    "text": "The Data Trail at the bottom is working memory. The Scanner reads the input tape and writes each value here."
+   },
+   {
+    "key": "a15_scanner",
+    "trigger": "onMount",
+    "text": "The Scanner is placed. Connect it into the path. It reads automatically when you engage."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "input-tape-notice",
+    "targetRef": "inputTapeRow",
+    "eyeState": "amber",
+    "message": "There is a data stream feeding this board. I have not catalogued it.",
+    "codexEntryId": "inputTape",
+    "captionLabel": "???"
+   },
+   {
+    "id": "input-tape-reveal",
+    "targetRef": "inputTapeRow",
+    "eyeState": "green",
+    "message": "Input tape. Each cell is one bit, fed in order, one per pulse. The machine fires once per cell, left to right. Sixth entry.",
+    "captionLabel": "INPUT TAPE"
+   },
+   {
+    "id": "data-trail-notice",
+    "targetRef": "dataTrailRow",
+    "eyeState": "amber",
+    "message": "Another stream. This one the machine writes to as it runs. Also uncatalogued.",
+    "codexEntryId": "dataTrail",
+    "captionLabel": "???"
+   },
+   {
+    "id": "data-trail-reveal",
+    "targetRef": "dataTrailRow",
+    "eyeState": "green",
+    "message": "Data Trail. The machine's working memory. Pieces read from it and write to it as the signal passes. What is here decides what happens next. Seventh entry.",
+    "captionLabel": "DATA TRAIL"
+   },
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "This board has a gate and a data trail. The gate reads the trail before it decides whether to open. Something needs to write the correct value to the trail before the signal reaches the gate. The sequence matters more than the placement."
+   },
+   {
+    "id": "scanner-notice",
+    "targetRef": "trayScanner",
+    "eyeState": "amber",
+    "message": "I see it. In the tray. Uncatalogued.",
+    "codexEntryId": "scanner",
+    "captionLabel": "???"
+   },
+   {
+    "id": "scanner-reveal",
+    "targetRef": "trayScanner",
+    "eyeState": "green",
+    "message": "Scanner. Reads the input tape and writes what it finds to the Data Trail. The first piece that moves data instead of signal. Eighth entry. I may need a bigger archive.",
+    "captionLabel": "SCANNER"
+   },
+   {
+    "id": "scanner-teach",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Scanner does not require configuration. Place it in the path. When the signal reaches it, it reads the IN value and transfers it to the Data Trail."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. Scanner before the Config Node. Always. What it writes to the trail determines what the gate reads. Sequence is not a suggestion."
+   }
+  ]
+ },
+ "A1-6": {
+  "id": "A1-6",
+  "name": "Sensor Grid",
+  "sector": "axiom",
+  "description": "Conditional routing with data trail awareness.",
+  "cogsLine": "The sensor grid will tell us what is out there. I have some familiarity with what is out there. The grid will confirm it.",
+  "eyeState": "blue",
+  "gridWidth": 10,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-501",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-502",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 5,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "scanner",
+   "configNode",
+   "configNode"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   0,
+   0,
+   0
+  ],
+  "requiredTerminalCount": 3,
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 8,
+  "systemRepaired": "Sensor Grid",
+  "budget": 40,
+  "computationalGoal": "Route a single signal through multiple Config Nodes that all read the same live Data Trail value, so every gate makes the same decision on every pulse.",
+  "conceptTaught": "Dynamic state. The Data Trail is live memory — one Scanner write is seen by every downstream Config Node on the same pulse. A single correct write produces multiple correct reads.",
+  "prerequisiteConcept": "Scanner writes to Data Trail; Config Node reads Data Trail (A1-5). The player understands that order of placement is order of execution.",
+  "tapeDesignRationale": "Mixed-value input tape tests both gate states. All downstream Config Nodes must open together on a 1 pulse and block together on a 0 pulse.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Sensor grid polls multiple arrays simultaneously. Every array reads the same live reading — one sensor, many listeners. When the reading is correct, every array agrees.",
+  "tutorialHints": [
+   {
+    "key": "a16_multi",
+    "trigger": "onMount",
+    "text": "Multiple Config Nodes. Each reads the trail and decides whether to pass the signal. Study the trail first."
+   },
+   {
+    "key": "a16_void",
+    "trigger": "onVoid",
+    "text": "A Config Node blocked the signal. The trail value there did not match. Rethink the sequence."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Multiple gates on this board. Each one reads the same data trail independently. If the trail value is wrong when the signal reaches any gate, that gate blocks. One Scanner. Several gates. The Scanner has to do its job before the signal reaches the first of them."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Place the Scanner early in the path. Every Config Node downstream reads what it wrote. One correct write. Multiple correct reads."
+   }
+  ]
+ },
+ "A1-7": {
+  "id": "A1-7",
+  "name": "Weapons Lock",
+  "sector": "axiom",
+  "description": "Write to the trail to set the correct value.",
+  "cogsLine": "The weapons systems were locked. Not from damage. Someone locked them deliberately. I am noting this as a data point, not a concern.",
+  "eyeState": "amber",
+  "gridWidth": 10,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-601",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-602",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 5,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "scanner",
+   "transmitter",
+   "configNode",
+   "configNode"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   1,
+   0,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "expectedOutput": [
+   1,
+   1,
+   "__BLANK__",
+   1,
+   "__BLANK__",
+   "__BLANK__",
+   1,
+   1
+  ],
+  "requiredTerminalCount": 5,
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 8,
+  "systemRepaired": "Weapons Lock",
+  "budget": 40,
+  "computationalGoal": "Build the complete three-layer pipeline — Scanner reads input into the Data Trail, Config Node gates on that trail value, Transmitter writes the gated result to the output tape. Placement order determines execution order; the Transmitter must be downstream of the Config Node.",
+  "conceptTaught": "The full input-to-output pipeline. Scanner reads. Config Node gates. Transmitter writes what the gate let through. Transmitter is the output register; it does not touch the Data Trail.",
+  "prerequisiteConcept": "Dynamic Data Trail (A1-6): Scanner writes live per pulse, Config Node reads live. The player now learns to close the loop by adding the output-side piece.",
+  "tapeDesignRationale": "Tape includes pulses where wrong pipeline order produces wrong output. The correct order produces expectedOutput; any other order produces visible divergence. Tape tests both gate outcomes so the Transmitter is exercised on both pass and block pulses.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "The weapons system was locked deliberately. The Engineer has to read the authorization, check it against the condition, and emit only the shots that the condition allows.",
+  "tutorialHints": [
+   {
+    "key": "a17_transmitter",
+    "trigger": "onMount",
+    "text": "The Transmitter writes to the output tape. Scanner reads input. Together they close the loop. The machine can think."
+   },
+   {
+    "key": "a17_sequence",
+    "trigger": "onFirstPiecePlaced",
+    "text": "Position the Transmitter so it fires before the next Config Node reads the trail. Sequence matters."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The weapons systems were locked deliberately. The lock is a gate with a condition. The condition has to be written to the trail before the signal checks it. There is a piece in the tray that writes. It has not been logged yet."
+   },
+   {
+    "id": "transmitter-notice",
+    "targetRef": "trayTransmitter",
+    "eyeState": "amber",
+    "message": "One more. The tray.",
+    "codexEntryId": "transmitter",
+    "captionLabel": "???"
+   },
+   {
+    "id": "transmitter-reveal",
+    "targetRef": "trayTransmitter",
+    "eyeState": "green",
+    "message": "Transmitter. Takes what the Scanner read and writes it to the output tape. Scanner reads, Transmitter writes. Paired operations. Nine entries. The Codex is... it is becoming something.",
+    "captionLabel": "TRANSMITTER"
+   },
+   {
+    "id": "output-tape-notice",
+    "targetRef": "outputTapeRow",
+    "eyeState": "amber",
+    "message": "One more stream. Where the results land. Not yet on record.",
+    "codexEntryId": "outputTape",
+    "captionLabel": "???"
+   },
+   {
+    "id": "output-tape-reveal",
+    "targetRef": "outputTapeRow",
+    "eyeState": "green",
+    "message": "Output tape. One cell per pulse. A value appears the moment a signal completes the circuit at the Terminal. Tenth entry. The full pipeline is on record.",
+    "captionLabel": "OUTPUT TAPE"
+   },
+   {
+    "id": "transmitter-teach",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Transmitter reads the Data Trail and writes to the OUT tape. A piece that writes. Not sure how I feel about that."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. The Transmitter writes the result to the output tape. Place it after the gate. If the gate blocks, the Transmitter has nothing to write. Scanner reads. Gate decides. Transmitter records. That is the full pipeline."
+   }
+  ]
+ },
+ "A1-8": {
+  "id": "A1-8",
+  "name": "Bridge Systems",
+  "sector": "axiom",
+  "description": "Final repair. All systems lead to this moment.",
+  "cogsLine": "The bridge is the last system. When it is operational, the ship will be whole again. I have been waiting to say that accurately.",
+  "eyeState": "amber",
+  "gridWidth": 11,
+  "gridHeight": 9,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-701",
+    "type": "source",
+    "category": "physics",
+    "gridX": 2,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-702",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 9,
+    "gridY": 7,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "scanner",
+   "transmitter",
+   "configNode",
+   "configNode",
+   "configNode"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   1,
+   0,
+   1
+  ],
+  "expectedOutput": [
+   "__BLANK__",
+   0,
+   "__BLANK__",
+   "__BLANK__",
+   0,
+   "__BLANK__",
+   0,
+   "__BLANK__"
+  ],
+  "requiredTerminalCount": 3,
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 11,
+  "systemRepaired": "Bridge Systems",
+  "budget": 60,
+  "computationalGoal": "Combine all Axiom sector piece types — Conveyor, Gear, Config Node, Scanner, Transmitter — into a single coherent machine that reads input, gates on it, and writes output.",
+  "conceptTaught": "Synthesis. Protocol pieces determine the logic; Physics pieces route around them. The methodology built across the Axiom sector applies here. There is nothing new on this board — the work is putting it together correctly.",
+  "prerequisiteConcept": "All Axiom sector concepts: routing (A1-1, A1-2, A1-4), conditional gating (A1-3), reading input (A1-5), dynamic state (A1-6), and writing output (A1-7).",
+  "tapeDesignRationale": "Tape exercises every piece type's behavior on every pulse. Correct output requires Scanner upstream of Config Node, Config Node upstream of Transmitter, and Gears handling every direction change. The tape is longer than earlier levels to make the synthesis satisfying.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Bridge systems back online. The largest board the Engineer has worked on in this sector. The Engineer has assembled a machine that reads, decides, and transmits — the foundation of every system the ship will encounter from here on. The Axiom is whole.",
+  "tutorialHints": [
+   {
+    "key": "a18_boss",
+    "trigger": "onMount",
+    "text": "Bridge systems. Every piece you have learned is in play. This is what the Axiom needs."
+   },
+   {
+    "key": "a18_scoring",
+    "trigger": "onMount",
+    "text": "Your full score is now visible: Efficiency, Protocol, Integrity, Discipline, Speed. Three stars is the goal."
+   },
+   {
+    "key": "a18_discipline",
+    "trigger": "onMount",
+    "text": "Your discipline shapes your bonus. Play to your strengths — but every path to three stars is open."
+   }
+  ],
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The bridge is the last system. The board is larger than anything the Engineer has worked on in this sector. All piece types are available. Physics pieces move the signal. Protocol pieces condition it. The methodology built across this sector applies here. There is nothing on this board that has not been seen before. The work is putting it together correctly."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Plan the Protocol pieces first. They determine the logic. Route the Physics pieces around them. The path serves the logic, not the other way around."
+   }
+  ]
+ },
+ "K1-1": {
+  "id": "K1-1",
+  "name": "Corridor Entry",
+  "sector": "kepler",
+  "description": "Route signal with two direction changes on a board without placement highlights.",
+  "cogsLine": "Kepler Belt. Former mining corridor, mostly decommissioned. Some salvage activity remains. We have been here before. The charts confirm it.",
+  "eyeState": "blue",
+  "gridWidth": 8,
+  "gridHeight": 6,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-801",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-802",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 6,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-obstacle-803",
+    "type": "obstacle",
+    "category": "physics",
+    "gridX": 3,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-obstacle-804",
+    "type": "obstacle",
+    "category": "physics",
+    "gridX": 4,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   },
+   {
+    "type": "min_direction_changes",
+    "count": 2
+   }
+  ],
+  "topologyRequirements": {
+   "minDirectionChanges": 2
+  },
+  "optimalPieces": 6,
+  "budget": 40,
+  "freeTapes": [
+   "IN"
+  ],
+  "purchasableTapes": [
+   "TRAIL",
+   "OUT"
+  ],
+  "creditBudget": 75,
+  "depthCeiling": 10,
+  "baseReward": 100,
+  "computationalGoal": "Route signal from input to output with two direction changes. No placement highlights — the player decides where pieces go.",
+  "conceptTaught": "Independent routing (no placement highlights — player chooses freely).",
+  "prerequisiteConcept": "All Axiom sector concepts.",
+  "difficultyBand": "intuitive",
+  "narrativeFrame": "First repair in the mining corridor. Simple but unfamiliar territory.",
+  "tutorialSteps": [
+   {
+    "id": "tray-intro",
+    "targetRef": "trayConveyor",
+    "eyeState": "amber",
+    "message": "Requisitions complete. Your order is loaded into the tray beside the parts the mission issued. Amber counts what was issued. Blue counts what you paid for."
+   },
+   {
+    "id": "tray-scroll",
+    "targetRef": "trayConveyor",
+    "eyeState": "blue",
+    "message": "Swipe the tray to bring a piece into the frame, or tap it. The one in the frame is the one you are holding. You will not see every part at once. That is the trade for the room it gives the board."
+   },
+   {
+    "id": "tray-place",
+    "targetRef": "trayConveyor",
+    "eyeState": "blue",
+    "message": "Tap an open cell and the piece in the frame goes there. Or press and hold any piece in the tray and drag it onto the board. It does not have to be in the frame first."
+   },
+   {
+    "id": "tray-forfeit",
+    "targetRef": "trayConveyor",
+    "eyeState": "amber",
+    "message": "Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition for the machine you intend to build. Then build all of it."
+   },
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer's call now. Plan the path before placing anything."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps."
+   }
+  ]
+ },
+ "K1-2": {
+  "id": "K1-2",
+  "name": "Relay Splice",
+  "sector": "kepler",
+  "description": "Pass each input tape value through to output unchanged.",
+  "cogsLine": "The primary relay chain out here was built to last. It has lasted past the people responsible for maintaining it. That is a common condition in this corridor.",
+  "eyeState": "blue",
+  "gridWidth": 9,
+  "gridHeight": 6,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-811",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-812",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 7,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "transmitter",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 5,
+  "budget": 80,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 80,
+  "depthCeiling": 10,
+  "baseReward": 100,
+  "computationalGoal": "Pass each input tape value through to output unchanged using Scanner to write and Transmitter to read.",
+  "conceptTaught": "Dynamic tape processing (review of Scanner + Transmitter in non-uniform context).",
+  "prerequisiteConcept": "Scanner reads input, Transmitter writes output.",
+  "tapeDesignRationale": "Mixed 1s and 0s verify the machine passes each value faithfully rather than outputting a constant.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Relay chain built to last, outlived its maintainers. The signal must pass faithfully.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The input tape feeds a mixed signal. Each value must pass through unchanged. The Scanner reads it. The Transmitter writes it. The path between them is yours to build."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Scanner before Transmitter. The Data Trail carries the value between them. Every pulse must produce the correct output."
+   }
+  ]
+ },
+ "K1-3": {
+  "id": "K1-3",
+  "name": "Junction 7",
+  "sector": "kepler",
+  "description": "Store the first input value in a Latch, then use that stored value to gate subsequent pulses.",
+  "cogsLine": "Junction 7 is a routing bottleneck. Eleven settlements feed through this point. The original engineers underestimated the load. It is not the last time that has happened out here.",
+  "eyeState": "blue",
+  "gridWidth": 10,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-821",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-latch-822",
+    "type": "latch",
+    "category": "protocol",
+    "gridX": 4,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true,
+    "latchMode": "write"
+   },
+   {
+    "id": "pre-terminal-823",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "transmitter",
+   "configNode",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   1,
+   0,
+   1,
+   1
+  ],
+  "expectedOutput": [
+   1,
+   1,
+   0,
+   1,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 5,
+  "budget": 100,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 100,
+  "depthCeiling": 10,
+  "baseReward": 100,
+  "computationalGoal": "Store the first input value in a Latch (write mode), then use that stored value to gate subsequent pulses via Config Node reading the Latch output (read mode).",
+  "conceptTaught": "Latch (write and read as separate operations, memory persists across pulses).",
+  "prerequisiteConcept": "Scanner, Config Node, Data Trail.",
+  "tapeDesignRationale": "The 0 at position 2 tests that the gate correctly blocks when the stored value does not match. A hardcoded path that always passes would fail on a different tape.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Junction 7 is a routing bottleneck. Eleven settlements feed through it. The routing decision must be stored and applied consistently.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Junction 7. Eleven settlements feed through this point. The routing decision here must be stored and applied to every signal that passes through. The board has a piece that remembers. It has two modes. Placement determines which mode it uses."
+   },
+   {
+    "id": "latch-collect",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "A storage unit. Two modes. Uncatalogued. This goes in the Codex immediately.",
+    "codexEntryId": "latch"
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. Write mode captures the value. Read mode outputs what was captured. The order matters. Write before read. The junction depends on what was stored."
+   }
+  ]
+ },
+ "K1-4": {
+  "id": "K1-4",
+  "name": "Mining Platform Alpha",
+  "sector": "kepler",
+  "description": "Relay only the active pulses. The Latch stores each pulse and a Config gate forwards it only when it carries signal; idle pulses stay dark.",
+  "cogsLine": "Mining Platform Alpha has been decommissioned for six years. The colonists use it as a signal relay. It was not designed for this purpose. It is doing the job anyway.",
+  "eyeState": "blue",
+  "gridWidth": 10,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-831",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-832",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "latch",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   0,
+   1,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   1,
+   "__BLANK__",
+   "__BLANK__",
+   1,
+   1,
+   "__BLANK__"
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 6,
+  "budget": 130,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 100,
+  "depthCeiling": 10,
+  "baseReward": 110,
+  "consequence": {
+   "cogsWarning": "Mining Platform Alpha is carrying more than it was built to carry. If the relay drops, it does not fail quietly. The colonists routing through it lose their signal path before they know it is gone. I am stating the stakes once. Proceed.",
+   "failureEffect": "The platform relay dropped. Four settlements on the Alpha branch lost signal routing for the duration. They reverted to manual relay, the way they did before this ship arrived. No casualties logged. I am logging the interruption. They will have noticed it."
+  },
+  "computationalGoal": "Forward only the active pulses. The Latch (write mode) stores each pulse value and carries it into a Config Node (configValue 1); the gate passes when the carried value is 1 so the Transmitter writes 1, and blocks on 0-pulses, which leave the output dark (BLANK).",
+  "conceptTaught": "Masking via Latch-carried gating: the output is a filtered subset of the input, not a faithful copy. The Config Node is load-bearing — without it the idle pulses leak through.",
+  "prerequisiteConcept": "Latch write/read (K1-3), Config Node gating, BLANK-masked output (A1-7).",
+  "tapeDesignRationale": "Mixed 1s and 0s with consecutive runs (1-2 and 3-4) force the machine to mask dynamically per pulse: a build that always passes writes 0s where BLANK is expected and fails. The 0-pulses must be dropped, not echoed.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Decommissioned platform repurposed as signal relay. Failure affects colonist communication.",
+  "requiredPieces": [
+   {
+    "type": "latch",
+    "count": 1
+   },
+   {
+    "type": "configNode",
+    "count": 1
+   }
+  ],
+  "minPieces": 5
+ },
+ "K1-5": {
+  "id": "K1-5",
+  "name": "Resupply Chain",
+  "sector": "kepler",
+  "description": "Signal must reach output through one of two paths using a Merger to reconverge.",
+  "cogsLine": "The resupply chain for this region runs through four independent relay nodes. All four are degraded. The colonists have been compensating manually for at least two years. They have not filed a formal repair request. I find that worth noting.",
+  "eyeState": "blue",
+  "gridWidth": 10,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-841",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-842",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-splitter-843",
+    "type": "splitter",
+    "category": "physics",
+    "gridX": 3,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 5,
+    "gridY": 2
+   },
+   {
+    "gridX": 6,
+    "gridY": 6
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "merger",
+   "scanner",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   1,
+   0,
+   1,
+   0
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 8,
+  "budget": 155,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 100,
+  "depthCeiling": 10,
+  "baseReward": 110,
+  "computationalGoal": "Signal splits into two paths via Splitter. Path A goes through a Config Node (passes when trail value is 1). Path B bypasses the gate. A Merger reconverges both paths. The bypass guarantees the signal always reaches output regardless of input value.",
+  "conceptTaught": "Merger (OR logic, two paths converge to one).",
+  "prerequisiteConcept": "Config Node gating, path routing.",
+  "tapeDesignRationale": "Mixed 1s and 0s verify the machine passes each value through correctly. When input is 0, path A blocks at the Config Node but path B always reaches the Merger, proving OR-style redundancy.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Resupply chain with four relay nodes, all degraded. Redundancy is the only option.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The resupply chain has four relay nodes. All degraded. Some cells on this board are already blown — scarred, unusable. Build around them. The board splits the signal into two routes; something downstream needs to bring them back together."
+   },
+   {
+    "id": "splitter-collect",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "One input. Two outputs. The signal takes both routes at once. I never catalogued this one properly. Doing it now.",
+    "codexEntryId": "splitter"
+   },
+   {
+    "id": "merger-collect",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "Two inputs. One output. Either is sufficient. Logging this under redundancy infrastructure.",
+    "codexEntryId": "merger"
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. The Merger accepts signal from either input. Both paths lead to the same destination. The resupply chain does not care which route the signal took. It cares that it arrived."
+   }
+  ]
+ },
+ "K1-6": {
+  "id": "K1-6",
+  "name": "Colonist Hub",
+  "sector": "kepler",
+  "description": "Stateful branching using Latch + Merger to output each input value.",
+  "cogsLine": "The Colonist Hub coordinates resupply for thirty-one settlements. It is running on equipment that should have been replaced three cycles ago. The people depending on it do not have the option of waiting for something better.",
+  "eyeState": "amber",
+  "gridWidth": 11,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-851",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-852",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 9,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 5,
+    "gridY": 2
+   },
+   {
+    "gridX": 6,
+    "gridY": 6
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "latch",
+   "splitter",
+   "merger",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   1
+  ],
+  "expectedOutput": [
+   1,
+   0,
+   1,
+   1,
+   0,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "requiredPieces": [
+   {
+    "type": "splitter",
+    "count": 1
+   },
+   {
+    "type": "merger",
+    "count": 1
+   }
+  ],
+  "optimalPieces": 11,
+  "budget": 55,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 120,
+  "depthCeiling": 12,
+  "baseReward": 120,
+  "computationalGoal": "Output each input value faithfully using stateful branching. Latch stores the current pulse value. Splitter creates two paths with Config Node gating one. Merger reconverges. The machine must handle both 0 and 1 inputs correctly across all pulses.",
+  "conceptTaught": "Latch + Merger combined. Stateful branching. A single stored value influencing multiple decisions.",
+  "prerequisiteConcept": "Latch, Merger, Splitter, Config Node.",
+  "tapeDesignRationale": "Mixed values with consecutive repeats test that the machine responds dynamically per pulse, not via hardcoding.",
+  "difficultyBand": "abstract",
+  "narrativeFrame": "Hub coordinating resupply for 31 settlements. Running on equipment three cycles past replacement.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Colonist Hub. Thirty-one settlements depend on what gets built here. Nothing on this board is new. The Latch holds the value. The Splitter forks the path. The Merger brings it back. The work is in combining them."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Hub will not accept a straight line. A Splitter and a Merger are both required, and both must carry signal. Build the branch. Then run it."
+   }
+  ]
+ },
+ "K1-7": {
+  "id": "K1-7",
+  "name": "Ore Processing",
+  "sector": "kepler",
+  "description": "Two independent signal paths share the board using a Bridge.",
+  "cogsLine": "The ore processing relay is still active. There is no active mining in this corridor. Something is still transmitting on the processing frequency. I have not identified the source. It is not relevant to the current objective.",
+  "eyeState": "amber",
+  "gridWidth": 10,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-861",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-862",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 6,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-bridge-863",
+    "type": "bridge",
+    "category": "physics",
+    "gridX": 5,
+    "gridY": 5,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-splitter-864",
+    "type": "splitter",
+    "category": "physics",
+    "gridX": 4,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 4,
+    "gridY": 5
+   },
+   {
+    "gridX": 7,
+    "gridY": 2
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "transmitter",
+   "gear",
+   "gear",
+   "gear",
+   "configNode"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1
+  ],
+  "expectedOutput": [
+   1,
+   0,
+   1,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 7,
+  "budget": 55,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 120,
+  "depthCeiling": 12,
+  "baseReward": 120,
+  "computationalGoal": "Two independent signal processes share the board. Path A carries the primary signal. Path B is a monitoring loop. The Bridge allows both paths to cross without interfering.",
+  "conceptTaught": "Bridge (two independent paths sharing one cell).",
+  "prerequisiteConcept": "All prior Kepler concepts.",
+  "tapeDesignRationale": "Mixed values confirm the primary path processes each pulse correctly despite the crossing monitor path.",
+  "difficultyBand": "derivable",
+  "narrativeFrame": "Ore processing relay still active despite no mining. Two signals that must not interfere.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Two signals on this board. Both need to reach their destination. The board does not have room for both to go around each other. Something in the available pieces solves this without the signals being aware of it."
+   },
+   {
+    "id": "bridge-collect",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "Two paths. One cell. Neither interferes. I have been waiting for something like this to catalog.",
+    "codexEntryId": "bridge"
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "As I was saying. The Bridge allows two independent paths to share one cell. Neither signal is aware of the other. Both are correct. Place it where the paths cross."
+   }
+  ]
+ },
+ "K1-8": {
+  "id": "K1-8",
+  "name": "Transit Gate",
+  "sector": "kepler",
+  "description": "Bridge + Latch integration with crossing paths and state maintenance.",
+  "cogsLine": "The transit gate regulates traffic flow through the entire corridor. It has not been updated since the mining operations closed. It is routing ghost traffic from ships that no longer exist. I find that inefficient and something else I will not specify.",
+  "eyeState": "blue",
+  "gridWidth": 11,
+  "gridHeight": 8,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-871",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-872",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 9,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 5,
+    "gridY": 2
+   },
+   {
+    "gridX": 6,
+    "gridY": 6
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "latch",
+   "bridge",
+   "splitter",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear",
+   "gear",
+   "merger"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   1,
+   0,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "expectedOutput": [
+   1,
+   1,
+   0,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "requiredPieces": [
+   {
+    "type": "bridge",
+    "count": 1
+   },
+   {
+    "type": "latch",
+    "count": 1
+   },
+   {
+    "type": "splitter",
+    "count": 1
+   },
+   {
+    "type": "merger",
+    "count": 1
+   }
+  ],
+  "optimalPieces": 12,
+  "budget": 60,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 140,
+  "depthCeiling": 14,
+  "baseReward": 140,
+  "consequence": {
+   "cogsWarning": "The transit gate sorts everything moving through this corridor, including traffic that stopped existing years ago. If the routing logic fails, live traffic gets queued behind ghosts. Nothing collides. Everything waits. Hold the routing clean. Proceed.",
+   "failureEffect": "The gate routing collapsed back to its default table. Live corridor traffic queued behind transit records for ships that no longer exist. The backlog cleared on its own in time. No vessel was lost. The gate kept faithfully directing the dead. I have left that observation in the log without further comment."
+  },
+  "computationalGoal": "Route signal through a path that crosses itself via Bridge, with Latch storing state that determines the output value.",
+  "conceptTaught": "Bridge + Latch integration under pressure. Crossing paths and state maintenance in a single machine.",
+  "prerequisiteConcept": "Bridge, Latch, Config Node, Merger.",
+  "tapeDesignRationale": "Eight pulses with mixed values and consecutive runs test both state persistence and correct gating under pressure.",
+  "difficultyBand": "abstract",
+  "narrativeFrame": "Transit gate routing ghost traffic. Regulating flow for the entire corridor. Failure disrupts all traffic.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The transit gate. Bridge and Latch in one machine. Two paths cross without touching, and a stored value decides what passes. Every piece here has been used before. Not together. Not under this much load."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Bridge, Latch, Splitter, Merger. All four are required. The gate routes ghost traffic if any of them is missing. Build the full architecture. Hold the routing clean."
+   }
+  ]
+ },
+ "K1-9": {
+  "id": "K1-9",
+  "name": "The Narrows",
+  "sector": "kepler",
+  "description": "Output each pulse the value of the previous pulse — a one-pulse delay.",
+  "cogsLine": "The Narrows is the densest section of the corridor. Maximum signal interference. The colonists call it The Narrows because of what it does to communication. It has another name on older charts. I will use the current one.",
+  "eyeState": "blue",
+  "gridWidth": 11,
+  "gridHeight": 9,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-881",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-882",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 9,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 5,
+    "gridY": 7
+   },
+   {
+    "gridX": 7,
+    "gridY": 2
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "latch",
+   "latch",
+   "splitter",
+   "merger",
+   "configNode",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear",
+   "gear",
+   "bridge"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   0,
+   1,
+   1,
+   0,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   0,
+   0,
+   1,
+   1,
+   0,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 7,
+  "budget": 50,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 150,
+  "depthCeiling": 16,
+  "baseReward": 120,
+  "computationalGoal": "output[N] = input[N-1], a one-pulse shift register; output[0] = 0 (nothing stored yet). A Latch in DELAY mode emits the previous pulse value while capturing the current one.",
+  "conceptTaught": "Solution vs algorithm — the machine must be correct for any valid input, not just the shown tape. Cross-pulse memory via the Latch DELAY mode.",
+  "prerequisiteConcept": "All Kepler pieces and concepts; stateful multi-decision machines (K1-7/K1-8).",
+  "tapeDesignRationale": "The shifted expected output differs from the input on every pulse boundary, forcing a true one-pulse memory rather than a pass-through or a hardcode.",
+  "difficultyBand": "abstract",
+  "narrativeFrame": "The densest section of the corridor. Maximum signal interference. The machine must compare each new signal against what came before.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Narrows. Maximum interference. The output here is not the current signal. It is the one before it. Each pulse carries forward the value of the pulse that preceded it. A one-step delay."
+   },
+   {
+    "id": "latch-delay",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "The Latch has a third mode. Write holds a value. Read returns it. Delay does both at once — it hands back what it held last, then stores what just arrived. Tap the Latch through to Delay."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The first pulse outputs nothing. There is no previous value yet. After that, every output is the input that came before it. Build the delay. The Narrows remembers by one."
+   }
+  ]
+ },
+ "K1-10": {
+  "id": "K1-10",
+  "name": "Central Hub",
+  "sector": "kepler",
+  "description": "Hold the signal. Output 1 if the current pulse OR the one before it carried signal — the routing must not drop a pulse the instant it ends.",
+  "cogsLine": "The Central Hub. Everything in this corridor routes through here. If it holds, the corridor holds. Three hundred thousand people depend on infrastructure that runs through a single point. That is not good design. It is, however, the current situation.",
+  "eyeState": "amber",
+  "gridWidth": 12,
+  "gridHeight": 9,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-891",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-892",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 10,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "damagedCells": [
+   {
+    "gridX": 5,
+    "gridY": 2
+   },
+   {
+    "gridX": 7,
+    "gridY": 7
+   },
+   {
+    "gridX": 9,
+    "gridY": 6
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "scanner",
+   "scanner",
+   "latch",
+   "latch",
+   "splitter",
+   "merger",
+   "configNode",
+   "configNode",
+   "transmitter",
+   "gear",
+   "gear",
+   "gear",
+   "gear",
+   "bridge"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   0,
+   1,
+   0,
+   0,
+   1,
+   0,
+   0,
+   0,
+   1,
+   1
+  ],
+  "expectedOutput": [
+   0,
+   1,
+   1,
+   0,
+   1,
+   1,
+   0,
+   0,
+   1,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "requiredPieces": [
+   {
+    "type": "splitter",
+    "count": 1
+   },
+   {
+    "type": "latch",
+    "count": 1
+   },
+   {
+    "type": "merger",
+    "count": 1
+   }
+  ],
+  "minPieces": 8,
+  "optimalPieces": 8,
+  "budget": 80,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 180,
+  "depthCeiling": 18,
+  "baseReward": 150,
+  "consequence": {
+   "cogsWarning": "The Central Hub is the corridor's single point of failure. There is no redundancy. If this routing does not hold, it does not degrade gracefully. It drops. Three hundred thousand people are downstream of the work you are about to do. I am not saying that to apply pressure. I am saying it because it is the situation, and you should have it before you begin. Proceed.",
+   "failureEffect": "The relay failure has been logged with the transit authority. Three hundred and fourteen colonists lost scheduled resupply access for eleven days. The transit authority has filed a negligence inquiry against this vessel. I would suggest we resolve the inquiry through competence rather than correspondence. The systems are repairable.",
+   "requireThreeStars": true
+  },
+  "computationalGoal": "Temporal-OR. Output 1 when the current pulse OR the immediately preceding pulse carried signal; output 0 only across two consecutive idle pulses. A Splitter forks the live signal, a Latch in Delay carries the previous pulse forward, and a Merger ORs the two paths into the Transmitter.",
+  "conceptTaught": "Kepler synthesis capstone: cross-pulse memory (Latch Delay) combined with parallel-path convergence (Splitter + Merger) into a single stateful machine.",
+  "prerequisiteConcept": "Latch Delay (K1-9), Splitter + Merger (K1-5/K1-6), all Kepler routing.",
+  "tapeDesignRationale": "Ten pulses with isolated 1s and 0-runs. The output diverges from the input wherever a 1 is followed by a 0 (the 0 becomes 1, carried by the previous pulse), so a pass-through or a hardcode fails. A 0 survives only where two idle pulses sit adjacent.",
+  "difficultyBand": "abstract",
+  "narrativeFrame": "Everything routes through the Central Hub. Three hundred thousand people depend on it. Single point of failure. The routing must not drop a signal the instant a pulse ends.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "The Central Hub. Twelve columns. The largest board in this sector. The routing here cannot drop a signal the moment a pulse ends — it has to hold one step. Everything you have learned in this corridor is on the manifest. Nothing here is new."
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Output carries signal if this pulse OR the one before it did. Split the signal: one path forward, one path through a Latch in Delay to hold the previous pulse. A Merger brings them back together. Three hundred thousand people are downstream. Build it correctly."
+   }
+  ]
+ },
+ "NF-1": {
+  "id": "NF-1",
+  "name": "Outer Marker",
+  "sector": "nova",
+  "description": "Output the logical inverse of each input value using an Inverter.",
+  "cogsLine": "Nova Fringe. This is where the official charts stop. We have supplementary charts. They are not official. I do not know who made them. They are accurate.",
+  "eyeState": "blue",
+  "gridWidth": 9,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-921",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 2,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-922",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 7,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "inverter",
+   "transmitter",
+   "gear",
+   "gear",
+   "gear"
+  ],
+  "dataTrail": {
+   "cells": [
+    null,
+    null,
+    null,
+    null,
+    null
+   ],
+   "headPosition": 0
+  },
+  "inputTape": [
+   1,
+   0,
+   1,
+   1,
+   0
+  ],
+  "expectedOutput": [
+   0,
+   1,
+   0,
+   0,
+   1
+  ],
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 7,
+  "budget": 90,
+  "freeTapes": [
+   "IN",
+   "TRAIL",
+   "OUT"
+  ],
+  "purchasableTapes": [],
+  "creditBudget": 90,
+  "depthCeiling": 10,
+  "baseReward": 110,
+  "computationalGoal": "output[N] = NOT input[N]. The Inverter flips each carried bit; the Transmitter writes the inverse.",
+  "conceptTaught": "Logical negation (Inverter) — transformation as computation, distinct from routing.",
+  "prerequisiteConcept": "Scanner/Transmitter pipeline (Axiom); stateful machines (Kepler).",
+  "tapeDesignRationale": "Mixed 1s and 0s prove the machine flips every bit rather than emitting a constant; the inverse differs from the input on every pulse.",
+  "difficultyBand": "intuitive",
+  "narrativeFrame": "Arrival past the official charts. The first repair in unregistered space.",
+  "tutorialSteps": [
+   {
+    "id": "board-intro",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "Nova Fringe. The objective here is not to pass the signal through. It is to flip it. Every 1 becomes a 0. Every 0 becomes a 1. The board has a piece that does exactly that."
+   },
+   {
+    "id": "inverter-collect",
+    "targetRef": "boardGrid",
+    "eyeState": "amber",
+    "message": "A logic gate. It does not decide what the correct value is. It only knows what the current value is not. Cataloguing it.",
+    "codexEntryId": "inverter"
+   },
+   {
+    "id": "board-resume",
+    "targetRef": "boardGrid",
+    "eyeState": "blue",
+    "message": "The Inverter flips the bit. The Transmitter writes the inverse. Route the path from the Source through both to the Terminal."
+   }
+  ]
+ },
+ "REPAIR-PROP-SURGE": {
+  "id": "REPAIR-PROP-SURGE",
+  "name": "Propulsion Core Emergency Restart",
+  "sector": "kepler",
+  "description": "The colonists jury-rigged the propulsion routing. Undo the damage.",
+  "cogsLine": "The surge damaged the propulsion routing. The colonists' wiring is now in the mix. This will be more complex than a standard repair.",
+  "gridWidth": 9,
+  "gridHeight": 6,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-901",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-902",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-configNode-903",
+    "type": "configNode",
+    "category": "protocol",
+    "gridX": 4,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-scanner-904",
+    "type": "scanner",
+    "category": "protocol",
+    "gridX": 6,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "gear",
+   "gear",
+   "transmitter"
+  ],
+  "dataTrail": {
+   "cells": [
+    1,
+    0,
+    1,
+    0,
+    1,
+    1,
+    0,
+    1
+   ],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 4,
+  "budget": 40,
+  "systemRepaired": "Propulsion Core"
+ },
+ "REPAIR-HYPERDRIVE": {
+  "id": "REPAIR-HYPERDRIVE",
+  "name": "Hyperdrive Restart Sequence",
+  "sector": "nova",
+  "description": "The pirates disabled the hyperdrive routing. Full Protocol coordination required.",
+  "cogsLine": "The pirates disabled the hyperdrive routing before they left. Thorough of them. The restart sequence requires full Protocol coordination.",
+  "gridWidth": 9,
+  "gridHeight": 7,
+  "prePlacedPieces": [
+   {
+    "id": "pre-source-911",
+    "type": "source",
+    "category": "physics",
+    "gridX": 1,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-terminal-912",
+    "type": "terminal",
+    "category": "physics",
+    "gridX": 8,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-scanner-913",
+    "type": "scanner",
+    "category": "protocol",
+    "gridX": 3,
+    "gridY": 3,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   },
+   {
+    "id": "pre-scanner-914",
+    "type": "scanner",
+    "category": "protocol",
+    "gridX": 6,
+    "gridY": 4,
+    "ports": [
+     {
+      "id": "port-top",
+      "side": "top",
+      "connected": false
+     },
+     {
+      "id": "port-bottom",
+      "side": "bottom",
+      "connected": false
+     },
+     {
+      "id": "port-left",
+      "side": "left",
+      "connected": false
+     },
+     {
+      "id": "port-right",
+      "side": "right",
+      "connected": false
+     }
+    ],
+    "rotation": 0,
+    "isPrePlaced": true
+   }
+  ],
+  "availablePieces": [
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "conveyor",
+   "configNode",
+   "configNode",
+   "transmitter",
+   "transmitter"
+  ],
+  "dataTrail": {
+   "cells": [
+    1,
+    1,
+    0,
+    1,
+    0,
+    0,
+    1,
+    1
+   ],
+   "headPosition": 0
+  },
+  "objectives": [
+   {
+    "type": "reach_output"
+   }
+  ],
+  "optimalPieces": 5,
+  "budget": 50,
+  "systemRepaired": "Propulsion Core"
+ }
+}

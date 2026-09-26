@@ -219,6 +219,12 @@ export type LevelDefinition = {
   // requirement via a `min_direction_changes` objective, so its
   // topologyRequirements mirror an already-live gate rather than adding one.
   topologyRequirements?: TopologyRequirements;
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT 3.3): a level carrying this field is
+  // exempt from the opposite-corner placement rule, the access rule and the
+  // content rule. Non-empty, human-readable reason. Only levels on the spec's
+  // approved exemption list may carry it; that list is empty in v1.1, so no
+  // level sets it today. Adding one needs a spec revision.
+  placementExemption?: string;
   // MAY conditions (SE-TM-031a) — optional "above and beyond" goals that pay a
   // bonus on a 3-star clear. Never required for completion or 3 stars. Surfaced
   // on the Spec Sheet MAY section. Absent on Axiom levels by design.
