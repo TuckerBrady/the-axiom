@@ -130,6 +130,9 @@ export interface TutorialTrayRefs {
   traySplitter: React.Ref<View>;
   trayScanner: React.Ref<View>;
   trayTransmitter: React.Ref<View>;
+  // AXM-031: Kepler and Nova discoveries resolve to these.
+  trayMerger: React.Ref<View>;
+  trayInverter: React.Ref<View>;
 }
 
 type FadeSide = 'none' | 'left' | 'right';
@@ -428,6 +431,8 @@ function PieceTrayComponent({
               : pt === 'splitter' ? refs.traySplitter
               : pt === 'scanner' ? refs.trayScanner
               : pt === 'transmitter' ? refs.trayTransmitter
+              : pt === 'merger' ? refs.trayMerger
+              : pt === 'inverter' ? refs.trayInverter
               : undefined
               : undefined;
             const itemDisabled = !!disabled || count <= 0;

@@ -44,6 +44,8 @@ export interface UseGameplayTutorialResult {
   traySplitterRef: React.RefObject<View | null>;
   trayScannerRef: React.RefObject<View | null>;
   trayTransmitterRef: React.RefObject<View | null>;
+  trayMergerRef: React.RefObject<View | null>;
+  trayInverterRef: React.RefObject<View | null>;
   // HUD Spec Sheet button ref (targetRef 'specSheetBtn').
   specSheetBtnRef: React.RefObject<View | null>;
   // Bundled TutorialTrayRefs object for forwarding to <PieceTray>.
@@ -88,6 +90,9 @@ export function useGameplayTutorial(
   const traySplitterRef = useRef<View>(null);
   const trayScannerRef = useRef<View>(null);
   const trayTransmitterRef = useRef<View>(null);
+  // AXM-031: Kepler and Nova discovery targets in the tray.
+  const trayMergerRef = useRef<View>(null);
+  const trayInverterRef = useRef<View>(null);
   // HUD Spec Sheet (info) button, for the A1-1 final tutorial step
   // (targetRef 'specSheetBtn'). Forwarded to HUDChrome.
   const specSheetBtnRef = useRef<View>(null);
@@ -128,6 +133,8 @@ export function useGameplayTutorial(
       traySplitter: traySplitterRef,
       trayScanner: trayScannerRef,
       trayTransmitter: trayTransmitterRef,
+      trayMerger: trayMergerRef,
+      trayInverter: trayInverterRef,
       specSheetBtn: specSheetBtnRef,
       placedPiece: placedPieceRef,
     }),
@@ -144,6 +151,8 @@ export function useGameplayTutorial(
       traySplitter: traySplitterRef,
       trayScanner: trayScannerRef,
       trayTransmitter: trayTransmitterRef,
+      trayMerger: trayMergerRef,
+      trayInverter: trayInverterRef,
     }),
     [],
   );
@@ -300,6 +309,8 @@ export function useGameplayTutorial(
     traySplitterRef,
     trayScannerRef,
     trayTransmitterRef,
+    trayMergerRef,
+    trayInverterRef,
     specSheetBtnRef,
     tutorialTrayRefs,
     placedPieceRef,

@@ -413,7 +413,7 @@ describe('Presentation Mode -- COGS stays centered on tray steps too (2026-06-13
 });
 
 // ── Tutorial highlight colors (Tucker 2026-06-13) ──
-describe('Highlight colors -- blue corner brackets, green pre-capture orb', () => {
+describe('Highlight colors -- blue corner brackets, amber pre-capture orb (Tucker 2026-09-26)', () => {
   it('corner targeting brackets are blue (#00D4FF), main rectangle stays amber', () => {
     // st.corner border is blue.
     expect(overlaySrc).toMatch(/corner:\s*\{[\s\S]*?borderColor:\s*'#00D4FF'/);
@@ -423,9 +423,8 @@ describe('Highlight colors -- blue corner brackets, green pre-capture orb', () =
     expect(overlaySrc).toMatch(/borderColor:\s*'#F0B429'/);
   });
 
-  it("orb reads green while highlighting a piece before capture (captionLabel '???')", () => {
-    expect(overlaySrc).toMatch(
-      /eyeColor =\s*step\?\.captionLabel === '\?\?\?'\s*\?\s*eyeStateColor\('green'\)/,
-    );
+  it("orb follows the step's eye state while highlighting a piece before capture (amber on '???')", () => {
+    expect(overlaySrc).not.toMatch(/captionLabel === '\?\?\?'\s*\?\s*eyeStateColor\('green'\)/);
+    expect(overlaySrc).toMatch(/const eyeColor = eyeStateColor\(step\?\.eyeState\)/);
   });
 });
