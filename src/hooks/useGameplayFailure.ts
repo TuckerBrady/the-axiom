@@ -116,6 +116,10 @@ export function useGameplayFailure(
         candidate = allPieces.find(p => p.type === 'transmitter') ?? null;
       } else {
         for (let i = steps.length - 1; i >= 0; i--) {
+          // A wrong-side arrival blames the piece that emitted into the
+          // Terminal, the step right before the rejection, not the Terminal
+          // itself (SPEC_DIRECTIONAL_TERMINAL 3.10).
+          if (steps[i].type === 'terminalRejected') continue;
           const piece = allPieces.find(p => p.id === steps[i].pieceId);
           if (piece) { candidate = piece; break; }
         }

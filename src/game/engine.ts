@@ -66,6 +66,10 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
     case 'latch':
       return [rotateSide('left', rot)];
     case 'terminal':
+      // Directional Terminal (SPEC_DIRECTIONAL_TERMINAL 3.1-3.3): with an
+      // entrySide it accepts from that board-frame side only; without one it
+      // stays omnidirectional. Rotation is ignored either way.
+      return piece.entrySide ? [piece.entrySide] : ALL;
     case 'gear':
     case 'configNode':
     case 'scanner':
@@ -228,20 +232,25 @@ const STRAIGHT_THROUGH_TYPES = new Set(['configNode', 'scanner', 'transmitter'])
  * For protocol pieces (configNode, scanner, transmitter), enforces straight-through:
  * signal exits only from the side opposite to where it entered.
  */
+function getEmittingSides(piece: PlacedPiece, entrySide?: PortSide): PortSide[] {
+  const outputSides = getOutputPorts(piece);
+
+  // Straight-through enforcement: if this is a protocol piece and we know
+  // which side signal entered from, limit output to the opposite side only.
+  if (entrySide && STRAIGHT_THROUGH_TYPES.has(piece.type)) {
+    const exitSide = OPPOSITE_SIDE[entrySide];
+    return outputSides.includes(exitSide) ? [exitSide] : [];
+  }
+  return outputSides;
+}
+
 function getDirectionalNeighbors(
   piece: PlacedPiece,
   allPieces: PlacedPiece[],
   entrySide?: PortSide,
 ): PlacedPiece[] {
   const neighbors: PlacedPiece[] = [];
-  let outputSides = getOutputPorts(piece);
-
-  // Straight-through enforcement: if this is a protocol piece and we know
-  // which side signal entered from, limit output to the opposite side only.
-  if (entrySide && STRAIGHT_THROUGH_TYPES.has(piece.type)) {
-    const exitSide = OPPOSITE_SIDE[entrySide];
-    outputSides = outputSides.includes(exitSide) ? [exitSide] : [];
-  }
+  const outputSides = getEmittingSides(piece, entrySide);
 
   for (const side of outputSides) {
     const { dx, dy } = sideOffset(side);
@@ -259,6 +268,33 @@ function getDirectionalNeighbors(
   }
 
   return neighbors;
+}
+
+/**
+ * Directional Terminals this piece emits into from a side they do not accept
+ * (SPEC_DIRECTIONAL_TERMINAL 3.4). Uses the same emitting sides as
+ * getDirectionalNeighbors, so a straight-through protocol piece only counts its
+ * exit side. `side` is the Terminal-frame side the signal arrives on. A
+ * Terminal without entrySide accepts every side, so it never appears here.
+ */
+function getWrongSideTerminals(
+  piece: PlacedPiece,
+  allPieces: PlacedPiece[],
+  entrySide?: PortSide,
+): { terminal: PlacedPiece; side: PortSide }[] {
+  const hits: { terminal: PlacedPiece; side: PortSide }[] = [];
+  for (const side of getEmittingSides(piece, entrySide)) {
+    const { dx, dy } = sideOffset(side);
+    const target = allPieces.find(
+      p => p.gridX === piece.gridX + dx && p.gridY === piece.gridY + dy,
+    );
+    if (!target || target.type !== 'terminal') continue;
+    const arrivalSide = OPPOSITE_SIDE[side];
+    if (!getInputPorts(target).includes(arrivalSide)) {
+      hits.push({ terminal: target, side: arrivalSide });
+    }
+  }
+  return hits;
 }
 
 // ─── Machine Execution ────────────────────────────────────────────────────────
@@ -629,6 +665,22 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         });
       }
     }
+
+    // Wrong-side arrival (SPEC_DIRECTIONAL_TERMINAL 3.4-3.6): the signal this
+    // piece emitted toward a directional Terminal met a side it does not
+    // accept. Record one rejection for that emission; the branch ends here,
+    // exactly as if it had dead-ended at an obstacle. The Terminal is NOT
+    // marked visited, so another branch may still enter it from its entry side.
+    for (const { terminal, side } of getWrongSideTerminals(piece, pieces, entrySide)) {
+      steps.push({
+        pieceId: terminal.id,
+        type: 'terminalRejected',
+        timestamp: stepTime++,
+        success: false,
+        side,
+        message: `Signal met the terminal on its ${side} side — not its entry side`,
+      });
+    }
     }
 
     // ── G3 drain-fallback (REQ-MERGER-OR-3) ──
@@ -647,14 +699,19 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     }
   }
 
-  // Signal never reached output
-  steps.push({
-    pieceId: 'none',
-    type: 'void',
-    timestamp: stepTime,
-    success: false,
-    message: 'Signal lost — could not reach output. VOID STATE.',
-  });
+  // Signal never reached output. A run whose record already closes on a
+  // terminalRejected step has its failure terminator: that step names the
+  // Terminal and the side (SPEC_DIRECTIONAL_TERMINAL 3.4-3.5), so the generic
+  // void step is not appended after it.
+  if (steps[steps.length - 1]?.type !== 'terminalRejected') {
+    steps.push({
+      pieceId: 'none',
+      type: 'void',
+      timestamp: stepTime,
+      success: false,
+      message: 'Signal lost — could not reach output. VOID STATE.',
+    });
+  }
 
   state.dataTrail.cells = trail.cells;
   state.dataTrail.headPosition = trail.headPosition;
