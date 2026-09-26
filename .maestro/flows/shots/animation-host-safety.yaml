@@ -70,9 +70,11 @@ appId: com.tuckerbrady.theaxiom
     id: "board-cell-0-0"
 
 # ── Transition 2a: piece placement ─────────────────────────────────────────
+# AXM-026: A1-3's Source moved to (0,1). The Conveyor goes on (1,1), the cell
+# east of the Source, and the Config Node on (2,1) beside it.
 - tapOn: "CONV, .* available"  # [VERIFY]
 - tapOn:
-    id: "board-cell-2-3"
+    id: "board-cell-1-1"
 - takeScreenshot: ${SHOT_PREFIX}a-placed
 
 # ── Transition 2b: long-press return to tray ───────────────────────────────
@@ -80,13 +82,13 @@ appId: com.tuckerbrady.theaxiom
 # state. The placement animation is mid-flight when the press lands, which
 # is the point.
 - longPressOn:
-    id: "board-cell-2-3"
+    id: "board-cell-1-1"
 - takeScreenshot: ${SHOT_PREFIX}b-returned-to-tray
 
 # Put it back so there is something to run.
 - tapOn: "CONV, .* available"  # [VERIFY]
 - tapOn:
-    id: "board-cell-2-3"
+    id: "board-cell-1-1"
 
 # ── Transition 3: Config Node cycle ────────────────────────────────────────
 # Config Node tap cycles configValue (0/1). [VERIFY] this block is skipped
@@ -97,9 +99,9 @@ appId: com.tuckerbrady.theaxiom
     commands:
       - tapOn: "CFG, .* available"
       - tapOn:
-          id: "board-cell-3-3"
+          id: "board-cell-2-1"
       - tapOn:
-          id: "board-cell-3-3"
+          id: "board-cell-2-1"
       - takeScreenshot: ${SHOT_PREFIX}c-config-cycled
 
 # ── Transition 1a: signal start ────────────────────────────────────────────
