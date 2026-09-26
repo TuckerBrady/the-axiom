@@ -80,7 +80,6 @@ type Mission = {
   name: string;
   iconType: MissionIconType;
   stars: number;
-  bestTime: string;
   piecesUsed: number;
   cogsQuote: string;
 };
@@ -502,7 +501,6 @@ const AXIOM_MISSIONS: Mission[] = AXIOM_LEVELS.map((level, i) => ({
   name: level.name,
   iconType: (['bolt', 'signal', 'plug', 'atom', 'vortex', 'fire', 'moon', 'rocket'] as MissionIconType[])[i],
   stars: 0,
-  bestTime: '--:--',
   piecesUsed: 0,
   cogsQuote: level.cogsLine,
 }));
@@ -524,7 +522,6 @@ const KEPLER_MISSIONS: Mission[] = KEPLER_LEVELS.map((level, i) => ({
   name: level.name,
   iconType: KEPLER_ICON_TYPES[i] ?? 'bolt',
   stars: 0,
-  bestTime: '--:--',
   piecesUsed: 0,
   cogsQuote: level.cogsLine,
 }));
@@ -601,7 +598,6 @@ export default function LevelSelectScreen({ navigation }: Props) {
       missionName: mission.name,
       iconType: mission.iconType,
       stars: mission.stars,
-      bestTime: mission.bestTime,
       piecesUsed: mission.piecesUsed,
       cogsQuote: mission.cogsQuote,
       levelId: levelMap[mission.id],
