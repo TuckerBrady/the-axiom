@@ -165,9 +165,11 @@ describe('Kepler Belt levels', () => {
     const k10 = KEPLER_LEVELS.find(l => l.id === 'K1-10')!;
     expect(k10.gridWidth).toBe(12);
     expect(k10.gridHeight).toBe(9);
-    // SPEC_KEPLER_REBUILD_v3 K1-10: optimalPieces 8 (was 13; V2 canonical).
-    expect(k10.optimalPieces).toBe(8);
-    expect(k10.availablePieces).toHaveLength(22);
+    // SPEC_KEPLER_REBUILD_v3 K1-10 set optimalPieces 8 (was 13). AXM-026 moved
+    // Source and Terminal to opposite corners: the floor solve is now 21 pieces
+    // and the tray grew from 22 to 29 (7 Conveyors more) to carry it.
+    expect(k10.optimalPieces).toBe(21);
+    expect(k10.availablePieces).toHaveLength(29);
   });
 
   it('single-new-piece tutorial levels follow the 3-step pattern (K1-3, K1-7)', () => {
@@ -225,26 +227,32 @@ describe('K1-1 v3 economy fields', () => {
     expect(step.message).not.toMatch(/nothing more|only what|minimum/i);
   });
 
-  it('tray is the 6-piece Z-solution: 4 conveyors and 2 gears', () => {
+  // AXM-026: the corners moved apart, so the Z-solution grew from 6 to 9
+  // pieces. The tray still equals the solution exactly (SPEC_KEPLER_REBUILD_v3).
+  it('tray is the 9-piece Z-solution: 7 conveyors and 2 gears', () => {
     const level = k1();
     const conveyors = level.availablePieces.filter(p => p === 'conveyor');
     const gears = level.availablePieces.filter(p => p === 'gear');
-    expect(conveyors).toHaveLength(4);
+    expect(conveyors).toHaveLength(7);
     expect(gears).toHaveLength(2);
-    expect(level.availablePieces).toHaveLength(6);
+    expect(level.availablePieces).toHaveLength(9);
   });
 
-  it('optimalPieces is 6', () => {
-    expect(k1().optimalPieces).toBe(6);
+  it('optimalPieces is 9', () => {
+    expect(k1().optimalPieces).toBe(9);
   });
 
   it('pre-places two obstacle cells that force routing around', () => {
     const obstacles = k1().prePlacedPieces.filter(p => p.type === 'obstacle');
     expect(obstacles).toHaveLength(2);
-    // Obstacles must not sit on the Source or Terminal cells.
+    // Obstacles must not sit on the Source or Terminal cells. (AXM-026: read
+    // from the level, since the Source and Terminal moved.)
+    const fixtures = k1().prePlacedPieces.filter(p => p.type === 'source' || p.type === 'terminal');
+    expect(fixtures).toHaveLength(2);
     for (const o of obstacles) {
-      expect(`${o.gridX},${o.gridY}`).not.toBe('1,2');
-      expect(`${o.gridX},${o.gridY}`).not.toBe('6,4');
+      for (const f of fixtures) {
+        expect(`${o.gridX},${o.gridY}`).not.toBe(`${f.gridX},${f.gridY}`);
+      }
     }
   });
 
@@ -274,8 +282,9 @@ describe('K1-1 v3 economy fields', () => {
     expect(k1().creditBudget).toBe(75);
   });
 
-  it('depthCeiling is 10', () => {
-    expect(k1().depthCeiling).toBe(10);
+  // AXM-026: optimalPieces 6 -> 9; depthCeiling keeps its 4-piece margin.
+  it('depthCeiling is 13', () => {
+    expect(k1().depthCeiling).toBe(13);
   });
 
   it('baseReward is 100', () => {
@@ -335,9 +344,12 @@ describe('K1-9 The Narrows — canonical one-pulse shift register', () => {
     }
   });
 
-  it('optimalPieces is 7 and budget is 50 (V2 canonical, not the XOR-era 11/70)', () => {
-    expect(k9().optimalPieces).toBe(7);
-    expect(k9().budget).toBe(50);
+  // V2 canonical was 7 / 50 (not the XOR-era 11/70). AXM-026 moved Source and
+  // Terminal to opposite corners: the floor solve is now 15 pieces, and the
+  // budget covers its 175 CR cost plus the 50 CR fresh-board buffer.
+  it('optimalPieces is 15 and budget is 225 (AXM-026 opposite corners)', () => {
+    expect(k9().optimalPieces).toBe(15);
+    expect(k9().budget).toBe(225);
   });
 
   it('describes a delay, not XOR', () => {
@@ -376,9 +388,12 @@ describe('Kepler v3 economy fields are defined on every level', () => {
     expect(latch!.latchMode).toBe('write');
   });
 
-  it('canonical budgets match v3 for reconciled levels', () => {
+  // v3 canonical budgets were K1-2 80, K1-3 100, K1-4 130, K1-5 155, K1-9 50.
+  // AXM-026 re-derived each as floor-solve cost + 50 CR fresh-board buffer
+  // (SPEC_SOURCE_TERMINAL_PLACEMENT 7.8).
+  it('budgets match the AXM-026 re-derivation for reconciled levels', () => {
     const budgets: Record<string, number> = {
-      'K1-2': 80, 'K1-3': 100, 'K1-4': 130, 'K1-5': 155, 'K1-9': 50,
+      'K1-2': 170, 'K1-3': 180, 'K1-4': 205, 'K1-5': 235, 'K1-9': 225,
     };
     for (const [id, budget] of Object.entries(budgets)) {
       expect(KEPLER_LEVELS.find(l => l.id === id)!.budget).toBe(budget);
