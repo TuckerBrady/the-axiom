@@ -23,7 +23,7 @@ import { useEconomyStore } from '../../store/economyStore';
 import type { WrongOutputData, PulseResultData, MayBonusData, SpecNotMetData } from '../../hooks/useGameplayModals';
 import { buildSpecChecklist, type SpecCheckStatus } from '../../game/spec/specChecklist';
 import { VOID_QUOTES } from '../../game/voidQuotes';
-import { seedBlownCells } from '../../hooks/useGameplayFailure';
+import { seedBlownCells, hasPlayerCraters } from '../../hooks/useGameplayFailure';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -432,7 +432,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 {"\""}The machine produced an answer. It was not the correct one. The data shows where.{"\""}
               </Text>
             </View>
-            {blownCells.size > 0 && (
+            {hasPlayerCraters(blownCells, level) && (
               <TouchableOpacity
                 style={[styles.wrongOutputRetryBtn, {
                   borderColor: credits >= 50 ? Colors.amber : Colors.dim,
@@ -641,7 +641,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                   <Text style={styles.voidBtnText}>TRY AGAIN</Text>
                 </TouchableOpacity>
               )}
-              {!isDailyChallenge && blownCells.size > 0 && (
+              {!isDailyChallenge && hasPlayerCraters(blownCells, level) && (
                 <TouchableOpacity
                   style={[styles.voidBtn, {
                     borderColor: credits >= 50 ? Colors.amber : Colors.dim,
