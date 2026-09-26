@@ -1490,11 +1490,6 @@ export default function GameplayScreen({ navigation }: Props) {
             inputTapeCellsRef={tape.inputTapeCellsRef}
             dataTrailCellsRef={tape.dataTrailCellsRef}
             outputTapeCellsRef={tape.outputTapeCellsRef}
-            requiredTerminalCount={level.requiredTerminalCount}
-            showPulseTarget={
-              !isExecuting && !showResults && !showVoid &&
-              !showWrongOutput && !showInsufficientPulses
-            }
           />
         )}
 

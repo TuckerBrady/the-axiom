@@ -78,3 +78,19 @@ describe('TapeCell — per-cell memo barrier', () => {
     );
   });
 });
+
+// Tucker, TestFlight build 48 (2026-09-23): the amber "TARGET: N OF M PULSES
+// MUST REACH TERMINAL" line under the tapes is removed. The Spec Sheet's
+// SHALL list already states the pulse target (specSheet.ts), so the line only
+// repeated it, and on A1-7/A1-8, where the count is documentary, it misled.
+describe('TapeBarShell — no pulse-target line under the tapes', () => {
+  it('renders no TARGET line and has no pulse-target styles', () => {
+    expect(shellSrc).not.toMatch(/MUST REACH TERMINAL/);
+    expect(shellSrc).not.toMatch(/pulseTarget/);
+  });
+
+  it('takes no showPulseTarget or requiredTerminalCount prop, and GameplayScreen passes neither', () => {
+    expect(shellSrc).not.toMatch(/showPulseTarget|requiredTerminalCount/);
+    expect(screenSrc).not.toMatch(/<TapeBarShell[\s\S]{0,2000}?(showPulseTarget|requiredTerminalCount=)/);
+  });
+});

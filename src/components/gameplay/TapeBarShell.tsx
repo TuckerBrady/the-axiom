@@ -36,9 +36,8 @@ interface Props {
   inputTapeCellsRef: React.Ref<View>;
   dataTrailCellsRef: React.Ref<View>;
   outputTapeCellsRef: React.Ref<View>;
-  // Optional pulse target row
-  requiredTerminalCount?: number;
-  showPulseTarget: boolean;
+  // No pulse-target row under the tapes (Tucker, TestFlight build 48): the
+  // Spec Sheet's SHALL list already carries the pulse target.
 }
 
 // React.memo with default shallow compare. Re-renders whenever the
@@ -63,8 +62,6 @@ function TapeBarShellComponent({
   inputTapeCellsRef,
   dataTrailCellsRef,
   outputTapeCellsRef,
-  requiredTerminalCount,
-  showPulseTarget,
 }: Props) {
   const hasInputTape = !!inputTape && inputTape.length > 0;
   return (
@@ -204,13 +201,6 @@ function TapeBarShellComponent({
           </View>
         </View>
       )}
-      {showPulseTarget && hasInputTape && requiredTerminalCount && requiredTerminalCount > 1 && (
-        <View style={styles.pulseTargetRow}>
-          <Text style={styles.pulseTargetText}>
-            TARGET: {requiredTerminalCount} OF {inputTape!.length} PULSES MUST REACH TERMINAL
-          </Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -251,19 +241,5 @@ const styles = StyleSheet.create({
   tapeCells: {
     flexDirection: 'row',
     gap: 3,
-  },
-  pulseTargetRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    alignItems: 'center',
-  },
-  // REQ-G-10: 9 -> FontSizes.floor.
-  pulseTargetText: {
-    fontFamily: Fonts.spaceMono,
-    fontSize: FontSizes.floor,
-    letterSpacing: 2,
-    color: Colors.amber,
-    textTransform: 'uppercase',
-    opacity: 0.7,
   },
 });
