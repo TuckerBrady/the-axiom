@@ -50,6 +50,12 @@ export type PlacedPiece = {
   connectedMagnetSides?: PortSide[];
   // Set to true when piece is activated during a run. Reset before each run.
   firedDuringRun?: boolean;
+  // Directional Terminal (SPEC_DIRECTIONAL_TERMINAL 2.1-2.3). Terminal only.
+  // Board-frame side of the Terminal's own cell the signal must enter through:
+  // 'left' means the signal arrives from gridX - 1. Absent means the Terminal
+  // accepts from all four sides (unchanged behavior). Deliberately separate
+  // from `rotation`, which never affects a Terminal's input ports.
+  entrySide?: PortSide;
 };
 
 // ─── Connections ──────────────────────────────────────────────────────────────
@@ -465,4 +471,7 @@ export type ExecutionStep = {
   success: boolean;
   message?: string;
   branchId?: string;
+  // Set only on a `terminalRejected` step (SPEC_DIRECTIONAL_TERMINAL 2.6,
+  // 3.4): the Terminal-frame side the signal arrived on.
+  side?: PortSide;
 };
