@@ -20,6 +20,7 @@ import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } 
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 import { toOverlaySpace } from '../game/overlaySpace';
+import { TRAY_FOCUS_SETTLE_MS } from '../game/trayFocus';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -64,6 +65,10 @@ interface Props {
   // Incremented sequence numbers prevent duplicate-fire when the same type repeats.
   lastPlacedTrigger?: PlacedTrigger | null;
   lastTappedTrigger?: TappedTrigger | null;
+  // Tucker, build 48: a step that targets a tray piece asks the parent to
+  // slide it into the tray's centre frame first. Returns true when the piece
+  // moved, so the spotlight waits for the scroll to land before measuring.
+  bringTargetIntoView?: (targetRef: string) => boolean;
 }
 
 // Targets that are section-level (no individual piece glow)
@@ -101,7 +106,12 @@ function TutorialHUDOverlayComponent({
   isBeamActive = false,
   lastPlacedTrigger,
   lastTappedTrigger,
+  bringTargetIntoView,
 }: Props) {
+  // Held in a ref so a new callback identity from the parent never rebuilds
+  // runStep (and with it the step effects).
+  const bringTargetIntoViewRef = useRef(bringTargetIntoView);
+  bringTargetIntoViewRef.current = bringTargetIntoView;
   // ── State ──
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>('idle');
@@ -600,7 +610,16 @@ function TutorialHUDOverlayComponent({
     setTargetLayout(null);
     setPhase('flying');
 
-    measureTarget(s.targetRef, (layout) => {
+    const moved = bringTargetIntoViewRef.current?.(s.targetRef) ?? false;
+    const measure = (cb: (layout: Layout | null) => void) => {
+      if (!moved) { measureTarget(s.targetRef, cb); return; }
+      trackTimer(setTimeout(() => {
+        if (!mountedRef.current) return;
+        measureTarget(s.targetRef, cb);
+      }, TRAY_FOCUS_SETTLE_MS));
+    };
+
+    measure((layout) => {
       if (!mountedRef.current) return;
       if (!layout) {
         // Fallback: treat as center so something still shows
@@ -690,7 +709,7 @@ function TutorialHUDOverlayComponent({
         }
       });
     });
-  }, [steps, resetVisualState, measureTarget, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST, portalLeft, portalTop, portalW, portalH, portalOpacity, glowOpacity]);
+  }, [steps, resetVisualState, measureTarget, trackTimer, flyOrbTo, computePortalBox, morphPortalIn, morphBoardReveal, calloutOpacity, dimOpacity, trackAnim, CALLOUT_W, CALLOUT_H_EST, portalLeft, portalTop, portalW, portalH, portalOpacity, glowOpacity]);
 
   // ── Mount / hydration entrance (runs once when hydrated) ──
   // The ref is checked *inside* the timeout callback, not before
