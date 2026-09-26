@@ -53,6 +53,7 @@ import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy, hapticError } from '../utils/haptics';
 import { placeFromKeplerInventory, shouldMountTray } from '../game/trayPlacement';
 import { trayFocusKey } from '../game/trayFocus';
+import { resolveTargetPiece } from '../game/discoveryFlight';
 import { resolveDropCell } from '../utils/dropTarget';
 import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
 import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
@@ -813,6 +814,12 @@ export default function GameplayScreen({ navigation }: Props) {
     handleTrayPickup(key);
     return true;
   }, [trayItems, traySelectedKey, handleTrayPickup]);
+
+  // AXM-031 spec 7.4: resolve a discovery step's targetPiece against the live
+  // board (pre-placed first, then player-placed) and then the current tray.
+  const resolveTutorialTargetPiece = useCallback((type: PieceType) => (
+    resolveTargetPiece(type, pieces, trayItems.filter(i => !i.isTape).map(i => i.type))
+  ), [pieces, trayItems]);
 
   // Where the board is, in the same space as a touch's pageX/pageY. Found on
   // device (AXM-013): measureInWindow is not that space, and drops resolved
@@ -1948,6 +1955,7 @@ export default function GameplayScreen({ navigation }: Props) {
           lastPlacedTrigger={lastPlacedTrigger}
           lastTappedTrigger={lastTappedTrigger}
           bringTargetIntoView={bringTutorialTargetIntoView}
+          resolveTargetPiece={resolveTutorialTargetPiece}
         />
       )}
 

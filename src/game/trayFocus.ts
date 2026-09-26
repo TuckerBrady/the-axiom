@@ -11,6 +11,9 @@ const TRAY_REF_TYPES: Record<string, PieceType> = {
   traySplitter: 'splitter',
   trayScanner: 'scanner',
   trayTransmitter: 'transmitter',
+  // AXM-031: Kepler and Nova discoveries resolve to these in the tray.
+  trayMerger: 'merger',
+  trayInverter: 'inverter',
 };
 
 // The tray's animated scrollTo runs about 250-300ms on both platforms. The

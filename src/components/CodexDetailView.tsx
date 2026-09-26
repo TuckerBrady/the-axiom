@@ -252,6 +252,12 @@ interface Props {
   alsoCollected?: PieceEntry[];
 }
 
+// The chrome bar's height below its fixed 24dp status-bar pad: 16 top pad,
+// a 15dp label line, 8 bottom pad and the 1dp rule. The bar's height is pinned
+// to this so COGS's Codex dock (AXM-031 DR-9 v1.1) can sit below it.
+const CODEX_STATUS_PAD = 24;
+export const CODEX_CHROME_H = 40;
+
 export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, alsoCollected }: Props) {
   const reveal = useSharedValue(0);
   const loggedSlide = useSharedValue(-40);
@@ -405,7 +411,8 @@ const st = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg + 24,
+    height: CODEX_STATUS_PAD + CODEX_CHROME_H,
+    paddingTop: Spacing.lg + CODEX_STATUS_PAD,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,212,255,0.12)',
