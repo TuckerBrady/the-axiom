@@ -13,6 +13,9 @@ export function prePlaced(
   options?: {
     condition?: (configuration: number) => boolean;
     latchMode?: PlacedPiece['latchMode'];
+    // Directional Terminal entry side (SPEC_DIRECTIONAL_TERMINAL 2.4). Copied
+    // unchanged; only valid on a Terminal (2.3, enforced by the level tests).
+    entrySide?: PlacedPiece['entrySide'];
   },
 ): PlacedPiece {
   const id = `pre-${type}-${++pieceCounter}`;
@@ -37,6 +40,8 @@ export function prePlaced(
     isPrePlaced: true,
     condition: options?.condition,
     ...(latchMode !== undefined ? { latchMode } : {}),
+    // Absent unless set, so every existing pre-placed piece is unchanged.
+    ...(options?.entrySide !== undefined ? { entrySide: options.entrySide } : {}),
   };
 }
 

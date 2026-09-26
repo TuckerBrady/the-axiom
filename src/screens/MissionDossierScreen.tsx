@@ -80,7 +80,6 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
     missionName,
     iconType,
     stars,
-    bestTime,
     piecesUsed,
     cogsQuote,
     levelId,
@@ -161,11 +160,9 @@ export default function MissionDossierScreen({ navigation, route }: Props) {
 
           {/* ── Stats row ── */}
           <View style={st.statsGrid}>
+            {/* AXM-022 (Tucker, 2026-09-24): the best-time tile is gone. Time is
+                tracked silently and never shown on any screen. */}
             <View style={st.statCell}>
-              <Text style={st.statValue}>{isCompleted ? bestTime : '—'}</Text>
-              <Text style={st.statKey}>BEST TIME</Text>
-            </View>
-            <View style={[st.statCell, st.statBorder]}>
               <Text style={st.statValue}>{isCompleted ? String(piecesUsed) : '—'}</Text>
               <Text style={st.statKey}>PIECES USED</Text>
             </View>

@@ -33,6 +33,7 @@ export {
   GATING_PIECE_TYPES,
   TRANSMITTER_BEFORE_GATE_COGS_LINES,
 } from './transmitterPlacementDiagnostic';
+export { detectTerminalWrongSide } from './terminalWrongSideDiagnostic';
 export type {
   EngagementContext,
   Pt,

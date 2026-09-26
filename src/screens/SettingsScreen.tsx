@@ -784,7 +784,6 @@ export default function SettingsScreen({ navigation }: Props) {
                                 missionName: id,
                                 iconType: sector,
                                 stars: 0,
-                                bestTime: '--',
                                 piecesUsed: 0,
                                 cogsQuote: '',
                                 levelId: id,
