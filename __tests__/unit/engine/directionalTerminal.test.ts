@@ -224,6 +224,21 @@ describe('Directional Terminal — execution', () => {
     expect(reached(steps)).toBe(true);
   });
 
+  it('[4.6] negative: a transmitter does not turn toward the entry side', () => {
+    // T-Bot gate on PR #66. The Transmitter is entered from the left, so it
+    // exits straight through to the right only. Its bottom faces the
+    // Terminal's entry side, but straight-through forbids that exit: the
+    // signal neither reaches the Terminal nor records a rejection.
+    const pieces = [
+      makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
+      makePiece('tx', 'transmitter', 1, 0, { category: 'protocol' }),
+      makePiece('t', 'terminal', 1, 1, { isPrePlaced: true, entrySide: 'top' }),
+    ];
+    const steps = executeMachine(makeState(pieces, { inputTape: [1], outputTape: ['__BLANK__'] }));
+    expect(reached(steps)).toBe(false);
+    expect(rejected(steps)).toHaveLength(0);
+  });
+
   it('[3.6][4.7] a transmitter write before a wrong-side arrival is kept', () => {
     // Transmitter writes, path continues into the terminal's wrong side.
     // Assert outputTape[0] holds the written value AND reached === false.
