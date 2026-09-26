@@ -55,11 +55,12 @@ const SETTLE_NO_MOMENTUM_MS = 80;
 
 // Source colors for the Kepler+ split count badge: amber counts pre-assigned
 // pieces, blue counts requisitioned ones (unspent requisitioned pieces are
-// forfeited at level end, so the Engineer needs to see them). Tapes keep the
-// Trail purple.
+// forfeited at level end, so the Engineer needs to see them). Tapes are green
+// (Tucker, 2026-09-26): Trail purple sat too close to protocol violet once the
+// centre frame took the piece's colour.
 const PRE_ASSIGNED_COLOR = '#F0B429';
 const REQUISITIONED_COLOR = '#00D4FF';
-const TAPE_COLOR = '#A97FDB';
+const TAPE_COLOR = Colors.green;
 
 export interface DragState {
   active: boolean;

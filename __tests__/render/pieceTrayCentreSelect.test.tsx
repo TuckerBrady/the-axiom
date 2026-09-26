@@ -128,10 +128,11 @@ describe('PieceTray centre-select (AXM-020)', () => {
     expect(frameColour(r)).toBe('#8B5CF6');
   });
 
+  // Tucker 2026-09-26: tapes are green (option A), clear of protocol violet.
   it('the frame takes the tape colour when a tape is selected', () => {
     const tape: TrayItem = { key: 'tape:in', type: 'conveyor', isTape: true, count: 1 };
     const { r } = mount({ items: [tape] });
-    expect(frameColour(r)).toBe('#A97FDB');
+    expect(frameColour(r)).toBe('#4ecb8d');
   });
 
   it('the frame is amber when nothing in it is selected', () => {
