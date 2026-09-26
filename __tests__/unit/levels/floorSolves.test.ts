@@ -158,8 +158,15 @@ function expectThreeStarReachable(id: string) {
     .toEqual({ id, cost, creditBudget: l.creditBudget, fits: true });
 
   // 7.10.3: each bought type is on offer in the REQUISITION store to an
-  // Engineer who has cleared every earlier level, dev tools off.
-  const offered = buildPieceTypesForLevel(l, discoveredBefore(id), false);
+  // Engineer who has cleared every earlier level, dev tools off. The store's
+  // rows are the level's included (tray) types, each with a + to buy more,
+  // plus buildPieceTypesForLevel's discovery-gated extras
+  // (RequisitionPanel.categoryRows). buildPieceTypesForLevel alone leaves out
+  // the included rows, so both halves are needed to describe what is offered.
+  const offered = [
+    ...new Set(l.availablePieces),
+    ...buildPieceTypesForLevel(l, discoveredBefore(id), false),
+  ];
   expect({ id, bought: Object.keys(bought).sort(), offered: Object.keys(bought).filter(t => offered.includes(t as SolvePiece['type'])).sort() })
     .toEqual({ id, bought: Object.keys(bought).sort(), offered: Object.keys(bought).sort() });
 }
