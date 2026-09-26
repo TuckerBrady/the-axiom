@@ -52,6 +52,7 @@ import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/ty
 import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy, hapticError } from '../utils/haptics';
 import { placeFromKeplerInventory, shouldMountTray } from '../game/trayPlacement';
+import { trayFocusKey } from '../game/trayFocus';
 import { resolveDropCell } from '../utils/dropTarget';
 import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
 import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
@@ -802,6 +803,16 @@ export default function GameplayScreen({ navigation }: Props) {
     const group = key ? keplerGroups.find(g => g.key === key) : undefined;
     useRequisitionStore.getState().selectInventoryPiece(group ? group.repId : null);
   }, [isAxiomLevel, selectFromTray, keplerGroups]);
+
+  // Tucker, build 48: a tutorial step on a tray piece slides it into the
+  // centre frame first, so the '???' spotlight lands on the frame. Selecting
+  // it through the tray's own pickup path is what moves the frame.
+  const bringTutorialTargetIntoView = useCallback((targetRef: string) => {
+    const key = trayFocusKey(targetRef, trayItems);
+    if (key === null || key === traySelectedKey) return false;
+    handleTrayPickup(key);
+    return true;
+  }, [trayItems, traySelectedKey, handleTrayPickup]);
 
   // Where the board is, in the same space as a touch's pageX/pageY. Found on
   // device (AXM-013): measureInWindow is not that space, and drops resolved
@@ -1936,6 +1947,7 @@ export default function GameplayScreen({ navigation }: Props) {
           isBeamActive={beamState.phase !== 'idle'}
           lastPlacedTrigger={lastPlacedTrigger}
           lastTappedTrigger={lastTappedTrigger}
+          bringTargetIntoView={bringTutorialTargetIntoView}
         />
       )}
 
