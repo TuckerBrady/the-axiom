@@ -67,8 +67,7 @@ describe('[6] isScarImmune', () => {
   });
 
   it('[6.3] directional Terminal entry cell: true', () => {
-    // SPEC_DIRECTIONAL_TERMINAL PR-1 adds `entrySide` to PlacedPiece. Until it
-    // lands the field is carried structurally, which is all the predicate reads.
+    // PlacedPiece.entrySide (SPEC_DIRECTIONAL_TERMINAL PR-1, merged in #66).
     const l = level([piece('source', 1, 0), piece('terminal', 6, 5, { entrySide: 'left' })]);
     expect(isScarImmune(l, 5, 5)).toBe(true);
     const top = level([piece('source', 1, 0), piece('terminal', 6, 5, { entrySide: 'top' })]);

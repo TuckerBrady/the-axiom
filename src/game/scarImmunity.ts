@@ -18,11 +18,6 @@ const SIDE_OFFSET: Record<PortSide, { dx: number; dy: number }> = {
 
 const ALL_SIDES: PortSide[] = ['top', 'bottom', 'left', 'right'];
 
-// SPEC_DIRECTIONAL_TERMINAL PR-1 adds `entrySide` to PlacedPiece. Read it
-// structurally so this predicate already honours a directional Terminal the
-// day that field lands, without this PR adding it.
-type MaybeDirectional = PlacedPiece & { entrySide?: PortSide };
-
 function inGrid(level: LevelDefinition, x: number, y: number): boolean {
   return x >= 0 && y >= 0 && x < level.gridWidth && y < level.gridHeight;
 }
@@ -61,8 +56,7 @@ function isOpenNeighbour(
  * other cell (6.4). Pure: reads only the level definition.
  */
 export function isScarImmune(level: LevelDefinition, x: number, y: number): boolean {
-  for (const raw of level.prePlacedPieces) {
-    const fixture = raw as MaybeDirectional;
+  for (const fixture of level.prePlacedPieces) {
     if (fixture.type !== 'source' && fixture.type !== 'terminal') continue;
 
     if (fixture.type === 'terminal' && fixture.entrySide) {

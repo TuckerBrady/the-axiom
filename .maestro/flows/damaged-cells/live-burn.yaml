@@ -17,8 +17,9 @@
 #
 # Kepler boards have no placement highlights, so any empty cell accepts the
 # Transmitter. The point tap is a coordinate — the one non-selector step,
-# same as gameplay-loop.yaml — and it aims at the top row, well clear of the
-# Source/Terminal row. If it ever misses the board, nothing blows, and the
+# same as gameplay-loop.yaml. Since AXM-026 it lands on cell (3,2) at 360dp,
+# an open cell clear of the Source (0,1), the Terminal (8,4) and the debris at
+# (6,1) and (2,4). If it ever misses the board, nothing blows, and the
 # RESET BOARD assertion below fails the flow rather than passing it.
 #
 # Not captured: the ember settling when the NEXT run starts. After OUTPUT
