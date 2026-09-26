@@ -30,8 +30,12 @@ export const LOOK_HOLD_MS = 250;
 export const LOOK_OUT_MS = 150;
 export const CAPTION_AFTER_LANDING_MS = LOOK_IN_MS + LOOK_HOLD_MS;
 
-// Design DR-9: the Codex dock, from the panel's top-right corner.
+// Design DR-9 (v1.1): the Codex dock, top-right, below the Codex chrome.
 export const CODEX_DOCK_INSET = 28;
+// The Codex chrome's fixed status-bar pad, used when the safe-area inset is smaller.
+export const CODEX_MIN_TOP_INSET = 24;
+// Clearance under the chrome bar to the orb's top edge.
+export const CODEX_DOCK_GAP = 8;
 // Design DR-11, spec 11.1: the Codex slide and the filing crossfade.
 export const CODEX_SLIDE_MS = 600;
 export const COLLECT_CROSSFADE_MS = 600;
@@ -268,7 +272,13 @@ export function captionDelayMs(reduceMotion: boolean): number {
   return reduceMotion ? 0 : CAPTION_AFTER_LANDING_MS;
 }
 
-// DR-9: the docked orb centre, from the Codex panel's rect.
-export function codexDockPoint(panel: Rect): Point {
-  return { x: panel.left + panel.width - CODEX_DOCK_INSET, y: panel.top + CODEX_DOCK_INSET };
+// DR-9 (DESIGN_SPEC v1.1): the docked orb centre. x = W - 28,
+// y = max(insets.top, 24) + CODEX_CHROME_H + 8 + 12, so it clears the status
+// bar, the chrome bar and its "ENTRY NNN" label on every device.
+export function codexDockPoint(args: { screenW: number; insetTop: number; chromeH: number }): Point {
+  const { screenW, insetTop, chromeH } = args;
+  return {
+    x: screenW - CODEX_DOCK_INSET,
+    y: Math.max(insetTop, CODEX_MIN_TOP_INSET) + chromeH + CODEX_DOCK_GAP + HALF,
+  };
 }

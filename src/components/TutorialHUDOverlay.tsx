@@ -17,7 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { TutorialStep, PieceType } from '../game/types';
 import type { PlacedTrigger, TappedTrigger } from '../hooks/useGameplayTutorial';
 import { Colors, Fonts } from '../theme/tokens';
-import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import CodexDetailView, { CODEX_CHROME_H, getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
 import { toOverlaySpace } from '../game/overlaySpace';
@@ -156,6 +157,12 @@ function TutorialHUDOverlayComponent({
   const [targetFallback, setTargetFallback] = useState(false);
   // Design DR-10: the orb rides above the Codex while docked.
   const [orbDocked, setOrbDocked] = useState(false);
+  // DR-9 (v1.1): the Codex dock clears the status bar.
+  const safeInsets = useSafeAreaInsets();
+  const insetTopRef = useRef(safeInsets.top);
+  insetTopRef.current = safeInsets.top;
+  // T-Bot gate on #65: UNDERSTOOD runs once per filing, until the slide lands.
+  const understoodRef = useRef(false);
   const [codexVisible, setCodexVisible] = useState(false);
   // A1-1 batch: secondary entries catalogued silently alongside the main codex view
   const [codexAlsoCollected, setCodexAlsoCollected] = useState<PieceEntry[]>([]);
@@ -1103,10 +1110,10 @@ function TutorialHUDOverlayComponent({
     runStep(next);
   }, [currentStepIndex, totalSteps, levelId, onComplete, exitOverlay, runStep]);
 
-  // The Codex panel fills the overlay, so its dock is measured from the
-  // overlay's own rect.
+  // DR-9 (v1.1): the dock sits top-right, below the Codex chrome bar, and
+  // clears the status bar via the safe-area inset.
   const dockOrb = useCallback(() => {
-    const dock = codexDockPoint({ left: 0, top: 0, width: SCREEN_W, height: SCREEN_H });
+    const dock = codexDockPoint({ screenW: SCREEN_W, insetTop: insetTopRef.current, chromeH: CODEX_CHROME_H });
     setOrbDocked(true);
     if (reduceMotionRef.current) {
       orbX.setValue(dock.x - ORB_SIZE / 2);
@@ -1164,9 +1171,12 @@ function TutorialHUDOverlayComponent({
   }, [levelId, onSkip, exitOverlay]);
 
   const handleCodexUnderstood = useCallback(() => {
+    if (understoodRef.current) return;
+    understoodRef.current = true;
     const reduced = reduceMotionRef.current;
     const back = perchRef.current ?? { x: SCREEN_W / 2, y: SCREEN_H / 2 };
     const afterSlide = () => {
+      understoodRef.current = false;
       if (!mountedRef.current) return;
       setOrbDocked(false);
       // Orb transitions back to its step eyeColor after the codex dismisses.
@@ -1190,8 +1200,9 @@ function TutorialHUDOverlayComponent({
       useNativeDriver: false,
     });
     trackAnim(colorIn);
-    colorIn.start(() => {
-      if (!mountedRef.current) return;
+    // A stopped crossfade or slide (teardown) must not slide on or advance.
+    colorIn.start(({ finished }) => {
+      if (!finished || !mountedRef.current) return;
       if (reduced) {
         codexTranslate.setValue(SCREEN_H);
         orbX.setValue(back.x - ORB_SIZE / 2);
@@ -1215,7 +1226,10 @@ function TutorialHUDOverlayComponent({
         Animated.timing(orbY, { toValue: back.y - ORB_SIZE / 2, duration: CODEX_SLIDE_MS, easing: ease, useNativeDriver: false }),
       ]);
       trackAnim(slideOut);
-      slideOut.start(afterSlide);
+      slideOut.start(({ finished }) => {
+        if (!finished) return;
+        afterSlide();
+      });
     });
   }, [codexTranslate, advanceStep, trackAnim, orbCollectAnim, orbX, orbY]);
 

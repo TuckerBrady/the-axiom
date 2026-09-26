@@ -102,8 +102,22 @@ describe('[DR-6, DR-7] the look', () => {
 });
 
 describe('[DR-9] Codex dock', () => {
-  it('docks 28dp in from the panel top-right', () => {
-    expect(codexDockPoint({ left: 0, top: 0, width: 360, height: 640 })).toEqual({ x: 332, y: 28 });
+  // DESIGN_SPEC v1.1 amended DR-9: below the Codex chrome, safe-area aware.
+  // x = W - 28, y = max(insets.top, 24) + CODEX_CHROME_H + 8 + 12.
+  it('docks 28dp in from the right, below the Codex chrome (v1.1)', () => {
+    expect(codexDockPoint({ screenW: 360, insetTop: 0, chromeH: 40 })).toEqual({ x: 332, y: 84 });
+    expect(codexDockPoint({ screenW: 360, insetTop: 24, chromeH: 40 })).toEqual({ x: 332, y: 84 });
+    expect(codexDockPoint({ screenW: 393, insetTop: 59, chromeH: 40 })).toEqual({ x: 365, y: 119 });
+  });
+  it('the Codex exports its chrome height, and the overlay docks with safe-area insets', () => {
+    const codex = fs.readFileSync(
+      path.resolve(__dirname, '../../../src/components/CodexDetailView.tsx'), 'utf8');
+    expect(codex).toMatch(/export const CODEX_CHROME_H = \d+/);
+    const overlay = fs.readFileSync(
+      path.resolve(__dirname, '../../../src/components/TutorialHUDOverlay.tsx'), 'utf8');
+    expect(overlay).toMatch(/useSafeAreaInsets\(\)/);
+    const dock = overlay.slice(overlay.indexOf('const dockOrb = useCallback'), overlay.indexOf('const handlePrimary = useCallback'));
+    expect(dock).toMatch(/codexDockPoint\(\{[^}]*insetTop:[^}]*chromeH: CODEX_CHROME_H/);
   });
   it('rides the 600ms slide', () => { expect(CODEX_SLIDE_MS).toBe(600); });
 });
@@ -130,5 +144,20 @@ describe('overlay source contracts (DR-9 to DR-11)', () => {
     expect(primary).not.toMatch(/orbCollectAnim/);
     const understood = src.slice(src.indexOf('const handleCodexUnderstood = useCallback'), src.indexOf('// Advance when the matching piece type is placed'));
     expect(understood).toMatch(/toValue: 1,\s*duration: COLLECT_CROSSFADE_MS/);
+  });
+
+  // T-Bot gate on #65: a second UNDERSTOOD tap inside the 1200ms filing and
+  // slide must not restart the animations or advance twice.
+  it('UNDERSTOOD is re-entry guarded and a stopped animation never advances', () => {
+    const understood = src.slice(src.indexOf('const handleCodexUnderstood = useCallback'), src.indexOf('// Advance when the matching piece type is placed'));
+    expect(src).toMatch(/const understoodRef = useRef\(false\)/);
+    // Guard at entry: bail if already filing, then claim it.
+    expect(understood).toMatch(/^const handleCodexUnderstood = useCallback\(\(\) => \{\s*if \(understoodRef\.current\) return;\s*understoodRef\.current = true;/);
+    // Cleared once the slide has finished.
+    const after = understood.slice(understood.indexOf('const afterSlide'), understood.indexOf('const colorIn'));
+    expect(after).toMatch(/understoodRef\.current = false/);
+    // Both completion callbacks check finished.
+    expect(understood).toMatch(/colorIn\.start\(\(\{ finished \}\) => \{\s*if \(!finished[^)]*\) return;/);
+    expect(understood).toMatch(/slideOut\.start\(\(\{ finished \}\) => \{\s*if \(!finished\) return;\s*afterSlide\(\);/);
   });
 });
