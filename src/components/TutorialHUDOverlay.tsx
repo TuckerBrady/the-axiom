@@ -19,6 +19,7 @@ import { Colors, Fonts } from '../theme/tokens';
 import CodexDetailView, { getCodexEntry, getCodexEntryNumber, type PieceEntry } from './CodexDetailView';
 import { useCodexStore } from '../store/codexStore';
 import { COGS_AI_ORB_COLORS } from '../constants/cogsAIOrbColors';
+import { toOverlaySpace } from '../game/overlaySpace';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -244,6 +245,9 @@ function TutorialHUDOverlayComponent({
   }, [currentStepIndex, levelId, hydrated]);
 
   // ── Measurement ──
+  // The overlay's root, measured alongside each target so spotlight boxes
+  // land in the overlay's own coordinate space.
+  const overlayRootRef = useRef<View>(null);
   const measureTarget = useCallback((targetRef: string, cb: (layout: Layout | null) => void) => {
     if (targetRef === 'center') {
       if (!mountedRef.current) return;
@@ -313,7 +317,18 @@ function TutorialHUDOverlayComponent({
           return;
         }
         UIManager.measureInWindow(handle, (x: number, y: number, width: number, height: number) => {
-          onResult(x, y, width, height);
+          // Convert to the overlay's own space: measure its root the same
+          // way and subtract. Falls back to raw window space if the root
+          // can't be measured.
+          const rootHandle = overlayRootRef.current ? findNodeHandle(overlayRootRef.current) : null;
+          if (rootHandle == null) {
+            onResult(x, y, width, height);
+            return;
+          }
+          UIManager.measureInWindow(rootHandle, (rx: number, ry: number) => {
+            const l = toOverlaySpace({ x, y, width, height }, { x: rx, y: ry });
+            onResult(l.x, l.y, l.width, l.height);
+          });
         });
       }
     };
@@ -993,6 +1008,8 @@ function TutorialHUDOverlayComponent({
 
   return (
     <Animated.View
+      ref={overlayRootRef}
+      collapsable={false}
       pointerEvents="box-none"
       style={[StyleSheet.absoluteFill, { opacity: exitOpacity }]}
     >
