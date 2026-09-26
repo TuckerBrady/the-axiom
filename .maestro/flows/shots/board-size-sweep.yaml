@@ -36,7 +36,7 @@ appId: com.tuckerbrady.theaxiom
     timeout: 30000
 - tapOn: "${SHOT_LEVEL}"
 
-# The dev jump lands on the mission dossier (MISSION n / BEST TIME / STAR
+# The dev jump lands on the mission dossier (MISSION n / PIECES USED / STAR
 # RATING), not on the board.
 - extendedWaitUntil:
     visible: "LAUNCH MISSION"

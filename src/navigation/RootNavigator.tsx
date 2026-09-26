@@ -53,7 +53,6 @@ export type RootStackParamList = {
     missionName: string;
     iconType: string;
     stars: number;
-    bestTime: string;
     piecesUsed: number;
     cogsQuote: string;
     levelId: string | undefined;
