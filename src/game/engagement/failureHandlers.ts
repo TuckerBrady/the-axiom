@@ -13,6 +13,11 @@ export interface WrongOutputParams {
   setWrongOutputData: (data: { expected: OutputTapeValue[]; produced: OutputTapeValue[] } | null) => void;
   setShowWrongOutput: (show: boolean) => void;
   loseLife: () => void;
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT 6.5): cells next to a corner Source
+  // or Terminal, and a directional Terminal's entry cell, never scar. The piece
+  // is still removed and the life still spent; only the crater is skipped.
+  // Optional so existing call sites and fixtures keep today's behavior.
+  isScarImmune?: (gridX: number, gridY: number) => boolean;
 }
 
 export function handleWrongOutput(params: WrongOutputParams): void {
@@ -27,13 +32,13 @@ export function handleWrongOutput(params: WrongOutputParams): void {
     setWrongOutputData,
     setShowWrongOutput,
     loseLife,
+    isScarImmune,
   } = params;
 
   if (!isAxiomLevel) {
     const blownPiece = findBlownPiece('wrongOutput', steps);
     if (blownPiece) {
-      setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
-      deletePiece(blownPiece.id);
+      blowPiece(blownPiece, deletePiece, setBlownCells, isScarImmune);
     }
   }
   setWrongOutputData({ expected: [...expected], produced: [...produced] });
@@ -59,6 +64,22 @@ export interface VoidFailureParams {
   setShowVoid: (show: boolean) => void;
   triggerHints: (trigger: string) => void;
   redColor: string;
+  // AXM-026 6.5 — see WrongOutputParams.isScarImmune.
+  isScarImmune?: (gridX: number, gridY: number) => boolean;
+}
+
+// Blows the blamed piece: always removed, and its cell scars unless the cell is
+// scar immune (AXM-026 6.5).
+function blowPiece(
+  blownPiece: PlacedPiece,
+  deletePiece: (id: string) => void,
+  setBlownCells: Dispatch<SetStateAction<Set<string>>>,
+  isScarImmune?: (gridX: number, gridY: number) => boolean,
+): void {
+  if (!isScarImmune?.(blownPiece.gridX, blownPiece.gridY)) {
+    setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
+  }
+  deletePiece(blownPiece.id);
 }
 
 // Handles the void-failure path:
@@ -83,6 +104,7 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
     setShowVoid,
     triggerHints,
     redColor,
+    isScarImmune,
   } = params;
 
   for (let f = 0; f < 3; f++) {
@@ -119,8 +141,7 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
   if (!isAxiomLevel) {
     const blownPiece = findBlownPiece('void', steps);
     if (blownPiece) {
-      setBlownCells(prev => new Set(prev).add(`${blownPiece.gridX},${blownPiece.gridY}`));
-      deletePiece(blownPiece.id);
+      blowPiece(blownPiece, deletePiece, setBlownCells, isScarImmune);
     }
   }
   // REQ-G-08 pt 1: the index is drawn exactly once, here, on entering the

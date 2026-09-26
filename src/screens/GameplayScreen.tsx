@@ -65,6 +65,7 @@ import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
 import { shallStatementToCopy } from '../game/spec/specSheetCopy';
 import { evaluateTopologyGate } from '../game/objectives';
+import { isScarImmune } from '../game/scarImmunity';
 import { resolveBoardSize } from '../utils/boardSizeOverride';
 import { SHOW_DEV_TOOLS } from '../utils/devFlags';
 
@@ -1246,6 +1247,7 @@ export default function GameplayScreen({ navigation }: Props) {
         setWrongOutputData,
         setShowWrongOutput,
         loseLife,
+        isScarImmune: (gx, gy) => isScarImmune(level, gx, gy),
       });
       return;
     }
@@ -1365,6 +1367,7 @@ export default function GameplayScreen({ navigation }: Props) {
         setShowVoid,
         triggerHints,
         redColor: Colors.red,
+        isScarImmune: (gx, gy) => isScarImmune(level, gx, gy),
       });
     }
   }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
