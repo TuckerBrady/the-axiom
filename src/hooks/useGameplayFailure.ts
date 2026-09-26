@@ -43,6 +43,17 @@ export function seedBlownCells(level: LevelDefinition | null): Set<string> {
   return new Set((level?.damagedCells ?? []).map(c => `${c.gridX},${c.gridY}`));
 }
 
+/**
+ * AXM-021 (T-Bot ruling 2026-09-26): true when the player has blown at least
+ * one cell. The level's own damagedCells never count, so a paid board reset is
+ * only offered when it would change something.
+ */
+export function hasPlayerCraters(blownCells: Set<string>, level: LevelDefinition | null): boolean {
+  const seed = seedBlownCells(level);
+  for (const key of blownCells) if (!seed.has(key)) return true;
+  return false;
+}
+
 // Reserved for future Axiom-level-specific failure handling. Phase 1
 // does not branch on `isAxiomLevel` but the public surface keeps it for
 // parity with the other useGameplay* hooks (Phase 2+).

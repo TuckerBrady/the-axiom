@@ -42,6 +42,8 @@ const CHIP_ROW_H = 32;
 const EDGE_FADE_W = 28;
 
 // AXM-020 — the centre frame: the piece in hand. Fixed; items slide under it.
+// It takes the colour of the selected piece's type (Tucker, build 48: one
+// square, not two). Amber when nothing in it is selected.
 const FRAME_COLOR = '#F0B429';
 const FRAME_SIZE = 64;
 // The selected item grows a little. Keyed to selection, never to the scroll
@@ -53,11 +55,12 @@ const SETTLE_NO_MOMENTUM_MS = 80;
 
 // Source colors for the Kepler+ split count badge: amber counts pre-assigned
 // pieces, blue counts requisitioned ones (unspent requisitioned pieces are
-// forfeited at level end, so the Engineer needs to see them). Tapes keep the
-// Trail purple.
+// forfeited at level end, so the Engineer needs to see them). Tapes are green
+// (Tucker, 2026-09-26): Trail purple sat too close to protocol violet once the
+// centre frame took the piece's colour.
 const PRE_ASSIGNED_COLOR = '#F0B429';
 const REQUISITIONED_COLOR = '#00D4FF';
-const TAPE_COLOR = '#A97FDB';
+const TAPE_COLOR = Colors.green;
 
 export interface DragState {
   active: boolean;
@@ -359,6 +362,10 @@ function PieceTrayComponent({
   }, [visibleItems, selectedKey, onPickup, scrollToKey]);
 
   const sidePad = centrePadding(viewportW);
+  const selectedItem = visibleItems.find(i => i.key === selectedKey);
+  const frameColor = selectedItem
+    ? selectedItem.isTape ? TAPE_COLOR : getPieceColor(selectedItem.type)
+    : FRAME_COLOR;
 
   return (
     <View
@@ -428,7 +435,7 @@ function PieceTrayComponent({
             const itemStyle = [
               styles.trayItem,
               item.isTape && { borderColor: `${TAPE_COLOR}66` },
-              isActive && { borderColor: color, backgroundColor: `${color}15` },
+              isActive && { backgroundColor: `${color}15` },
             ];
             const innerContent = (
               <>
@@ -505,7 +512,7 @@ function PieceTrayComponent({
           })}
         </ScrollView>
         <View style={styles.frameWrap} pointerEvents="none">
-          <View testID="tray-frame" style={styles.frame} pointerEvents="none" />
+          <View testID="tray-frame" style={[styles.frame, { borderColor: frameColor }]} pointerEvents="none" />
         </View>
         {fadeSide !== 'none' && (
           <LinearGradient
