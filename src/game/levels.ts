@@ -69,19 +69,19 @@ export const levelA1_1: LevelDefinition = {
   // v1.1). Floor and alternate solves live in __tests__/fixtures/floorSolves.ts;
   // optimalPieces is the floor solve's piece count.
   // Opposite corners cannot be joined in a straight line, so one Gear is issued
-  // here, a level before A1-2 catalogues it (open question on the AXM-026 PR).
+  // here and A1-1's tutorial catalogues it (spec 7.14.1, Tucker Q2 = b).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear'],
   dataTrail: { cells: [], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 11,
   systemRepaired: 'Emergency Power',
   budget: 0,
-  computationalGoal: 'Deliver the signal unchanged from Source to Terminal along a continuous straight path.',
-  conceptTaught: 'Signal travels along a directed path. A complete path from input to output is the machine\'s body; without it, nothing moves.',
+  computationalGoal: 'Deliver the signal unchanged from Source to Terminal along a continuous path that turns one corner.',
+  conceptTaught: 'Signal travels along a directed path. A complete path from input to output is the machine\'s body; without it, nothing moves. A Gear turns the path ninety degrees (AXM-026, spec 7.14.1: A1-1 teaches the Gear, a deliberate exception to the one-new-piece rule).',
   prerequisiteConcept: 'None. First level. The player\'s mental model is a blank slate beyond the universal human intuition that a pipe carries what you put into one end.',
   tapeDesignRationale: 'Stateless level. No input tape, no output tape. A single signal pulse demonstrates that a Conveyor path connects ports. Tape machinery is withheld until A1-5.',
   difficultyBand: 'intuitive',
-  narrativeFrame: 'Arrival on a broken ship. Emergency power is the first system that has to come online before anything else can. The Engineer places a single conveyor pipe between two ports and watches the ship\'s lowest light flicker on. The work begins.',
+  narrativeFrame: 'Arrival on a broken ship. Emergency power is the first system that has to come online before anything else can. The Engineer lays a run of conveyor pipe between two ports, turns it once with a Gear, and watches the ship\'s lowest light flicker on. The work begins.',
   tutorialHints: [
     { key: 'a11_select', trigger: 'onMount', text: 'Tap a piece in the tray to select it. Then tap the grid to place it between Source and Terminal.' },
     { key: 'a11_engage', trigger: 'onFirstPiecePlaced', text: 'Piece placed. Tap ENGAGE MACHINE to fire the signal.' },
@@ -158,6 +158,26 @@ export const levelA1_1: LevelDefinition = {
       captionLabel: 'CONVEYOR',
     },
     {
+      // AXM-026 (spec 7.14.1): the Gear is discovered here, where the path
+      // first needs a corner. Moved from A1-2; a piece is discovered once.
+      // Lines reused verbatim from A1-2's approved Gear beats; their new
+      // placement is DRAFT, pending T-Bot voice review.
+      id: 'gear-notice',
+      targetRef: 'trayGear',
+      eyeState: 'amber',
+      message: 'The tray. There is an uncatalogued piece sitting right there.',
+      codexEntryId: 'gear',
+      captionLabel: '???',
+    },
+    {
+      // Named-reveal beat: targets the tray slot, not a placed piece.
+      id: 'gear-reveal',
+      targetRef: 'trayGear',
+      eyeState: 'green',
+      message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.',
+      captionLabel: 'GEAR',
+    },
+    {
       id: 'board-resume',
       targetRef: 'boardGrid',
       eyeState: 'blue',
@@ -222,25 +242,8 @@ export const levelA1_2: LevelDefinition = {
       eyeState: 'blue',
       message: 'Life support requires a bend in the path. The Source and Terminal are not aligned. A straight line will not reach. The signal needs to change direction once. Plan where that happens before placing anything.',
     },
-    {
-      // Inline reveal (Tucker direction): COGS notices the new piece in
-      // the tray and reveals it to the Codex (codexEntryId). No placement
-      // gate, no orb-chase to a placed piece.
-      id: 'gear-notice',
-      targetRef: 'trayGear',
-      eyeState: 'amber',
-      message: 'The tray. There is an uncatalogued piece sitting right there.',
-      codexEntryId: 'gear',
-      captionLabel: '???',
-    },
-    {
-      // Named-reveal beat: targets the tray slot, not a placed piece.
-      id: 'gear-reveal',
-      targetRef: 'trayGear',
-      eyeState: 'green',
-      message: 'Gear. Ninety-degree redirection. The signal enters one face, exits an adjacent face. Catalogued. Four entries now. This is... this is acceptable progress.',
-      captionLabel: 'GEAR',
-    },
+    // AXM-026 (spec 7.14.1): the Gear's discovery and reveal steps moved to
+    // A1-1, where opposite corners first force a bend. A1-2 is Gear practice.
     {
       id: 'gear-teach',
       targetRef: 'boardGrid',
@@ -788,10 +791,10 @@ export const levelK1_1: LevelDefinition = {
     prePlaced('obstacle', 6, 1),
     prePlaced('obstacle', 1, 4),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   // 7 conveyors + 2 gears = the 9-piece Z-solution exactly (SPEC_KEPLER_REBUILD_v3
   // K1-1 keeps the tray equal to the solution; AXM-026 moved the corners apart).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear'],
@@ -800,7 +803,7 @@ export const levelK1_1: LevelDefinition = {
   // Terminal is not enough. Mirrored in topologyRequirements for the Spec Sheet.
   objectives: [{ type: 'reach_output' }, { type: 'min_direction_changes', count: 2 }],
   topologyRequirements: { minDirectionChanges: 2 },
-  optimalPieces: 9, budget: 140,
+  optimalPieces: 9, budget: 40,
   freeTapes: ['IN'],
   purchasableTapes: ['TRAIL', 'OUT'],
   creditBudget: 75,
@@ -846,15 +849,15 @@ export const levelK1_2: LevelDefinition = {
     // Corridor debris: closes both single-bend runs along the board edges.
     prePlaced('obstacle', 6, 1), prePlaced('obstacle', 2, 4),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'scanner', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0], expectedOutput: [1, 0, 1, 1, 0],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 10, budget: 170,
+  optimalPieces: 10, budget: 80,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 80,
@@ -887,15 +890,15 @@ export const levelK1_3: LevelDefinition = {
     // The Latch sits on the top-edge run; debris closes the bottom-edge run.
     prePlaced('obstacle', 2, 5),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'scanner', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 11, budget: 180,
+  optimalPieces: 11, budget: 100,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 100,
@@ -942,10 +945,10 @@ export const levelK1_4: LevelDefinition = {
   // Scanner removed: the Latch (WRITE) carries the pulse value into the Config gate
   // directly (carriesLatchValue), so the masking solution is Latch -> Config ->
   // Transmitter + routing. Verified solvable in keplerK14Masking.test.ts.
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'latch', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   // BLANK-masking live gate (SE-TM-003): Config configValue=1 forwards the three
@@ -955,7 +958,7 @@ export const levelK1_4: LevelDefinition = {
   // on the idle pulses and fails (0 !== BLANK). Proven in keplerK14Masking.test.ts.
   inputTape: [1, 0, 0, 1, 1, 0], expectedOutput: [1, BLANK, BLANK, 1, 1, BLANK],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 12, budget: 205,
+  optimalPieces: 12, budget: 130,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 100,
@@ -993,17 +996,17 @@ export const levelK1_5: LevelDefinition = {
   // hardware. They close the two edge runs, so the route has to come through
   // the Splitter in mid-board. (First damaged-cell level per the spec.)
   damagedCells: [{ gridX: 7, gridY: 1 }, { gridX: 2, gridY: 6 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'gear', 'merger', 'scanner', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 0], expectedOutput: [1, 0, 1, 0],
   objectives: [{ type: 'reach_output' }],
   // optimalPieces is now a programmatic floor solve (AXM-026): the fixture runs
   // through the same Splitter magnet computation the live board uses.
-  optimalPieces: 15, budget: 235,
+  optimalPieces: 15, budget: 155,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 100,
@@ -1040,16 +1043,16 @@ export const levelK1_6: LevelDefinition = {
   prePlacedPieces: [prePlaced('source', 0, 1), prePlaced('terminal', 10, 6)],
   // Pre-existing blown cells (worn coordination hub, equipment three cycles overdue).
   damagedCells: [{ gridX: 8, gridY: 1 }, { gridX: 0, gridY: 4 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'gear', 'splitter', 'merger', 'scanner', 'latch', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0, 1], expectedOutput: [1, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
-  optimalPieces: 17, budget: 275,
+  optimalPieces: 17, budget: 55,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 120,
@@ -1079,20 +1082,25 @@ export const levelK1_7: LevelDefinition = {
   gridWidth: 10, gridHeight: 8,
   // Terminal entry side: left. Both AXM-026 solves deliver into the Terminal from
   // the west (SPEC_SOURCE_TERMINAL_PLACEMENT 7.4); SPEC_DIRECTIONAL_TERMINAL PR-3
-  // sets entrySide 'left' here. The Splitter closes the top-edge run and the
-  // Bridge closes the bottom-edge run, so the route crosses the Bridge.
-  prePlacedPieces: [prePlaced('source', 0, 1), prePlaced('terminal', 9, 6), prePlaced('bridge', 5, 6), prePlaced('splitter', 3, 1)],
+  // sets entrySide 'left' here. The Splitter sits diagonally above-left of the
+  // Bridge, so its two outputs are the Bridge's two inputs: one lane drops in
+  // from the north, the other runs in from the west, and the two paths cross
+  // in the Bridge cell. The route feeds the Splitter from the north, and the
+  // blown cell on its west leaves it no third side to spend a magnet on. The
+  // Bridge also closes the bottom-edge run.
+  prePlacedPieces: [prePlaced('source', 0, 1), prePlaced('terminal', 9, 6), prePlaced('bridge', 5, 6), prePlaced('splitter', 4, 5)],
   // Pre-existing blown cell — residual damage on the dead ore-processing relay.
-  damagedCells: [{ gridX: 4, gridY: 5 }, { gridX: 7, gridY: 2 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // (3,5) keeps the Splitter to two magnet sides; (7,1) closes the top-edge run.
+  damagedCells: [{ gridX: 3, gridY: 5 }, { gridX: 7, gridY: 1 }],
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
-  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'scanner', 'configNode', 'transmitter'],
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
+  availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'gear', 'scanner', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1], expectedOutput: [1, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 12, budget: 190,
+  optimalPieces: 12, budget: 55,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 120,
@@ -1129,16 +1137,16 @@ export const levelK1_8: LevelDefinition = {
   prePlacedPieces: [prePlaced('source', 0, 1), prePlaced('terminal', 10, 6)],
   // Pre-existing blown cells — the transit gate has not been maintained in years.
   damagedCells: [{ gridX: 10, gridY: 3 }, { gridX: 1, gridY: 6 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'splitter', 'merger', 'bridge', 'scanner', 'latch', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 1, 0, 1, 0, 0, 1, 1], expectedOutput: [1, 1, 0, 1, 0, 0, 1, 1],
   objectives: [{ type: 'reach_output' }],
   requiredPieces: [{ type: 'bridge', count: 1 }, { type: 'latch', count: 1 }, { type: 'splitter', count: 1 }, { type: 'merger', count: 1 }],
-  optimalPieces: 16, budget: 265,
+  optimalPieces: 16, budget: 60,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 140,
@@ -1178,15 +1186,15 @@ export const levelK1_9: LevelDefinition = {
   prePlacedPieces: [prePlaced('source', 0, 1), prePlaced('terminal', 10, 7)],
   // Pre-existing blown cells — the Narrows is the most interference-damaged stretch.
   damagedCells: [{ gridX: 5, gridY: 7 }, { gridX: 9, gridY: 1 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'splitter', 'merger', 'bridge', 'scanner', 'latch', 'latch', 'configNode', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null, null], headPosition: 0 },
   inputTape: [0, 1, 1, 0, 1, 0], expectedOutput: [0, 0, 1, 1, 0, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 15, budget: 225,
+  optimalPieces: 15, budget: 50,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 150,
@@ -1233,10 +1241,10 @@ export const levelK1_10: LevelDefinition = {
   // Pre-existing blown cells — the Central Hub is failing infrastructure, the
   // corridor's single point of failure. Scattered scarring on the largest board.
   damagedCells: [{ gridX: 5, gridY: 2 }, { gridX: 2, gridY: 7 }, { gridX: 11, gridY: 3 }],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'gear', 'splitter', 'merger', 'bridge', 'scanner', 'scanner', 'latch', 'latch', 'configNode', 'configNode', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null, null, null], headPosition: 0 },
   // Temporal-OR: out[N] = in[N] OR in[N-1]; out[0] = in[0] (DELAY Latch emits 0 on
@@ -1257,7 +1265,7 @@ export const levelK1_10: LevelDefinition = {
   // Transmitter = 4) plus the routing between opposite corners of a 12-wide
   // board: 21, a programmatic floor solve on the real magnet board (AXM-026,
   // __tests__/fixtures/floorSolves.ts). See [[kepler-engine-transform-constraints]].
-  optimalPieces: 21, budget: 295,
+  optimalPieces: 21, budget: 80,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 180,
@@ -1300,23 +1308,28 @@ export const repairPropulsionSurge: LevelDefinition = {
     prePlaced('terminal', 8, 4),
     prePlaced('configNode', 4, 3, { condition: (c: number) => c === 1 }),
     prePlaced('scanner', 6, 3),
-    // Surge debris: closes both single-bend runs along the board edges.
-    prePlaced('obstacle', 5, 1),
-    prePlaced('obstacle', 4, 4),
+    // Surge debris walls off columns 4 and 6 except at the Config Node and
+    // the Scanner, so every route runs through both repair pieces.
+    prePlaced('obstacle', 4, 0), prePlaced('obstacle', 4, 1), prePlaced('obstacle', 4, 2),
+    prePlaced('obstacle', 4, 4), prePlaced('obstacle', 4, 5),
+    prePlaced('obstacle', 6, 0), prePlaced('obstacle', 6, 1), prePlaced('obstacle', 6, 2),
+    prePlaced('obstacle', 6, 4), prePlaced('obstacle', 6, 5),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'transmitter'],
   dataTrail: { cells: [1, 0, 1, 0, 1, 1, 0, 1], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 8,
-  budget: 130,
+  budget: 40,
   systemRepaired: 'Propulsion Core',
 };
 
-pieceCounter = 910;
+// AXM-026: 930, not 910. REPAIR-PROP-SURGE now holds 14 pre-placed pieces
+// (ids 901-914), so the old start collided.
+pieceCounter = 930;
 
 // Triggered by Nova Fringe pirate consequence — hyperdrive damage
 export const repairHyperdrive: LevelDefinition = {
@@ -1332,21 +1345,24 @@ export const repairHyperdrive: LevelDefinition = {
     prePlaced('terminal', 8, 5),
     prePlaced('scanner', 3, 3),
     prePlaced('scanner', 6, 4),
-    // Pirate wreckage: closes both single-bend runs along the board edges.
-    prePlaced('obstacle', 6, 1),
-    prePlaced('obstacle', 2, 5),
+    // Pirate wreckage walls off columns 3 and 6 except at the two Scanners,
+    // so every route runs through both repair pieces.
+    prePlaced('obstacle', 3, 0), prePlaced('obstacle', 3, 1), prePlaced('obstacle', 3, 2),
+    prePlaced('obstacle', 3, 4), prePlaced('obstacle', 3, 5), prePlaced('obstacle', 3, 6),
+    prePlaced('obstacle', 6, 0), prePlaced('obstacle', 6, 1), prePlaced('obstacle', 6, 2),
+    prePlaced('obstacle', 6, 3), prePlaced('obstacle', 6, 5), prePlaced('obstacle', 6, 6),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   // Gears are new to this tray: opposite corners need turns, and the route
-  // bends through both pre-placed Scanners.
+  // bends between the two pre-placed Scanners.
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'gear', 'configNode', 'configNode', 'transmitter', 'transmitter'],
   dataTrail: { cells: [1, 1, 0, 1, 0, 0, 1, 1], headPosition: 0 },
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 9,
-  budget: 185,
+  budget: 50,
   systemRepaired: 'Propulsion Core',
 };
 
@@ -1359,7 +1375,8 @@ export const repairHyperdrive: LevelDefinition = {
 // Confluence Node (AND), Divergence Gate (XOR). See SPEC_NOVA_FRINGE.md.
 // NF-3+ are blocked on the three missing pieces; NF-1/NF-2 use the Inverter only.
 
-pieceCounter = 920;
+// AXM-026: 960, not 920, clear of REPAIR-HYPERDRIVE's 16 pieces (931-946).
+pieceCounter = 960;
 
 export const levelNF_1: LevelDefinition = {
   id: 'NF-1', name: 'Outer Marker', sector: 'nova',
@@ -1373,15 +1390,15 @@ export const levelNF_1: LevelDefinition = {
     prePlaced('source', 0, 1), prePlaced('terminal', 8, 5),
     prePlaced('obstacle', 7, 1), prePlaced('obstacle', 1, 5),
   ],
-  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.1): Source and Terminal on opposite
+  // AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT v1.3): Source and Terminal on opposite
   // corners. Floor and alternate solves: __tests__/fixtures/floorSolves.ts.
-  // optimalPieces = floor-solve piece count; budget = floor cost + fresh-board
-  // buffer; depthCeiling keeps its old margin above optimalPieces.
+  // optimalPieces = floor-solve piece count; depthCeiling keeps its master margin
+  // above optimalPieces (7.6.1); budget and creditBudget stay at master (7.8).
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'inverter', 'transmitter'],
   dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
   inputTape: [1, 0, 1, 1, 0], expectedOutput: [0, 1, 0, 0, 1],
   objectives: [{ type: 'reach_output' }],
-  optimalPieces: 11, budget: 210,
+  optimalPieces: 11, budget: 90,
   freeTapes: ['IN', 'TRAIL', 'OUT'],
   purchasableTapes: [],
   creditBudget: 90,

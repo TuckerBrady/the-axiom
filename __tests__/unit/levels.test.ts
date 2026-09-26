@@ -344,12 +344,11 @@ describe('K1-9 The Narrows — canonical one-pulse shift register', () => {
     }
   });
 
-  // V2 canonical was 7 / 50 (not the XOR-era 11/70). AXM-026 moved Source and
-  // Terminal to opposite corners: the floor solve is now 15 pieces, and the
-  // budget covers its 175 CR cost plus the 50 CR fresh-board buffer.
-  it('optimalPieces is 15 and budget is 225 (AXM-026 opposite corners)', () => {
+  // AXM-026: optimalPieces 7 -> 15 (opposite-corner floor solve, spec 7.5).
+  // budget stays at the V2 canonical 50 (spec v1.2 7.8 / 8.2.1).
+  it('optimalPieces is 15 (AXM-026, was 7) and budget is 50 (V2 canonical, not the XOR-era 11/70)', () => {
     expect(k9().optimalPieces).toBe(15);
-    expect(k9().budget).toBe(225);
+    expect(k9().budget).toBe(50);
   });
 
   it('describes a delay, not XOR', () => {
@@ -388,12 +387,9 @@ describe('Kepler v3 economy fields are defined on every level', () => {
     expect(latch!.latchMode).toBe('write');
   });
 
-  // v3 canonical budgets were K1-2 80, K1-3 100, K1-4 130, K1-5 155, K1-9 50.
-  // AXM-026 re-derived each as floor-solve cost + 50 CR fresh-board buffer
-  // (SPEC_SOURCE_TERMINAL_PLACEMENT 7.8).
-  it('budgets match the AXM-026 re-derivation for reconciled levels', () => {
+  it('canonical budgets match v3 for reconciled levels', () => {
     const budgets: Record<string, number> = {
-      'K1-2': 170, 'K1-3': 180, 'K1-4': 205, 'K1-5': 235, 'K1-9': 225,
+      'K1-2': 80, 'K1-3': 100, 'K1-4': 130, 'K1-5': 155, 'K1-9': 50,
     };
     for (const [id, budget] of Object.entries(budgets)) {
       expect(KEPLER_LEVELS.find(l => l.id === id)!.budget).toBe(budget);

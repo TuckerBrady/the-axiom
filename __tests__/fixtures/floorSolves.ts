@@ -44,6 +44,7 @@ export type LevelSolves = {
 
 const E = 0;
 const S = 90;
+const W = 180;
 const N = 270;
 
 // Compact constructors. `c` is a Conveyor with its heading.
@@ -169,20 +170,21 @@ export const FLOOR_SOLVES: Record<string, LevelSolves> = {
       merge(8, 6), tx(9, 6),
     ],
   },
-  // Source (0,1), Terminal (9,6); pre-placed Splitter (3,1) and Bridge (5,6);
-  // blown (4,5), (7,2). Floor: the Splitter's east magnet is a one-piece spur and
-  // the south path crosses the Bridge west to east. Alternate: the east branch
-  // becomes the second path, dropping into the Bridge from the north.
+  // Source (0,1), Terminal (9,6); pre-placed Splitter (4,5) and Bridge (5,6);
+  // blown (3,5), (7,1). The route reaches the Splitter from the north. Its two
+  // magnets are the Gears at (4,6) and
+  // (5,5): one runs into the Bridge from the west, the other drops in from the
+  // north, so both solves cross the Bridge (T-Bot ruling on #67).
   'K1-7': {
     terminalEntrySide: 'left',
     floor: [
-      scan(1, 1), c(2, 1, E), c(4, 1, E),
-      ...run(3, 2, 3, 5, S), g(3, 6), c(4, 6, E),
+      scan(1, 1), ...run(2, 1, 3, 1, E), g(4, 1), ...run(4, 2, 4, 4, S),
+      g(4, 6), g(5, 5),
       ...run(6, 6, 7, 6, E), tx(8, 6),
     ],
     alternate: [
-      scan(1, 1), c(2, 1, E), c(4, 1, E), g(5, 1), ...run(5, 2, 5, 5, S),
-      ...run(3, 2, 3, 5, S), g(3, 6), c(4, 6, E),
+      g(0, 2), scan(1, 2), ...run(2, 2, 3, 2, E), g(4, 2), ...run(4, 3, 4, 4, S),
+      g(4, 6), g(5, 5),
       ...run(6, 6, 7, 6, E), tx(8, 6),
     ],
   },
@@ -224,20 +226,30 @@ export const FLOOR_SOLVES: Record<string, LevelSolves> = {
       c(7, 6, N), g(7, 5), c(8, 5, E), g(9, 5), c(9, 6, S),
       merge(9, 7), tx(10, 7),
     ],
+    // 7.10.1: a longer main line (snake through columns 6 and 3) so every tray
+    // Conveyor and Gear is placed, plus 2 Conveyors and 2 Gears requisitioned
+    // (40 CR). 27 active pieces; scores 85 as a Drive Engineer.
+    threeStar: [
+      ...run(1, 1, 5, 1, E), g(6, 1), ...run(6, 2, 6, 3, S), g(6, 4),
+      ...run(5, 4, 4, 4, W), g(3, 4), ...run(3, 5, 3, 6, S), g(3, 7), ...run(4, 7, 6, 7, E),
+      split(7, 7), latch(8, 7, 'delay'),
+      c(7, 6, N), g(7, 5), c(8, 5, E), g(9, 5), c(9, 6, S),
+      merge(9, 7), tx(10, 7),
+    ],
   },
 
   // ── Repair puzzles ──────────────────────────────────────────────────────────
   // Source (0,1), Terminal (8,4); pre-placed Config (4,3) and Scanner (6,3)
-  // stay put; debris (5,1), (4,4).
+  // stay put (7.13.1); debris walls columns 4 and 6 except at those two.
   'REPAIR-PROP-SURGE': {
     floor: [c(0, 2, S), g(0, 3), ...run(1, 3, 3, 3, E), c(5, 3, E), c(7, 3, E), g(8, 3)],
     alternate: [...run(1, 1, 2, 1, E), g(3, 1), c(3, 2, S), g(3, 3), c(5, 3, E), tx(7, 3), g(8, 3)],
   },
-  // Source (0,1), Terminal (8,5); pre-placed Scanners (3,3) and (6,4) stay put;
-  // debris (6,1), (2,5). The route passes through both Scanners.
+  // Source (0,1), Terminal (8,5); pre-placed Scanners (3,3) and (6,4) stay put
+  // (7.13.1); debris walls columns 3 and 6 except at the Scanners.
   'REPAIR-HYPERDRIVE': {
-    floor: [...run(1, 1, 2, 1, E), g(3, 1), c(3, 2, S), g(3, 4), cfg(4, 4), c(5, 4, E), tx(7, 4), g(8, 4)],
-    alternate: [c(0, 2, S), g(0, 3), ...run(1, 3, 2, 3, E), cfg(4, 3), g(5, 3), g(5, 4), tx(7, 4), g(8, 4)],
+    floor: [c(0, 2, S), g(0, 3), ...run(1, 3, 2, 3, E), cfg(4, 3), g(5, 3), g(5, 4), tx(7, 4), g(8, 4)],
+    alternate: [c(0, 2, S), g(0, 3), cfg(1, 3), c(2, 3, E), c(4, 3, E), g(5, 3), g(5, 4), tx(7, 4), g(8, 4)],
   },
 
   // ── Nova Fringe ─────────────────────────────────────────────────────────────
