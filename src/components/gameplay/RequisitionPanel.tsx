@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,12 @@ import {
 } from '../../game/piecePrices';
 import { useRequisitionStore, type TapeType } from '../../store/requisitionStore';
 import { Colors, Fonts, FontSizes, Spacing } from '../../theme/tokens';
+import {
+  REQ_SLIDE_DISTANCE,
+  REQ_SLIDE_MS,
+  REQ_SLIDE_IN_BEZIER,
+  REQ_SLIDE_OUT_BEZIER,
+} from './requisitionSlide';
 
 // ─── Tab configuration ────────────────────────────────────────────────────────
 
@@ -219,7 +225,22 @@ export default function RequisitionPanel({
   const [activeTab, setActiveTab] = useState<TabKey>(orderedTabs[0]);
   const [expanded, setExpanded] = useState(false);
   const [dismissing, setDismissing] = useState(false);
-  const slideOutAnim = useRef(new Animated.Value(0)).current;
+  // P3-2: starts off-screen at REQ_SLIDE_DISTANCE and eases to 0 on mount.
+  // This is the SAME Animated.Value the confirm slide-out (P3-4) later
+  // drives back to REQ_SLIDE_DISTANCE — one translate value, one root host.
+  const slideOutAnim = useRef(new Animated.Value(REQ_SLIDE_DISTANCE)).current;
+
+  // P3-3: the body (tab bar, content, footer) stays mounted always; its
+  // maxHeight animates between 0 and its measured natural height instead
+  // of the body itself being conditionally rendered (REQ-A-2). Unmeasured
+  // (including first layout) means maxHeight is left unset.
+  const [bodyMeasuredHeight, setBodyMeasuredHeight] = useState<number | null>(null);
+  const bodyHeightAnim = useRef(new Animated.Value(0)).current;
+
+  const handleBodyLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setBodyMeasuredHeight(h);
+  }, []);
 
   const {
     requisition,
@@ -253,6 +274,31 @@ export default function RequisitionPanel({
       },
     }),
   ).current;
+
+  // P3-2: entrance animation. Runs once on mount, driving the same
+  // slideOutAnim value the confirm handler later reverses.
+  useEffect(() => {
+    Animated.timing(slideOutAnim, {
+      toValue: 0,
+      duration: REQ_SLIDE_MS,
+      easing: Easing.bezier(...REQ_SLIDE_IN_BEZIER),
+      useNativeDriver: false,
+    }).start();
+    // Mount-only: slideOutAnim is a ref and stable across renders.
+  }, []);
+
+  // P3-3: expand slides the body up (IN curve), collapse slides it down
+  // (OUT curve). Both take REQ_SLIDE_MS and run against maxHeight, never
+  // height. Nothing to animate until the body has measured itself once.
+  useEffect(() => {
+    if (bodyMeasuredHeight == null) return;
+    Animated.timing(bodyHeightAnim, {
+      toValue: expanded ? bodyMeasuredHeight : 0,
+      duration: REQ_SLIDE_MS,
+      easing: Easing.bezier(...(expanded ? REQ_SLIDE_IN_BEZIER : REQ_SLIDE_OUT_BEZIER)),
+      useNativeDriver: false,
+    }).start();
+  }, [expanded, bodyMeasuredHeight, bodyHeightAnim]);
 
   const getQuantityForPiece = useCallback((type: PieceType): number => {
     const p = requisition.purchases.find(x => x.type === type);
@@ -299,9 +345,9 @@ export default function RequisitionPanel({
     if (dismissing) return;
     setDismissing(true);
     Animated.timing(slideOutAnim, {
-      toValue: 600,
-      duration: 600,
-      easing: Easing.bezier(0.4, 0, 1, 0.6),
+      toValue: REQ_SLIDE_DISTANCE,
+      duration: REQ_SLIDE_MS,
+      easing: Easing.bezier(...REQ_SLIDE_OUT_BEZIER),
       useNativeDriver: false,
     }).start(() => onConfirm());
   }, [dismissing, slideOutAnim, onConfirm]);
@@ -417,8 +463,20 @@ export default function RequisitionPanel({
         </View>
       </View>
 
-      {expanded && (
-        <>
+      {/* P3-3: the body stays mounted always (REQ-A-2) — expand/collapse
+          animates this host's maxHeight (never height) between 0 and its
+          measured natural height, never swaps it out of the tree. While
+          collapsed it is non-interactive and hidden from accessibility. */}
+      <Animated.View
+        style={[
+          styles.body,
+          bodyMeasuredHeight != null && { maxHeight: bodyHeightAnim },
+        ]}
+        pointerEvents={expanded ? 'auto' : 'none'}
+        importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
+        accessibilityElementsHidden={!expanded}
+      >
+        <View onLayout={handleBodyLayout}>
           {/* Tab bar */}
           <View style={styles.tabBar}>
             {orderedTabs.map(tab => {
@@ -496,8 +554,8 @@ export default function RequisitionPanel({
               <Text style={styles.confirmBtnText}>REQUISITION</Text>
             </TouchableOpacity>
           </View>
-        </>
-      )}
+        </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -515,6 +573,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(74,158,255,0.15)',
   },
+
+  // P3-3: the always-mounted expand/collapse host. flexShrink matches
+  // root/contentWrap so a compact screen still gives this element up
+  // before the footer. overflow hidden clips the body while its
+  // maxHeight animates toward 0; no fixed height is set here or on any
+  // ancestor of the footer.
+  body: { flexShrink: 1, overflow: 'hidden' },
 
   handleArea: { alignItems: 'center', paddingTop: 6 },
   handleBtn: { alignItems: 'center', paddingVertical: 6, paddingHorizontal: 24 },
