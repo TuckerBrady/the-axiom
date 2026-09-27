@@ -4,6 +4,7 @@ import Svg, { Line } from 'react-native-svg';
 import type { Wire, PlacedPiece } from '../../game/types';
 import { Colors } from '../../theme/tokens';
 import { getBeamColor } from '../../game/engagement';
+import { beamWires } from '../../game/beamWires';
 
 interface WireSegmentProps {
   wireId: string;
@@ -68,8 +69,17 @@ interface Props {
 // identity (`litWires`) drives this overlay's re-renders; individual
 // segments short-circuit on unchanged `isLit` / `isLocked` flags
 // (clause 4.3.1, 4.3.2).
+//
+// AXM-036 P13 (R-13.1): only wires on the traced beam path are drawn. A
+// Config Node/Scanner/Transmitter auto-connects to every side neighbor
+// (autoConnectPhysicsPieces), whether or not the beam actually takes that
+// side, and a chain not yet joined to the Source would otherwise show
+// dashes it hasn't earned. `beamWires` (beamTrace.ts's shared trace, via
+// the P13 filter module) is the single source of truth for which of those
+// wires are honest; the wire OBJECTS kept are unchanged (same ids), so
+// beam lighting (litWires) and lock styling below are untouched.
 function WireOverlayComponent({
-  wires,
+  wires: allWires,
   litWires,
   pieceById,
   cellSize,
@@ -77,6 +87,10 @@ function WireOverlayComponent({
   gridH,
   isLocked,
 }: Props) {
+  const wires = React.useMemo(
+    () => beamWires(Array.from(pieceById.values()), allWires),
+    [allWires, pieceById],
+  );
   return (
     <Svg
       width={gridW}
