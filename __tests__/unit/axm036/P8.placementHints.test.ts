@@ -213,13 +213,13 @@ describe('[P8-6] GameplayScreen ghost block', () => {
     return source.slice(startIdx, closeIdx > -1 ? closeIdx + 2 : endIdx + endMarker.length);
   }
 
-  test('uses getPlacementHintCells and no longer calls getOutputPorts/getInputPorts', () => {
+  test('[P8-6] the GameplayScreen ghost block uses getPlacementHintCells and no longer calls getOutputPorts/getInputPorts', () => {
     const block = ghostBlock();
     expect(/getOutputPorts|getInputPorts|autoRot|oppSide/.test(block)).toBe(false);
     expect((block.match(/getPlacementHintCells/g) || []).length).toBeGreaterThanOrEqual(1);
   });
 
-  test('the Kepler branch still renders every empty cell', () => {
+  test('[P8-6] the Kepler branch still renders every empty cell', () => {
     const block = ghostBlock();
     // The Kepler (non-Axiom) path must not be filtered by hint validity —
     // only isTutorialSector (Axiom) gates the `isValid` computation, and an
