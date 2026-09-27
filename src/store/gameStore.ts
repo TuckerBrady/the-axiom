@@ -19,6 +19,7 @@ import {
   resetRunState,
 } from '../game/engine';
 import { meetsDirectionObjectives } from '../game/objectives';
+import { evaluateLiveGate } from '../game/spec/liveGate';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -298,9 +299,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const pulseCount = inputTape ? inputTape.length : 1;
     resetRunState(stateWithConfig.pieces);
     let allSteps: ExecutionStep[] = [];
+    // Per-pulse Terminal-reached flags (P14-6), used by evaluateLiveGate below.
+    const reachedPerPulse: boolean[] = [];
     for (let i = 0; i < pulseCount; i++) {
       const pulseSteps = executeMachine(stateWithConfig, i);
       allSteps = allSteps.concat(pulseSteps);
+      reachedPerPulse.push(pulseSteps.some(s => s.type === 'terminal' && s.success));
     }
 
     const reachedOutputEveryPulse =
@@ -317,18 +321,17 @@ export const useGameStore = create<GameState>((set, get) => ({
         outputTape.length === expectedOutput.length &&
         outputTape.every((v, i) => v === expectedOutput[i]);
       // SE-TM-002 discriminator: expectedOutput is the LIVE gate iff it is
-      // full-length (one cell per input pulse) — A1-7/A1-8. Gate on exact tape
-      // match ALONE: a blocked pulse legitimately produces BLANK and matches
-      // expectedOutput[i] = BLANK, so it must not be failed by a terminal-count
-      // requirement. This makes the store's `succeeded` agree with
-      // GameplayScreen's win predicate for these levels (both reduce to
-      // tapeMatches). Short/documentary expectedOutput (A1-5/A1-6) keeps the
-      // original behavior — those levels are governed by requiredTerminalCount
-      // in GameplayScreen.
+      // full-length (one cell per input pulse) — A1-7/A1-8. Short/documentary
+      // expectedOutput (A1-5/A1-6) keeps the original behavior — those levels
+      // are governed by requiredTerminalCount in GameplayScreen.
       const expectedOutputIsLiveGate =
         expectedOutput.length === inputTape.length;
+      // P14-5: live-gate levels also require every non-blank pulse to have
+      // reached the Terminal (R-14.1) — tape match alone is not enough. This
+      // makes the store's `succeeded` agree with GameplayScreen's win
+      // predicate for these levels (both reduce to evaluateLiveGate).
       succeeded = expectedOutputIsLiveGate
-        ? tapeMatches
+        ? evaluateLiveGate(expectedOutput, outputTape, reachedPerPulse).passed
         : reachedOutputEveryPulse && tapeMatches;
     } else {
       succeeded = allSteps.some(s => s.type === 'terminal' && s.success);

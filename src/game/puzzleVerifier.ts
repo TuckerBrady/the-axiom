@@ -2,6 +2,7 @@ import type { LevelDefinition, PlacedPiece, MachineState, OutputTapeValue } from
 import { BLANK } from './types';
 import { executeMachine, autoConnectPhysicsPieces } from './engine';
 import { meetsDirectionObjectives, evaluateTopologyGate } from './objectives';
+import { evaluateLiveGate } from './spec/liveGate';
 
 export type VerificationResult = {
   solvable: boolean;
@@ -25,6 +26,10 @@ export type SolutionRun = {
   // True if at least one output cell received a real (non-BLANK) write — i.e.
   // the solution genuinely interacts with the tape (a Transmitter fired).
   producedRealOutput: boolean;
+  // Per-pulse Terminal-reached flags, in pulse order (P14-6). Live-gate levels
+  // gate on this via evaluateLiveGate: a non-blank expected cell must have
+  // reached the Terminal on its pulse, not merely match the output tape.
+  reachedPerPulse: boolean[];
 };
 
 /**
@@ -60,9 +65,12 @@ export function runSolution(
   };
 
   let reached = 0;
+  const reachedPerPulse: boolean[] = [];
   for (let i = 0; i < pulseCount; i++) {
     const steps = executeMachine(state, i);
-    if (steps.some(s => s.type === 'terminal' && s.success)) reached += 1;
+    const pulseReached = steps.some(s => s.type === 'terminal' && s.success);
+    reachedPerPulse.push(pulseReached);
+    if (pulseReached) reached += 1;
   }
 
   const producedRealOutput =
@@ -73,6 +81,7 @@ export function runSolution(
     reachedEveryPulse: pulseCount > 0 && reached >= pulseCount,
     reachedCount: reached,
     producedRealOutput,
+    reachedPerPulse,
   };
 }
 
@@ -116,7 +125,9 @@ export function verifyPuzzle(
       !!out && out.length === expected.length && out.every((v, i) => v === expected[i]);
     const liveGate = expected.length === level.inputTape!.length;
     if (liveGate) {
-      won = tapeMatches;
+      // P14-6: tape match alone is not enough — every non-blank pulse must
+      // also have reached the Terminal (R-14.1).
+      won = evaluateLiveGate(expected, out, run.reachedPerPulse).passed;
     } else {
       // Documentary expectedOutput (A1-5, A1-6): GameplayScreen.handleEngage
       // gates on requiredTerminalCount and fails a run only as "wrong output"

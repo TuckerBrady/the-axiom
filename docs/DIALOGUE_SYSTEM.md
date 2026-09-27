@@ -863,3 +863,16 @@
 *COGS dialogue in this document is team-authored under the COGS DIALOGUE DOCTRINE in `docs/NARRATIVE.md`. Tucker can rewrite any line at any time, and his edits win.*
 
 *Version 1.0 — April 2026. Initial build of the COGS post-level dialogue system. Full matrix across three disciplines, three behavioral states, four performance tiers, three game phases. Special cases and arc lines included. Companion to Narrative Design Document v1.2.*
+
+---
+
+## Diagnostic modal lines (AXM-036)
+
+Not COGS post-level dialogue proper — a short-form line inside a mid-level diagnostic modal, keyed by run outcome rather than discipline/tier/phase.
+
+**Slot: insufficient-pulses / undelivered** (P14-4, contract v1.4 section 12c)
+
+*Fires when a live-gate level's output tape matches expectedOutput exactly, but at least one non-blank pulse never reached the Terminal (AXM-036 P14, ruling R-14.1).*
+
+> "The output tape is correct. The signal never reached the Terminal. A result that is not delivered has not been produced."
+> [insufficient-pulses | RED]
