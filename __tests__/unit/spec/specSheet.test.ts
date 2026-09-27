@@ -109,17 +109,20 @@ describe('deriveShallStatements', () => {
 // REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
 // removed from LevelDefinition — deriveShouldStatements no longer reads a
 // per-level list (v1's categories weren't all universally meaningful; v2's
-// are). It now returns the same fixed subset (pathIntegrity/signalDepth/
-// discipline — the three with Tucker-approved SHOULD copy today, see
-// specSheetCopy.ts) for every level, Axiom included.
-describe('deriveShouldStatements (fixed v2 category subset, same for every level)', () => {
-  const fixedCategories = scoring(['pathIntegrity', 'signalDepth', 'discipline']);
+// are). It returns the fixed subset (pathIntegrity/signalDepth/discipline —
+// the three with Tucker-approved SHOULD copy today, see specSheetCopy.ts)
+// for every level EXCEPT Axiom (AXM-036 P10/F10): Axiom has no requisition,
+// so Signal Depth and Diversity are structurally zero there and Discipline
+// may be unreachable on a fixed tray, so an Axiom level derives pathIntegrity
+// alone.
+describe('deriveShouldStatements (fixed v2 category subset, Axiom scoped to pathIntegrity)', () => {
+  const axiomCategories = scoring(['pathIntegrity']);
 
-  it('A1-1, A1-2, A1-7, A1-8 all derive the same fixed three categories', () => {
-    expect(deriveShouldStatements(levelA1_1)).toEqual(fixedCategories);
-    expect(deriveShouldStatements(levelA1_2)).toEqual(fixedCategories);
-    expect(deriveShouldStatements(levelA1_7)).toEqual(fixedCategories);
-    expect(deriveShouldStatements(levelA1_8)).toEqual(fixedCategories);
+  it('A1-1, A1-2, A1-7, A1-8 all derive scoring([\'pathIntegrity\'])', () => {
+    expect(deriveShouldStatements(levelA1_1)).toEqual(axiomCategories);
+    expect(deriveShouldStatements(levelA1_2)).toEqual(axiomCategories);
+    expect(deriveShouldStatements(levelA1_7)).toEqual(axiomCategories);
+    expect(deriveShouldStatements(levelA1_8)).toEqual(axiomCategories);
   });
 });
 

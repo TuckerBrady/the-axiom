@@ -2,7 +2,7 @@
 // real data: SHALL met on completion, SHOULD from the score breakdown, MAY from
 // the satisfied-condition list, WILL shown as givens.
 
-import { levelA1_1, levelA1_4, levelA1_7 } from '../../../src/game/levels';
+import { levelA1_1, levelA1_4, levelA1_7, levelK1_1 } from '../../../src/game/levels';
 import { buildSpecChecklist } from '../../../src/game/spec/specChecklist';
 import type { ScoreBreakdown } from '../../../src/game/scoring';
 import type { LevelDefinition, MayCondition } from '../../../src/game/types';
@@ -39,13 +39,16 @@ describe('buildSpecChecklist — SHALL reflects the win condition', () => {
 });
 
 // REQ-62 (scoring-algorithm-v2.md, AXM-010): scoringCategoriesVisible is
-// removed — deriveShouldStatements now always returns the same fixed
-// subset (pathIntegrity/signalDepth/discipline; see specSheet.ts) for
-// every level, not a per-level list.
+// removed — deriveShouldStatements always returns the same fixed subset
+// (pathIntegrity/signalDepth/discipline; see specSheet.ts) for every
+// non-Axiom level, not a per-level list. This test needs all three
+// statuses at once, so it moved to a Kepler level (AXM-036 P10/F10): an
+// Axiom level now derives pathIntegrity alone (this file's other describe
+// still exercises Axiom levels for SHALL/MAY, which P10 leaves alone).
 describe('buildSpecChecklist — SHOULD reflects the score breakdown', () => {
   it('full marks = met, partial points = partial, zero = missed', () => {
     const items = buildSpecChecklist(
-      levelA1_1,
+      levelK1_1,
       breakdown({ pathIntegrity: 15, signalDepth: 0, discipline: 5 }), // max 15/14/10
     );
     const should = items.filter(i => i.section === 'SHOULD');
