@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Animated as RNAnimated } from 'react-native';
+import { View, Text, StyleSheet, Animated as RNAnimated } from 'react-native';
 import Svg, { Circle, G, Polyline } from 'react-native-svg';
 import type { BeamState, ChargeState, Pt } from '../../game/engagement';
 import {
@@ -10,6 +10,11 @@ import {
 import { Colors } from '../../theme/tokens';
 
 const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
+
+// AXM-036 P4b-1 (F13 a, c) — the bit-traveler's disc color. #00D4FF is
+// already the app's Protocol-blue accent (Button.tsx, SpecSheetPanel.tsx,
+// PieceTray.tsx's REQUISITIONED_COLOR, etc.) — not a new hue.
+const BIT_TRAVELER_COLOR = '#00D4FF';
 
 interface Props {
   beamState: BeamState;
@@ -193,6 +198,26 @@ function BeamOverlayComponent({
               <Circle cx={bh.x} cy={bh.y} r={1.5} fill="white" opacity={0.95} />
             </G>
           ))}
+          {/* AXM-036 P4b-1 (F13 a, c) — one persistent bit-traveler host,
+              always mounted (no conditional mount), opacity 0 while idle
+              (traveler.visible === false). Position, value and radius all
+              come from BeamState.traveler, written by interactions.ts's
+              runBitTravel/setTraveler — this component stays a pure
+              renderer of whatever numbers BeamState carries. Only the
+              disc lives in the Svg (Circle); the digit is a plain RN
+              <Text> sibling below, absolutely positioned over it — the
+              digit needs the RN <Text> primitive to lay out and measure
+              glyphs, which react-native-svg's own Text element does not
+              give it in this codebase's SVG stack. */}
+          <G testID="bit-traveler" opacity={beamState.traveler.visible ? 1 : 0}>
+            <Circle
+              cx={beamState.traveler.x}
+              cy={beamState.traveler.y}
+              r={beamState.traveler.r}
+              fill={BIT_TRAVELER_COLOR}
+              opacity={0.9}
+            />
+          </G>
           {beamState.voidPulse && (
             <Circle
               cx={beamState.voidPulse.x} cy={beamState.voidPulse.y} r={beamState.voidPulse.r}
@@ -252,6 +277,31 @@ function BeamOverlayComponent({
           )}
         </Svg>
       </RNAnimated.View>
+      {/* AXM-036 P4b-1 (F13 a, c) — the bit-traveler's digit. A sibling of
+          the beamOpacity-driven RNAnimated.View, not a child of it —
+          TapeColorsAndBeam.test.ts pins that view as closing right after
+          </Svg> ("the animated layer is closed before the outer wrapper
+          closes"), so this stays outside it. Always mounted (no
+          conditional mount), positioned to sit centered over the disc.
+          r doubles as the digit's box half-size, matching the disc's
+          own radius. */}
+      <Text
+        testID="bit-traveler-digit"
+        style={{
+          position: 'absolute',
+          left: beamState.traveler.x - beamState.traveler.r,
+          top: beamState.traveler.y - beamState.traveler.r,
+          width: beamState.traveler.r * 2,
+          height: beamState.traveler.r * 2,
+          fontSize: beamState.traveler.r,
+          fontWeight: 'bold',
+          color: '#060e1a',
+          textAlign: 'center',
+          opacity: beamState.traveler.visible ? 1 : 0,
+        }}
+      >
+        {String(beamState.traveler.value)}
+      </Text>
     </View>
   );
 }

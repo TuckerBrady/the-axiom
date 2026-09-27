@@ -85,3 +85,9 @@ export const DATA_TRAIL_OPACITY_MIN_FACTOR = 0.70;
 export function shimmer(tMs: number): number {
   return 0.5 + 0.5 * Math.sin((2 * Math.PI * tMs) / SHIMMER_PERIOD_MS);
 }
+
+// AXM-036 P4b (F13 a, c) — bit-travel duration for a single leg (IN to
+// Scanner, Scanner to TRAIL, Transmitter to OUT), before the per-pulse
+// speed multiplier (getPulseSpeed). 600ms is Design Principle 4's
+// cinematic-animation minimum.
+export const BIT_TRAVEL_MS = 600;

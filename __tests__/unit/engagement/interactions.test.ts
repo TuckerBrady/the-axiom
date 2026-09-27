@@ -72,6 +72,11 @@ function buildCtx(): {
   const flashTimersRef: { current: ReturnType<typeof setTimeout>[] } = { current: [] };
 
   const ctx = {
+    // AXM-036 P4b (v1.2 authorized addition — additive only): the new
+    // bit-travel sequence writes the traveler through ctx.setBeamState,
+    // which this fixture never needed to mock before.
+    CELL_SIZE: 60,
+    setBeamState: jest.fn(),
     setPieceAnimState,
     setTapeBarState: jest.fn(),
     setGlowTravelerState: jest.fn(),
@@ -325,13 +330,17 @@ describe('runTransmitterInteraction', () => {
     return ctx;
   }
 
-  it("fills the OUT cell when the signal hits the Transmitter (moved off Terminal arrival)", () => {
+  it("fills the OUT cell when the signal hits the Transmitter (moved off Terminal arrival)", async () => {
     // Tucker 2026-06-16: the OUT cell fills the moment the signal hits the
     // Transmitter (the piece that writes it), not later at the Terminal.
+    // AXM-036 P4b (v1.2 authorized edit — the "immediate OUT reveal" this
+    // test pinned): the fill now lands only after the Transmitter->OUT
+    // bit travel, so the call must be awaited instead of fired-and-checked
+    // synchronously.
     const ctx = buildTransmitterCtx();
     const setTapeCellHighlights = ctx.setTapeCellHighlights as jest.Mock;
     ctx.currentPulseRef.current = 1;
-    void runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
+    await runTransmitterInteraction(ctx, step('transmitter', 'p-t'));
     let state = new Map<string, TapeHighlight>();
     for (const [arg] of setTapeCellHighlights.mock.calls) {
       state = (arg as (p: Map<string, TapeHighlight>) => Map<string, TapeHighlight>)(state);

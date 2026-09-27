@@ -4,6 +4,7 @@
 // covered directly by the unit-tier jest project, which cannot parse
 // react-native's Animated internals without the react-native mock.
 
+import type { Pt } from './types';
 import { BEAM_MS_PER_CELL } from './constants';
 
 // F4-P4a-2 — constant velocity. No min/max clamp: a long path takes
@@ -69,4 +70,15 @@ export function deriveSegmentDataFlags(
     flags.push(onset);
   }
   return flags;
+}
+
+// AXM-036 P4b-6 (F13 a, c) — pure linear interpolation between two board-
+// local points. The caller applies easing to `progress` before calling
+// this (Easing.bezier(0.4, 0, 0.2, 1), per P4b-2); this function is just
+// the lerp.
+export function bitTravelPoint(from: Pt, to: Pt, progress: number): Pt {
+  return {
+    x: from.x + (to.x - from.x) * progress,
+    y: from.y + (to.y - from.y) * progress,
+  };
 }
