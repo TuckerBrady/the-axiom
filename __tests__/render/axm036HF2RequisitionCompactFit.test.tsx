@@ -204,9 +204,12 @@ const panelBody = (r: Node): Node => r.root.findAllByType('AnimatedView')[1];
 const confirmBtn = (r: Node): Node => r.root.findByProps({ accessibilityLabel: 'Confirm requisition' });
 const handleBtn = (r: Node): Node => r.root.findAllByType('TouchableOpacity')[0];
 
+// The footer is the nearest host ancestor of the confirm control that
+// declares flexShrink: 0 — the block that must never give up height.
 function footerOf(r: Node): Node {
   let n = confirmBtn(r).parent;
-  while (n && !isHost(n)) n = n.parent;
+  while (n && !(isHost(n) && flattenStyle(n.props.style).flexShrink === 0)) n = n.parent;
+  if (!n) throw new Error('no flexShrink: 0 footer above the confirm control');
   return n;
 }
 
@@ -365,10 +368,24 @@ describe('RequisitionPanel — tab switches do not resize the panel (AXM-036 hot
 });
 
 describe('RequisitionPanel — collapsed shows nothing below the handle (AXM-036 hotfix 2)', () => {
-  it('[HF2-7] before any layout pass the collapsed body is already held at maxHeight 0', () => {
+  it('[HF2-7] before its one measurement the body takes no column space and shows nothing; after it, maxHeight is bound at 0', () => {
     setScreen(COMPACT);
     const r = render();
-    expect(flattenStyle(panelBody(r).props.style).maxHeight).toBe(0);
+    const before = flattenStyle(panelBody(r).props.style);
+    // Out of flow and invisible: the unmeasured body can neither push the
+    // board nor show a strip below the handle.
+    expect(before.position).toBe('absolute');
+    expect(before.opacity).toBe(0);
+    expect(panelBody(r).props.pointerEvents).toBe('none');
+    // The body is not in the solved column at all.
+    const boxesBefore = solve(r, COMPACT.panel);
+    expect(boxesBefore.has(panelBody(r))).toBe(false);
+
+    fireAllLayouts(r);
+    const after = flattenStyle(panelBody(r).props.style);
+    expect(after.position).toBeUndefined();
+    expect(after.maxHeight).toBe(0);
+    expect(solve(r, COMPACT.panel).get(panelBody(r))!.h).toBe(0);
   });
 
   it('[HF2-8] after expand then collapse, the body solves to 0 height and no tab or footer is visible', () => {
