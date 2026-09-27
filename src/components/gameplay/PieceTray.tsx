@@ -16,6 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PieceIcon } from '../PieceIcon';
 import type { PieceType } from '../../game/types';
 import { Colors, Fonts, FontSizes } from '../../theme/tokens';
+import { hapticSelection } from '../../utils/haptics';
 import { applyTrayFilter, trayFilterChips, type TrayFilter } from './trayGrouping';
 import {
   TRAY_ITEM_GAP,
@@ -231,10 +232,30 @@ function PieceTrayComponent({
     setFadeSide(prev => (prev === next ? prev : next));
   }, []);
 
+  // AXM-036 P6 — one haptic tick per tray slot crossed while the Engineer
+  // is dragging the tray by hand. A user-driven scroll runs from
+  // onScrollBeginDrag until the settle that ends it (settleAt, below); a
+  // programmatic scroll (filter reset, tap-to-centre, selection sync) never
+  // sets this flag, so it never ticks.
+  const isUserScrollingRef = useRef(false);
+  const lastTickedIndexRef = useRef<number | null>(null);
+
+  const handleScrollBeginDrag = useCallback(() => {
+    isUserScrollingRef.current = true;
+    lastTickedIndexRef.current = indexAtOffset(scrollXRef.current, visibleItems.length);
+  }, [visibleItems.length]);
+
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollXRef.current = e.nativeEvent.contentOffset.x;
     refreshFade();
-  }, [refreshFade]);
+    if (isUserScrollingRef.current) {
+      const idx = indexAtOffset(scrollXRef.current, visibleItems.length);
+      if (idx !== lastTickedIndexRef.current) {
+        lastTickedIndexRef.current = idx;
+        hapticSelection();
+      }
+    }
+  }, [refreshFade, visibleItems.length]);
 
   const handleViewportLayout = useCallback((e: LayoutChangeEvent) => {
     viewportWRef.current = e.nativeEvent.layout.width;
@@ -333,6 +354,7 @@ function PieceTrayComponent({
 
   const settleAt = useCallback((x: number) => {
     clearSettleTimer();
+    isUserScrollingRef.current = false;
     scrollXRef.current = x;
     const idx = indexAtOffset(x, visibleItems.length);
     if (idx === -1) return;
@@ -412,6 +434,7 @@ function PieceTrayComponent({
           contentContainerStyle={[styles.partsTrayInner, { paddingHorizontal: sidePad }]}
           snapToOffsets={snapOffsets(visibleItems.length)}
           decelerationRate="fast"
+          onScrollBeginDrag={handleScrollBeginDrag}
           onScroll={handleScroll}
           onScrollEndDrag={handleScrollEndDrag}
           onMomentumScrollBegin={clearSettleTimer}

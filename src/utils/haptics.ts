@@ -22,3 +22,10 @@ export function hapticError(): void {
   if (!useSettingsStore.getState().hapticsEnabled) return;
   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
 }
+
+// AXM-036 P6 — one light tick per tray slot crossed while scrolling the
+// piece tray by hand (F6).
+export function hapticSelection(): void {
+  if (!useSettingsStore.getState().hapticsEnabled) return;
+  Haptics.selectionAsync().catch(() => {});
+}
