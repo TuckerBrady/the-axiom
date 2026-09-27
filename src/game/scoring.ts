@@ -250,6 +250,18 @@ export function calculateScore(params: {
   };
 }
 
+// ─── Axiom-applicable score (AXM-036 P10/F10) ────────────────────────────────
+
+// Axiom has no requisition (the tray is exactly level.availablePieces), so
+// purchasedActiveCount is always 0 there — Signal Depth and Diversity are
+// structurally zero, and Discipline needs pieces a fixed A1 tray may not
+// offer. result.total is dragged down by categories an Axiom run could
+// never earn in the first place. This is the honest tutorial score: the
+// two categories an Axiom level can actually earn, rescaled to 100.
+export function axiomApplicableScore(breakdown: ScoreBreakdown): number {
+  return Math.round(100 * (breakdown.completion + breakdown.pathIntegrity) / (25 + 15));
+}
+
 // ─── Credit economy (Part 6 — REQ-34..37) ────────────────────────────────────
 
 // REQ-34: recommended payout formula. Pays SOME credits at any score (a

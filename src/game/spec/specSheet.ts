@@ -140,10 +140,21 @@ export function deriveShallStatements(level: LevelDefinition): ShallStatement[] 
 // signalDepth ~= the old "make full use of requisitioned pieces" line).
 const SHOULD_CATEGORIES: ScoringCategory[] = ['pathIntegrity', 'signalDepth', 'discipline'];
 
+// AXM-036 P10/F10: the Axiom sector has no requisition — the tray is
+// exactly level.availablePieces, so purchasedActiveCount is always 0
+// (scoring.ts). Signal Depth and Diversity are structurally zero there, and
+// Discipline needs pieces a fixed A1 tray may not offer. Showing those as
+// SHOULD requirements on the pre-level spec sheet and the results checklist
+// promised something the level could never deliver. Axiom derives
+// pathIntegrity alone; every other sector keeps the fixed three.
+const AXIOM_SHOULD_CATEGORIES: ScoringCategory[] = ['pathIntegrity'];
+
 /**
- * 2/3-star guidance. One statement per category in SHOULD_CATEGORIES,
- * for every level — no longer level-specific (see note above).
+ * 2/3-star guidance. One statement per applicable category — the fixed
+ * three (see note above) everywhere except the Axiom sector, which derives
+ * pathIntegrity alone (AXM-036 P10/F10).
  */
-export function deriveShouldStatements(_level: LevelDefinition): ShouldStatement[] {
-  return SHOULD_CATEGORIES.map(category => ({ type: 'scoringCategory', category }));
+export function deriveShouldStatements(level: LevelDefinition): ShouldStatement[] {
+  const categories = level.sector === 'axiom' ? AXIOM_SHOULD_CATEGORIES : SHOULD_CATEGORIES;
+  return categories.map(category => ({ type: 'scoringCategory', category }));
 }
