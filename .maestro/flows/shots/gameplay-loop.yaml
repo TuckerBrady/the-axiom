@@ -18,7 +18,7 @@ appId: com.tuckerbrady.theaxiom
 ---
 # Clear any board-size override first (it launches through enter-hub). The
 # sweep runs before this flow in the default glob and leaves its last size
-# set; at 10x9 the `37%,40%` placement tap below lands on the wrong cell.
+# set; at 10x9 the `21%,35%` placement tap below lands on the wrong cell.
 - runFlow: ../../subflows/reset-board-size.yaml
 
 # ── Mission dossier ────────────────────────────────────────────────────────
@@ -118,8 +118,10 @@ appId: com.tuckerbrady.theaxiom
 # else is swallowed and leaves the piece in hand. A blind 50%,45% tap did
 # exactly that on the first run and produced a "piece placed" shot with no
 # piece in it, which is why this coordinate is level-specific and says so.
+# AXM-026 moved A1-3's Source to (0,1); the target is now cell (1,1), measured
+# at 21%,35% on emulator-5554 (360dp axiom_compact) at the level-default board.
 - tapOn:
-    point: "37%,40%"
+    point: "21%,35%"
 - waitForAnimationToEnd:
     timeout: 10000
 - takeScreenshot: ${SHOT_PREFIX}05-piece-placed
@@ -128,7 +130,7 @@ appId: com.tuckerbrady.theaxiom
 # Only Conveyor rotates on tap (the plumber model). Tapping the cell the
 # Conveyor was just placed in cycles its orientation.
 - tapOn:
-    point: "37%,40%"
+    point: "21%,35%"
 - waitForAnimationToEnd:
     timeout: 10000
 - takeScreenshot: ${SHOT_PREFIX}06-conveyor-rotated

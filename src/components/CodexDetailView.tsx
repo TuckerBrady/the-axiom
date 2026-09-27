@@ -81,7 +81,7 @@ export const CODEX_PIECES: PieceEntry[] = [
   { id: 'gear', name: 'Gear', type: 'Physics',
     description: 'A rotational transmission component. Accepts signal from one direction and redirects it ninety degrees.',
     cogsNote: 'The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns \u2014 90 degrees, to any perpendicular exit.',
-    firstEncountered: 'THE AXIOM \u2014 A1-2 Life Support' },
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power' },
   { id: 'splitter', name: 'Splitter', type: 'Physics',
     description: 'Divides a single signal path into two parallel streams without amplification loss.',
     cogsNote: 'The Splitter divides a single signal into two parallel paths. Both carry the complete signal \u2014 nothing is lost, nothing is reduced.',

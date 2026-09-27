@@ -31,13 +31,20 @@ const DIRS: { side: PortSide; dx: number; dy: number; rotation: number }[] = [
 
 type Cell = { x: number; y: number };
 
-function shortestPath(level: LevelDefinition): Cell[] | null {
+// AXM-026: `throughInfrastructure` lets the route pass through pre-placed
+// non-obstacle pieces. Used only as a fallback for a level with no free-cell
+// route at all: the repair puzzles, walled off so every route runs through
+// their repair pieces (T-Bot ruling on PR #67). Every other level still takes
+// the free-cell route, exactly as before.
+function shortestPath(level: LevelDefinition, throughInfrastructure = false): Cell[] | null {
   const source = level.prePlacedPieces.find(p => p.type === 'source');
   const terminal = level.prePlacedPieces.find(p => p.type === 'terminal');
   if (!source || !terminal) return null;
   const key = (x: number, y: number) => `${x},${y}`;
   const blocked = new Set<string>([
-    ...level.prePlacedPieces.map(p => key(p.gridX, p.gridY)),
+    ...level.prePlacedPieces
+      .filter(p => !throughInfrastructure || p.type === 'obstacle')
+      .map(p => key(p.gridX, p.gridY)),
     ...(level.damagedCells ?? []).map(d => key(d.gridX, d.gridY)),
   ]);
   const goal = key(terminal.gridX, terminal.gridY);
@@ -67,14 +74,20 @@ function shortestPath(level: LevelDefinition): Cell[] | null {
   return null;
 }
 
+function routeFor(level: LevelDefinition): Cell[] | null {
+  return shortestPath(level) ?? shortestPath(level, true);
+}
+
 function dirBetween(a: Cell, b: Cell) {
   return DIRS.find(d => d.dx === b.x - a.x && d.dy === b.y - a.y)!;
 }
 
-function routeSolve(path: Cell[], style: 'conveyor' | 'gear'): PlacedPiece[] {
+function routeSolve(level: LevelDefinition, path: Cell[], style: 'conveyor' | 'gear'): PlacedPiece[] {
   const pieces: PlacedPiece[] = [];
   // path[0] is the Source cell, path[last] the Terminal cell.
   for (let i = 1; i < path.length - 1; i++) {
+    // AXM-026: a fallback route crosses pre-placed pieces; leave those cells be.
+    if (level.prePlacedPieces.some(p => p.gridX === path[i].x && p.gridY === path[i].y)) continue;
     const inDir = dirBetween(path[i - 1], path[i]);
     const outDir = dirBetween(path[i], path[i + 1]);
     const type = style === 'conveyor' && inDir === outDir ? 'conveyor' : 'gear';
@@ -128,16 +141,16 @@ function runAllPulses(level: LevelDefinition, solution: PlacedPiece[]) {
 describe('[10.2] GUARD: existing levels execute identically', () => {
   it('covers every level with a routable Source -> Terminal path', () => {
     for (const level of ALL_LEVELS) {
-      expect({ level: level.id, routable: shortestPath(level) !== null })
+      expect({ level: level.id, routable: routeFor(level) !== null })
         .toEqual({ level: level.id, routable: true });
     }
   });
 
   for (const level of ALL_LEVELS) {
     it(`${level.id}: execution steps match the pre-PR-1 baseline`, () => {
-      const path = shortestPath(level)!;
-      const conveyorRoute = routeSolve(path, 'conveyor');
-      const gearRoute = routeSolve(path, 'gear');
+      const path = routeFor(level)!;
+      const conveyorRoute = routeSolve(level, path, 'conveyor');
+      const gearRoute = routeSolve(level, path, 'gear');
       const record = {
         prePlacedOnly: runAllPulses(level, []),
         conveyorRoute: runAllPulses(level, conveyorRoute),

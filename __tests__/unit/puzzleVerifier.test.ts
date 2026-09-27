@@ -63,3 +63,35 @@ describe('verifyPieceAvailability', () => {
     expect(verifyPieceAvailability(BASE_LEVEL, solution)).toBe(false);
   });
 });
+
+// AXM-026: documentary tape levels (short expectedOutput, e.g. A1-5 / A1-6) are
+// gated by requiredTerminalCount in the live game (GameplayScreen.handleEngage).
+// The verifier now mirrors that instead of demanding a tape match the short
+// expectedOutput can never give.
+describe('verifyPuzzle — documentary tape levels', () => {
+  const DOC_LEVEL: LevelDefinition = {
+    ...BASE_LEVEL,
+    id: 'doc',
+    availablePieces: ['scanner', 'configNode', 'conveyor'],
+    dataTrail: { cells: [null, null, null, null, null], headPosition: 0 },
+    inputTape: [1, 0, 1, 1, 0],
+    expectedOutput: [1, 1, 1],
+    requiredTerminalCount: 3,
+  };
+
+  it('passes when the gate lands exactly the required pulses', () => {
+    const solution = [mp('sc', 'scanner', 2, 3), mp('cn', 'configNode', 3, 3), mp('c1', 'conveyor', 4, 3)];
+    expect(verifyPuzzle(DOC_LEVEL, solution).solvable).toBe(true);
+  });
+
+  it('fails when too few pulses land', () => {
+    const strict = { ...DOC_LEVEL, requiredTerminalCount: 4 };
+    const solution = [mp('sc', 'scanner', 2, 3), mp('cn', 'configNode', 3, 3), mp('c1', 'conveyor', 4, 3)];
+    expect(verifyPuzzle(strict, solution).solvable).toBe(false);
+  });
+
+  it('fails as wrong output when every pulse lands (no gate), as the live game does', () => {
+    const solution = [mp('c1', 'conveyor', 2, 3), mp('c2', 'conveyor', 3, 3), mp('c3', 'conveyor', 4, 3)];
+    expect(verifyPuzzle(DOC_LEVEL, solution).solvable).toBe(false);
+  });
+});

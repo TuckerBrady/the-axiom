@@ -5,6 +5,11 @@
 //   - Removed redundant Conveyor at (7,6) from Path A.
 //   - Transmitter now occupies (7,6) directly. Terminal stays at (8,6).
 //   - optimalPieces updated from 8 to 7.
+//
+// AXM-026 (SPEC_SOURCE_TERMINAL_PLACEMENT 7.1 / 8.2): the Blocker 3 floor solve is
+// superseded by the K1-7 fixture in __tests__/fixtures/floorSolves.ts, run through
+// the real engine by __tests__/unit/levels/floorSolves.test.ts. The level-data
+// assertions below now pin that fixture's count (12).
 
 import { getLevelById } from '../../src/game/levels';
 import type { PlacedPiece, MachineState } from '../../src/game/types';
@@ -55,10 +60,13 @@ function makeState(pieces: PlacedPiece[], overrides?: Partial<MachineState>): Ma
 // ── K1-7 level definition assertions ─────────────────────────────────────────
 
 describe('K1-7 Ore Processing — Blocker 3 fix: level definition', () => {
-  it('optimalPieces is 7 (reduced from 8 after removing collision Conveyor at (7,6))', () => {
+  // Blocker 3 set 7 (from 8). AXM-026 supersedes this floor solve with the K1-7
+  // fixture in __tests__/fixtures/floorSolves.ts (SPEC_SOURCE_TERMINAL_PLACEMENT
+  // 7.1, 8.2), proven by __tests__/unit/levels/floorSolves.test.ts: 12 pieces.
+  it('optimalPieces is 12 (AXM-026 floor fixture; was 7 after Blocker 3)', () => {
     const level = getLevelById('K1-7');
     expect(level).toBeDefined();
-    expect(level!.optimalPieces).toBe(7);
+    expect(level!.optimalPieces).toBe(12);
   });
 
   it('no tray Conveyor occupies (7,6) — coordinate collision resolved', () => {
@@ -77,22 +85,19 @@ describe('K1-7 Ore Processing — Blocker 3 fix: level definition', () => {
   });
 });
 
-// ── K1-7 Path A floor solve: 7-piece machine produces correct output ──────────
+// ── Engine regression: synthetic Scanner -> Transmitter pass-through ─────────
 //
-// Floor solve (post Blocker 3 fix):
-//   Scanner(2,3) → Conveyor(3,3) → [Splitter(4,3) pre-placed] → Gear(5,3)
-//   → Conveyor(5,4) → [Bridge(5,5) pre-placed] → Conveyor(5,6) → Gear(6,6)
-//   → Transmitter(7,6) → Terminal(8,6)
-//
-// Tray pieces: Scanner + Conveyor + Gear + Conveyor + Conveyor + Gear + Transmitter = 7.
-//
-// This is a simplified straight-line equivalent test. The full K1-7 topology
-// (Splitter + Bridge crossing) requires engine verification per REQ-62.
+// SPEC_SOURCE_TERMINAL_PLACEMENT v1.2 8.2.2: this is NOT a K1-7 floor solve.
+// It was written as a "simplified straight-line equivalent" of the Blocker 3
+// floor solve (Scanner(2,3) ... Transmitter(7,6) -> Terminal(8,6)), which no
+// longer exists on the board. It stays as an engine regression: a Scanner and
+// Transmitter chain writes K1-7's tape back out unchanged. The K1-7 floor solve
+// itself is the fixture in __tests__/fixtures/floorSolves.ts, proven by
+// __tests__/unit/levels/floorSolves.test.ts (it crosses the Bridge).
 
-describe('K1-7 floor solve — 7-piece pass-through (REQ-T-1 compliance)', () => {
+describe('Engine regression: synthetic pass-through on the K1-7 tape (was "K1-7 floor solve — 7-piece pass-through")', () => {
   it('Scanner → Transmitter → Terminal: output tracks input on all 4 pulses', () => {
-    // Simplified linear chain (without Splitter/Bridge for unit-test isolation).
-    // Validates that a 7-piece floor-solve path produces correct output.
+    // Synthetic linear chain on its own board, not the K1-7 layout.
     const pieces = [
       makePiece('s', 'source', 0, 0, { isPrePlaced: true }),
       makePiece('sc', 'scanner', 1, 0),
@@ -115,14 +120,12 @@ describe('K1-7 floor solve — 7-piece pass-through (REQ-T-1 compliance)', () =>
     expect(state.outputTape).toEqual([1, 0, 1, 1]);
   });
 
-  it('7-piece machine (not 8-piece) is sufficient for 3-star floor solve', () => {
+  it('the floor solve count is encoded, and the tray carries more than it', () => {
     const level = getLevelById('K1-7');
-    // Floor solve is 7 pieces. optimalPieces is 7. Efficiency = 7/7 = 1.0.
-    // Verify the spec encodes the correct count.
-    expect(level!.optimalPieces).toBe(7);
-    // The 12 available pieces means floor-solve ratio = 7/12 without optimalPieces
-    // anchor, which would yield ~1 star. The optimalPieces anchor of 7 is required
-    // for 3-star reachability on the floor solve.
-    expect(level!.availablePieces.length).toBeGreaterThan(7);
+    // AXM-026: the floor solve is the 12-piece K1-7 fixture (floorSolves.ts).
+    expect(level!.optimalPieces).toBe(12);
+    // The tray (16 pieces) must carry more than the floor solve so the
+    // alternate solve and scar reroutes have pieces to work with.
+    expect(level!.availablePieces.length).toBeGreaterThan(12);
   });
 });

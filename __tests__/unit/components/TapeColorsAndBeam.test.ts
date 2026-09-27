@@ -95,9 +95,11 @@ describe('Prompt 91 — Tape colors + indicator bars + level data + beam', () =>
       expect(a17?.[0]).toMatch(/availablePieces:\s*\[[^\]]*'scanner'[^\]]*\]/);
     });
 
-    it('bumps optimalPieces from 7 to 8', () => {
+    // Prompt 91 bumped 7 -> 8 when the Scanner moved to the tray. AXM-026 moved
+    // Source and Terminal to opposite corners: the floor solve is now 12.
+    it('bumps optimalPieces from 7 (Scanner now a player piece; 12 since AXM-026)', () => {
       const a17 = levelsSrc.match(/levelA1_7:\s*LevelDefinition\s*=\s*\{[\s\S]*?\n\};/);
-      expect(a17?.[0]).toMatch(/optimalPieces:\s*8/);
+      expect(a17?.[0]).toMatch(/optimalPieces:\s*12/);
       expect(a17?.[0]).not.toMatch(/optimalPieces:\s*7/);
     });
 

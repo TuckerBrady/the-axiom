@@ -87,9 +87,10 @@ describe('K1-6 Colonist Hub — level definition (REQ-51)', () => {
     ]);
   });
 
-  it('optimalPieces is 11', () => {
+  // AXM-026: 11 -> 17, the opposite-corner floor solve (fixtures/floorSolves.ts).
+  it('optimalPieces is 17', () => {
     const level = getLevelById('K1-6');
-    expect(level!.optimalPieces).toBe(11);
+    expect(level!.optimalPieces).toBe(17);
   });
 
   it('inputTape is [1,0,1,1,0,1] and expectedOutput is [1,0,1,1,0,1]', () => {
@@ -113,9 +114,10 @@ describe('K1-8 Transit Gate — level definition (REQ-68)', () => {
     ]);
   });
 
-  it('optimalPieces is 12', () => {
+  // AXM-026: 12 -> 16, the opposite-corner floor solve (fixtures/floorSolves.ts).
+  it('optimalPieces is 16', () => {
     const level = getLevelById('K1-8');
-    expect(level!.optimalPieces).toBe(12);
+    expect(level!.optimalPieces).toBe(16);
   });
 
   it('availablePieces includes splitter', () => {

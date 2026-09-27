@@ -19,6 +19,9 @@ export type VerificationResult = {
 export type SolutionRun = {
   outputTape?: OutputTapeValue[];
   reachedEveryPulse: boolean;
+  // Number of pulses whose signal reached the Terminal. Documentary tape levels
+  // (A1-5, A1-6) gate on this against requiredTerminalCount, as the live game does.
+  reachedCount: number;
   // True if at least one output cell received a real (non-BLANK) write — i.e.
   // the solution genuinely interacts with the tape (a Transmitter fired).
   producedRealOutput: boolean;
@@ -68,6 +71,7 @@ export function runSolution(
   return {
     outputTape,
     reachedEveryPulse: pulseCount > 0 && reached >= pulseCount,
+    reachedCount: reached,
     producedRealOutput,
   };
 }
@@ -111,7 +115,18 @@ export function verifyPuzzle(
     const tapeMatches =
       !!out && out.length === expected.length && out.every((v, i) => v === expected[i]);
     const liveGate = expected.length === level.inputTape!.length;
-    won = liveGate ? tapeMatches : run.reachedEveryPulse && tapeMatches;
+    if (liveGate) {
+      won = tapeMatches;
+    } else {
+      // Documentary expectedOutput (A1-5, A1-6): GameplayScreen.handleEngage
+      // gates on requiredTerminalCount and fails a run only as "wrong output"
+      // when every pulse landed but the tape still disagrees. Mirror that
+      // exactly; the old "every pulse AND tape match" rule could never pass a
+      // documentary level, whose short expectedOutput never matches the
+      // full-length output tape. (AXM-026: its floor solves exposed this.)
+      const wrongOutput = run.reachedEveryPulse && !tapeMatches;
+      won = !wrongOutput && run.reachedCount >= (level.requiredTerminalCount ?? 1);
+    }
   } else {
     won = run.reachedEveryPulse;
   }

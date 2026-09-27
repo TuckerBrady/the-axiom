@@ -55,7 +55,11 @@ configValue must be set to 0").
 
 The floor solve MUST be achievable using only the level's
 availablePieces (plus any prePlacedPieces). No purchased pieces.
-Three-star score must be reachable on the floor solve path.
+Under scoring v2 (DEC-1, REQ-1 to REQ-3) a floor solve caps at
+one star. Three stars must be reachable by adding requisitioned
+pieces to the floor or alternate solve, within the level's
+creditBudget (SPEC_SOURCE_TERMINAL_PLACEMENT 7.10.1). Credits are
+earned in play; this is not real money.
 
 ### STEP 4 — DESIGN THE TAPE
 
@@ -100,7 +104,8 @@ Computational integrity:
 [ ] Concept builds on prerequisites from prior levels
 
 Player experience:
-[ ] Solvable at three stars with tray pieces, zero credits
+[ ] Solvable with tray pieces, zero credits (one star, DEC-1)
+[ ] Three stars reachable within creditBudget (7.10.1)
 [ ] At least two valid machine configurations exist
 [ ] Optimal solution learnable from pieces and Codex entries
 [ ] Board size is minimum necessary for correct solution

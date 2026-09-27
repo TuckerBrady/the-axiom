@@ -71,15 +71,18 @@ describe('Prompt 102 — tagline + A1-1 batch collection', () => {
   });
 
   describe('Task 2: A1-1 batch collection flow', () => {
-    it('A1-1 has exactly 3 steps with codexEntryId (source, terminal, conveyor)', () => {
+    // AXM-026 spec 7.14.1 (Tucker Q2 = b): A1-1 now also discovers the Gear, moved
+    // from A1-2 (was exactly 3: source, terminal, conveyor).
+    it('A1-1 has exactly 4 steps with codexEntryId (source, terminal, conveyor, gear)', () => {
       const a11Match = levelsSrc.match(/levelA1_1[\s\S]*?tutorialSteps:\s*\[([\s\S]*?)\n  \],/);
       expect(a11Match).not.toBeNull();
       const stepsBlock = a11Match![1];
       const codexIds = [...stepsBlock.matchAll(/codexEntryId:\s*'(\w+)'/g)].map(m => m[1]);
-      expect(codexIds).toHaveLength(3);
+      expect(codexIds).toHaveLength(4);
       expect(codexIds).toContain('source');
       expect(codexIds).toContain('terminal');
       expect(codexIds).toContain('conveyor');
+      expect(codexIds).toContain('gear');
     });
 
     it('TutorialHUDOverlay handles A1-1 source step silently (no codex popup)', () => {

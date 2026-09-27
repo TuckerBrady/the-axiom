@@ -288,8 +288,10 @@ export function defaultBaseReward(level: { sector: string; optimalPieces: number
  *   3 stars required. 1-2 stars triggers consequence even on completion.
  *
  * Free piece set guarantee: every consequence level's availablePieces
- * array MUST be verified solvable at 3 stars without spending any credits.
- * The solve path exists. Credits are emergency only.
+ * array MUST be verified solvable without spending any credits. Under
+ * scoring v2 (DEC-1) that free solve caps at one star; three stars must be
+ * reachable within the level's creditBudget (SPEC_SOURCE_TERMINAL_PLACEMENT
+ * 7.10.1). Credits are earned in play, not real money.
  */
 export function doesConsequenceTrigger(
   consequence: import('./types').ConsequenceConfig | undefined,
