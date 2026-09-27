@@ -293,7 +293,11 @@ function BeamOverlayComponent({
           top: beamState.traveler.y - beamState.traveler.r,
           width: beamState.traveler.r * 2,
           height: beamState.traveler.r * 2,
-          fontSize: beamState.traveler.r,
+          // AXM-036 HF-0: never 0. The idle traveler (BIT_TRAVELER_INITIAL)
+          // has r = 0, and Android Fabric throws on a mounted Text with
+          // fontSize 0 ("FontSize should be a positive value"), which
+          // crashed every level entry on build 50. Hidden at opacity 0.
+          fontSize: Math.max(1, beamState.traveler.r),
           fontWeight: 'bold',
           color: '#060e1a',
           textAlign: 'center',
