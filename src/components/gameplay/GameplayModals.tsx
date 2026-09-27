@@ -528,7 +528,9 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
               <CogsAvatar size="small" state="damaged" />
               <Text style={styles.wrongOutputCogsText}>
-                {`"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
+                {pulseResultData.reason === 'undelivered'
+                  ? 'The output tape is correct. The signal never reached the Terminal. A result that is not delivered has not been produced.'
+                  : `"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
               </Text>
             </View>
             <TouchableOpacity

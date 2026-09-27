@@ -65,6 +65,7 @@ import { useGameplayTutorial } from '../hooks/useGameplayTutorial';
 import { useGameplayTape } from '../hooks/useGameplayTape';
 import { useBeamEngine } from '../hooks/useBeamEngine';
 import { shallStatementToCopy } from '../game/spec/specSheetCopy';
+import { evaluateLiveGate } from '../game/spec/liveGate';
 import { evaluateTopologyGate } from '../game/objectives';
 import { isScarImmune } from '../game/scarImmunity';
 import { resolveBoardSize } from '../utils/boardSizeOverride';
@@ -1144,8 +1145,9 @@ export default function GameplayScreen({ navigation }: Props) {
     const reachedOutputEveryPulse = steps.filter(s => s.type === 'terminal' && s.success).length >= (pulses.length || 1);
     // Live-gate levels: ANY tape mismatch is a wrong output. Blocked pulses
     // legitimately produce BLANK (part of expectedOutput under SE-TM-003), so
-    // we no longer require every pulse to reach Terminal. Documentary levels
-    // keep the old "all pulses reached Terminal but values are wrong" check.
+    // a blocked pulse alone does not make this a wrong-output failure.
+    // Documentary levels keep the old "all pulses reached Terminal but values
+    // are wrong" check.
     const wrongOutput = expectedOutputIsLiveGate
       ? hasTape && !tapeMatches
       : hasTape && reachedOutputEveryPulse && !tapeMatches;
@@ -1156,12 +1158,22 @@ export default function GameplayScreen({ navigation }: Props) {
       s => s.type === 'terminal' && s.success,
     ).length;
     const requiredCount = level.requiredTerminalCount ?? 1;
-    // Live-gate levels are governed entirely by tapeMatches; requiredTerminalCount
-    // is documentary for them, so the pulse-count requirement is satisfied by
-    // definition (a blocked BLANK pulse must not fail via a count it no longer
-    // answers to). Documentary levels keep the requiredTerminalCount gate.
+    // Per-pulse Terminal-reached flags, computed once and reused by the
+    // live-gate delivery check below and the INSUFFICIENT PULSES modal
+    // (P14-6).
+    const reachedPerPulse: boolean[] = [];
+    for (let p = 0; p < pulses.length; p++) {
+      reachedPerPulse.push(pulses[p].some(s => s.type === 'terminal' && s.success));
+    }
+    // P14-1/R-14.1: requiredTerminalCount is documentary for live-gate levels
+    // (never read here), but tape match alone is not enough — every non-blank
+    // expected cell must also have reached the Terminal on its pulse. A
+    // blocked pulse legitimately produces BLANK and stays exempt (SE-TM-002).
+    const liveGateResult = expectedOutputIsLiveGate && expected
+      ? evaluateLiveGate(expected, storeOutputTape, reachedPerPulse)
+      : null;
     const metPulseRequirement = expectedOutputIsLiveGate
-      ? true
+      ? (liveGateResult?.undelivered.length ?? 0) === 0
       : terminalSuccessCount >= requiredCount;
 
     // SE-TM-035: grade the executed signal path against the level's board-
@@ -1186,17 +1198,11 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
 
-    // Insufficient-pulses failure (no Transmitter, requiredTerminalCount
-    // not met). Fires red rings then shows the INSUFFICIENT PULSES modal.
+    // Insufficient-pulses failure. Fires red rings then shows the
+    // INSUFFICIENT PULSES modal: either requiredTerminalCount not met
+    // (documentary levels, no Transmitter), or — live-gate levels — the tape
+    // matched but a non-blank pulse never reached the Terminal (P14-3).
     if (!metPulseRequirement && !wrongOutput) {
-      const pulseResults: boolean[] = [];
-      for (let p = 0; p < pulses.length; p++) {
-        const reached = pulses[p].some(
-          s => s.type === 'terminal' && s.success,
-        );
-        pulseResults.push(reached);
-      }
-
       const outputPiece = machineState.pieces.find(pp => pp.type === 'terminal');
       if (outputPiece) {
         setPieceAnimState(prev => {
@@ -1209,11 +1215,25 @@ export default function GameplayScreen({ navigation }: Props) {
       }
 
       setBeamState(prev => ({ ...prev, phase: 'idle' }));
-      setPulseResultData({
-        results: pulseResults,
-        required: requiredCount,
-        achieved: terminalSuccessCount,
-      });
+      if (expectedOutputIsLiveGate && expected) {
+        const nonBlankExpectedCount = expected.filter(v => v !== BLANK).length;
+        const nonBlankReachedCount = expected.reduce<number>(
+          (acc, v, i) => (v !== BLANK && reachedPerPulse[i] ? acc + 1 : acc),
+          0,
+        );
+        setPulseResultData({
+          results: reachedPerPulse,
+          required: nonBlankExpectedCount,
+          achieved: nonBlankReachedCount,
+          reason: 'undelivered',
+        });
+      } else {
+        setPulseResultData({
+          results: reachedPerPulse,
+          required: requiredCount,
+          achieved: terminalSuccessCount,
+        });
+      }
       setShowInsufficientPulses(true);
       if (!isAxiomLevel) loseLife();
       return;
