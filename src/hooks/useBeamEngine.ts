@@ -45,6 +45,7 @@ export interface UseBeamEngineResult {
   currentPulseRef: React.MutableRefObject<number>;
   cacheRef: React.MutableRefObject<MeasurementCache>;
   runIdRef: React.MutableRefObject<number>;
+  pendingResolversRef: React.MutableRefObject<Set<() => void>>;
   // Setters (for EngagementContext)
   setBeamState: Dispatch<SetStateAction<BeamState>>;
   setPieceAnimState: Dispatch<SetStateAction<PieceAnimState>>;
@@ -95,6 +96,11 @@ export function useBeamEngine(
   // Incremented at the start of each handleEngage call. Stale async callbacks
   // compare their captured runId against this ref and no-op on mismatch (A1-7 fix).
   const runIdRef = useRef(0);
+  // AXM-036 P9-1 (F9) — force-settle callbacks for in-flight run promises
+  // (runLinearPath and its Splitter branches). cancelAllFrames flushes
+  // this set below so a cancelled or reset run's pending promise
+  // resolves instead of stalling the UI forever.
+  const pendingResolversRef = useRef<Set<() => void>>(new Set());
 
   const cancelAllFrames = useCallback(() => {
     animFrameRef.current.forEach(id => { if (id != null) cancelAnimationFrame(id); });
@@ -104,6 +110,12 @@ export function useBeamEngine(
     safetyTimersRef.current.forEach(t => clearTimeout(t));
     safetyTimersRef.current = [];
     loopingRef.current = false;
+    // Force-settle any pulse promises still waiting on a cancelled RAF
+    // loop (P9-1). Each callback removes itself from the set as part of
+    // settling, but iterate over a copy since settling can mutate the
+    // set during the forEach.
+    Array.from(pendingResolversRef.current).forEach(settle => settle());
+    pendingResolversRef.current.clear();
   }, []);
 
   const resetBeam = useCallback(() => {
@@ -166,6 +178,7 @@ export function useBeamEngine(
     currentPulseRef,
     cacheRef,
     runIdRef,
+    pendingResolversRef,
     setBeamState,
     setPieceAnimState,
     setChargeState,

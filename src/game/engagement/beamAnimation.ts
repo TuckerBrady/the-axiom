@@ -14,6 +14,13 @@ import {
   makeFlashBatch,
 } from './bubbleHelpers';
 import { triggerPieceAnim } from './interactions';
+import { raceWithTimeout } from './runGuard';
+
+// AXM-036 P9-3 (F9): a failed run's void burst must not hang forever
+// on a native Animated callback that never fires. 500ms of headroom on
+// top of the burst's own duration is generous slack for a callback
+// that is merely late, while still bounding the worst case (P9-4).
+const VOID_BURST_TIMEOUT_SLACK_MS = 500;
 
 // REQ-G-05 / SE-BEAM-082 — linear RGB blend between two '#RRGGBB' colors at
 // t in [0, 1]. Segment colors always come from getBeamColor(), which only
@@ -96,6 +103,25 @@ export function runLinearPath(
   carryIn = false,
 ): Promise<boolean> {
   return new Promise<boolean>(resolve => {
+    // AXM-036 P9-1 (F9): register a force-settle callback so a
+    // cancelled or reset run (cancelAllFrames flushes
+    // ctx.pendingResolversRef) resolves this promise instead of
+    // hanging forever on an RAF loop that has just been cancelled and
+    // will never tick again. `settle` is the only path that resolves
+    // this promise — every branch below calls it instead of `resolve`
+    // directly — so cancellation and normal completion can never
+    // double-resolve or leak a stale entry in the registry.
+    let hasSettled = false;
+    let settleValue = carryIn;
+    const settle = (value: boolean): void => {
+      if (hasSettled) return;
+      hasSettled = true;
+      ctx.pendingResolversRef.current.delete(forceSettle);
+      resolve(value);
+    };
+    const forceSettle = (): void => settle(settleValue);
+    ctx.pendingResolversRef.current.add(forceSettle);
+
     const waypoints: Pt[] = [];
     for (const st of pathSteps) {
       const c = ctx.getPieceCenter(st.pieceId);
@@ -103,7 +129,7 @@ export function runLinearPath(
     }
     if (waypoints.length < 2) {
       if (pathSteps[0]) triggerPieceAnim(ctx, pathSteps[0]);
-      setTimeout(() => resolve(carryIn), 180);
+      setTimeout(() => settle(carryIn), 180);
       return;
     }
     const path = buildSignalPath(waypoints);
@@ -115,6 +141,7 @@ export function runLinearPath(
     // beamData.ts for the derivation.
     const segFlags = deriveSegmentDataFlags(pathSteps, carryIn);
     const lastFlag = segFlags.length > 0 ? segFlags[segFlags.length - 1] : carryIn;
+    settleValue = lastFlag;
     const hasVoid = pathSteps.some(s => s.type === 'void');
 
     // Seed trail with a placeholder empty segment so the beam's color
@@ -499,24 +526,37 @@ export function runLinearPath(
           ctx.setVoidBurstCenter({ x: blocker.x, y: blocker.y });
           ctx.voidPulseAnim?.stop();
           ctx.voidPulseRingProgressAnim.setValue(0);
-          ctx.voidPulseAnim = Animated.timing(ctx.voidPulseRingProgressAnim, {
-            toValue: 1,
-            duration: 320,
-            useNativeDriver: true,
-          });
-          ctx.voidPulseAnim.start(() => {
-            ctx.voidPulseAnim = null;
+          // AXM-036 P9-3 (F9): the void burst's completion callback is a
+          // native Animated bridge round-trip that can, in the field,
+          // never fire. Race it against a bounded timeout so this run
+          // resolves either way instead of leaving isExecuting stuck
+          // true forever (Build 49's reported stall).
+          raceWithTimeout(
+            new Promise<void>(res => {
+              ctx.voidPulseAnim = Animated.timing(ctx.voidPulseRingProgressAnim, {
+                toValue: 1,
+                duration: 320,
+                useNativeDriver: true,
+              });
+              ctx.voidPulseAnim.start(() => {
+                ctx.voidPulseAnim = null;
+                res();
+              });
+            }),
+            320 + VOID_BURST_TIMEOUT_SLACK_MS,
+            () => undefined,
+          ).then(() => {
             ctx.setVoidBurstCenter(null);
             applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
             crossfadeAnim.removeListener(crossfadeListenerId);
             crossfadeAnim.stopAnimation();
-            resolve(lastFlag);
+            settle(lastFlag);
           });
         } else {
           applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
           crossfadeAnim.removeListener(crossfadeListenerId);
           crossfadeAnim.stopAnimation();
-          resolve(lastFlag);
+          settle(lastFlag);
         }
       }
     };

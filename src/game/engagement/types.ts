@@ -325,6 +325,15 @@ export interface EngagementContext {
   // new run's visualOutputOverride array.
   runId: number;
   currentRunIdRef: MutableRefObject<number>;
+
+  // AXM-036 P9-1 (F9) — settle registry for in-flight run promises
+  // (runLinearPath and its Splitter branches). A pending promise
+  // registers its own force-settle callback here; cancelAllFrames
+  // flushes the set so a cancelled or reset run's promise resolves
+  // instead of hanging forever on an RAF tick that will never fire
+  // again. Each callback is idempotent and removes itself once its
+  // promise has settled by any path.
+  pendingResolversRef: MutableRefObject<Set<() => void>>;
 }
 
 export type { ExecutionStep, OutputTapeValue, PlacedPiece, PieceType };

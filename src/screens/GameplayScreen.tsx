@@ -145,6 +145,10 @@ import {
   type EngagementContext,
   type GlowTravelerLayer,
 } from '../game/engagement';
+// AXM-036 P9-2 (F9): imported directly from its own module, not the
+// engagement barrel (index.ts), which stays out of this package's
+// Scope list.
+import { withRunGuard } from '../game/engagement/runGuard';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
 
@@ -900,7 +904,15 @@ export default function GameplayScreen({ navigation }: Props) {
   }, [machineState.pieces]);
 
   // ── Engage handler ──
-  const handleEngage = useCallback(async () => {
+  // AXM-036 P9-2 (F9): renamed from handleEngage, unindented and
+  // otherwise byte-identical, so the P7 hunks inside it (the
+  // tape.resetTape() call and its sibling reset sites) stay disjoint
+  // from this change. handleEngage below wraps this with withRunGuard
+  // so a throw, or a run superseded by a RESET/fresh ENGAGE while it
+  // was still in flight, always ends the run instead of leaving
+  // isExecuting stuck true with the tray and ENGAGE row hidden and no
+  // modal shown (Build 49's reported stall, screenshot 13).
+  const runEngage = useCallback(async () => {
     if (isExecuting || !level) return;
     hapticMedium();
     // Any crater from a previous run stops smouldering the moment a new run
@@ -1004,6 +1016,7 @@ export default function GameplayScreen({ navigation }: Props) {
       wires,
       runId: beam.runIdRef.current,
       currentRunIdRef: beam.runIdRef,
+      pendingResolversRef: beam.pendingResolversRef,
 
       // Tape (Phase 3 hook)
       setTapeCellHighlights: tape.tapeSetters.setTapeCellHighlights,
@@ -1393,6 +1406,28 @@ export default function GameplayScreen({ navigation }: Props) {
     }
   }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
 
+  // AXM-036 P9-2 (F9): the only wrapper — runEngage above is unchanged.
+  // Ends the run via withRunGuard on a throw, or on a cancel (a RESET
+  // or a fresh ENGAGE bumped beam.runIdRef past the id this call
+  // captured before its first await), instead of stalling.
+  const handleEngage = useCallback(async () => {
+    // runEngage's synchronous prefix (through its beam.runIdRef.current
+    // += 1) has already run by the time this call returns a pending
+    // promise, so capturing the ref here (not before the call) reads
+    // this run's own id, not the previous run's.
+    const runPromise = runEngage();
+    const capturedRunId = beam.runIdRef.current;
+    await withRunGuard(() => runPromise, {
+      endRun,
+      cancelAllFrames: beam.cancelAllFrames,
+      isCurrentRun: () => beam.runIdRef.current === capturedRunId,
+      onError: error => {
+        if (__DEV__) {
+          console.warn('[handleEngage] run failed, ending run to avoid a stall', error);
+        }
+      },
+    });
+  }, [runEngage, endRun, beam.cancelAllFrames, beam.runIdRef]);
 
   // ── Reset ──
   const handleReset = useCallback(() => {
