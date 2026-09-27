@@ -93,13 +93,22 @@ describe('[P13-1] unreached chain: no wires until it joins the Source', () => {
     const wires = autoConnectPhysicsPieces(pieces);
     expect(beamWires(pieces, wires)).toEqual([]);
 
-    // Connect the run: Source (0,1) -> conveyors along row 1, down to row 6, across to (6,6)->Terminal.
-    const path: PlacedPiece[] = [];
-    for (let x = 1; x <= 6; x++) {
-      path.push({ id: `p-${x}-1`, type: 'conveyor', category: 'physics', gridX: x, gridY: 1, ports: getDefaultPorts('placeholder' as never), rotation: 0 });
+    // Connect the run: Source (0,1) into a Gear at (1,1) (a Conveyor cannot
+    // corner — its input and output ports are always opposite sides; a Gear
+    // accepts and emits on every side). The Gear turns the signal south down
+    // column 1 to (1,5) via conveyors, a second Gear at (1,6) turns it east,
+    // conveyors carry it along row 6 to (5,6), and the existing `conv` at
+    // (6,6) (rotation 0: accepts from the left, exactly the direction this
+    // run approaches from) carries it into the Terminal (7,6).
+    const path: PlacedPiece[] = [
+      { id: 'gear-turn-1', type: 'gear', category: 'physics', gridX: 1, gridY: 1, ports: getDefaultPorts('placeholder' as never), rotation: 0 },
+    ];
+    for (let y = 2; y <= 5; y++) {
+      path.push({ id: `p-1-${y}`, type: 'conveyor', category: 'physics', gridX: 1, gridY: y, ports: getDefaultPorts('placeholder' as never), rotation: 90 });
     }
-    for (let y = 2; y <= 6; y++) {
-      path.push({ id: `p-6-${y}`, type: 'conveyor', category: 'physics', gridX: 6, gridY: y, ports: getDefaultPorts('placeholder' as never), rotation: 90 });
+    path.push({ id: 'gear-turn-2', type: 'gear', category: 'physics', gridX: 1, gridY: 6, ports: getDefaultPorts('placeholder' as never), rotation: 0 });
+    for (let x = 2; x <= 5; x++) {
+      path.push({ id: `p-${x}-6`, type: 'conveyor', category: 'physics', gridX: x, gridY: 6, ports: getDefaultPorts('placeholder' as never), rotation: 0 });
     }
     const fullPieces = [source, terminal, conv, ...path];
     const fullWires = autoConnectPhysicsPieces(fullPieces);
