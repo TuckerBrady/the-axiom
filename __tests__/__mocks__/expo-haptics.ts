@@ -16,3 +16,6 @@ export const NotificationFeedbackType = {
 } as const;
 
 export const notificationAsync = jest.fn(() => Promise.resolve());
+
+// AXM-036 P6 — tray scroll haptic tick.
+export const selectionAsync = jest.fn(() => Promise.resolve());
