@@ -48,14 +48,15 @@ import { TutorialHint } from '../components/TutorialHint';
 import TutorialHUDOverlay from '../components/TutorialHUDOverlay';
 import GameplayErrorBoundary from '../components/GameplayErrorBoundary';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { PieceType, PlacedPiece, ExecutionStep, PortSide } from '../game/types';
+import type { PieceType, PlacedPiece, ExecutionStep } from '../game/types';
 import { getPieceCost, BLANK } from '../game/types';
 import { hapticLight, hapticMedium, hapticHeavy, hapticError } from '../utils/haptics';
 import { placeFromKeplerInventory, shouldMountTray } from '../game/trayPlacement';
 import { trayFocusKey } from '../game/trayFocus';
 import { resolveTargetPiece } from '../game/discoveryFlight';
 import { resolveDropCell } from '../utils/dropTarget';
-import { getOutputPorts, getInputPorts, evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
+import { evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
+import { getPlacementHintCells } from '../game/placementHints';
 import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
 import { useGameplayModals } from '../hooks/useGameplayModals';
@@ -1655,57 +1656,55 @@ export default function GameplayScreen({ navigation }: Props) {
 
             {/* Ghost cells — copper valid hints on Axiom; invisible tap targets on Kepler */}
             {(selectedPieceFromTray || (!isAxiomLevel && selectedInventoryId && requisitionPhase === 'placement')) &&
-              Array.from({ length: numRows }, (_, y) =>
-                Array.from({ length: numColumns }, (_, x) => {
-                  const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
-                  if (occupied) return null;
+              (() => {
+                const isTutorialSector = level.sector === 'axiom';
+                // Honest hints (AXM-036 F8): a static trace from every
+                // Source, ignoring tape/trail values, of the cells the beam
+                // will actually enter. Computed once per render, not per
+                // cell — the old per-cell port scan and its dead helper
+                // variables are gone.
+                const hintCells = isTutorialSector
+                  ? new Set(
+                      getPlacementHintCells({
+                        pieces,
+                        gridWidth: numColumns,
+                        gridHeight: numRows,
+                        blownCells,
+                      }).map(c => `${c.x},${c.y}`),
+                    )
+                  : null;
 
-                  const isTutorialSector = level.sector === 'axiom';
-                  let isValid = true;
-                  if (isTutorialSector) {
-                    // Check: would a piece placed here (with auto-rotation)
-                    // connect to at least one existing piece?
-                    const autoRot = getAutoRotation(x, y);
-                    isValid = pieces.some(p => {
-                      const dx = x - p.gridX;
-                      const dy = y - p.gridY;
-                      if (Math.abs(dx) + Math.abs(dy) !== 1) return false;
-                      // Direction from existing piece toward this cell
-                      let sideFromExisting: PortSide;
-                      if (dx === 1) sideFromExisting = 'right';
-                      else if (dx === -1) sideFromExisting = 'left';
-                      else if (dy === 1) sideFromExisting = 'bottom';
-                      else sideFromExisting = 'top';
-                      const oppSide = sideFromExisting === 'right' ? 'left' : sideFromExisting === 'left' ? 'right' : sideFromExisting === 'bottom' ? 'top' : 'bottom';
-                      // Existing piece outputs toward this cell, OR this cell's auto-rotated piece outputs toward existing
-                      return getOutputPorts(p).includes(sideFromExisting) || getInputPorts(p).includes(sideFromExisting);
-                    });
-                    if (!isValid) return null;
-                  }
+                return Array.from({ length: numRows }, (_, y) =>
+                  Array.from({ length: numColumns }, (_, x) => {
+                    const occupied = pieces.some(p => p.gridX === x && p.gridY === y);
+                    if (occupied) return null;
 
-                  return (
-                    <TouchableOpacity
-                      key={`ghost-${x}-${y}`}
-                      // PROMPT_159: a stable handle for Maestro to place a
-                      // piece on a known cell. Added to the existing
-                      // TouchableOpacity — no new host, and nothing animated
-                      // here.
-                      testID={`board-cell-${x}-${y}`}
-                      style={[
-                        styles.ghostCell,
-                        { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },
-                      ]}
-                      hitSlop={{ top: ghostCellSlop, bottom: ghostCellSlop, left: ghostCellSlop, right: ghostCellSlop }}
-                      onPress={() => handleCanvasTap(x, y)}
-                      activeOpacity={0.6}
-                    >
-                      {isTutorialSector ? (
-                        <View style={styles.ghostInnerValid} />
-                      ) : null}
-                    </TouchableOpacity>
-                  );
-                }),
-              )}
+                    if (isTutorialSector && !hintCells!.has(`${x},${y}`)) return null;
+
+                    return (
+                      <TouchableOpacity
+                        key={`ghost-${x}-${y}`}
+                        // PROMPT_159: a stable handle for Maestro to place a
+                        // piece on a known cell. Added to the existing
+                        // TouchableOpacity — no new host, and nothing animated
+                        // here.
+                        testID={`board-cell-${x}-${y}`}
+                        style={[
+                          styles.ghostCell,
+                          { left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE },
+                        ]}
+                        hitSlop={{ top: ghostCellSlop, bottom: ghostCellSlop, left: ghostCellSlop, right: ghostCellSlop }}
+                        onPress={() => handleCanvasTap(x, y)}
+                        activeOpacity={0.6}
+                      >
+                        {isTutorialSector ? (
+                          <View style={styles.ghostInnerValid} />
+                        ) : null}
+                      </TouchableOpacity>
+                    );
+                  }),
+                );
+              })()}
           </View>
         </View>
 
