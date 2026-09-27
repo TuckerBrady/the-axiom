@@ -114,10 +114,25 @@ export function endpointSocketGeometry(
   };
 }
 
-/** Ring gap half-angle in degrees, either side of the connected side's axis. */
+/**
+ * Ring gap half-angle in degrees, either side of the connected side's axis.
+ *
+ * At very small cell sizes (`c <= 4`, or just above it) `iconPxPerUnit`
+ * collapses toward zero and the asin argument blows past +-1 or divides by
+ * zero, which would otherwise hand `NaN` down into an SVG arc path
+ * (AXM-036 hotfix3: Android IllegalArgumentException in react-native-svg's
+ * PathParser). There is no room to draw a ring gap at that size regardless,
+ * so this returns 0 (no gap) whenever the geometry isn't representable.
+ */
 export function ringGapHalfAngleDeg(cellSize: number): number {
   const c = cellSize;
+  if (c <= 4) {
+    return 0;
+  }
   const s = iconPxPerUnit(c);
-  const rad = Math.asin((0.075 * c) / s / 16);
-  return (rad * 180) / Math.PI;
+  const asinInput = (0.075 * c) / s / 16;
+  const clamped = Math.max(-1, Math.min(1, asinInput));
+  const rad = Math.asin(clamped);
+  const deg = (rad * 180) / Math.PI;
+  return Number.isFinite(deg) ? deg : 0;
 }

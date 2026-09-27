@@ -74,6 +74,15 @@ function ringPolarPoint(cx: number, cy: number, r: number, deg: number): [number
   return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
 }
 
+// A single SVG arc command can't sweep a full 360 degrees, so the plain
+// full-ring fallback is drawn as two half-circle arcs.
+function fullRingArcPaths(cx: number, cy: number, r: number): string[] {
+  return [
+    `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy}`,
+    `M ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy}`,
+  ];
+}
+
 // Returns SVG Path `d` strings for the ring stroke, gapped by
 // `2 * halfAngleDeg` about each listed side's axis. Adjacent/overlapping
 // gaps are merged so the remaining stroke is drawn as whole arcs.
@@ -85,6 +94,16 @@ function ringStrokeArcPaths(
   halfAngleDeg: number,
 ): string[] {
   if (gapSides.length === 0) return [];
+
+  // AXM-036 hotfix3 — a non-finite or non-positive half-angle (tiny cell
+  // sizes collapsing `ringGapHalfAngleDeg` toward an invalid asin input,
+  // see endpointSocketGeometry.ts) has no representable gap to draw. Fall
+  // back to the plain full ring rather than let a NaN degree reach the
+  // polar-point math and produce a NaN'd SVG path (Android
+  // IllegalArgumentException in react-native-svg's PathParser).
+  if (!Number.isFinite(halfAngleDeg) || halfAngleDeg <= 0) {
+    return fullRingArcPaths(cx, cy, r);
+  }
 
   const gaps = gapSides
     .map(side => RING_AXIS_ANGLE_DEG[side])
