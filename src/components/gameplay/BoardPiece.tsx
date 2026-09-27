@@ -1,8 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg from 'react-native-svg';
 import { PieceIcon } from '../PieceIcon';
-import type { PlacedPiece } from '../../game/types';
+import type { PlacedPiece, PortSide } from '../../game/types';
 import { Colors, Fonts, FontSizes } from '../../theme/tokens';
+import { EndpointSockets, TerminalEntryMarker } from './EndpointSockets';
+import { ringGapHalfAngleDeg as computeRingGapHalfAngleDeg } from './endpointSocketGeometry';
+import type { EndpointSocketEntry } from '../../game/endpointSockets';
 
 // AXM-001 D-05 — exact numeric values (count, storedValue,
 // configValue) no longer render inside PieceIcon as SvgText; they
@@ -72,6 +76,9 @@ interface Props {
   pieceRef?: React.Ref<View>;
   onTap: (pieceId: string) => void;
   onLongPress: (pieceId: string) => void;
+  // AXM-036 P12 — this piece's socket/outlet/entry-marker entry
+  // (getEndpointSocketSides), for a source or terminal only.
+  endpoint?: EndpointSocketEntry;
 }
 
 function arePropsEqual(prev: Props, next: Props): boolean {
@@ -82,6 +89,16 @@ function arePropsEqual(prev: Props, next: Props): boolean {
   if (prev.onTap !== next.onTap) return false;
   if (prev.onLongPress !== next.onLongPress) return false;
   if (prev.piece !== next.piece) return false;
+  // AXM-036 P12: compare the endpoint entry by kind and joined sides, not by
+  // reference — BoardGrid's useMemo recomputes a new Map (and new entry
+  // objects) whenever ANY piece moves, not just this one.
+  const prevEndpoint = prev.endpoint;
+  const nextEndpoint = next.endpoint;
+  if (prevEndpoint !== nextEndpoint) {
+    const prevKey = prevEndpoint ? `${prevEndpoint.kind}:${prevEndpoint.sides.join(',')}` : '';
+    const nextKey = nextEndpoint ? `${nextEndpoint.kind}:${nextEndpoint.sides.join(',')}` : '';
+    if (prevKey !== nextKey) return false;
+  }
   const a = prev.animProps;
   const b = next.animProps;
   if (a === b) return true;
@@ -108,6 +125,7 @@ const BoardPiece = React.memo(function BoardPiece({
   pieceRef,
   onTap,
   onLongPress,
+  endpoint,
 }: Props) {
   const flashOpacity = useRef(new Animated.Value(0)).current;
   const lastCounterRef = useRef<number>(animProps?.flashCounter ?? 0);
@@ -169,8 +187,46 @@ const BoardPiece = React.memo(function BoardPiece({
   // hitSlop while the drawn cell stays at its computed size.
   const touchSlop = Math.max(0, (MIN_TOUCH_TARGET - pieceSize) / 2);
 
+  // AXM-036 P12 (R-12.1..R-12.6) — sockets and the directional-Terminal entry
+  // marker sit in the full cell frame (0..cellSize), not the inset piece box
+  // above, since the geometry table is normative against the cell edge.
+  const endpointKey = endpoint ? `${endpoint.kind}:${endpoint.sides.join(',')}` : '';
+  const ringGapSides: PortSide[] | undefined = useMemo(() => {
+    if (!endpoint) return undefined;
+    return endpoint.sides;
+  }, [endpointKey]);
+  const ringGapHalfAngleDegValue = endpoint ? computeRingGapHalfAngleDeg(cellSize) : undefined;
+
+  // AXM-036 P12 (R-12.3) — the socket/marker overlay is part of the piece
+  // layer (drawn above WireOverlay's wires, so a wire visibly ends at the
+  // socket's outer end), sized to the FULL cell (unlike the Pressable above,
+  // which is inset by the piece-box margin) since the geometry table is
+  // normative against the cell edge, not the icon box.
+  const endpointOverlay = endpoint ? (
+      <View
+        pointerEvents="none"
+        style={{ position: 'absolute', left: piece.gridX * cellSize, top: piece.gridY * cellSize, width: cellSize, height: cellSize }}
+      >
+        <Svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
+          {endpoint.kind === 'entry' ? (
+            <TerminalEntryMarker entrySide={endpoint.sides[0]} cellSize={cellSize} fill={iconColor} />
+          ) : (
+            <EndpointSockets
+              pieceId={piece.id}
+              cellSize={cellSize}
+              kind={endpoint.kind}
+              connectedSides={endpoint.sides}
+              fill={iconColor}
+            />
+          )}
+        </Svg>
+      </View>
+    ) : null;
+
   return (
-    <Pressable
+    <React.Fragment>
+      {endpointOverlay}
+      <Pressable
       ref={pieceRef}
       hitSlop={{ top: touchSlop, bottom: touchSlop, left: touchSlop, right: touchSlop }}
       style={{
@@ -234,6 +290,8 @@ const BoardPiece = React.memo(function BoardPiece({
           failColor={animProps?.failColor ?? null}
           configValue={piece.type === 'configNode' ? piece.configValue : undefined}
           connectedMagnetSides={piece.type === 'splitter' ? piece.connectedMagnetSides : undefined}
+          ringGapSides={ringGapSides}
+          ringGapHalfAngleDeg={ringGapHalfAngleDegValue}
         />
       </View>
       {/* D-05 board overlay chip — outside the rotated View above, so
@@ -249,7 +307,8 @@ const BoardPiece = React.memo(function BoardPiece({
           <Text style={styles.overlayChipText}>{displayValue}</Text>
         </View>
       )}
-    </Pressable>
+      </Pressable>
+    </React.Fragment>
   );
 }, arePropsEqual);
 

@@ -244,7 +244,7 @@ function getEmittingSides(piece: PlacedPiece, entrySide?: PortSide): PortSide[] 
   return outputSides;
 }
 
-function getDirectionalNeighbors(
+export function getDirectionalNeighbors(
   piece: PlacedPiece,
   allPieces: PlacedPiece[],
   entrySide?: PortSide,

@@ -31,6 +31,8 @@ pasted context.
 | 001 | Ship canon (S-00–S-05) + piece/board/HUD design review (D-01–D-11) | **Complete.** Delivered 2026-09-07, implemented by Nash as `AXM-001`, merged [#36](https://github.com/TuckerBrady/the-axiom/pull/36) 2026-09-08. | `project-docs/SPECS/design_handoff_axiom_ship_and_ui/` — predates this folder's convention, left in place. Treat as the same kind of artifact as everything numbered below. |
 | 002 | COGS presentation + initial onboarding flow | Request drafted, awaiting Design | `002-cogs-onboarding-review/` |
 | 003 | Gameplay screen — board, placement, tape system, beam animation, tray/economy, modals | Request drafted, awaiting Design | `003-gameplay-review/` |
+| 005 | Directional Terminal entry marker (AXM-029 PR 3, option C) | **Complete.** Approved by Tucker 2026-09-26, implemented by Nash as `AXM-036 P12`. | `005-terminal-entry-marker/` |
+| 007 | Source/Terminal connection sockets (AXM-037, option B) | **Complete.** Approved by Tucker 2026-09-26, implemented by Nash as `AXM-036 P12`. | `007-source-terminal-sockets/` |
 
 ## Ground rules for every round (carried from `CLAUDE.md`)
 
