@@ -2,22 +2,29 @@
 //   - the animated connection-socket layer (Source; Terminal without entrySide)
 //   - the static directional-Terminal entry marker (Terminal with entrySide)
 //
-// useNativeDriver: false is load-bearing here, same as PieceIcon.tsx and
-// DamagedCell.tsx: every animated value interpolates into an SVG prop
-// (opacity) or a transform consumed only by a react-native-svg <G>, which the
-// native driver does not reliably support in this tree. Each of the four
-// side hosts in <EndpointSockets> is ALWAYS mounted (REQ-A-1/A-2) — there is
-// no `{connected && <Animated...>}` anywhere in this file; only the value
-// each host's Animated.Value is driven to changes.
+// AXM-036 HF-1 (build 50, "Source and terminal pieces didn't have sockets"):
+// the animation lives on RN Animated.View hosts, never on a react-native-svg
+// prop. P12 drove an Animated-wrapped svg <G> with the
+// scale-about-anchor as a transform PROP array; react-native-svg flattens a
+// transform array into one props object (transformsArrayToProps), so the
+// repeated translateX/Y keys collapsed and every socket was drawn one anchor
+// length toward the left/top: on the wrong side of a Source, out of the cell
+// for a Terminal. Each side now has one always-mounted Animated.View covering
+// the full cell, with opacity and an ORDERED style transform (RN applies it in
+// order about the view centre); inside it, a static Svg draws the shape.
+//
+// useNativeDriver: false, same as PieceIcon.tsx and DamagedCell.tsx: this is
+// a piece interaction beat on the JS thread (DR-6). Each of the four side
+// hosts is ALWAYS mounted (REQ-A-1/A-2) — there is no
+// `{connected && <Animated...>}` anywhere in this file; only the value each
+// host's Animated.Value is driven to changes.
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
-import { G, Path, Rect } from 'react-native-svg';
+import Svg, { G, Path, Rect } from 'react-native-svg';
 import type { PortSide } from '../../game/types';
 import { Colors } from '../../theme/tokens';
 import { endpointSocketGeometry } from './endpointSocketGeometry';
-
-const AnimatedG = Animated.createAnimatedComponent(G);
 
 const CONNECT_MS = 150;
 const DISCONNECT_MS = 100;
@@ -148,20 +155,33 @@ export function EndpointSockets({ pieceId, cellSize, kind, connectedSides, fill 
       {SIDES.map(side => {
         const { axis, anchor } = socketAnchor(cellSize, side);
         const progress = anims[side];
-        const scale = progress;
+        // RN scales about the view centre (c/2); translating by the anchor's
+        // offset from the centre first and back after makes the ring-side
+        // edge the fixed point, so the socket extends outward from the ring.
+        const d = anchor - cellSize / 2;
         const transform =
           axis === 'x'
-            ? [{ translateX: anchor }, { scaleX: scale as unknown as number }, { translateX: -anchor }]
-            : [{ translateY: anchor }, { scaleY: scale as unknown as number }, { translateY: -anchor }];
+            ? [{ translateX: d }, { scaleX: progress }, { translateX: -d }]
+            : [{ translateY: d }, { scaleY: progress }, { translateY: -d }];
         return (
-          <AnimatedG
+          <Animated.View
             key={side}
             testID={`endpoint-socket-${pieceId}-${side}`}
-            opacity={progress as unknown as number}
-            transform={transform as unknown as string}
+            pointerEvents="none"
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              width: cellSize,
+              height: cellSize,
+              opacity: progress,
+              transform,
+            }}
           >
-            <EndpointSocketShape cellSize={cellSize} side={side} kind={kind} fill={fill} />
-          </AnimatedG>
+            <Svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
+              <EndpointSocketShape cellSize={cellSize} side={side} kind={kind} fill={fill} />
+            </Svg>
+          </Animated.View>
         );
       })}
     </>

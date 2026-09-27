@@ -48,11 +48,25 @@ const SIDES = ['top', 'right', 'bottom', 'left'] as const;
 
 // The mock above wraps every element in a composite function AND a host
 // element sharing the same props, so `findAllByProps` matches both. Query
-// the host ('G') layer directly, as axm036P4aBeamOverlay.test.tsx does for
+// host layers directly, as axm036P4aBeamOverlay.test.tsx does for
 // 'Polyline'/'Circle'.
+//
+// AXM-036 HF-1: the animated socket hosts are RN Animated.Views
+// ('AnimatedView' under the react-native mock), no longer an animated svg
+// 'G' (react-native-svg flattened that host's transform prop array, which
+// put every socket on the wrong side on device). The static
+// directional-Terminal marker is still a 'G'. This helper finds either.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function findGByTestId(root: any, testID: string): any[] {
-  return root.findAllByType('G').filter((n: any) => n.props.testID === testID);
+  return root
+    .findAll((n: any) => n.type === 'G' || n.type === 'AnimatedView')
+    .filter((n: any) => n.props.testID === testID);
+}
+
+// HF-1: a socket host's opacity lives in its style (RN Animated.View).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function hostOpacity(host: any): any {
+  return host.props.style.opacity;
 }
 
 function makeSource(overrides: Partial<PlacedPiece> = {}): PlacedPiece {
@@ -152,7 +166,7 @@ describe('[P12-4] EndpointSockets — four always-mounted hosts', () => {
 
     expect(timingSpy).not.toHaveBeenCalled();
     const host = findGByTestId(r.root, 'endpoint-socket-p4-left')[0];
-    expect(host.props.opacity.__getValue()).toBe(1);
+    expect(hostOpacity(host).__getValue()).toBe(1);
 
     timingSpy.mockRestore();
   });
@@ -164,13 +178,13 @@ describe('[P12-4] EndpointSockets — four always-mounted hosts', () => {
         <EndpointSockets pieceId="p5" cellSize={42} kind="socket" connectedSides={['top']} fill="#00C48C" />,
       );
     });
-    const before = SIDES.map(side => findGByTestId(r.root, `endpoint-socket-p5-${side}`)[0].props.opacity);
+    const before = SIDES.map(side => hostOpacity(findGByTestId(r.root, `endpoint-socket-p5-${side}`)[0]));
 
     // Force a re-render with new (but content-equal) props.
     TestRenderer.act(() => {
       r.update(<EndpointSockets pieceId="p5" cellSize={42} kind="socket" connectedSides={['top']} fill="#00C48C" />);
     });
-    const after = SIDES.map(side => findGByTestId(r.root, `endpoint-socket-p5-${side}`)[0].props.opacity);
+    const after = SIDES.map(side => hostOpacity(findGByTestId(r.root, `endpoint-socket-p5-${side}`)[0]));
 
     for (let i = 0; i < SIDES.length; i++) {
       expect(after[i]).toBe(before[i]); // same Animated.Value instance, not merely equal value
@@ -273,7 +287,7 @@ describe('[P12-4] BoardPiece — Source mounts the socket layer', () => {
         />,
       );
     });
-    const before = findGByTestId(r.root, `endpoint-socket-${piece.id}-right`)[0].props.opacity;
+    const before = hostOpacity(findGByTestId(r.root, `endpoint-socket-${piece.id}-right`)[0]);
 
     for (const animType of ['charging', 'spinning', 'locking'] as const) {
       TestRenderer.act(() => {
@@ -290,7 +304,7 @@ describe('[P12-4] BoardPiece — Source mounts the socket layer', () => {
           />,
         );
       });
-      const after = findGByTestId(r.root, `endpoint-socket-${piece.id}-right`)[0].props.opacity;
+      const after = hostOpacity(findGByTestId(r.root, `endpoint-socket-${piece.id}-right`)[0]);
       expect(after).toBe(before);
     }
   });
