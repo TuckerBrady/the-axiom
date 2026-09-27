@@ -5,6 +5,13 @@ import {
   setLockedPieces,
   updateLitWires,
 } from './stateHelpers';
+import { raceWithTimeout } from './runGuard';
+
+// AXM-036 P9-3 (F9): the wrong-output ring burst's completion callback
+// is the same kind of native Animated bridge round-trip as the
+// in-pulse void burst in beamAnimation.ts, and can hang for the same
+// reason. Same bounded slack on top of the burst's own duration.
+const WRONG_OUTPUT_TIMEOUT_SLACK_MS = 500;
 
 // Lock / wrong-output / replay-lock all run on the main beam slot
 // (`null`) — these phases never branch.
@@ -91,17 +98,21 @@ export async function runWrongOutputRings(
 
   ctx.voidPulseAnim?.stop();
   ctx.voidPulseRingProgressAnim.setValue(0);
-  await new Promise<void>(res => {
-    ctx.voidPulseAnim = Animated.timing(ctx.voidPulseRingProgressAnim, {
-      toValue: 1,
-      duration: LOCK_DURATION_MS,
-      useNativeDriver: true,
-    });
-    ctx.voidPulseAnim.start(() => {
-      ctx.voidPulseAnim = null;
-      res();
-    });
-  });
+  await raceWithTimeout(
+    new Promise<void>(res => {
+      ctx.voidPulseAnim = Animated.timing(ctx.voidPulseRingProgressAnim, {
+        toValue: 1,
+        duration: LOCK_DURATION_MS,
+        useNativeDriver: true,
+      });
+      ctx.voidPulseAnim.start(() => {
+        ctx.voidPulseAnim = null;
+        res();
+      });
+    }),
+    LOCK_DURATION_MS + WRONG_OUTPUT_TIMEOUT_SLACK_MS,
+    () => undefined,
+  );
 
   ctx.setVoidBurstCenter(null);
 }
