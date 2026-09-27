@@ -87,8 +87,9 @@ describe('deriveShallStatements', () => {
     expect(deriveShallStatements(levelA1_5)).toEqual([
       { type: 'requiredTerminalCount', value: 3 },
     ]);
+    // AXM-036 P1 (ruling R-2): A1-6's requiredTerminalCount moved 3 -> 4.
     expect(deriveShallStatements(levelA1_6)).toEqual([
-      { type: 'requiredTerminalCount', value: 3 },
+      { type: 'requiredTerminalCount', value: 4 },
     ]);
   });
 

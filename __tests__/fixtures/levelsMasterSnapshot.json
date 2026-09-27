@@ -918,21 +918,23 @@
    "headPosition": 0
   },
   "inputTape": [
-   1,
    0,
    1,
-   1,
+   0,
    0,
    1,
+   0,
    1,
    0
   ],
   "expectedOutput": [
    0,
    0,
+   0,
+   0,
    0
   ],
-  "requiredTerminalCount": 3,
+  "requiredTerminalCount": 4,
   "objectives": [
    {
     "type": "reach_output"

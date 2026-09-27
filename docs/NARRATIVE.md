@@ -625,6 +625,9 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition for the machine you intend to build. Then build all of it."
 > [tray-forfeit | tutorialStep | AMBER]
 
+> "Two cells on this board are gone. Collapsed plating, left over from the mining. Nothing seats there and the signal will not cross them. Route around."
+> [board-debris | tutorialStep | BLUE]
+
 **K1-2 — Relay Splice**
 > "The primary relay chain out here was built to last. It has lasted past the people responsible for maintaining it. That is a common condition in this corridor."
 > [PROPOSED | cogsLine | BLUE]
