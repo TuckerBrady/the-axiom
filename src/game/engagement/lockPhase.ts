@@ -72,7 +72,19 @@ export async function runLockPhase(
     });
   });
 
-  setLockedPieces(ctx.setPieceAnimState, new Set(ctx.machineStatePieces.map(p => p.id)));
+  // AXM-036 P2-1 (F2): obstacles are terrain, not machine pieces that
+  // animate a lock state. Screenshot 02 showed the end-of-level green
+  // lock frame on debris cells because this Set included every piece
+  // id, obstacles included. Exclude them here, at the locked-set
+  // construction; every other piece in machineStatePieces stays.
+  setLockedPieces(
+    ctx.setPieceAnimState,
+    new Set(
+      ctx.machineStatePieces
+        .filter(p => p.type !== 'obstacle')
+        .map(p => p.id),
+    ),
+  );
   updateLitWires(ctx.setBeamState, prev => {
     const next = new Set(prev);
     for (const w of ctx.wires) {
