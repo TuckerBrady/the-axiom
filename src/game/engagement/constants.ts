@@ -62,3 +62,26 @@ export const TAPE_PIECE_COLORS: Record<string, string> = {
   configNode: '#00FF87',
   transmitter: '#FFE000',
 };
+
+// AXM-036 P4a (F4) — constant-speed beam travel. Replaces the old
+// per-path clamp (Math.max(300, Math.min(1200, 480 * (path.total /
+// refLen)))): every cell of travel now costs the same time, at any
+// path length. See beamData.ts (beamTravelMs) and
+// docs/ANIMATION_RULES.md "Updates".
+export const BEAM_MS_PER_CELL = 75;
+
+// AXM-036 P4a (F13b) — data-carrying beam shimmer. No new colour
+// values: a data segment renders in the same amber/blue/violet
+// palette as getBeamColor() always has, with an added underlay glow
+// and a subtle opacity pulse layered on top.
+export const SHIMMER_PERIOD_MS = 600;
+export const DATA_GLOW_WIDTH_MULT = 2.5;
+export const DATA_GLOW_OPACITY_MAX = 0.30;
+export const DATA_TRAIL_OPACITY_MIN_FACTOR = 0.70;
+
+// shimmer(tMs) in [0, 1], period SHIMMER_PERIOD_MS. Driven off the
+// existing RAF tick clock (performance.now() inside runLinearPath) —
+// no new Animated.Value, so REQ-A holds trivially (P4a-9).
+export function shimmer(tMs: number): number {
+  return 0.5 + 0.5 * Math.sin((2 * Math.PI * tMs) / SHIMMER_PERIOD_MS);
+}

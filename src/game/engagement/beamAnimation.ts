@@ -4,10 +4,11 @@ import { getPulseSpeed, computeWaypointDists } from '../bubbleMath';
 import {
   buildSignalPath,
   posAlongPath,
-  easeOut3,
   getBeamColor,
   TAPE_PIECE_COLORS,
+  shimmer,
 } from './constants';
+import { beamTravelMs, beamHeadDistance, deriveSegmentDataFlags } from './beamData';
 import {
   applyFlashBatch,
   makeFlashBatch,
@@ -76,15 +77,25 @@ export function brightenBeam(ctx: EngagementContext): void {
 // `branchTrails[branchSlot]` and `heads[branchSlot]`.
 type BranchSlot = 0 | 1 | null;
 
-type TrailSeg = { points: Pt[]; color: string };
+// AXM-036 P4a (F13b): describes a data-carrying segment (this segment's
+// leg of the beam has passed a Scanner/Inverter/Latch read, or inherits
+// that from a Splitter's pre-fork carryIn). `data` is optional at the
+// BeamState type level (see types.ts) but always populated here — the
+// only production writer.
+type TrailSeg = { points: Pt[]; color: string; data: boolean };
 
 export function runLinearPath(
   ctx: EngagementContext,
   pathSteps: ExecutionStep[],
   branchSlot: BranchSlot,
   speedMultiplier: number,
-): Promise<void> {
-  return new Promise<void>(resolve => {
+  // AXM-036 P4a-7 (F13b): true when this path continues a data-carrying
+  // beam from an upstream Splitter pre-fork leg. Resolves to this path's
+  // own last segment flag (or `carryIn` unchanged if it has no segments),
+  // so runPulse can hand that to both branch calls after a fork.
+  carryIn = false,
+): Promise<boolean> {
+  return new Promise<boolean>(resolve => {
     const waypoints: Pt[] = [];
     for (const st of pathSteps) {
       const c = ctx.getPieceCenter(st.pieceId);
@@ -92,21 +103,24 @@ export function runLinearPath(
     }
     if (waypoints.length < 2) {
       if (pathSteps[0]) triggerPieceAnim(ctx, pathSteps[0]);
-      setTimeout(resolve, 180);
+      setTimeout(() => resolve(carryIn), 180);
       return;
     }
     const path = buildSignalPath(waypoints);
     const waypointDists = computeWaypointDists(waypoints);
-    const refLen = ctx.CELL_SIZE * 4;
-    const totalMs =
-      Math.max(300, Math.min(1200, 480 * (path.total / refLen))) * speedMultiplier;
+    const totalMs = beamTravelMs(path.total, ctx.CELL_SIZE, speedMultiplier);
     const segColors = pathSteps.map(s => getBeamColor(s.type));
+    // Indexed the same way segColors is (by pathSteps position, one
+    // entry per segment leaving that step) — see the P4a-7 note in
+    // beamData.ts for the derivation.
+    const segFlags = deriveSegmentDataFlags(pathSteps, carryIn);
+    const lastFlag = segFlags.length > 0 ? segFlags[segFlags.length - 1] : carryIn;
     const hasVoid = pathSteps.some(s => s.type === 'void');
 
     // Seed trail with a placeholder empty segment so the beam's color
     // identity shows before the head moves.
     applyFrame({
-      trail: [{ points: [], color: segColors[0] ?? '#8B5CF6' }],
+      trail: [{ points: [], color: segColors[0] ?? '#8B5CF6', data: segFlags[0] ?? carryIn }],
       head: null,
       headColor: null,
       newLitWires: null,
@@ -163,6 +177,12 @@ export function runLinearPath(
       head: Pt | null | undefined; // undefined = no change, null = clear
       headColor: string | null;
       newLitWires: string[] | null;
+      // AXM-036 P4a-9 (F13b): omitted (not just falsy) on frames that
+      // don't recompute them, so the seed/truncate/clear frames below
+      // leave the tick loop's last values in place instead of stomping
+      // them back to 0/false every time they run.
+      shimmer?: number;
+      headData?: boolean;
     }): void {
       ctx.setBeamState(prev => {
         const next = { ...prev };
@@ -199,6 +219,12 @@ export function runLinearPath(
         if (update.headColor !== null) {
           next.headColor = update.headColor;
         }
+        if (update.shimmer !== undefined) {
+          next.shimmer = update.shimmer;
+        }
+        if (update.headData !== undefined) {
+          next.headData = update.headData;
+        }
         if (update.newLitWires && update.newLitWires.length > 0) {
           const lw = new Set(prev.litWires);
           for (const w of update.newLitWires) lw.add(w);
@@ -231,20 +257,25 @@ export function runLinearPath(
         pauseEnd = 0;
         pauseStart = 0;
       }
-      const rawT = Math.min(1, (now - t0 - pauseAccum) / totalMs);
-      const t = easeOut3(rawT);
-      const headDist = t * path.total;
+      // AXM-036 P4a-1 (F4): linear head travel, no easeOut3 — a straight
+      // fraction-of-elapsed-time-over-totalMs (pause time excluded, same
+      // as before) drives beamHeadDistance. No deceleration into any
+      // waypoint or the Terminal.
+      const elapsedMs = now - t0 - pauseAccum;
+      const rawT = totalMs > 0 ? Math.min(1, elapsedMs / totalMs) : 1;
+      const headDist = beamHeadDistance(elapsedMs, totalMs, path.total);
       const head = posAlongPath(path, headDist);
 
       const newSegs: TrailSeg[] = [];
       for (let i = 0; i < path.segs.length; i++) {
         const sg = path.segs[i];
         const color = segColors[i] ?? '#F0B429';
+        const data = segFlags[i] ?? false;
         if (headDist >= sg.e) {
-          newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy }], color });
+          newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy }], color, data });
         } else if (headDist > sg.s) {
           const tt = sg.l > 0 ? (headDist - sg.s) / sg.l : 0;
-          newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt }], color });
+          newSegs.push({ points: [{ x: sg.x0, y: sg.y0 }, { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt }], color, data });
           break;
         }
       }
@@ -307,13 +338,22 @@ export function runLinearPath(
         }
       }
 
-      // ONE setBeamState per tick — trail, head, headColor, and any
-      // newly lit wires bundled into a single reconciliation.
+      // AXM-036 P4a-9 (F13b): shimmer(t) off the existing RAF clock, and
+      // whether the head currently sits on a data-carrying segment
+      // (activeSegIdx, computed above for the crossfade check).
+      const activeSegFlag = activeSegIdx >= 0 ? (segFlags[activeSegIdx] ?? false) : false;
+      const shimmerVal = shimmer(now);
+
+      // ONE setBeamState per tick — trail, head, headColor, shimmer,
+      // headData and any newly lit wires bundled into a single
+      // reconciliation.
       applyFrame({
         trail: newSegs,
         head,
         headColor: currentColor,
         newLitWires: newLitWires.length > 0 ? newLitWires : null,
+        shimmer: shimmerVal,
+        headData: activeSegFlag,
       });
 
       // Per-tick piece-anim batch (Prompt 99C, Fix 1 option b /
@@ -337,16 +377,17 @@ export function runLinearPath(
             if (isTapePiece) {
               // Snap the beam head + trail to the piece center
               // (Prompt 91, Fix 4). Without this, the head visibly
-              // freezes a frame past the waypoint — easeOut3 + the
-              // RAF granularity put it at the piece's far edge by
-              // the time we cross the wpDist threshold. Re-apply
-              // the trail truncated to wpDist and pin the head to
+              // freezes a frame past the waypoint — the RAF
+              // granularity puts it at the piece's far edge by the
+              // time we cross the wpDist threshold. Re-apply the
+              // trail truncated to wpDist and pin the head to
               // waypoints[i] so the visual stop is centered.
               const wp = waypoints[i];
               const truncSegs: TrailSeg[] = [];
               for (let j = 0; j < path.segs.length; j++) {
                 const sg = path.segs[j];
                 const color = segColors[j] ?? '#F0B429';
+                const data = segFlags[j] ?? false;
                 if (wpDist >= sg.e) {
                   truncSegs.push({
                     points: [
@@ -354,6 +395,7 @@ export function runLinearPath(
                       { x: sg.x0 + sg.dx, y: sg.y0 + sg.dy },
                     ],
                     color,
+                    data,
                   });
                 } else if (wpDist > sg.s) {
                   const tt = sg.l > 0 ? (wpDist - sg.s) / sg.l : 0;
@@ -363,6 +405,7 @@ export function runLinearPath(
                       { x: sg.x0 + sg.dx * tt, y: sg.y0 + sg.dy * tt },
                     ],
                     color,
+                    data,
                   });
                   break;
                 }
@@ -467,13 +510,13 @@ export function runLinearPath(
             applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
             crossfadeAnim.removeListener(crossfadeListenerId);
             crossfadeAnim.stopAnimation();
-            resolve();
+            resolve(lastFlag);
           });
         } else {
           applyFrame({ trail: [], head: null, headColor: null, newLitWires: null });
           crossfadeAnim.removeListener(crossfadeListenerId);
           crossfadeAnim.stopAnimation();
-          resolve();
+          resolve(lastFlag);
         }
       }
     };
@@ -492,7 +535,7 @@ export function runPulse(
     const hasBBranch = pulseSteps.some(s => s.branchId === 'B');
 
     if (forkIdx === -1 || !hasABranch || !hasBBranch) {
-      runLinearPath(ctx, pulseSteps, null, speed).then(resolveAll);
+      runLinearPath(ctx, pulseSteps, null, speed).then(() => resolveAll());
       return;
     }
 
@@ -502,7 +545,11 @@ export function runPulse(
 
     const forkPt = ctx.getPieceCenter(pulseSteps[forkIdx].pieceId);
 
-    runLinearPath(ctx, preForkSteps, null, speed).then(() => {
+    // AXM-036 P4a-7 (F13b): both branches inherit the pre-fork leg's own
+    // last segment flag (resolved from runLinearPath below) as their
+    // carryIn — the beam either enters the fork already carrying data,
+    // or it doesn't, and both branches agree.
+    runLinearPath(ctx, preForkSteps, null, speed).then((preForkCarry) => {
       if (!forkPt) { resolveAll(); return; }
 
       const splitterStep = pulseSteps[forkIdx];
@@ -510,8 +557,8 @@ export function runPulse(
       const bSteps = [splitterStep, ...branchBSteps];
 
       Promise.all([
-        runLinearPath(ctx, aSteps, 0, speed),
-        runLinearPath(ctx, bSteps, 1, speed),
+        runLinearPath(ctx, aSteps, 0, speed, preForkCarry),
+        runLinearPath(ctx, bSteps, 1, speed, preForkCarry),
       ]).then(() => {
         // Final cleanup — clear heads + main trails + branch trails in
         // one reconciliation.

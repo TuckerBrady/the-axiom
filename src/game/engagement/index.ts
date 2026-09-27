@@ -5,6 +5,12 @@ export {
   getBeamColor,
   animMap,
   TAPE_PIECE_COLORS,
+  BEAM_MS_PER_CELL,
+  SHIMMER_PERIOD_MS,
+  DATA_GLOW_WIDTH_MULT,
+  DATA_GLOW_OPACITY_MAX,
+  DATA_TRAIL_OPACITY_MIN_FACTOR,
+  shimmer,
 } from './constants';
 export {
   flashPiece,
