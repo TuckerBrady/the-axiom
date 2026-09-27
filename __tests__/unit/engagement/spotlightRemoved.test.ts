@@ -68,11 +68,16 @@ describe('Prompt 88 — ghost spotlight removed', () => {
     it('still calls flashPiece + wait — animation pacing is preserved', () => {
       // The wait() calls pace the indicator bar animation and must not be
       // removed. (The wait(80) lift-off pause went away with the IN->TRAIL
-      // glow arc on 2026-06-13; the rest still pace Scanner/ConfigNode.)
+      // glow arc on 2026-06-13. AXM-036 P4b (v1.2 authorized edit: this
+      // assertion pinned the old Scanner wait sequence, which the new
+      // IN->Scanner->TRAIL bit travel replaces) — the Scanner's old
+      // wait(250 * speed) and wait(300 * speed) settle pauses are now
+      // BIT_TRAVEL_MS-timed travel legs instead; the flash-settle
+      // wait(120 * speed) and ConfigNode's wait(150 * speed) gate
+      // highlight pause are unchanged.)
       expect(src).toMatch(/await wait\(120 \* speed\)/);
-      expect(src).toMatch(/await wait\(250 \* speed\)/);
-      expect(src).toMatch(/await wait\(300 \* speed\)/);
       expect(src).toMatch(/await wait\(150 \* speed\)/);
+      expect(src).toMatch(/BIT_TRAVEL_MS/);
     });
   });
 

@@ -62,6 +62,11 @@ function buildCtx(): {
   });
 
   const ctx = {
+    // AXM-036 P4b (v1.2 authorized addition — additive only): the new
+    // bit-travel sequence writes the traveler through ctx.setBeamState,
+    // which this fixture never needed to mock before.
+    CELL_SIZE: 60,
+    setBeamState: jest.fn(),
     setPieceAnimState: jest.fn(arg => {
       if (typeof arg === 'function') arg({ ...PIECE_ANIM_INITIAL });
     }),

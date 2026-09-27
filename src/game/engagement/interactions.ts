@@ -1,7 +1,10 @@
-import type { EngagementContext, ExecutionStep } from './types';
+import { Easing } from 'react-native';
+import type { EngagementContext, ExecutionStep, Pt } from './types';
+import { BIT_TRAVELER_INITIAL } from './types';
 import { useGameStore } from '../../store/gameStore';
-import { getPulseSpeed } from '../bubbleMath';
-import { animMap, TAPE_PIECE_COLORS, getBeamColor } from './constants';
+import { getPulseSpeed, getTapeCellPosFromCache } from '../bubbleMath';
+import { animMap, TAPE_PIECE_COLORS, getBeamColor, BIT_TRAVEL_MS } from './constants';
+import { bitTravelPoint } from './beamData';
 import {
   flashPiece,
   setHighlight,
@@ -12,6 +15,68 @@ import {
   updateActiveAnimations,
 } from './stateHelpers';
 import { hapticLight, hapticMedium } from '../../utils/haptics';
+
+// AXM-036 P4b-2 (F13 a, c) — the cinematic ease used for every bit-travel
+// leg (IN→Scanner, Scanner→TRAIL, Transmitter→OUT). Mirrors the curve
+// valueTravelAnimation.ts used, but this module MUST NOT import that file
+// (P4b-1): it is native-driver and superseded by the single tape-to-tape
+// arrival fill (Tucker 2026-06-13).
+const BIT_TRAVEL_EASING = Easing.bezier(0.4, 0, 0.2, 1);
+
+// Writes the traveler's board-local position for the current leg. Radius
+// is 0.18 * CELL_SIZE (P4b-1), computed here (where EngagementContext.CELL_SIZE
+// is in scope) so BeamOverlay stays a pure renderer of BeamState.
+function setTraveler(ctx: EngagementContext, pt: Pt, value: number): void {
+  const r = 0.18 * ctx.CELL_SIZE;
+  ctx.setBeamState(prev => ({ ...prev, traveler: { visible: true, x: pt.x, y: pt.y, value, r } }));
+}
+
+function clearTraveler(ctx: EngagementContext): void {
+  ctx.setBeamState(prev => ({ ...prev, traveler: BIT_TRAVELER_INITIAL }));
+}
+
+// AXM-036 P4b-2/P4b-6 (F13 a, c) — carries the traveler from `from` to
+// `to` over `durationMs` (already speed-scaled by the caller), landing on
+// `to` exactly at `durationMs`. Three keyframes (start / eased midpoint /
+// end) driven by the same `wait()` helper the rest of this module uses —
+// deliberately NOT requestAnimationFrame: interactions.ts runs inside the
+// existing tape-piece pause window (beamAnimation.ts's inFlightTapePauses),
+// which is timed by promise resolution, not by the beam's own RAF tick,
+// and `wait()` is what the test tier already knows how to fake/mock.
+async function runBitTravel(
+  ctx: EngagementContext,
+  from: Pt,
+  to: Pt,
+  value: number,
+  durationMs: number,
+): Promise<void> {
+  setTraveler(ctx, from, value);
+  if (durationMs <= 0) {
+    setTraveler(ctx, to, value);
+    return;
+  }
+  const half = durationMs / 2;
+  await wait(half);
+  setTraveler(ctx, bitTravelPoint(from, to, BIT_TRAVEL_EASING(0.5)), value);
+  await wait(half);
+  setTraveler(ctx, to, value);
+}
+
+// Converts a tape cell's cached, screen-absolute measurement (from
+// measureInWindow — see bubbleMath.ts / MeasurementCache) into the
+// board-local coordinate space BeamOverlay's Svg already draws in (the
+// same space getPieceCenter returns), by subtracting the cached board
+// origin. Returns null when the cell hasn't been measured yet.
+function tapeCellBoardLocal(
+  ctx: EngagementContext,
+  cache: Parameters<typeof getTapeCellPosFromCache>[0],
+  index: number,
+): Pt | null {
+  const abs = getTapeCellPosFromCache(cache, index);
+  if (!abs) return null;
+  const board = ctx.cacheRef.current.board;
+  return { x: abs.x - board.x, y: abs.y - board.y };
+}
 
 export async function runScannerInteraction(
   ctx: EngagementContext,
@@ -27,20 +92,41 @@ export async function runScannerInteraction(
   }
   const tapeValue = ctx.inputTape?.[pulse];
 
+  // (i) Flash the Scanner, settle.
   flashPiece(ctx, stp.pieceId, color);
   await wait(120 * speed);
-  await wait(250 * speed);
 
-  // Read the IN cell.
+  // (ii) Read the IN cell.
   setHighlight(ctx, `in-${pulse}`, 'read');
   ctx.setTapeBarState(prev => ({ ...prev, inIndex: pulse }));
-  await wait(300 * speed);
 
-  // Fill the TRAIL cell in place (Tucker 2026-06-13). This replaces the old
-  // lift-off → arc → impact glow travel from IN to TRAIL with the single
-  // tape-to-tape "arrival fill": the value lands in the destination cell with a
-  // pulse in that tape's own color — the same animation the OUT cell uses on
-  // Terminal arrival.
+  // AXM-036 P4b-3 (F13 a, c): a pulse with no input value skips both
+  // travels, as on master. When a value IS present but a travel's
+  // endpoint hasn't been measured yet, the travel isn't drawn, but its
+  // duration is still waited (P4b-3) so the overall pacing is unchanged.
+  if (tapeValue !== undefined) {
+    const legMs = BIT_TRAVEL_MS * speed;
+    const inLocal = tapeCellBoardLocal(ctx, ctx.cacheRef.current.input, pulse);
+    const trailLocal = tapeCellBoardLocal(ctx, ctx.cacheRef.current.trail, pulse);
+
+    // (iii) Travel IN cell N → Scanner.
+    if (inLocal) {
+      await runBitTravel(ctx, inLocal, pc, tapeValue, legMs);
+    } else {
+      await wait(legMs);
+    }
+
+    // (iv) Travel Scanner → TRAIL cell N.
+    if (trailLocal) {
+      await runBitTravel(ctx, pc, trailLocal, tapeValue, legMs);
+    } else {
+      await wait(legMs);
+    }
+  }
+
+  // (v) Land in the TRAIL cell (Tucker 2026-06-13 arrival-fill design —
+  // the value lands with a pulse in the TRAIL tape's own color, the same
+  // animation the OUT cell uses on Transmitter arrival).
   setHighlight(ctx, `trail-${pulse}`, 'arrived');
   ctx.setTapeBarState(prev => ({ ...prev, trailIndex: pulse }));
   if (tapeValue !== undefined) {
@@ -51,10 +137,11 @@ export async function runScannerInteraction(
       return next;
     });
   }
-  await wait(300 * speed);
+  clearTraveler(ctx);
 
-  // Clear the IN read highlight. The trail fill persists across pulses
-  // (Prompt 76) until the Config Node overwrites it with the gate result.
+  // (vi) Clear the IN read highlight. The trail fill persists across
+  // pulses (Prompt 76) until the Config Node overwrites it with the gate
+  // result.
   ctx.setTapeCellHighlights(prev => {
     const m = new Map(prev);
     m.delete(`in-${pulse}`);
@@ -116,12 +203,38 @@ export async function runTransmitterInteraction(
     if (__DEV__) console.warn(`getPieceCenter returned null for ${stp.pieceId} on pulse ${pulse}`);
     return;
   }
+  // (i) Flash the Transmitter.
   flashPiece(ctx, stp.pieceId, color);
-  // The OUT cell fills HERE — the moment the signal hits the Transmitter, the
-  // piece that actually writes the output (Tucker 2026-06-16; supersedes the
-  // 2026-06-13 Terminal-arrival fill). Mirrors the Scanner → trail write.
-  if (stp.success) revealOutputCell(ctx, pulse);
-  await wait(300 * speed);
+
+  // AXM-036 P4b-4 (F13 a, c): the OUT cell fills only AFTER the traveler
+  // lands (Tucker 2026-06-16's Transmitter-arrival fill still applies —
+  // this only adds the travel in front of it, it does not move the
+  // write back to the Terminal). A blocked pulse never reaches the
+  // Transmitter (stp.success is always true here in practice); the guard
+  // is defensive.
+  if (stp.success) {
+    const outputTape = useGameStore.getState().machineState.outputTape;
+    const written = outputTape?.[pulse];
+    if (written !== undefined && typeof written === 'number') {
+      const legMs = BIT_TRAVEL_MS * speed;
+      const outLocal = tapeCellBoardLocal(ctx, ctx.cacheRef.current.output, pulse);
+
+      // (ii) Travel Transmitter → OUT cell N, carrying the value the
+      // engine wrote. Endpoint unmeasured: no travel drawn, but the
+      // same duration is still waited (P4b-3's rule, reused here).
+      if (outLocal) {
+        await runBitTravel(ctx, pc, outLocal, written, legMs);
+      } else {
+        await wait(legMs);
+      }
+    }
+    // (iii) Land — not before. revealOutputCell is the piece that
+    // actually writes the output (Tucker 2026-06-16; supersedes the
+    // 2026-06-13 Terminal-arrival fill). Mirrors the Scanner → trail
+    // write.
+    revealOutputCell(ctx, pulse);
+    clearTraveler(ctx);
+  }
 }
 
 // Reveal a pulse's OUT cell with the value the engine already wrote

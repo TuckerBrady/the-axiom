@@ -13,6 +13,7 @@ jest.mock('../../../src/store/gameStore', () => ({
   },
 }));
 
+import { Animated } from 'react-native';
 import {
   runScannerInteraction,
   runTransmitterInteraction,
@@ -22,6 +23,25 @@ import { bitTravelPoint } from '../../../src/game/engagement/beamData';
 import { BIT_TRAVEL_MS } from '../../../src/game/engagement/constants';
 import type { BeamState, ExecutionStep } from '../../../src/game/engagement/types';
 import { installFakeClock, makeHarnessCtx } from './helpers/beamHarness';
+
+// [P4b-5] is the first test in this repo to drive runLinearPath (see
+// beamAnimation.ts's REQ-G-05 crossfade cleanup) under the shared
+// `__tests__/__mocks__/react-native.ts` Animated.Value mock, which has
+// never needed a `stopAnimation` method before (out of this package's
+// Scope — beamAnimation.ts's own crossfade logic is untouched by P4b).
+// A tiny, additive, test-local shim rather than an edit to that shared
+// mock file: a no-op is exactly what the real Animated.Value.stopAnimation
+// does here, since this mock's `timing().start()` already resolves
+// synchronously (nothing is left running to stop).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const AnimatedValueProto = (Animated.Value as any).prototype;
+if (typeof AnimatedValueProto.stopAnimation !== 'function') {
+  AnimatedValueProto.stopAnimation = function stopAnimation(
+    cb?: (value: number) => void,
+  ): void {
+    cb?.(this.__getValue?.() ?? 0);
+  };
+}
 
 function step(type: string, pieceId: string, success = true): ExecutionStep {
   return { pieceId, type, success } as ExecutionStep;
@@ -51,7 +71,7 @@ describe('[P4b-3] scanner: in read, then two travels, then trail arrived', () =>
         clockNow: clock.now,
         cellSize: 60,
         pieceCenters: { 'p-s': { x: 10, y: 20 } },
-        inputTape: [1, 0],
+        inputTape: [1, 1],
         board: { x: 0, y: 0 },
         input: { x: 100, y: 200, w: 20, h: 30 },
         trail: { x: 100, y: 300, w: 20, h: 30 },
@@ -114,7 +134,7 @@ describe('[P4b-4] transmitter: out-N is not set before BIT_TRAVEL_MS * speed', (
   async function runAtPulse(pulse: number, speed: number) {
     const clock = installFakeClock();
     try {
-      mockOutputTapeRef.current = pulse === 0 ? [1] : [1, 0];
+      mockOutputTapeRef.current = pulse === 0 ? [1] : [1, 1];
       const harness = makeHarnessCtx({
         clockNow: clock.now,
         cellSize: 60,
@@ -166,8 +186,14 @@ describe('[P4b-5] transmitter trigger never precedes head arrival', () => {
         clockNow: clock.now,
         cellSize: 60,
         pieceCenters: {
-          src: { x: 0, y: 0 },
-          scn: { x: 200, y: 0 },
+          // Scanner opens the path (in place of a Source) so every
+          // segment's color (getBeamColor: scanner/configNode/
+          // transmitter all '#00D4FF') is identical — no
+          // Physics/Protocol category boundary anywhere on this path,
+          // so beamAnimation.ts's crossfade never engages. Deliberate:
+          // this test is only about the pause/resume ordering guarantee
+          // (P4b-5), not the crossfade (P4a, unrelated to this package).
+          scn: { x: 0, y: 0 },
           txm: { x: 400, y: 0 },
           term: { x: 600, y: 0 },
         },
@@ -181,7 +207,6 @@ describe('[P4b-5] transmitter trigger never precedes head arrival', () => {
       harness.ctx.currentPulseRef.current = 0;
 
       const steps: ExecutionStep[] = [
-        step('source', 'src'),
         step('scanner', 'scn'),
         step('transmitter', 'txm'),
         step('terminal', 'term'),

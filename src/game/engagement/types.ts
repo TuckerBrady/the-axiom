@@ -131,7 +131,37 @@ export interface BeamState {
   // Read by BeamOverlay to drive the glow/opacity pulse (P4a-8, P4a-9).
   shimmer: number;
   headData: boolean;
+  // AXM-036 P4b (F13 a, c) — the single persistent bit-traveler drawn by
+  // BeamOverlay: the disc that carries a 0/1 digit from the IN cell to
+  // the Scanner, the Scanner to the TRAIL cell, and the Transmitter to
+  // the OUT cell. Always present on BeamState (BeamOverlay renders the
+  // host unconditionally, per REQ-A-2 — no `{cond && <Animated.View>}`)
+  // and toggled by `visible`; interactions.ts is the only writer.
+  traveler: BitTravelerState;
 }
+
+// AXM-036 P4b (F13 a, c) — bit-traveler position, in the SAME board-local
+// coordinate space BeamOverlay's Svg already draws in (the space
+// getPieceCenter returns). `r` is the disc radius (0.18 * CELL_SIZE,
+// P4b-1), computed by the writer (interactions.ts, which has
+// EngagementContext.CELL_SIZE) so BeamOverlay stays a pure renderer of
+// whatever numbers BeamState carries — no new prop threading through
+// GameplayScreen.tsx.
+export type BitTravelerState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  value: number;
+  r: number;
+};
+
+export const BIT_TRAVELER_INITIAL: BitTravelerState = {
+  visible: false,
+  x: 0,
+  y: 0,
+  value: 0,
+  r: 0,
+};
 
 export const BEAM_INITIAL: BeamState = {
   heads: [],
@@ -143,6 +173,7 @@ export const BEAM_INITIAL: BeamState = {
   litWires: new Set(),
   shimmer: 0,
   headData: false,
+  traveler: BIT_TRAVELER_INITIAL,
 };
 
 export interface PieceAnimState {
