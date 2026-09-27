@@ -21,7 +21,7 @@ const repoRoot = path.resolve(__dirname, '../..');
 const pieceIconSrc = fs.readFileSync(path.resolve(repoRoot, 'src/components/PieceIcon.tsx'), 'utf8');
 
 describe('PieceIcon obstacle — [P1-1] matches DamagedCell terrain, ember excluded', () => {
-  it('obstacle icon paths equal DamagedCell terrain paths (ember excluded)', () => {
+  it('[P1-1] obstacle icon paths equal DamagedCell terrain paths (ember excluded)', () => {
     // DamagedCell(size=40, live=false)'s own Path `d` strings, taken straight
     // from the geometry module it draws from (DamagedCell.tsx: wallShadow,
     // wallLight, rimLight and both brackets are each a <Path>; the ember
@@ -58,7 +58,7 @@ describe('PieceIcon obstacle — [P1-1] matches DamagedCell terrain, ember exclu
     expect(obstacleCase).not.toMatch(/Colors\.tapeOutBar/);
   });
 
-  it('no rubble path remains', () => {
+  it('[P1-1] no rubble path remains', () => {
     const caseStart = pieceIconSrc.indexOf("case 'obstacle':");
     const caseEnd = pieceIconSrc.indexOf("\n    case '", caseStart + 1);
     const obstacleCase = pieceIconSrc.slice(caseStart, caseEnd === -1 ? undefined : caseEnd);
