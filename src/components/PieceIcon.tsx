@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Line, Rect, Path, G, Ellipse } from 'react-native-svg';
 import { Colors } from '../theme/tokens';
+import { hexToRgba } from '../game/bubbleMath';
+import { damagedCellGeometry } from './gameplay/damagedCellGeometry';
 
 // useNativeDriver: false on every Animated.timing in this file is
 // load-bearing — every animated value here interpolates into an SVG
@@ -21,6 +23,18 @@ const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
 function normalizeType(type: string): string {
   if (type === 'config_node') return 'configNode';
   return type;
+}
+
+// AXM-036 P1 (Tucker ruling R-1) — an obstacle is unusable ground drawn the
+// same way a level-seeded damaged cell is: the "missing plate" terrain from
+// damagedCellGeometry, minus the ember (an obstacle is never a cell blown by
+// the current run). Pulled out as its own pure export, same pattern as
+// damagedCellGeometry.ts itself, so the icon's Path `d` strings are directly
+// unit-testable against DamagedCell's without rendering react-native-svg
+// (which this repo's jest harness cannot inspect — see DamagedCell.test.ts).
+export function getObstacleIconPaths(size: number): [string, string, string, string, string] {
+  const g = damagedCellGeometry(size);
+  return [g.wallShadow, g.wallLight, g.rimLight, g.brackets[0], g.brackets[1]];
 }
 
 // D-05 — Counter's quantity readout as a segmented ring instead of
@@ -708,16 +722,57 @@ export const PieceIcon = React.memo(function PieceIcon({
       );
     }
 
-    case 'obstacle':
-      // Collapsed-corridor debris: a pile of angular rubble. Distinct from the
-      // blown-cell crater (a charred recess) — this is solid terrain in the way.
+    case 'obstacle': {
+      // AXM-036 P1 (Tucker ruling R-1): an obstacle renders the SAME terrain
+      // art as a level-seeded damaged cell (the "missing plate", live=false,
+      // no ember) — "unusable cell" gets one look on the board. This is not
+      // rubble, and it is not a new treatment: it draws from the same
+      // damagedCellGeometry every DamagedCell uses, at the icon's fixed
+      // 40x40 viewBox. The engine is unchanged — this is a paint change only.
+      const geo = damagedCellGeometry(40);
+      const [wallShadowD, wallLightD, rimLightD, bracket0D, bracket1D] = getObstacleIconPaths(40);
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Path d="M5 29 L13 15 L21 27 L14 33 Z" fill={Colors.steel} fillOpacity="0.45" stroke={Colors.dim} strokeWidth="1.2" strokeOpacity="0.5" />
-          <Path d="M18 31 L27 13 L35 28 L27 34 Z" fill={Colors.steel} fillOpacity="0.45" stroke={Colors.dim} strokeWidth="1.2" strokeOpacity="0.45" />
-          <Path d="M9 34 L19 30 L31 33 L23 37 L13 37 Z" fill={Colors.steel} fillOpacity="0.5" stroke={Colors.dim} strokeWidth="1.2" strokeOpacity="0.45" />
+          {geo.fractures.map((f, i) => (
+            <Line
+              key={`obstacle-fx-${i}`}
+              x1={f.x1}
+              y1={f.y1}
+              x2={f.x2}
+              y2={f.y2}
+              stroke={hexToRgba(Colors.dim, 0.3)}
+              strokeWidth={geo.strokes.hairline}
+              strokeLinecap="round"
+            />
+          ))}
+          <Rect
+            x={geo.hole.x}
+            y={geo.hole.y}
+            width={geo.hole.width}
+            height={geo.hole.height}
+            rx={geo.hole.rx}
+            ry={geo.hole.rx}
+            fill={hexToRgba(Colors.void, 0.97)}
+          />
+          <Rect
+            x={geo.recess.x}
+            y={geo.recess.y}
+            width={geo.recess.width}
+            height={geo.recess.height}
+            rx={geo.recess.rx}
+            ry={geo.recess.rx}
+            fill="none"
+            stroke="rgba(0,0,0,0.55)"
+            strokeWidth={geo.strokes.wall}
+          />
+          <Path d={wallShadowD} fill="none" stroke="rgba(0,0,0,0.75)" strokeWidth={geo.strokes.wall} strokeLinecap="round" />
+          <Path d={wallLightD} fill="none" stroke={hexToRgba(Colors.steel, 0.5)} strokeWidth={geo.strokes.hairline} strokeLinecap="round" />
+          <Path d={rimLightD} fill="none" stroke={hexToRgba(Colors.steel, 0.75)} strokeWidth={geo.strokes.rim} strokeLinecap="round" />
+          <Path d={bracket0D} fill="none" stroke={hexToRgba(Colors.steel, 0.85)} strokeWidth={geo.strokes.bracket} strokeLinecap="square" />
+          <Path d={bracket1D} fill="none" stroke={hexToRgba(Colors.steel, 0.85)} strokeWidth={geo.strokes.bracket} strokeLinecap="square" />
         </Svg>
       );
+    }
 
     default:
       return (

@@ -545,12 +545,16 @@ export const levelA1_6: LevelDefinition = {
   // optimalPieces is the floor solve's piece count.
   availablePieces: ['conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'conveyor', 'gear', 'gear', 'scanner', 'configNode', 'configNode'],
   dataTrail: { cells: [null, null, null, null, null, null, null, null], headPosition: 0 },
-  inputTape: [1, 0, 1, 1, 0, 1, 1, 0],
-  // Config Node configValue=0 passes the three 0-valued pulses and
-  // blocks the five 1-valued pulses. Teaches that 0 is a valid
-  // filter target.
-  expectedOutput: [0, 0, 0],
-  requiredTerminalCount: 3,
+  // AXM-036 P1 (Tucker ruling R-2): the old tape (three 0s, five 1s against
+  // an "at least 3" gate) let the default configValue=1 pass anyway, so the
+  // Config Node setting never mattered. Five 0s / three 1s against "at least
+  // 4" makes 0 the only value that clears the gate; the first pulse is a 0,
+  // so the correct build succeeds on the slow pulse first (0 is still a
+  // valid filter target, the teaching note survives).
+  inputTape: [0, 1, 0, 0, 1, 0, 1, 0],
+  // Documentary only (short) — requiredTerminalCount is the live gate.
+  expectedOutput: [0, 0, 0, 0, 0],
+  requiredTerminalCount: 4,
   objectives: [{ type: 'reach_output' }],
   optimalPieces: 12,
   systemRepaired: 'Sensor Grid',
@@ -558,7 +562,7 @@ export const levelA1_6: LevelDefinition = {
   computationalGoal: 'Route a single signal through multiple Config Nodes that all read the same live Data Trail value, so every gate makes the same decision on every pulse.',
   conceptTaught: 'Dynamic state. The Data Trail is live memory — one Scanner write is seen by every downstream Config Node on the same pulse. A single correct write produces multiple correct reads.',
   prerequisiteConcept: 'Scanner writes to Data Trail; Config Node reads Data Trail (A1-5). The player understands that order of placement is order of execution.',
-  tapeDesignRationale: 'Mixed-value input tape tests both gate states. All downstream Config Nodes must open together on a 1 pulse and block together on a 0 pulse.',
+  tapeDesignRationale: 'Mixed-value input tape tests both gate states. All downstream Config Nodes must open together on a 1 pulse and block together on a 0 pulse. Five 0s and three 1s against requiredTerminalCount 4 makes configValue=0 the only setting that clears the gate, so the Config Node choice is load-bearing (AXM-036 P1, ruling R-2).',
   difficultyBand: 'derivable',
   narrativeFrame: 'Sensor grid polls multiple arrays simultaneously. Every array reads the same live reading — one sensor, many listeners. When the reading is correct, every array agrees.',
   tutorialHints: [
@@ -831,6 +835,11 @@ export const levelK1_1: LevelDefinition = {
       message: 'Any blue left in the tray when the mission ends is forfeited. The issued parts are not. Requisition for the machine you intend to build. Then build all of it.' },
     { id: 'board-intro', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'No placement highlights on this board. The pieces connect the same way. But where they go is entirely the Engineer\'s call now. Plan the path before placing anything.' },
+    // AXM-036 P1 (Tucker ruling R-1): names the two pre-placed obstacles
+    // (collapsed-corridor debris) before the Engineer has to route around
+    // them. Verbatim per contract; NARRATIVE.md K1-1 carries the same line.
+    { id: 'board-debris', targetRef: 'boardGrid', eyeState: 'blue',
+      message: 'Two cells on this board are gone. Collapsed plating, left over from the mining. Nothing seats there and the signal will not cross them. Route around.' },
     { id: 'board-resume', targetRef: 'boardGrid', eyeState: 'blue',
       message: 'Two direction changes to reach the Terminal. The Gears handle the corners. The Conveyors fill the gaps.' },
   ],

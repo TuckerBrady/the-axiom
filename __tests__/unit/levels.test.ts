@@ -291,12 +291,14 @@ describe('K1-1 v3 economy fields', () => {
     expect(k1().baseReward).toBe(100);
   });
 
-  it('has 6 tutorial steps (4 tray onboarding + 2 board)', () => {
+  // AXM-036 P1 (Tucker ruling R-1): gained board-debris, inserted between
+  // board-intro and board-resume, naming K1-1's two pre-placed obstacles.
+  it('has 7 tutorial steps (4 tray onboarding + 3 board)', () => {
     const level = k1();
-    expect(level.tutorialSteps).toHaveLength(6);
+    expect(level.tutorialSteps).toHaveLength(7);
   });
 
-  it('the first four steps onboard the tray (focus piece: Conveyor), the last two teach the board', () => {
+  it('the first four steps onboard the tray (focus piece: Conveyor), the last three teach the board', () => {
     const level = k1();
     const steps = level.tutorialSteps!;
     for (const s of steps.slice(0, 4)) {
@@ -304,6 +306,7 @@ describe('K1-1 v3 economy fields', () => {
     }
     expect(steps[4].targetRef).toBe('boardGrid');
     expect(steps[5].targetRef).toBe('boardGrid');
+    expect(steps[6].targetRef).toBe('boardGrid');
   });
 
   it('no tutorial step targets the retired tray ref', () => {
