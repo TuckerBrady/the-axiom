@@ -128,7 +128,7 @@ const PIECES: PieceEntry[] = [
     importance: 'Circuits are rarely straight. The Gear is what makes corners possible.',
     cogsNote: 'The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns \u2014 90 degrees, to any perpendicular exit. It accepts input from any direction. Every non-linear circuit requires at least one. Plan the bend before you need it. The signal will not wait while you reconsider.',
     timesUsed: 9, levelsPlayed: 3, sectorsSeen: 1,
-    firstEncountered: 'THE AXIOM \u2014 A1-2 Life Support',
+    firstEncountered: 'THE AXIOM \u2014 A1-1 Emergency Power',
     seenIn: ['Relay Breach', 'Ion Cascade', 'Flux Resonance'],
     tmCorrespondence: 'Direction change — physical layout constraint.',
   },
