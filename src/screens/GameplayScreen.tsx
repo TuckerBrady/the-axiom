@@ -141,11 +141,14 @@ import {
   handleSuccess,
   handleWrongOutput,
   handleVoidFailure,
-  withRunGuard,
   type Pt,
   type EngagementContext,
   type GlowTravelerLayer,
 } from '../game/engagement';
+// AXM-036 P9-2 (F9): imported directly from its own module, not the
+// engagement barrel (index.ts), which stays out of this package's
+// Scope list.
+import { withRunGuard } from '../game/engagement/runGuard';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
 

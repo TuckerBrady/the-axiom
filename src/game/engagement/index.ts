@@ -74,5 +74,3 @@ export {
 } from './types';
 export { runValueTravel, resetGlowTraveler } from './valueTravelAnimation';
 export * as stateHelpers from './stateHelpers';
-export { raceWithTimeout, withRunGuard } from './runGuard';
-export type { RunGuardDeps } from './runGuard';

@@ -86,7 +86,6 @@ export async function withRunGuard(
     if (deps.onError) {
       deps.onError(error);
     } else if (__DEV__) {
-      // eslint-disable-next-line no-console
       console.warn('[handleEngage] run failed; ending run to avoid a stall', error);
     }
     deps.cancelAllFrames();
