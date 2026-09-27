@@ -149,9 +149,6 @@ function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Section label="WILL" lines={will} />
-          <Section label="SHALL" lines={shall} />
-
           {showExpectedOutput && (
             <View style={styles.expectedBlock}>
               <Text style={styles.expectedLabel}>REQUIRED OUTPUT</Text>
@@ -160,6 +157,8 @@ function SpecSheetPanelImpl({ level, visible, onClose }: Props) {
             </View>
           )}
 
+          <Section label="WILL" lines={will} />
+          <Section label="SHALL" lines={shall} />
           <Section label="SHOULD" lines={should} />
           <Section label="MAY" lines={may} />
 
