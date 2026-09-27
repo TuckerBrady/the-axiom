@@ -29,6 +29,8 @@ type Props = {
 
 const { height: SCREEN_H } = Dimensions.get('window');
 
+const DISTRESS_INSET = Spacing.lg;
+
 const CARDS = [
   {
     label: 'TRANSMISSION 01 / 03',
@@ -136,7 +138,9 @@ function DialogueCard({
   if (!shouldRender) return null;
 
   return (
-    <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, cardStyle]}>
+    <Animated.View
+      style={[{ position: 'absolute', left: DISTRESS_INSET, right: DISTRESS_INSET }, cardStyle]}
+    >
       <TouchableOpacity
         style={isLast ? s.proceedCard : s.card}
         onPress={onPress}
@@ -276,7 +280,7 @@ const s = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   integritySection: {
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: DISTRESS_INSET,
     paddingBottom: Spacing.md,
   },
   integrityWrap: { gap: 4 },
@@ -305,7 +309,6 @@ const s = StyleSheet.create({
   },
   cardsSection: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     position: 'relative',
   },
