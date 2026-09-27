@@ -1036,6 +1036,17 @@ export default function GameplayScreen({ navigation }: Props) {
     // Reset the measurement cache for this run.
     beam.cacheRef.current = { board: { x: 0, y: 0 }, input: null, trail: null, output: null };
 
+    // AXM-036 P7 (F7): clear the previous run's tape colours here, at the
+    // start of this run and before the first pulse — not after the pulse
+    // loop below. The run-state visuals (tapeCellHighlights, gateOutcomes,
+    // visualTrailOverride, visualOutputOverride, tapeBarState) earned by a
+    // completed run must stay on screen through the lock phase and every
+    // completion/failure modal, so the Engineer sees the result they just
+    // produced (Build 49, screenshot 09). They are cleared here instead,
+    // and at handleReset / handleWrongOutputRetry / handleCompletionContinue
+    // and on blur/unmount (unchanged).
+    tape.resetTape();
+
     // Initialize progressive-reveal overrides for trail and output cells.
     // During beam animation, cells that begin null show empty until a
     // Scanner visually writes them. Cells with pre-existing values from
@@ -1136,7 +1147,10 @@ export default function GameplayScreen({ navigation }: Props) {
       }
     }
     // Beam complete — fall through to machineState-driven rendering.
-    tape.resetTape();
+    // AXM-036 P7 (F7): the tape reset that used to sit here has moved to the
+    // top of this run (before the pulse loop, above), so the tape colours
+    // this run just produced survive into the lock phase and every result
+    // modal below.
 
     // Wrong-output detection for tape-enabled levels. If the tape didn't
     // match expectedOutput, suppress the green lock sequence and show a
