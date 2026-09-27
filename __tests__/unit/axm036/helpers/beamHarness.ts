@@ -249,6 +249,9 @@ export function makeHarnessCtx(options: MakeHarnessCtxOptions): HarnessCtx {
 
     runId: 1,
     currentRunIdRef: { current: 1 },
+    // AXM-036 P9-1 (F9): addition only, per the contract's authorized
+    // edit for existing EngagementContext literals/factories.
+    pendingResolversRef: { current: new Set() },
   };
 
   return {
