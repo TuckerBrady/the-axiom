@@ -207,19 +207,21 @@ const BoardPiece = React.memo(function BoardPiece({
         pointerEvents="none"
         style={{ position: 'absolute', left: piece.gridX * cellSize, top: piece.gridY * cellSize, width: cellSize, height: cellSize }}
       >
-        <Svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
-          {endpoint.kind === 'entry' ? (
+        {endpoint.kind === 'entry' ? (
+          <Svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
             <TerminalEntryMarker entrySide={endpoint.sides[0]} cellSize={cellSize} fill={iconColor} />
-          ) : (
-            <EndpointSockets
-              pieceId={piece.id}
-              cellSize={cellSize}
-              kind={endpoint.kind}
-              connectedSides={endpoint.sides}
-              fill={iconColor}
-            />
-          )}
-        </Svg>
+          </Svg>
+        ) : (
+          // AXM-036 HF-1: the four animated side hosts are RN Animated.Views,
+          // each with its own static Svg, so none sits inside an Svg here.
+          <EndpointSockets
+            pieceId={piece.id}
+            cellSize={cellSize}
+            kind={endpoint.kind}
+            connectedSides={endpoint.sides}
+            fill={iconColor}
+          />
+        )}
       </View>
     ) : null;
 

@@ -16,6 +16,12 @@ type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Introduction'>;
 };
 
+// AXM-036 HF-2: the post-repair COGS card sits at the same 16dp inset as the
+// pre-repair Distress TRANSMISSION card (DISTRESS_INSET, P11) and this
+// screen's own header. The card host is absolute, and an absolute child
+// ignores its parent's padding, so the inset lives on the host itself.
+const INTRO_INSET = Spacing.lg;
+
 const CARDS = [
   {
     label: 'INTRODUCTION 01 / 03',
@@ -72,7 +78,7 @@ function DialogueCard({
   if (!shouldRender) return null;
 
   return (
-    <Animated.View style={[{ position: 'absolute', left: 0, right: 0 }, cardStyle]}>
+    <Animated.View style={[{ position: 'absolute', left: INTRO_INSET, right: INTRO_INSET }, cardStyle]}>
       <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={0.85}>
         <Text style={s.cardLabel}>{card.label}</Text>
         <Text style={s.cardText}>{card.text}</Text>
@@ -147,7 +153,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: INTRO_INSET,
     paddingTop: 60,
     paddingBottom: Spacing.sm,
     borderBottomWidth: 1,
@@ -196,7 +202,6 @@ const s = StyleSheet.create({
   },
   cardsSection: {
     flex: 1,
-    paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
     position: 'relative',
   },
