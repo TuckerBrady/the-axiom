@@ -4,6 +4,7 @@ import Svg, { Circle, Line, Rect, Path, G, Ellipse } from 'react-native-svg';
 import { Colors } from '../theme/tokens';
 import { hexToRgba } from '../game/bubbleMath';
 import { damagedCellGeometry } from './gameplay/damagedCellGeometry';
+import type { PortSide } from '../game/types';
 
 // useNativeDriver: false on every Animated.timing in this file is
 // load-bearing — every animated value here interpolates into an SVG
@@ -55,6 +56,68 @@ function ringSegmentPath(cx: number, cy: number, r: number, index: number, total
   return `M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
+// AXM-036 P12 (R-12.3, M-DR-2/S-DR-3) — the Source and Terminal outer ring is
+// a full body disc (unchanged) but its STROKE is drawn as arcs that omit
+// `halfAngleDeg` either side of each connected/entry side's axis, instead of
+// one full-circle <Circle> stroke. Axis angles match the engine's own grid
+// convention (sideOffset in engine.ts): right=0, bottom=90 (y grows down),
+// left=180, top=270.
+const RING_AXIS_ANGLE_DEG: Record<PortSide, number> = {
+  right: 0,
+  bottom: 90,
+  left: 180,
+  top: 270,
+};
+
+function ringPolarPoint(cx: number, cy: number, r: number, deg: number): [number, number] {
+  const rad = (deg * Math.PI) / 180;
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+}
+
+// Returns SVG Path `d` strings for the ring stroke, gapped by
+// `2 * halfAngleDeg` about each listed side's axis. Adjacent/overlapping
+// gaps are merged so the remaining stroke is drawn as whole arcs.
+function ringStrokeArcPaths(
+  cx: number,
+  cy: number,
+  r: number,
+  gapSides: PortSide[],
+  halfAngleDeg: number,
+): string[] {
+  if (gapSides.length === 0) return [];
+
+  const gaps = gapSides
+    .map(side => RING_AXIS_ANGLE_DEG[side])
+    .map((axis): [number, number] => [axis - halfAngleDeg, axis + halfAngleDeg])
+    .sort((a, b) => a[0] - b[0]);
+
+  const merged: [number, number][] = [];
+  for (const [start, end] of gaps) {
+    const last = merged[merged.length - 1];
+    if (last && start <= last[1]) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  }
+
+  if (merged.length === 1 && merged[0][1] - merged[0][0] >= 360) {
+    return [];
+  }
+
+  const arcs: string[] = [];
+  for (let i = 0; i < merged.length; i++) {
+    const arcStart = merged[i][1];
+    const arcEnd = i + 1 < merged.length ? merged[i + 1][0] : merged[0][0] + 360;
+    if (arcEnd <= arcStart) continue;
+    const [x1, y1] = ringPolarPoint(cx, cy, r, arcStart);
+    const [x2, y2] = ringPolarPoint(cx, cy, r, arcEnd);
+    const largeArc = arcEnd - arcStart > 180 ? 1 : 0;
+    arcs.push(`M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2}`);
+  }
+  return arcs;
+}
+
 interface Props {
   type: string;
   size?: number;
@@ -80,6 +143,11 @@ interface Props {
   configValue?: number;
   threshold?: number;
   connectedMagnetSides?: string[];
+  // AXM-036 P12 (source/terminal only) — omit the outer ring's stroke over
+  // `±ringGapHalfAngleDeg` about each listed side's axis. Absent or empty:
+  // both cases render exactly as before (P12-8).
+  ringGapSides?: PortSide[];
+  ringGapHalfAngleDeg?: number;
 }
 
 /**
@@ -116,6 +184,8 @@ export const PieceIcon = React.memo(function PieceIcon({
   threshold = 2,
   configValue,
   connectedMagnetSides,
+  ringGapSides,
+  ringGapHalfAngleDeg: ringGapHalfAngleDegProp,
 }: Props) {
   const type = normalizeType(rawType);
   const s = size;
@@ -356,13 +426,24 @@ export const PieceIcon = React.memo(function PieceIcon({
       const chargeR1 = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 28] });
       const chargeR2 = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [4, 22] });
       const chargeOp = chargeProgress.interpolate({ inputRange: [0, 1], outputRange: [0.9, 0] });
+      const sourceRingGapSides = ringGapSides ?? [];
+      const sourceRingStroke = color ?? Colors.amber;
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
           {/* D-02: the faint 0.2-opacity outer halo did not survive at
               size — deleted rather than dimmed. */}
-          <Circle cx="20" cy="20" r="16" fill="#0e1f36" stroke={color ?? Colors.amber} strokeWidth="2" />
-          <Circle cx="20" cy="20" r="10" fill="#060e1a" stroke={color ?? Colors.amber} strokeWidth="1.2" strokeOpacity="0.5" />
-          <Path d="M 17 13 L 17 27 L 27 20 Z" fill={color ?? Colors.amber} />
+          {sourceRingGapSides.length > 0 ? (
+            <>
+              <Circle cx="20" cy="20" r="16" fill="#0e1f36" />
+              {ringStrokeArcPaths(20, 20, 16, sourceRingGapSides, ringGapHalfAngleDegProp ?? 0).map((d, i) => (
+                <Path key={`source-ring-arc-${i}`} d={d} fill="none" stroke={sourceRingStroke} strokeWidth="2" />
+              ))}
+            </>
+          ) : (
+            <Circle cx="20" cy="20" r="16" fill="#0e1f36" stroke={sourceRingStroke} strokeWidth="2" />
+          )}
+          <Circle cx="20" cy="20" r="10" fill="#060e1a" stroke={sourceRingStroke} strokeWidth="1.2" strokeOpacity="0.5" />
+          <Path d="M 17 13 L 17 27 L 27 20 Z" fill={sourceRingStroke} />
           {charging && (
             <>
               <AnimatedCircle cx="20" cy="20" r={chargeR1 as unknown as number} fill="none" stroke={Colors.protocol} strokeWidth="1.5" strokeOpacity={chargeOp as unknown as number} />
@@ -378,11 +459,22 @@ export const PieceIcon = React.memo(function PieceIcon({
       const lockR2 = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 34] });
       const lockR3 = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [6, 28] });
       const lockOp = lockProgress.interpolate({ inputRange: [0, 1], outputRange: [0.95, 0] });
+      const terminalRingGapSides = ringGapSides ?? [];
+      const terminalRingStroke = color ?? Colors.green;
       return (
         <Svg width={s} height={s} viewBox="0 0 40 40">
-          <Circle cx="20" cy="20" r="16" fill="#0e1f36" stroke={color ?? Colors.green} strokeWidth="2" />
-          <Circle cx="20" cy="20" r="9" fill="#060e1a" stroke={color ?? Colors.green} strokeWidth="1.5" />
-          <Circle cx="20" cy="20" r="4" fill={color ?? Colors.green} />
+          {terminalRingGapSides.length > 0 ? (
+            <>
+              <Circle cx="20" cy="20" r="16" fill="#0e1f36" />
+              {ringStrokeArcPaths(20, 20, 16, terminalRingGapSides, ringGapHalfAngleDegProp ?? 0).map((d, i) => (
+                <Path key={`terminal-ring-arc-${i}`} d={d} fill="none" stroke={terminalRingStroke} strokeWidth="2" />
+              ))}
+            </>
+          ) : (
+            <Circle cx="20" cy="20" r="16" fill="#0e1f36" stroke={terminalRingStroke} strokeWidth="2" />
+          )}
+          <Circle cx="20" cy="20" r="9" fill="#060e1a" stroke={terminalRingStroke} strokeWidth="1.5" />
+          <Circle cx="20" cy="20" r="4" fill={terminalRingStroke} />
           {/* Corner accent L-marks */}
           <Path d="M 6 6 L 9 6 M 6 6 L 6 9" stroke={Colors.green} strokeWidth="1.2" opacity="0.5" strokeLinecap="round" />
           <Path d="M 34 6 L 31 6 M 34 6 L 34 9" stroke={Colors.green} strokeWidth="1.2" opacity="0.5" strokeLinecap="round" />

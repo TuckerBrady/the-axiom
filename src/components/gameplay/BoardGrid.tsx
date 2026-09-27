@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import BoardPiece, { type PieceAnimProps } from './BoardPiece';
 import type { PlacedPiece, PieceType } from '../../game/types';
 import { Colors } from '../../theme/tokens';
+import { getEndpointSocketSides } from '../../game/endpointSockets';
 
 function getPieceColor(type: PieceType): string {
   switch (type) {
@@ -47,6 +48,9 @@ function BoardGridComponent({
   onPieceTap,
   onPieceLongPress,
 }: Props) {
+  // AXM-036 P12 (R-12.0, P12-6) — recomputed only when `pieces` changes.
+  const endpointSockets = useMemo(() => getEndpointSocketSides(pieces), [pieces]);
+
   return (
     <>
       {pieces.map(piece => {
@@ -77,6 +81,7 @@ function BoardGridComponent({
             pieceRef={ref}
             onTap={onPieceTap}
             onLongPress={onPieceLongPress}
+            endpoint={endpointSockets.get(piece.id)}
           />
         );
       })}
