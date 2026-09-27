@@ -10,7 +10,7 @@ import { shimmer, SHIMMER_PERIOD_MS } from '../../../src/game/engagement/constan
 const step = (type: string, success?: boolean) => ({ type, success });
 
 describe('[P4a-7] deriveSegmentDataFlags', () => {
-  it('scanner starts data', () => {
+  it('[P4a-7] scanner starts data', () => {
     const steps = [
       step('source'),
       step('conveyor'),
@@ -23,22 +23,22 @@ describe('[P4a-7] deriveSegmentDataFlags', () => {
     expect(deriveSegmentDataFlags(steps)).toEqual([false, false, true, true, true, true]);
   });
 
-  it('config node alone does not start data (A1-3)', () => {
+  it('[P4a-7] config node alone does not start data (A1-3)', () => {
     const steps = [step('source'), step('conveyor'), step('configNode'), step('conveyor'), step('terminal')];
     expect(deriveSegmentDataFlags(steps)).toEqual([false, false, false, false]);
   });
 
-  it('blocked run keeps flags up to the block', () => {
+  it('[P4a-7] blocked run keeps flags up to the block', () => {
     const steps = [step('source'), step('scanner'), step('conveyor'), step('configNode', false)];
     expect(deriveSegmentDataFlags(steps)).toEqual([false, true, true]);
   });
 
-  it('carryIn marks every segment', () => {
+  it('[P4a-7] carryIn marks every segment', () => {
     const steps = [step('source'), step('conveyor'), step('conveyor'), step('terminal')];
     expect(deriveSegmentDataFlags(steps, true)).toEqual([true, true, true]);
   });
 
-  it('empty and single-step paths give []', () => {
+  it('[P4a-7] empty and single-step paths give []', () => {
     expect(deriveSegmentDataFlags([])).toEqual([]);
     expect(deriveSegmentDataFlags([step('source')])).toEqual([]);
   });

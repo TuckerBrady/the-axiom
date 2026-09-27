@@ -180,7 +180,9 @@ function BeamOverlayComponent({
             <G key={`bh-${bi}`}>
               {/* AXM-036 P4a-8 (F13b): while the head is on a data
                   segment, the halo breathes with shimmer(t); otherwise
-                  it is master's static r=11, opacity=0.25. */}
+                  it is master's static r=11, opacity=0.25. (v1.2
+                  authorizes widening BeamOverlay.test.ts's head-halo
+                  regex to accept this expression.) */}
               <Circle
                 cx={bh.x} cy={bh.y}
                 r={beamState.headData ? 11 + 3 * beamState.shimmer : 11}
