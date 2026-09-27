@@ -116,11 +116,21 @@ export type MeasurementCache = {
 export interface BeamState {
   heads: Pt[];
   headColor: string;
-  trails: { points: Pt[]; color: string }[];
-  branchTrails: { points: Pt[]; color: string }[][];
+  // `data` is optional (rather than required) so the small set of
+  // existing call sites that build a trail/branchTrails literal without
+  // it (stateHelpers.ts's setTrailSegments / setBranchTrails, neither
+  // currently called) still type-check; runLinearPath (the only real
+  // producer) always sets it explicitly to true or false.
+  trails: { points: Pt[]; color: string; data?: boolean }[];
+  branchTrails: { points: Pt[]; color: string; data?: boolean }[][];
   voidPulse: VoidPulseState;
   phase: SignalPhase;
   litWires: Set<string>;
+  // AXM-036 P4a (F13b) — the current shimmer(t) value (0 when idle) and
+  // whether the beam head currently sits on a data-carrying segment.
+  // Read by BeamOverlay to drive the glow/opacity pulse (P4a-8, P4a-9).
+  shimmer: number;
+  headData: boolean;
 }
 
 export const BEAM_INITIAL: BeamState = {
@@ -131,6 +141,8 @@ export const BEAM_INITIAL: BeamState = {
   voidPulse: null,
   phase: 'idle',
   litWires: new Set(),
+  shimmer: 0,
+  headData: false,
 };
 
 export interface PieceAnimState {

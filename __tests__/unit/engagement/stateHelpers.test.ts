@@ -48,6 +48,9 @@ describe('beam state helpers', () => {
       trails: [{ points: [], color: '#abc' }],
       phase: 'beam',
       litWires: new Set(['x']),
+      // AXM-036 P4a-9 fields (v1.2 authorized addition — additive only).
+      shimmer: 0,
+      headData: false,
     });
     setBeamHeads(setter, [{ x: 1, y: 2 }]);
     expect(state.value.heads).toEqual([{ x: 1, y: 2 }]);
@@ -67,6 +70,9 @@ describe('beam state helpers', () => {
       ...BEAM_INITIAL,
       heads: [{ x: 5, y: 5 }],
       litWires: new Set(),
+      // AXM-036 P4a-9 fields (v1.2 authorized addition — additive only).
+      shimmer: 0,
+      headData: false,
     });
     setTrailSegments(setter, [{ points: [{ x: 0, y: 0 }], color: '#111' }]);
     expect(state.value.trails).toHaveLength(1);

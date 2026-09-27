@@ -55,7 +55,11 @@ describe('BeamOverlay — extracted beam + charge + lock + voidPulse layer', () 
   // color, with white kept only as a smaller inner core.
   it('renders beam heads with translucent halo, a layer-colored front, and a smaller white core', () => {
     expect(beamSrc).toMatch(/beamState\.heads\.map/);
-    expect(beamSrc).toMatch(/r=\{11\}[\s\S]*?fill=\{beamState\.headColor\}/);
+    // AXM-036 P4a-8 (F13b), contract v1.2 authorized widening: the halo's
+    // r may now be a shimmer-driven expression whose base value is 11
+    // (`beamState.headData ? 11 + 3 * beamState.shimmer : 11`), not only
+    // the literal `r={11}`. Still requires fill={beamState.headColor}.
+    expect(beamSrc).toMatch(/r=\{[^}]*\b11\b[^}]*\}[\s\S]*?fill=\{beamState\.headColor\}/);
     expect(beamSrc).toMatch(/r=\{3\.5\}[\s\S]*?fill=\{beamState\.headColor\}/);
     expect(beamSrc).toMatch(/r=\{1\.5\}[\s\S]*?fill="white"/);
   });

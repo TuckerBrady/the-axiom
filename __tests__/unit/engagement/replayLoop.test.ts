@@ -47,6 +47,8 @@ function makeCtx(overrides: Partial<EngagementContext> = {}): EngagementContext 
     setBeamState: makeInvokingMock({
       heads: [], headColor: '#8B5CF6', trails: [], branchTrails: [],
       voidPulse: null, phase: 'idle' as const, litWires: new Set<string>(),
+      // AXM-036 P4a-9 fields (v1.2 authorized addition — additive only).
+      shimmer: 0, headData: false,
     }),
     setPieceAnimState: makeInvokingMock({
       flashing: new Map(), flashCounter: new Map(), animations: new Map(),
@@ -233,6 +235,9 @@ describe('runReplayLoop', () => {
       headColor: '#FFFFFF',
       voidPulse: null,
       phase: 'beam' as const,
+      // AXM-036 P4a-9 fields (v1.2 authorized addition — additive only).
+      shimmer: 0,
+      headData: false,
     };
     if (typeof firstCallArg === 'function') {
       const result = firstCallArg(prevBeam);

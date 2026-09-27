@@ -2,6 +2,11 @@ import React from 'react';
 import { View, StyleSheet, Animated as RNAnimated } from 'react-native';
 import Svg, { Circle, G, Polyline } from 'react-native-svg';
 import type { BeamState, ChargeState, Pt } from '../../game/engagement';
+import {
+  DATA_GLOW_WIDTH_MULT,
+  DATA_GLOW_OPACITY_MAX,
+  DATA_TRAIL_OPACITY_MIN_FACTOR,
+} from '../../game/engagement';
 import { Colors } from '../../theme/tokens';
 
 const AnimatedCircle = RNAnimated.createAnimatedComponent(Circle);
@@ -74,33 +79,97 @@ function BeamOverlayComponent({
               />
             </>
           )}
-          {beamState.trails.map((seg, i) => (
-            seg.points.length > 1 ? (
-              <Polyline
-                key={`seg-${i}`}
-                points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
-                fill="none"
-                stroke={seg.color}
-                strokeWidth={i === beamState.trails.length - 1 ? 2.5 : 2}
-                strokeLinecap="round"
-                opacity={i === beamState.trails.length - 1 ? 0.72 : 0.45}
-              />
-            ) : null
-          ))}
-          {beamState.branchTrails.map((branch, bi) =>
-            branch.map((seg, si) => (
-              seg.points.length > 1 ? (
+          {beamState.trails.map((seg, i) => {
+            if (seg.points.length <= 1) return null;
+            const pts = seg.points.map(p => `${p.x},${p.y}`).join(' ');
+            const baseWidth = i === beamState.trails.length - 1 ? 2.5 : 2;
+            const baseOpacity = i === beamState.trails.length - 1 ? 0.72 : 0.45;
+            // AXM-036 P4a-8 (F13b): a non-data segment renders exactly as
+            // master — same stroke props, no glow polyline underlay.
+            if (!seg.data) {
+              return (
                 <Polyline
-                  key={`br-${bi}-${si}`}
-                  points={seg.points.map(p => `${p.x},${p.y}`).join(' ')}
+                  key={`seg-${i}`}
+                  points={pts}
                   fill="none"
                   stroke={seg.color}
-                  strokeWidth={si === branch.length - 1 ? 2.5 : 2}
+                  strokeWidth={baseWidth}
                   strokeLinecap="round"
-                  opacity={si === branch.length - 1 ? 0.72 : 0.45}
+                  opacity={baseOpacity}
                 />
-              ) : null
-            )),
+              );
+            }
+            return (
+              <G key={`seg-${i}`}>
+                <Polyline
+                  testID="beam-data-glow"
+                  points={pts}
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth={baseWidth * DATA_GLOW_WIDTH_MULT}
+                  strokeLinecap="round"
+                  opacity={DATA_GLOW_OPACITY_MAX * beamState.shimmer}
+                />
+                <Polyline
+                  points={pts}
+                  fill="none"
+                  stroke={seg.color}
+                  strokeWidth={baseWidth}
+                  strokeLinecap="round"
+                  opacity={
+                    baseOpacity *
+                    (DATA_TRAIL_OPACITY_MIN_FACTOR +
+                      (1 - DATA_TRAIL_OPACITY_MIN_FACTOR) * beamState.shimmer)
+                  }
+                />
+              </G>
+            );
+          })}
+          {beamState.branchTrails.map((branch, bi) =>
+            branch.map((seg, si) => {
+              if (seg.points.length <= 1) return null;
+              const pts = seg.points.map(p => `${p.x},${p.y}`).join(' ');
+              const baseWidth = si === branch.length - 1 ? 2.5 : 2;
+              const baseOpacity = si === branch.length - 1 ? 0.72 : 0.45;
+              if (!seg.data) {
+                return (
+                  <Polyline
+                    key={`br-${bi}-${si}`}
+                    points={pts}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={baseWidth}
+                    strokeLinecap="round"
+                    opacity={baseOpacity}
+                  />
+                );
+              }
+              return (
+                <G key={`br-${bi}-${si}`}>
+                  <Polyline
+                    testID="beam-data-glow"
+                    points={pts}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={baseWidth * DATA_GLOW_WIDTH_MULT}
+                    strokeLinecap="round"
+                    opacity={DATA_GLOW_OPACITY_MAX * beamState.shimmer}
+                  />
+                  <Polyline
+                    points={pts}
+                    fill="none"
+                    stroke={seg.color}
+                    strokeWidth={baseWidth}
+                    strokeLinecap="round"
+                    opacity={
+                      baseOpacity *
+                      (DATA_TRAIL_OPACITY_MIN_FACTOR +
+                        (1 - DATA_TRAIL_OPACITY_MIN_FACTOR) * beamState.shimmer)
+                    }
+                  />
+                </G>
+              );
+            }),
           )}
           {/* REQ-G-05: the travelling front now carries its layer color
               (r=3.5, was fill="white") with a smaller white core (r=1.5)
@@ -109,7 +178,17 @@ function BeamOverlayComponent({
               SE-BEAM-082 exists to communicate. */}
           {beamState.heads.map((bh, bi) => (
             <G key={`bh-${bi}`}>
-              <Circle cx={bh.x} cy={bh.y} r={11} fill={beamState.headColor} opacity={0.25} />
+              {/* AXM-036 P4a-8 (F13b): while the head is on a data
+                  segment, the halo breathes with shimmer(t); otherwise
+                  it is master's static r=11, opacity=0.25. (v1.2
+                  authorizes widening BeamOverlay.test.ts's head-halo
+                  regex to accept this expression.) */}
+              <Circle
+                cx={bh.x} cy={bh.y}
+                r={beamState.headData ? 11 + 3 * beamState.shimmer : 11}
+                fill={beamState.headColor}
+                opacity={beamState.headData ? 0.25 + 0.15 * beamState.shimmer : 0.25}
+              />
               <Circle cx={bh.x} cy={bh.y} r={3.5} fill={beamState.headColor} opacity={0.95} />
               <Circle cx={bh.x} cy={bh.y} r={1.5} fill="white" opacity={0.95} />
             </G>
