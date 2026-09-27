@@ -13,6 +13,7 @@ import {
   defaultBaseReward,
   getCOGSScoreComment,
   getTutorialCOGSComment,
+  axiomApplicableScore,
   TUTORIAL_FLAT_PAYOUT,
 } from '../scoring';
 import {
@@ -114,7 +115,10 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
   const playerPieceCount = pieces.filter(p => !p.isPrePlaced).length;
   setCogsScoreComment(
     isTutorial
-      ? getTutorialCOGSComment(result.total, currentDiscipline)
+      // AXM-036 P10/F10: judged against the two categories an Axiom run can
+      // actually earn (completion + pathIntegrity), not result.total, which
+      // is dragged down by categories the sector never offers.
+      ? getTutorialCOGSComment(axiomApplicableScore(result.breakdown), currentDiscipline)
       : getCOGSScoreComment(result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces),
   );
 

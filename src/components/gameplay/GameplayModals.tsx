@@ -275,7 +275,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 per-level curation left to do. */}
             {scoreResult && (() => {
               const b = scoreResult.breakdown;
-              const cats: [string, number, number][] = [
+              const allCats: [string, number, number][] = [
                 ['COMPLETION', b.completion, 25],
                 ['PATH', b.pathIntegrity, 15],
                 ['DEPTH', b.signalDepth, 14],
@@ -283,6 +283,15 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 ['DIVERSITY', b.diversity, 11],
                 ['DISCIPLINE', b.discipline, 10],
               ];
+              // AXM-036 P10/F10: Axiom has no requisition, so Signal
+              // Depth/Investment/Diversity are structurally zero there and
+              // Discipline may be unreachable on a fixed tray — showing all
+              // six always painted at least two the level could never pass.
+              // Axiom results show only what the level can actually earn;
+              // every other sector is unchanged.
+              const cats = level.sector === 'axiom'
+                ? allCats.filter(([label]) => label === 'COMPLETION' || label === 'PATH')
+                : allCats;
               return (
                 <View style={styles.scoreStrip}>
                   {cats.map(([label, val, max]) => (
@@ -291,7 +300,12 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                         styles.scoreCellVal,
                         { color: val >= max ? '#4ecb8d' : val > 0 ? '#f0b429' : 'rgba(224,85,85,0.7)' },
                       ]}>{val}</Text>
-                      <Text style={styles.scoreCellLabel}>{label}</Text>
+                      <Text
+                        style={styles.scoreCellLabel}
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.5}
+                      >{label}</Text>
                     </View>
                   ))}
                 </View>
@@ -486,16 +500,26 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                     reached ? styles.pulseResultPass : styles.pulseResultFail,
                   ]}
                 >
-                  <Text style={[
-                    styles.pulseResultText,
-                    { color: reached ? '#22C55E' : '#EF4444' },
-                  ]}>
+                  <Text
+                    style={[
+                      styles.pulseResultText,
+                      { color: reached ? '#22C55E' : '#EF4444' },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
                     {'P' + (i + 1)}
                   </Text>
-                  <Text style={[
-                    styles.pulseResultIcon,
-                    { color: reached ? '#22C55E' : '#EF4444' },
-                  ]}>
+                  <Text
+                    style={[
+                      styles.pulseResultIcon,
+                      { color: reached ? '#22C55E' : '#EF4444' },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.5}
+                  >
                     {reached ? 'PASS' : 'BLOCKED'}
                   </Text>
                 </View>

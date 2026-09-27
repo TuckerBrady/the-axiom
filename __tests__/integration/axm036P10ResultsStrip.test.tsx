@@ -47,7 +47,7 @@ describe('P10-4: score labels and pulse chips never wrap mid-word', () => {
   it('[P10-4] every score label and pulse chip text is single-line, auto-fit', () => {
     // scoreCellLabel — the six/two-cell strip label.
     const scoreCellLabelBlock = modalsSrc.match(
-      /<Text\s+style=\{styles\.scoreCellLabel\}[\s\S]{0,160}?>/,
+      /<Text\s+style=\{styles\.scoreCellLabel\}[\s\S]{0,220}?>/,
     )?.[0] ?? '';
     expect(scoreCellLabelBlock).toMatch(/numberOfLines=\{1\}/);
     expect(scoreCellLabelBlock).toMatch(/adjustsFontSizeToFit/);
@@ -55,7 +55,7 @@ describe('P10-4: score labels and pulse chips never wrap mid-word', () => {
 
     // pulseResultText — the "P1".."P8" chip label ("P1 BLOCKED" wrap, shot 13).
     const pulseResultTextBlock = modalsSrc.match(
-      /<Text\s+style=\{\[\s*styles\.pulseResultText,[\s\S]{0,220}?>/,
+      /<Text\s+style=\{\[\s*styles\.pulseResultText,[\s\S]{0,280}?>/,
     )?.[0] ?? '';
     expect(pulseResultTextBlock).toMatch(/numberOfLines=\{1\}/);
     expect(pulseResultTextBlock).toMatch(/adjustsFontSizeToFit/);
@@ -63,7 +63,7 @@ describe('P10-4: score labels and pulse chips never wrap mid-word', () => {
 
     // pulseResultIcon — the PASS/BLOCKED chip text.
     const pulseResultIconBlock = modalsSrc.match(
-      /<Text\s+style=\{\[\s*styles\.pulseResultIcon,[\s\S]{0,220}?>/,
+      /<Text\s+style=\{\[\s*styles\.pulseResultIcon,[\s\S]{0,280}?>/,
     )?.[0] ?? '';
     expect(pulseResultIconBlock).toMatch(/numberOfLines=\{1\}/);
     expect(pulseResultIconBlock).toMatch(/adjustsFontSizeToFit/);
