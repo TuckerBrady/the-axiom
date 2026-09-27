@@ -52,6 +52,8 @@ function baseBeamState(overrides: Partial<BeamState> = {}): BeamState {
     litWires: new Set(),
     shimmer: 0,
     headData: false,
+    // AXM-036 P4b traveler field (v1.2 authorized addition — additive only).
+    traveler: { visible: false, x: 0, y: 0, value: 0, r: 0 },
     ...overrides,
   };
 }

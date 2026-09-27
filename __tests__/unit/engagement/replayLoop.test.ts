@@ -49,6 +49,8 @@ function makeCtx(overrides: Partial<EngagementContext> = {}): EngagementContext 
       voidPulse: null, phase: 'idle' as const, litWires: new Set<string>(),
       // AXM-036 P4a-9 fields (v1.2 authorized addition — additive only).
       shimmer: 0, headData: false,
+      // AXM-036 P4b traveler field (v1.2 authorized addition — additive only).
+      traveler: { visible: false, x: 0, y: 0, value: 0, r: 0 },
     }),
     setPieceAnimState: makeInvokingMock({
       flashing: new Map(), flashCounter: new Map(), animations: new Map(),
