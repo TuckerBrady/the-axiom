@@ -231,15 +231,29 @@ export default function RequisitionPanel({
   const slideOutAnim = useRef(new Animated.Value(REQ_SLIDE_DISTANCE)).current;
 
   // P3-3: the body (tab bar, content, footer) stays mounted always; its
-  // maxHeight animates between 0 and its measured natural height instead
-  // of the body itself being conditionally rendered (REQ-A-2). Unmeasured
-  // (including first layout) means maxHeight is left unset.
+  // maxHeight animates between 0 and its measured open height instead of
+  // the body itself being conditionally rendered (REQ-A-2).
+  //
+  // AXM-036 hotfix 2. Three rules, each from the build-51 smoke:
+  // - The body's inner column shrinks with the body (flexShrink), so on a
+  //   short column the list gives up height and the footer stays on screen.
+  //   #78's measuring wrapper did not shrink, so the body clipped the footer.
+  // - The list region has one fixed height on every tab (contentMaxHeight),
+  //   so the column's natural height IS the open height, and a tab switch
+  //   never resizes the panel.
+  // - The column is measured ONCE, while the body is out of the column's
+  //   flow (absolute, invisible, non-interactive). It cannot be measured
+  //   inside a maxHeight-0 body: Yoga lays its children out against the
+  //   0 bound and reports them at 0 (seen on device: tab bar 1, footer 0).
+  //   Measuring out of flow also means the board never resizes for it.
+  //   After that the value is kept: a taller footer (the insufficient-
+  //   credits line) is absorbed by the list, never by clipping the footer.
   const [bodyMeasuredHeight, setBodyMeasuredHeight] = useState<number | null>(null);
   const bodyHeightAnim = useRef(new Animated.Value(0)).current;
 
   const handleBodyLayout = useCallback((e: { nativeEvent: { layout: { height: number } } }) => {
     const h = e.nativeEvent.layout.height;
-    if (h > 0) setBodyMeasuredHeight(h);
+    if (h > 0) setBodyMeasuredHeight(prev => prev ?? h);
   }, []);
 
   const {
@@ -286,6 +300,12 @@ export default function RequisitionPanel({
     }).start();
     // Mount-only: slideOutAnim is a ref and stable across renders.
   }, []);
+
+  // REQ-G-17: the list's height derives from available screen height
+  // instead of a fixed 240pt, which showed ~5 rows regardless of device
+  // size and hid the sixth-plus row behind a blind drag with no indicator
+  // or count. AXM-036 hotfix 2: it is the list's height on every tab.
+  const contentMaxHeight = Math.round(Dimensions.get('window').height * 0.32);
 
   // P3-3: expand slides the body up (IN curve), collapse slides it down
   // (OUT curve). Both take REQ_SLIDE_MS and run against maxHeight, never
@@ -432,11 +452,6 @@ export default function RequisitionPanel({
     return null;
   }
 
-  // REQ-G-17: maxHeight derives from available screen height instead of a
-  // fixed 240pt, which showed ~5 rows regardless of device size and hid
-  // the sixth-plus row behind a blind drag with no indicator or count.
-  const contentMaxHeight = Math.round(Dimensions.get('window').height * 0.32);
-
   return (
     <Animated.View style={[styles.root, { transform: [{ translateY: slideOutAnim }] }]}>
       {/* Drag handle */}
@@ -470,13 +485,13 @@ export default function RequisitionPanel({
       <Animated.View
         style={[
           styles.body,
-          bodyMeasuredHeight != null && { maxHeight: bodyHeightAnim },
+          bodyMeasuredHeight == null ? styles.bodyMeasuring : { maxHeight: bodyHeightAnim },
         ]}
-        pointerEvents={expanded ? 'auto' : 'none'}
+        pointerEvents={expanded && bodyMeasuredHeight != null ? 'auto' : 'none'}
         importantForAccessibility={expanded ? 'auto' : 'no-hide-descendants'}
         accessibilityElementsHidden={!expanded}
       >
-        <View onLayout={handleBodyLayout}>
+        <View style={styles.bodyColumn} onLayout={handleBodyLayout}>
           {/* Tab bar */}
           <View style={styles.tabBar}>
             {orderedTabs.map(tab => {
@@ -504,7 +519,7 @@ export default function RequisitionPanel({
           </View>
 
           {/* Tab content */}
-          <View style={styles.contentWrap}>
+          <View style={[styles.contentWrap, { height: contentMaxHeight }]}>
             <ScrollView
               style={[styles.contentScroll, { maxHeight: contentMaxHeight }]}
               contentContainerStyle={styles.contentInner}
@@ -579,7 +594,15 @@ const styles = StyleSheet.create({
   // before the footer. overflow hidden clips the body while its
   // maxHeight animates toward 0; no fixed height is set here or on any
   // ancestor of the footer.
-  body: { flexShrink: 1, overflow: 'hidden' },
+  body: { flexShrink: 1, minHeight: 0, overflow: 'hidden' },
+  // AXM-036 hotfix 2: first layout only. Out of the column's flow and
+  // invisible, so the body column reports its natural (open) height and
+  // the board does not resize for it. No maxHeight here on purpose.
+  bodyMeasuring: { position: 'absolute', left: 0, right: 0, opacity: 0 },
+  // AXM-036 hotfix 2: the body's one child. It must shrink with the body,
+  // or the shrink chain from root to list breaks and the body clips the
+  // footer instead (the build-51 FAIL).
+  bodyColumn: { flexShrink: 1, minHeight: 0 },
 
   handleArea: { alignItems: 'center', paddingTop: 6 },
   handleBtn: { alignItems: 'center', paddingVertical: 6, paddingHorizontal: 24 },
@@ -609,6 +632,7 @@ const styles = StyleSheet.create({
   budgetExhausted: { color: '#FF4444' },
 
   tabBar: {
+    flexShrink: 0,
     flexDirection: 'row',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(74,158,255,0.08)',
@@ -625,14 +649,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: 1.2,
   },
 
-  // REQ-G-17: contentScroll's maxHeight is now set inline per-render from
-  // contentMaxHeight (derived from screen height); the static entry here
-  // no longer carries one.
-  // The list is the one part of the drawer that gives up height when the
-  // column is short; contentMaxHeight caps it when there is room to spare.
-  contentWrap: { position: 'relative', flexShrink: 1 },
+  // REQ-G-17: contentScroll's maxHeight is set inline per-render from
+  // contentMaxHeight (derived from screen height).
+  // AXM-036 hotfix 2: contentWrap's height is set inline to the same
+  // contentMaxHeight, on every tab. The list is the one part of the drawer
+  // that gives up height when the column is short: it shrinks (to 0 if it
+  // must) and the scroll view fills whatever it keeps.
+  contentWrap: { position: 'relative', flexShrink: 1, minHeight: 0 },
   footer: { flexShrink: 0 },
-  contentScroll: {},
+  contentScroll: { flex: 1 },
   contentInner: { paddingHorizontal: Spacing.lg, paddingVertical: 8, gap: 8 },
   // Bottom fade signaling more content below (REQ-G-17).
   contentFade: {
