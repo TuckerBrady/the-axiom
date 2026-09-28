@@ -26,6 +26,7 @@ jest.mock('../../../src/store/requisitionStore', () => ({
   useRequisitionStore: {
     getState: jest.fn().mockReturnValue({
       getUnplacedPieces: jest.fn().mockReturnValue([]),
+      inventory: { pieces: [], tapes: { in: false, trail: false, out: false } },
     }),
   },
 }));
