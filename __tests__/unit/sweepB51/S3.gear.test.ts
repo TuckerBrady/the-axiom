@@ -12,6 +12,7 @@
 import * as engine from '../../../src/game/engine';
 import { autoConnectPhysicsPieces, executeMachine, getDefaultPorts } from '../../../src/game/engine';
 import { traceBeam } from '../../../src/game/beamTrace';
+import { beamWires } from '../../../src/game/beamWires';
 import { verifyPuzzle } from '../../../src/game/puzzleVerifier';
 import { computeSplitterMagnets } from '../../../src/store/gameStore';
 import { ALL_LEVELS } from '../../../src/game/levels';
@@ -206,6 +207,107 @@ describe('SWEEP-B51 S3 Gear routing', () => {
     const b = traceBeam(two);
     expect(b.entry.has('up')).toBe(false);
     expect(b.entry.has('down')).toBe(false);
+  });
+
+  test("[S3-4] a Gear feeding a Merger's second input keeps its lit wire and the engine still delivers", () => {
+    const pieces = [
+      makePiece('s', 'source', 1, 1, { isPrePlaced: true }),
+      makePiece('c1', 'conveyor', 2, 1, { rotation: 0 }),
+      makePiece('gA', 'gear', 1, 0),
+      makePiece('c2', 'conveyor', 2, 0, { rotation: 0 }),
+      makePiece('gB', 'gear', 3, 0),
+      makePiece('m', 'merger', 3, 1, { rotation: 0 }),
+      makePiece('c3', 'conveyor', 4, 1, { rotation: 0 }),
+      makePiece('t', 'terminal', 5, 1, { isPrePlaced: true }),
+    ];
+    const steps = run(pieces);
+    expect(reached(steps)).toBe(true);
+    const gearIdx = steps.findIndex(x => x.pieceId === 'gB');
+    expect(gearIdx).toBeGreaterThanOrEqual(0);
+    expect(steps[gearIdx].success).toBe(true);
+    expect(steps[gearIdx + 1].pieceId).toBe('m');
+
+    const { edges } = traceBeam(pieces);
+    expect(edges).toContainEqual({ from: 'gB', to: 'm' });
+
+    const kept = beamWires(pieces, autoConnectPhysicsPieces(pieces));
+    expect(kept.some(w =>
+      (w.fromPieceId === 'gB' && w.toPieceId === 'm') ||
+      (w.fromPieceId === 'm' && w.toPieceId === 'gB'),
+    )).toBe(true);
+  });
+
+  test('[S3-4] engine and traceBeam agree on every Gear decision across 5000 seeded physics-only boards', () => {
+    // mulberry32: a small deterministic PRNG, so a failing seed replays exactly.
+    const prng = (seed: number) => {
+      let a = seed >>> 0;
+      return () => {
+        a = (a + 0x6d2b79f5) >>> 0;
+        let t = a;
+        t = Math.imul(t ^ (t >>> 15), t | 1);
+        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    };
+    const W = 5;
+    const H = 4;
+    const POOL: PlacedPiece['type'][] = [
+      'conveyor', 'conveyor', 'gear', 'gear', 'gear', 'merger', 'bridge', 'splitter',
+    ];
+    const ROTATIONS = [0, 90, 180, 270] as const;
+    const NOT_VISITED = new Set(['void', 'terminalRejected', 'error']);
+
+    const buildBoard = (seed: number): PlacedPiece[] => {
+      const rand = prng(seed);
+      const pick = <T,>(xs: readonly T[]): T => xs[Math.floor(rand() * xs.length)];
+      const cells: [number, number][] = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) cells.push([x, y]);
+      for (let i = cells.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [cells[i], cells[j]] = [cells[j], cells[i]];
+      }
+      const extra = 4 + Math.floor(rand() * 10); // 4..13
+      const pieces: PlacedPiece[] = [
+        makePiece('src', 'source', cells[0][0], cells[0][1], {
+          isPrePlaced: true, rotation: pick(ROTATIONS),
+        }),
+      ];
+      for (let k = 1; k <= extra; k++) {
+        const type = pick(POOL);
+        pieces.push(makePiece(`${type}${k}`, type, cells[k][0], cells[k][1], {
+          rotation: pick(ROTATIONS),
+        }));
+      }
+      return computeSplitterMagnets(pieces);
+    };
+
+    let disagreements = 0;
+    let firstFailingSeed: number | null = null;
+    let gearStepsChecked = 0;
+    for (let seed = 0; seed < 5000; seed++) {
+      const board = buildBoard(seed);
+      expect(board.some(p => p.type === 'terminal')).toBe(false);
+      const steps = executeMachine(makeState(board.map(p => ({ ...p }))));
+      const trace = traceBeam(board.map(p => ({ ...p })));
+
+      const engineIds = new Set(steps.filter(s => !NOT_VISITED.has(s.type)).map(s => s.pieceId));
+      const traceIds = new Set(trace.entry.keys());
+      let ok = engineIds.size === traceIds.size && [...engineIds].every(id => traceIds.has(id));
+
+      for (const step of steps) {
+        if (step.type !== 'gear') continue;
+        gearStepsChecked++;
+        const outEdges = trace.edges.filter(e => e.from === step.pieceId).length;
+        if (step.success ? outEdges !== 1 : outEdges !== 0) ok = false;
+      }
+
+      if (!ok) {
+        disagreements++;
+        if (firstFailingSeed === null) firstFailingSeed = seed;
+      }
+    }
+    expect(gearStepsChecked).toBeGreaterThan(0);
+    expect({ disagreements, firstFailingSeed }).toEqual({ disagreements: 0, firstFailingSeed: null });
   });
 
   test('[S3-5] GUARD non-Gear pieces route exactly as before on a Conveyor-only board', () => {
