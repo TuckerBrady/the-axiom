@@ -30,6 +30,8 @@ import {
   REQ_SLIDE_MS,
   REQ_SLIDE_IN_BEZIER,
   REQ_SLIDE_OUT_BEZIER,
+  REQ_SWIPE_START,
+  resolveReqSwipe,
 } from './requisitionSlide';
 
 // ─── Tab configuration ────────────────────────────────────────────────────────
@@ -181,7 +183,9 @@ function TapeRow({ tapeType, nibbles, onIncrement, onDecrement, budgetRemaining 
   return (
     <View style={styles.row}>
       <View style={[styles.rowIcon, { borderColor: 'rgba(139,92,246,0.4)' }]}>
-        <Text style={styles.tapeTypeLabel}>{tapeType}</Text>
+        <Text style={styles.tapeTypeLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          {tapeType}
+        </Text>
       </View>
       <View style={styles.rowInfo}>
         <Text style={styles.rowLabel}>{tapeType} TAPE</Text>
@@ -273,18 +277,21 @@ export default function RequisitionPanel({
   const canAffordRequisition = creditBalance >= totalSpend;
 
   // ── Swipe gesture for expand/collapse ──
-  const panY = useRef(new Animated.Value(0)).current;
+  // SWEEP-B51 S8: the responder is created once, so it reads `expanded`
+  // through a ref kept current on every render. (It used to close over the
+  // first render's `expanded`, so a down swipe never collapsed the panel.)
+  // Its handlers sit on the handle area and the budget bar.
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
+  const claimVerticalSwipe = (_: unknown, gs: { dx: number; dy: number }) =>
+    Math.abs(gs.dy) > REQ_SWIPE_START && Math.abs(gs.dy) > Math.abs(gs.dx);
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 8,
-      onPanResponderMove: (_, gs) => {
-        if (!expanded && gs.dy < 0) panY.setValue(gs.dy);
-        if (expanded && gs.dy > 0) panY.setValue(gs.dy);
-      },
+      onMoveShouldSetPanResponder: claimVerticalSwipe,
+      onMoveShouldSetPanResponderCapture: claimVerticalSwipe,
       onPanResponderRelease: (_, gs) => {
-        panY.setValue(0);
-        if (!expanded && gs.dy < -40) setExpanded(true);
-        if (expanded && gs.dy > 40) setExpanded(false);
+        const next = resolveReqSwipe(expandedRef.current, gs.dy);
+        if (next !== null) setExpanded(next);
       },
     }),
   ).current;
@@ -462,8 +469,8 @@ export default function RequisitionPanel({
         </TouchableOpacity>
       </View>
 
-      {/* Budget summary — always visible */}
-      <View style={styles.budgetBar}>
+      {/* Budget summary — always visible. Also a swipe surface (S8-2). */}
+      <View style={styles.budgetBar} {...panResponder.panHandlers}>
         <View style={styles.budgetItem}>
           <Text style={styles.budgetLabel}>BUDGET</Text>
           <Text style={styles.budgetValue}>{creditBudget} CR</Text>
@@ -507,10 +514,15 @@ export default function RequisitionPanel({
                   onPress={() => setActiveTab(tab)}
                   activeOpacity={0.7}
                 >
-                  <Text style={[
-                    styles.tabLabel,
-                    { color: activeTab === tab ? TAB_COLORS[tab] : Colors.muted },
-                  ]}>
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      { color: activeTab === tab ? TAB_COLORS[tab] : Colors.muted },
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
+                  >
                     {tab}{count > 0 ? ` (${count})` : ''}
                   </Text>
                 </TouchableOpacity>

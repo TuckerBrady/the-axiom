@@ -21,3 +21,18 @@ export const REQ_SLIDE_IN_BEZIER: [number, number, number, number] = [0.16, 1, 0
 // Ease-in curve used when something is leaving/closing: handle-collapse
 // and the confirm slide-out.
 export const REQ_SLIDE_OUT_BEZIER: [number, number, number, number] = [0.4, 0, 1, 0.6];
+
+// SWEEP-B51 S8: the store's swipe gesture. A vertical drag is claimed once
+// it passes REQ_SWIPE_START (dp); on release it expands or collapses the
+// panel when it travelled at least REQ_SWIPE_THRESHOLD (dp) the right way.
+export const REQ_SWIPE_START = 8;
+export const REQ_SWIPE_THRESHOLD = 40;
+
+// The expanded state a released swipe asks for, or null for no change.
+// Collapsed + up swipe expands; expanded + down swipe collapses; a short or
+// wrong-way swipe does nothing.
+export function resolveReqSwipe(expanded: boolean, dy: number): boolean | null {
+  if (!expanded && dy <= -REQ_SWIPE_THRESHOLD) return true;
+  if (expanded && dy >= REQ_SWIPE_THRESHOLD) return false;
+  return null;
+}
