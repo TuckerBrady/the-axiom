@@ -277,11 +277,10 @@ export default function GameplayScreen({ navigation }: Props) {
     debugPrev: s.debugPrev,
   })));
 
-  const { lives, loseLife, refillLives, credits: livesCredits, addCredits } = useLivesStore(useShallow(s => ({
+  const { lives, loseLife, refillLives, addCredits } = useLivesStore(useShallow(s => ({
     lives: s.lives,
     loseLife: s.loseLife,
     refillLives: s.refillLives,
-    credits: s.credits,
     addCredits: s.addCredits,
   })));
   const completeLevel = useProgressionStore(s => s.completeLevel);
@@ -1975,7 +1974,7 @@ export default function GameplayScreen({ navigation }: Props) {
         voidQuoteIndex={voidQuoteIndex}
         getBlownCellCOGSLine={getBlownCellCOGSLine}
         lives={lives}
-        livesCredits={livesCredits}
+        livesCredits={credits}
         discipline={discipline}
         credits={credits}
         loseLife={loseLife}

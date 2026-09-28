@@ -31,6 +31,7 @@ import { useChallengeStore } from '../store/challengeStore';
 import { useProgressionStore } from '../store/progressionStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { useCodexStore } from '../store/codexStore';
+import { useEconomyStore } from '../store/economyStore';
 import { resolveInitialRoute, SESSION_KEY } from './resolveInitialRoute';
 
 export type RootStackParamList = {
@@ -94,6 +95,8 @@ export default function RootNavigator() {
     useProgressionStore.getState().hydrate();
     useSettingsStore.getState().hydrate();
     useCodexStore.getState().hydrate();
+    useEconomyStore.getState().hydrate();
+    useLivesStore.getState().hydrate();
     useChallengeStore.getState().loadOrGenerateChallenge();
   }, []);
 

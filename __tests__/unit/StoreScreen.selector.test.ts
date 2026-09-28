@@ -28,8 +28,8 @@ describe('StoreScreen Zustand selector usage', () => {
     expect(source).not.toMatch(/=\s*useLivesStore\(\)/);
   });
 
-  it('reads credits via a single-field selector on useLivesStore', () => {
-    expect(source).toMatch(/useLivesStore\(\s*s\s*=>\s*s\.credits\s*\)/);
+  it('reads credits via a single-field selector on useEconomyStore', () => {
+    expect(source).toMatch(/useEconomyStore\(\s*s\s*=>\s*s\.credits\s*\)/);
   });
 
   it('reads spendCredits via a single-field selector on useLivesStore', () => {
