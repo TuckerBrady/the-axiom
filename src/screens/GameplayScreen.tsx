@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated as RNAnimated,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -150,6 +151,7 @@ import {
 // Scope list.
 import { withRunGuard } from '../game/engagement/runGuard';
 import { classifyRunFailure, pulseWasGated } from '../game/engagement/failureOutcome';
+import { resolveGameplayBack } from '../game/gameplayBack';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
 
@@ -774,6 +776,25 @@ export default function GameplayScreen({ navigation }: Props) {
       useRequisitionStore.getState().unplaceInventoryPiece(piece.type);
     }
   }, [isAxiomLevel, isExecuting, showResults, showVoid, showWrongOutput, showInsufficientPulses, machineState.pieces, deletePiece]);
+
+  // ── Android BACK (SWEEP-B51 S5): opens PAUSE, never leaves the level ──
+  useEffect(() => {
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const action = resolveGameplayBack({
+        pauseOpen: showPauseModal,
+        abandonConfirmOpen: showAbandonConfirm,
+        blockingOverlayOpen: showResults || showCompletionCard || showCompletionScene || showVoid ||
+          showWrongOutput || showInsufficientPulses || showSpecNotMet || showRequiredNotEngaged || showOutOfLives,
+      });
+      if (action === 'openPause') setShowPauseModal(true);
+      else if (action === 'closeAbandonConfirm') setShowAbandonConfirm(false);
+      else if (action === 'closePause') setShowPauseModal(false);
+      return true;
+    });
+    return () => backSub.remove();
+  }, [showPauseModal, showAbandonConfirm, showResults, showCompletionCard, showCompletionScene, showVoid,
+    showWrongOutput, showInsufficientPulses, showSpecNotMet, showRequiredNotEngaged, showOutOfLives,
+    setShowPauseModal, setShowAbandonConfirm]);
 
   // ── Pause modal opener (stable ref so HUDChrome memo holds) ──
   const handlePauseOpen = useCallback(() => {
