@@ -14,8 +14,10 @@ export type PulseResultData = {
   achieved: number;
   // 'count' (requiredTerminalCount not met, documentary levels) or
   // 'undelivered' (live-gate levels: the tape matched but a non-blank pulse
-  // never reached the Terminal, P14-3). Absent means 'count'.
-  reason?: 'count' | 'undelivered';
+  // never reached the Terminal, P14-3) or 'route' (SWEEP-B51 S2: short of
+  // the count because a pulse was lost to the route, not held by a gate).
+  // Absent means 'count'.
+  reason?: 'count' | 'undelivered' | 'route';
 } | null;
 
 // SE-TM-035 — topology SHALL not met. The machine produced the right output

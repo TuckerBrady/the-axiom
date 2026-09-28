@@ -149,6 +149,7 @@ import {
 // engagement barrel (index.ts), which stays out of this package's
 // Scope list.
 import { withRunGuard } from '../game/engagement/runGuard';
+import { classifyRunFailure, pulseWasGated } from '../game/engagement/failureOutcome';
 
 // ─── Branch partitioning for Splitter fork ────────────────────────────────────
 
@@ -1168,16 +1169,6 @@ export default function GameplayScreen({ navigation }: Props) {
     // expectedOutput (A1-5/A1-6) keeps requiredTerminalCount as the live gate.
     const expectedOutputIsLiveGate = hasTape && !!expected && !!level.inputTape &&
       expected.length === level.inputTape.length;
-    const reachedOutputEveryPulse = steps.filter(s => s.type === 'terminal' && s.success).length >= (pulses.length || 1);
-    // Live-gate levels: ANY tape mismatch is a wrong output. Blocked pulses
-    // legitimately produce BLANK (part of expectedOutput under SE-TM-003), so
-    // a blocked pulse alone does not make this a wrong-output failure.
-    // Documentary levels keep the old "all pulses reached Terminal but values
-    // are wrong" check.
-    const wrongOutput = expectedOutputIsLiveGate
-      ? hasTape && !tapeMatches
-      : hasTape && reachedOutputEveryPulse && !tapeMatches;
-
     // Count pulses that reached Terminal. Levels without a Transmitter
     // use this for their success condition via requiredTerminalCount.
     const terminalSuccessCount = steps.filter(
@@ -1198,9 +1189,23 @@ export default function GameplayScreen({ navigation }: Props) {
     const liveGateResult = expectedOutputIsLiveGate && expected
       ? evaluateLiveGate(expected, storeOutputTape, reachedPerPulse)
       : null;
-    const metPulseRequirement = expectedOutputIsLiveGate
-      ? (liveGateResult?.undelivered.length ?? 0) === 0
-      : terminalSuccessCount >= requiredCount;
+    // SWEEP-B51 S2: one classifier decides the failure modal. A run that
+    // delivered nothing (and no gate chose that) is VOID, never OUTPUT
+    // MISMATCH or INSUFFICIENT PULSES. Live-gate: any tape mismatch with a
+    // delivery is a wrong output; blocked pulses legitimately produce BLANK.
+    // Documentary: all pulses reached the Terminal but the values are wrong.
+    const runOutcome = classifyRunFailure({
+      liveGate: expectedOutputIsLiveGate,
+      hasTape,
+      tapeMatches,
+      reachedPerPulse,
+      gatedPerPulse: pulses.map(pulseWasGated),
+      requiredCount,
+      undeliveredCount: liveGateResult?.undelivered.length ?? 0,
+    });
+    const wrongOutput = runOutcome === 'wrongOutput';
+    const metPulseRequirement = runOutcome !== 'insufficientGated' && runOutcome !== 'insufficientRoute' &&
+      runOutcome !== 'undelivered' && runOutcome !== 'void';
 
     // SE-TM-035: grade the executed signal path against the level's board-
     // topology SHALL (the same requirement the Spec Sheet surfaces). A machine
@@ -1228,7 +1233,8 @@ export default function GameplayScreen({ navigation }: Props) {
     // INSUFFICIENT PULSES modal: either requiredTerminalCount not met
     // (documentary levels, no Transmitter), or — live-gate levels — the tape
     // matched but a non-blank pulse never reached the Terminal (P14-3).
-    if (!metPulseRequirement && !wrongOutput) {
+    // A void outcome skips this and falls through to handleVoidFailure.
+    if (!metPulseRequirement && !wrongOutput && runOutcome !== 'void') {
       const outputPiece = machineState.pieces.find(pp => pp.type === 'terminal');
       if (outputPiece) {
         setPieceAnimState(prev => {
@@ -1258,6 +1264,7 @@ export default function GameplayScreen({ navigation }: Props) {
           results: reachedPerPulse,
           required: requiredCount,
           achieved: terminalSuccessCount,
+          ...(runOutcome === 'insufficientRoute' ? { reason: 'route' as const } : {}),
         });
       }
       setShowInsufficientPulses(true);
@@ -1494,6 +1501,12 @@ export default function GameplayScreen({ navigation }: Props) {
   const handleWrongOutputRetry = useCallback(() => {
     setShowWrongOutput(false);
     setWrongOutputData(null);
+    // SWEEP-B51 S2-5: RETRY also closes every other build-keeping failure modal.
+    setShowInsufficientPulses(false);
+    setPulseResultData(null);
+    setShowSpecNotMet(false);
+    setSpecNotMetData(null);
+    setShowRequiredNotEngaged(false);
     beam.resetBeam();
     tape.resetTape();
     endRun();
@@ -1502,7 +1515,8 @@ export default function GameplayScreen({ navigation }: Props) {
     } else {
       resumeTimer();
     }
-  }, [lives, endRun, resumeTimer, setShowOutOfLives, setShowWrongOutput, setWrongOutputData]);
+  }, [lives, endRun, resumeTimer, setShowOutOfLives, setShowWrongOutput, setWrongOutputData,
+    setShowInsufficientPulses, setPulseResultData, setShowSpecNotMet, setSpecNotMetData, setShowRequiredNotEngaged]);
 
   // ── No-level guard (after all hooks) ──
   if (!level) {

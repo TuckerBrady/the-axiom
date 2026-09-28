@@ -945,6 +945,16 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "The Axiom is, at present, in better condition than it has been in at least three years. I know this because I have the data. The data is unambiguous."
 > [PROPOSED | green | fires once only, before the premature Deep Void push. In retrospect, the player understands COGS was almost saying something he could not say.]
 
+### Failure diagnostics
+
+*COGS lines on the failure modals. Each is chosen by what the run actually did, never at random. Slot tags: `[id | modal | eye state]`.*
+
+> "N pulses were required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."
+> [insufficient_pulses_route | insufficientPulses | RED | N is the required pulse count; singular form below. SWEEP-B51 S2-4]
+
+> "1 pulse was required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."
+> [insufficient_pulses_route_singular | insufficientPulses | RED | N = 1]
+
 ---
 
 ## PART NINE: THE ENDING
