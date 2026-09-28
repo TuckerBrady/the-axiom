@@ -199,8 +199,6 @@ describe('SWEEP-B51 S8: requisition store swipe', () => {
     expect(tabTexts).toHaveLength(4);
     for (const t of tabTexts) {
       expect(t.props.numberOfLines).toBe(1);
-      expect(t.props.adjustsFontSizeToFit).toBe(true);
-      expect(t.props.minimumFontScale).toBe(0.6);
     }
 
     // Open the DATA tab so the tape rows render.

@@ -33,6 +33,7 @@ import {
   REQ_SWIPE_START,
   resolveReqSwipe,
 } from './requisitionSlide';
+import { REQ_TAB_LETTER_SPACING, REQ_TAB_PAD_X } from './requisitionTabs';
 
 // ─── Tab configuration ────────────────────────────────────────────────────────
 
@@ -520,8 +521,6 @@ export default function RequisitionPanel({
                       { color: activeTab === tab ? TAB_COLORS[tab] : Colors.muted },
                     ]}
                     numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.6}
                   >
                     {tab}{count > 0 ? ` (${count})` : ''}
                   </Text>
@@ -649,8 +648,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(74,158,255,0.08)',
   },
+  // SWEEP-B51 H1-2: tabs size to their labels (spare width shared after),
+  // so every label fits at the 11px floor with no auto-shrink.
   tab: {
-    flex: 1,
+    flexGrow: 1,
+    flexShrink: 0,
+    flexBasis: 'auto',
+    paddingHorizontal: REQ_TAB_PAD_X,
     paddingVertical: 10,
     alignItems: 'center',
     borderBottomWidth: 2,
@@ -658,7 +662,7 @@ const styles = StyleSheet.create({
   },
   // REQ-G-10: 9 -> FontSizes.floor.
   tabLabel: {
-    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: 1.2,
+    fontFamily: Fonts.spaceMono, fontSize: FontSizes.floor, letterSpacing: REQ_TAB_LETTER_SPACING,
   },
 
   // REQ-G-17: contentScroll's maxHeight is set inline per-render from

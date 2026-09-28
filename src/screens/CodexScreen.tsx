@@ -23,7 +23,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { BackButton } from '../components/BackButton';
 import { PieceIcon } from '../components/PieceIcon';
 import PieceSimulation from '../components/PieceSimulation';
-import { TapeGlyph, TapeFieldStrip, hexToRgba } from '../components/CodexDetailView';
+import { TapeGlyph, TapeFieldStrip, hexToRgba, codexPortSides } from '../components/CodexDetailView';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useCodexStore } from '../store/codexStore';
 import { CODEX_DIRECTIVES, type DirectiveEntry } from '../game/codexDirectives';
@@ -629,7 +629,7 @@ function DetailView({
           >
             {isStream
               ? <TapeGlyph color={streamColor} />
-              : <PieceIcon type={entry.id} size={32} color={streamColor} />}
+              : <PieceIcon type={entry.id} size={32} color={streamColor} portSides={codexPortSides(entry.id)} />}
           </View>
           <Text style={cs.detailName}>{entry.name.toUpperCase()}</Text>
           <View

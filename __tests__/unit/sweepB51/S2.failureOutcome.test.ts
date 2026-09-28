@@ -109,7 +109,7 @@ describe('SWEEP-B51 S2 failureOutcome', () => {
   test('[S2-2] documentary short with a lost route pulse is insufficientRoute', () => {
     expect(classifyRunFailure({
       ...base, hasTape: true, tapeMatches: false, requiredCount: 3,
-      reachedPerPulse: [true, false, false], gatedPerPulse: [false, true, false],
+      reachedPerPulse: [true, false, false], gatedPerPulse: [false, false, false],
     })).toBe('insufficientRoute');
   });
 
