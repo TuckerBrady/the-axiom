@@ -1,93 +1,78 @@
-// AXM-036 P12 — one shared socket renderer (R-12.1), used by:
-//   - the animated connection-socket layer (Source; Terminal without entrySide)
+// One shared endpoint port renderer (AXM-044 DR-1), used by:
+//   - the animated connection-port layer (Source; Terminal without entrySide)
 //   - the static directional-Terminal entry marker (Terminal with entrySide)
+//   - PieceIcon's Codex ports (hero icon, ALSO CATALOGUED chips, and the
+//     Field Simulation), via EndpointPortShape
+//
+// SWEEP-B51 S12 (AXM-044, locked design "S3: Energy port"): the P12 socket
+// bar is replaced by an energy port: a half-disc aperture on the cell edge,
+// an inner arc, and a core (filled on a Source, hollow on a Terminal). The
+// geometry is endpointPortGeometry in endpointSocketGeometry.ts.
 //
 // AXM-036 HF-1 (build 50, "Source and terminal pieces didn't have sockets"):
 // the animation lives on RN Animated.View hosts, never on a react-native-svg
-// prop. P12 drove an Animated-wrapped svg <G> with the
-// scale-about-anchor as a transform PROP array; react-native-svg flattens a
-// transform array into one props object (transformsArrayToProps), so the
-// repeated translateX/Y keys collapsed and every socket was drawn one anchor
-// length toward the left/top: on the wrong side of a Source, out of the cell
-// for a Terminal. Each side now has one always-mounted Animated.View covering
-// the full cell, with opacity and an ORDERED style transform (RN applies it in
-// order about the view centre); inside it, a static Svg draws the shape.
+// prop. react-native-svg flattens a transform array into one props object
+// (transformsArrayToProps), so an ordered transform on an svg element loses
+// its repeated translate keys and draws in the wrong place. Each side has one
+// always-mounted Animated.View covering the full cell, with opacity and an
+// ORDERED style transform (RN applies it in order about the view centre);
+// inside it, a static Svg draws the port.
 //
 // useNativeDriver: false, same as PieceIcon.tsx and DamagedCell.tsx: this is
-// a piece interaction beat on the JS thread (DR-6). Each of the four side
-// hosts is ALWAYS mounted (REQ-A-1/A-2) — there is no
+// a piece interaction beat on the JS thread (AXM-037 DR-6). Each of the four
+// side hosts is ALWAYS mounted (REQ-A-1/A-2): there is no
 // `{connected && <Animated...>}` anywhere in this file; only the value each
 // host's Animated.Value is driven to changes.
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
-import Svg, { G, Path, Rect } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 import type { PortSide } from '../../game/types';
-import { Colors } from '../../theme/tokens';
-import { endpointSocketGeometry } from './endpointSocketGeometry';
+import { endpointPortGeometry, PIECE_CORE } from './endpointSocketGeometry';
 
 const CONNECT_MS = 150;
 const DISCONNECT_MS = 100;
-const SOCKET_CHANNEL_FILL = '#060e1a'; // pieceCore (R-12.4) — PieceIcon.tsx's existing inner-disc fill.
 
 const SIDES: PortSide[] = ['top', 'right', 'bottom', 'left'];
 
-// The fixed (ring-side) anchor coordinate and the axis a side's socket
-// extends along, derived from endpointSocketGeometry's own side mapping
-// (see that file's header): the inner edge (`xi` in the left frame) maps to
-// this anchor value on this axis for every side.
-function socketAnchor(cellSize: number, side: PortSide): { axis: 'x' | 'y'; anchor: number } {
-  const c = cellSize;
-  const s = (0.6 * (c - 4)) / 40;
-  const R = 16 * s;
-  const xi = c / 2 - R + 2 * s;
-  switch (side) {
-    case 'left':
-      return { axis: 'x', anchor: xi };
-    case 'right':
-      return { axis: 'x', anchor: c - xi };
-    case 'top':
-      return { axis: 'y', anchor: xi };
-    case 'bottom':
-      return { axis: 'y', anchor: c - xi };
-  }
-}
-
-interface EndpointSocketShapeProps {
+interface EndpointPortShapeProps {
   cellSize: number;
   side: PortSide;
   kind: 'outlet' | 'socket';
-  fill: string;
+  color: string;
 }
 
 /**
- * The static shape — socket/outlet bar, channel recess, and (outlet only)
- * the notch. Used both as the content of each animated host below and as
- * the whole of the static directional-Terminal entry marker.
+ * The static port: aperture, inner arc, core, in that order (DR-2..DR-4).
+ * The only component that draws a port. Used as the content of each
+ * animated host below, as the whole of the static directional-Terminal
+ * entry marker, and by PieceIcon for the Codex art.
  */
-export function EndpointSocketShape({ cellSize, side, kind, fill }: EndpointSocketShapeProps) {
-  const geo = endpointSocketGeometry(cellSize, side, kind);
+export function EndpointPortShape({ cellSize, side, kind, color }: EndpointPortShapeProps) {
+  const geo = endpointPortGeometry(cellSize, side, kind);
   return (
     <G>
-      <Rect
-        x={geo.socket.x}
-        y={geo.socket.y}
-        width={geo.socket.w}
-        height={geo.socket.h}
-        rx={geo.socket.r}
-        fill={fill}
+      <Path
+        d={geo.aperturePath}
+        fill={PIECE_CORE}
+        stroke={color}
+        strokeWidth={geo.apertureStrokeWidth}
       />
-      <Rect
-        x={geo.channel.x}
-        y={geo.channel.y}
-        width={geo.channel.w}
-        height={geo.channel.h}
-        fill={SOCKET_CHANNEL_FILL}
+      <Path
+        d={geo.arcPath}
+        fill="none"
+        stroke={color}
+        strokeOpacity={geo.arcOpacity}
+        strokeWidth={geo.arcStrokeWidth}
       />
-      {geo.notch && (
+      {geo.coreFilled ? (
+        <Path d={geo.corePath} fill={color} />
+      ) : (
         <Path
-          d={`M ${geo.notch[0][0]} ${geo.notch[0][1]} L ${geo.notch[1][0]} ${geo.notch[1][1]} L ${geo.notch[2][0]} ${geo.notch[2][1]} Z`}
-          fill={Colors.void}
+          d={geo.corePath}
+          fill={PIECE_CORE}
+          stroke={color}
+          strokeWidth={geo.coreStrokeWidth ?? undefined}
         />
       )}
     </G>
@@ -103,11 +88,11 @@ interface EndpointSocketsProps {
 }
 
 /**
- * The four-host animated connection layer (P12-4, S-DR-2/3/6). Exactly four
- * hosts, one per side, each always mounted with a stable testID. Each side's
- * single Animated.Value (0 retracted, 1 extended), created once, drives both
- * the socket's extension along its own axis and its opacity — no second
- * value, no native driver.
+ * The four-host animated connection layer (P12-4, AXM-044 DR-6/DR-7).
+ * Exactly four hosts, one per side, each always mounted with a stable
+ * testID. Each side's single Animated.Value (0 retracted, 1 extended),
+ * created once, drives both the port's uniform scale about its centre and
+ * its opacity: no second value, no native driver.
  */
 export function EndpointSockets({ pieceId, cellSize, kind, connectedSides, fill }: EndpointSocketsProps) {
   const animsRef = useRef<Record<PortSide, Animated.Value> | null>(null);
@@ -153,16 +138,21 @@ export function EndpointSockets({ pieceId, cellSize, kind, connectedSides, fill 
   return (
     <>
       {SIDES.map(side => {
-        const { axis, anchor } = socketAnchor(cellSize, side);
         const progress = anims[side];
-        // RN scales about the view centre (c/2); translating by the anchor's
-        // offset from the centre first and back after makes the ring-side
-        // edge the fixed point, so the socket extends outward from the ring.
-        const d = anchor - cellSize / 2;
-        const transform =
-          axis === 'x'
-            ? [{ translateX: d }, { scaleX: progress }, { translateX: -d }]
-            : [{ translateY: d }, { scaleY: progress }, { translateY: -d }];
+        // RN scales about the view centre (c/2); translating by the port
+        // centre's offset from the view centre first and back after makes
+        // the port centre the fixed point, so the port grows from 0 radius
+        // on the edge (DR-7, contract R-12.2).
+        const { cx, cy } = endpointPortGeometry(cellSize, side, kind);
+        const dx = cx - cellSize / 2;
+        const dy = cy - cellSize / 2;
+        const transform = [
+          { translateX: dx },
+          { translateY: dy },
+          { scale: progress },
+          { translateY: -dy },
+          { translateX: -dx },
+        ];
         return (
           <Animated.View
             key={side}
@@ -179,7 +169,7 @@ export function EndpointSockets({ pieceId, cellSize, kind, connectedSides, fill 
             }}
           >
             <Svg width={cellSize} height={cellSize} viewBox={`0 0 ${cellSize} ${cellSize}`}>
-              <EndpointSocketShape cellSize={cellSize} side={side} kind={kind} fill={fill} />
+              <EndpointPortShape cellSize={cellSize} side={side} kind={kind} color={fill} />
             </Svg>
           </Animated.View>
         );
@@ -195,14 +185,14 @@ interface TerminalEntryMarkerProps {
 }
 
 /**
- * The static directional-Terminal marker (P12-5, M-DR-1..M-DR-6). No
- * Animated value, no timing, no native driver — it never changes once the
- * Terminal is placed.
+ * The static directional-Terminal marker (P12-5, AXM-044 DR-6): one socket
+ * port on `entrySide`. No Animated value, no timing, no native driver; it
+ * never changes once the Terminal is placed.
  */
 export function TerminalEntryMarker({ entrySide, cellSize, fill }: TerminalEntryMarkerProps) {
   return (
     <G testID={`terminal-entry-${entrySide}`}>
-      <EndpointSocketShape cellSize={cellSize} side={entrySide} kind="socket" fill={fill} />
+      <EndpointPortShape cellSize={cellSize} side={entrySide} kind="socket" color={fill} />
     </G>
   );
 }

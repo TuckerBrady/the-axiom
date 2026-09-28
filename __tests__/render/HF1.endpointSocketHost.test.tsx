@@ -56,7 +56,7 @@ const TestRenderer = require('react-test-renderer');
 const { Animated } = require('react-native');
 
 import { EndpointSockets } from '../../src/components/gameplay/EndpointSockets';
-import { endpointSocketGeometry } from '../../src/components/gameplay/endpointSocketGeometry';
+import { endpointPortGeometry } from '../../src/components/gameplay/endpointSocketGeometry';
 import BoardPiece from '../../src/components/gameplay/BoardPiece';
 import type { PlacedPiece, PortSide } from '../../src/game/types';
 
@@ -109,25 +109,20 @@ function applyRNTransform(transform: any[], p: [number, number], centre: number)
     else if ('translateY' in t) y += num(t.translateY);
     else if ('scaleX' in t) x *= num(t.scaleX);
     else if ('scaleY' in t) y *= num(t.scaleY);
-    else throw new Error(`unexpected transform ${JSON.stringify(Object.keys(t))}`);
+    else if ('scale' in t) {
+      x *= num(t.scale);
+      y *= num(t.scale);
+    } else throw new Error(`unexpected transform ${JSON.stringify(Object.keys(t))}`);
   }
   return [x + centre, y + centre];
 }
 
-// The socket's ring-side edge in cell coordinates: the point that stays put
-// while the socket extends outward from the ring (DR-6).
-function ringEdge(c: number, side: PortSide): [number, number] {
-  const g = endpointSocketGeometry(c, side, 'socket').socket;
-  switch (side) {
-    case 'left':
-      return [g.x + g.w, g.y + g.h / 2];
-    case 'right':
-      return [g.x, g.y + g.h / 2];
-    case 'top':
-      return [g.x + g.w / 2, g.y + g.h];
-    case 'bottom':
-      return [g.x + g.w / 2, g.y];
-  }
+// The port centre in cell coordinates (the midpoint of the port's cell
+// edge): the point that stays put while the port scales up from 0 radius
+// (SWEEP-B51 S12, AXM-044 DR-7).
+function portCentre(c: number, side: PortSide): [number, number] {
+  const g = endpointPortGeometry(c, side, 'socket');
+  return [g.cx, g.cy];
 }
 
 function render(el: React.ReactElement) {
@@ -177,7 +172,7 @@ describe('[HF-1] socket animation never reaches a react-native-svg prop', () => 
   });
 });
 
-describe('[HF-1] each side host is an RN Animated.View scaling about the ring-side edge', () => {
+describe('[HF-1] each side host is an RN Animated.View scaling about the port centre', () => {
   it.each([42, 40, 26])('cell %i: full-cell host, opacity and ordered transform in style', c => {
     const r = render(
       <EndpointSockets pieceId="p" cellSize={c} kind="socket" connectedSides={['left']} fill="#00C48C" />,
@@ -191,12 +186,12 @@ describe('[HF-1] each side host is an RN Animated.View scaling about the ring-si
       expect(style.opacity).toBeInstanceOf(Animated.Value);
       expect(Array.isArray(style.transform)).toBe(true);
 
-      const anchor = ringEdge(c, side);
-      const scaleKey = side === 'left' || side === 'right' ? 'scaleX' : 'scaleY';
+      const anchor = portCentre(c, side);
+      const scaleKey = 'scale';
       const scaleEntry = style.transform.find((t: object) => scaleKey in t);
       expect(scaleEntry).toBeDefined();
 
-      // The ring-side edge is a fixed point of the transform at every scale.
+      // The port centre is a fixed point of the transform at every scale.
       for (const s of [0, 0.5, 1]) {
         const probe = style.transform.map((t: Record<string, unknown>) =>
           scaleKey in t ? { [scaleKey]: s } : t,
@@ -226,12 +221,9 @@ describe('[HF-1] each side host is an RN Animated.View scaling about the ring-si
       const svg = host.findAllByType('Svg')[0];
       expect(svg.props.width).toBe(c);
       expect(svg.props.height).toBe(c);
-      const geo = endpointSocketGeometry(c, side, 'outlet');
-      const rects = host.findAllByType('Rect');
-      expect(rects[0].props.x).toBeCloseTo(geo.socket.x, 6);
-      expect(rects[0].props.y).toBeCloseTo(geo.socket.y, 6);
-      expect(rects[0].props.width).toBeCloseTo(geo.socket.w, 6);
-      expect(rects[0].props.height).toBeCloseTo(geo.socket.h, 6);
+      const geo = endpointPortGeometry(c, side, 'outlet');
+      const paths = host.findAllByType('Path');
+      expect(paths[0].props.d).toBe(geo.aperturePath);
     }
   });
 

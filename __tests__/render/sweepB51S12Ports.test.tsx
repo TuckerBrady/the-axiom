@@ -62,6 +62,7 @@ import { PieceIcon } from '../../src/components/PieceIcon';
 import PieceSimulation from '../../src/components/PieceSimulation';
 import CodexDetailView, { getCodexEntry } from '../../src/components/CodexDetailView';
 import type { PortSide } from '../../src/game/types';
+import { Colors } from '../../src/theme/tokens';
 
 const SIDES: PortSide[] = ['top', 'right', 'bottom', 'left'];
 const AMBER = '#F0B429';
@@ -269,7 +270,7 @@ describe('S12 ports render', () => {
     // The icon's resolved stroke colour when no color prop is given.
     const plain = render(<PieceIcon type="terminal" size={40} portSides={['left']} />);
     const plainPaths = hostsOfType(byTestId(plain.root, 'G', 'endpoint-socket-terminal-left')[0], 'Path');
-    expect(plainPaths[0].props.stroke).toBe(GREEN);
+    expect(plainPaths[0].props.stroke).toBe(Colors.green);
 
     // Ignored for every other piece.
     for (const type of ['conveyor', 'gear', 'splitter', 'configNode']) {

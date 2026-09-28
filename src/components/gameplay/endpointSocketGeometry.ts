@@ -1,57 +1,114 @@
-// AXM-036 P12 — Source/Terminal socket geometry (normative, CONTRACT.md
-// section 12a). Pure math, no JSX and no react-native-svg import, same
-// pattern as damagedCellGeometry.ts, so the numbers are directly
-// unit-testable without rendering.
+// Source/Terminal endpoint port geometry. Pure math, no JSX and no
+// react-native-svg import, same pattern as damagedCellGeometry.ts, so the
+// numbers are directly unit-testable without rendering.
 //
-// All values are fractions of `c` (the board's CELL_SIZE), computed with the
-// side drawn on the LEFT, then mapped onto the requested side. The maps are
-// exactly CONTRACT.md's:
-//   top:    (x, y) -> (y, x)
-//   right:  (x, y) -> (c - x, y)
-//   bottom: (x, y) -> (y, c - x)
-//   left:   (x, y) -> (x, y)          (identity — this is the reference side)
+// SWEEP-B51 S12 (AXM-044, locked design "S3: Energy port",
+// project-docs/DESIGN_HANDOFFS/009-energy-port-sockets/DESIGN_SPEC.md):
+// the AXM-036 P12 socket bar, channel and notch are retired. A port is a
+// half-disc aperture on the cell edge, an inner arc, and a core: filled for a
+// Source (it emits), hollow for a Terminal (it receives). All values are
+// fractions of `c`, the cell size.
+//
+// Clip by construction (DR-5, contract R-12.3): every shape is emitted as the
+// half on the cell's side of the edge (closed half-discs for the aperture
+// and the core, an open semicircle for the arc), so all geometry lies in
+// [0, c] without an SVG ClipPath.
 
 import type { PortSide } from '../../game/types';
 
-export interface GeometryRect {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  r?: number;
+export const PORT_APERTURE_R = 0.153;
+export const PORT_APERTURE_STROKE = 0.028;
+export const PORT_CORE_R = 0.0625;
+export const PORT_CORE_STROKE = 0.022;
+export const PORT_ARC_R = 0.111;
+export const PORT_ARC_STROKE = 0.017;
+export const PORT_ARC_OPACITY = 0.6;
+/** pieceCore: the aperture fill and a Terminal core's hollow interior. */
+export const PIECE_CORE = '#060e1a';
+
+// Minimum px values (DR-2..DR-4, DR-8): at c = 26 the filled Source core and
+// the hollow Terminal core must still read as different at 100%.
+const MIN_STROKE_PX = 1;
+const MIN_CORE_R_PX = 2.5;
+
+export interface EndpointPortGeometry {
+  /** Midpoint of the `side` edge of the c x c cell. */
+  cx: number;
+  cy: number;
+  apertureR: number;
+  apertureStrokeWidth: number;
+  aperturePath: string;
+  arcR: number;
+  arcStrokeWidth: number;
+  arcOpacity: number;
+  arcPath: string;
+  coreR: number;
+  corePath: string;
+  coreFilled: boolean;
+  coreStrokeWidth: number | null;
 }
 
-export type Point = [number, number];
+type Vec = [number, number];
 
-export interface EndpointSocketGeometry {
-  socket: GeometryRect;
-  channel: GeometryRect;
-  /** Present only for `kind: 'outlet'`. */
-  notch: [Point, Point, Point] | null;
-}
+// Unit normal pointing from the edge into the cell.
+const INWARD: Record<PortSide, Vec> = {
+  left: [1, 0],
+  right: [-1, 0],
+  top: [0, 1],
+  bottom: [0, -1],
+};
 
-function mapPoint(pt: Point, side: PortSide, c: number): Point {
-  const [x, y] = pt;
+function edgeMidpoint(c: number, side: PortSide): Vec {
   switch (side) {
     case 'left':
-      return [x, y];
-    case 'top':
-      return [y, x];
+      return [0, c / 2];
     case 'right':
-      return [c - x, y];
+      return [c, c / 2];
+    case 'top':
+      return [c / 2, 0];
     case 'bottom':
-      return [y, c - x];
+      return [c / 2, c];
   }
 }
 
-function mapRect(rect: GeometryRect, side: PortSide, c: number): GeometryRect {
-  const p1 = mapPoint([rect.x, rect.y], side, c);
-  const p2 = mapPoint([rect.x + rect.w, rect.y + rect.h], side, c);
-  const x = Math.min(p1[0], p2[0]);
-  const y = Math.min(p1[1], p2[1]);
-  const w = Math.abs(p2[0] - p1[0]);
-  const h = Math.abs(p2[1] - p1[1]);
-  return rect.r !== undefined ? { x, y, w, h, r: rect.r } : { x, y, w, h };
+// The semicircle of radius r about (cx, cy) on the inner side of the edge.
+// It runs from the inward normal rotated -90 degrees to the normal rotated
+// +90 degrees; SVG's y grows down, so sweep-flag 1 (clockwise on screen)
+// passes through the inward normal, i.e. into the cell.
+function innerSemicircle(cx: number, cy: number, r: number, side: PortSide, closed: boolean): string {
+  const [nx, ny] = INWARD[side];
+  const x0 = cx + r * ny;
+  const y0 = cy - r * nx;
+  const x1 = cx - r * ny;
+  const y1 = cy + r * nx;
+  return `M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}${closed ? ' Z' : ''}`;
+}
+
+export function endpointPortGeometry(
+  c: number,
+  side: PortSide,
+  kind: 'outlet' | 'socket',
+): EndpointPortGeometry {
+  const [cx, cy] = edgeMidpoint(c, side);
+  const apertureR = PORT_APERTURE_R * c;
+  const arcR = PORT_ARC_R * c;
+  const coreR = Math.max(PORT_CORE_R * c, MIN_CORE_R_PX);
+  const coreFilled = kind === 'outlet';
+  return {
+    cx,
+    cy,
+    apertureR,
+    apertureStrokeWidth: Math.max(PORT_APERTURE_STROKE * c, MIN_STROKE_PX),
+    aperturePath: innerSemicircle(cx, cy, apertureR, side, true),
+    arcR,
+    arcStrokeWidth: Math.max(PORT_ARC_STROKE * c, MIN_STROKE_PX),
+    arcOpacity: PORT_ARC_OPACITY,
+    arcPath: innerSemicircle(cx, cy, arcR, side, false),
+    coreR,
+    corePath: innerSemicircle(cx, cy, coreR, side, true),
+    coreFilled,
+    coreStrokeWidth: coreFilled ? null : Math.max(PORT_CORE_STROKE * c, MIN_STROKE_PX),
+  };
 }
 
 /**
@@ -65,53 +122,6 @@ export function iconPxPerUnit(cellSize: number): number {
 /** Outer ring radius in px (PieceIcon's `r=16` in its 40-unit viewBox). */
 export function outerRingRadius(cellSize: number): number {
   return 16 * iconPxPerUnit(cellSize);
-}
-
-export function endpointSocketGeometry(
-  cellSize: number,
-  side: PortSide,
-  kind: 'outlet' | 'socket',
-): EndpointSocketGeometry {
-  const c = cellSize;
-  const s = iconPxPerUnit(c);
-  const R = 16 * s;
-
-  const x0 = 0.02 * c;
-  const xi = c / 2 - R + 2 * s;
-  const yTop = c / 2 - 0.075 * c;
-  const yBot = c / 2 + 0.075 * c;
-
-  const socketLeft: GeometryRect = {
-    x: x0,
-    y: yTop,
-    w: xi - x0,
-    h: yBot - yTop,
-    r: 0.015 * c,
-  };
-
-  const chTop = c / 2 - 0.025 * c;
-  const chBot = c / 2 + 0.025 * c;
-
-  let channelLeft: GeometryRect;
-  let notchLeft: [Point, Point, Point] | null = null;
-
-  if (kind === 'socket') {
-    channelLeft = { x: x0, y: chTop, w: xi - 0.02 * c - x0, h: chBot - chTop };
-  } else {
-    const chX = x0 + 0.035 * c;
-    channelLeft = { x: chX, y: chTop, w: xi - 0.02 * c - chX, h: chBot - chTop };
-    notchLeft = [
-      [x0, yTop],
-      [x0, yBot],
-      [x0 + 0.045 * c, c / 2],
-    ];
-  }
-
-  return {
-    socket: mapRect(socketLeft, side, c),
-    channel: mapRect(channelLeft, side, c),
-    notch: notchLeft ? (notchLeft.map(pt => mapPoint(pt, side, c)) as [Point, Point, Point]) : null,
-  };
 }
 
 /**
