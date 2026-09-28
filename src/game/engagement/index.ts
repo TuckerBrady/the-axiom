@@ -50,6 +50,8 @@ export {
   PULSE_CHIP_BLOCK_PAD,
 } from './failureOutcome';
 export type { FailureOutcome } from './failureOutcome';
+export { detectGearJam, gearJamLine } from './gearJamDiagnostic';
+export type { GearJamReason } from './gearJamDiagnostic';
 export type {
   EngagementContext,
   Pt,

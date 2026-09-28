@@ -45,10 +45,26 @@ function buildStraightPath(sx: number, sy: number, ox: number, oy: number, requi
   const path: SolPiece[] = [];
   // Force same row
   const row = sy;
+  if (!required.includes('gear')) {
+    for (let col = sx + 1; col < ox; col++) {
+      path.push({ type: 'conveyor', x: col, y: row, rotation: 0 });
+    }
+    return path;
+  }
+  // SWEEP-B51 S3-7: a Gear never passes straight (AXM-038), so a straight
+  // template that requires one lays a four-Gear jog at the middle column m:
+  // Gears at (m, y), (m, y+d), (m+1, y+d), (m+1, y), conveyors elsewhere on
+  // the row. d = +1 when row y+1 is in bounds and free, else -1. Every source
+  // position sits at y <= gridHeight - 2 (resolveSourcePos) and this row holds
+  // only the Source and the Terminal, so row y+1 always qualifies: d = +1.
+  const m = sx + Math.floor((ox - sx) / 2);
+  const d = 1;
   for (let col = sx + 1; col < ox; col++) {
-    const type = required.includes('gear') && col === sx + Math.floor((ox - sx) / 2) ? 'gear' : 'conveyor';
+    const type = col === m || col === m + 1 ? 'gear' : 'conveyor';
     path.push({ type, x: col, y: row, rotation: 0 });
   }
+  path.push({ type: 'gear', x: m, y: row + d, rotation: 0 });
+  path.push({ type: 'gear', x: m + 1, y: row + d, rotation: 0 });
   return path;
 }
 

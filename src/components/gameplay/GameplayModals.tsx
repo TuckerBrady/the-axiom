@@ -132,6 +132,8 @@ export interface GameplayModalsProps {
   // .handleVoidFailure), not re-rolled here. No RNG call belongs in this
   // render path.
   voidQuoteIndex: number;
+  // SWEEP-B51 S3-9: a Gear jam diagnostic, shown in place of the random quote.
+  voidDiagnosticLine: string | null;
   getBlownCellCOGSLine: (count: number) => string | null;
 
   // Stores
@@ -188,6 +190,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
     scoreResult, cogsScoreComment, firstTimeBonus, elaborationMult, mayBonus,
     blownCells, setBlownCells,
     voidQuoteIndex,
+    voidDiagnosticLine,
     getBlownCellCOGSLine,
     lives, livesCredits, discipline, credits,
     loseLife, refillLives, stars,
@@ -605,7 +608,7 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
               <CogsAvatar size="small" state="damaged" />
               <View style={{ flex: 1, gap: Spacing.sm }}>
                 <Text style={styles.voidQuote}>
-                  {VOID_QUOTES[voidQuoteIndex]}
+                  {voidDiagnosticLine ?? VOID_QUOTES[voidQuoteIndex]}
                 </Text>
                 {!isAxiomLevel && blownCells.size > 0 && (
                   <Text style={styles.voidQuote}>

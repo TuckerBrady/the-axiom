@@ -131,11 +131,11 @@ describe('[P13-1] unreached chain: no wires until it joins the Source', () => {
 
 describe('[P13-1] direction-agnostic', () => {
   it('keeps the Gear-Gear wire even though autoConnect stores it against the beam', () => {
-    const source = prePlaced('source', 0, 1);
+    const source = prePlaced('source', 1, 0);
     const gearB: PlacedPiece = { id: 'gearB', type: 'gear', category: 'physics', gridX: 2, gridY: 1, ports: getDefaultPorts('placeholder' as never), rotation: 0 };
     const gearA: PlacedPiece = { id: 'gearA', type: 'gear', category: 'physics', gridX: 1, gridY: 1, ports: getDefaultPorts('placeholder' as never), rotation: 0 };
-    const terminal = prePlaced('terminal', 3, 1);
-    // Pieces listed in the order [Source (0,1), Gear (2,1), Gear (1,1), Terminal (3,1)].
+    const terminal = prePlaced('terminal', 2, 2);
+    // Pieces listed in the order [Source (1,0), Gear (2,1), Gear (1,1), Terminal (2,2)].
     const pieces = [source, gearB, gearA, terminal];
 
     const wires = autoConnectPhysicsPieces(pieces);

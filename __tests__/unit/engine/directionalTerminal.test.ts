@@ -128,7 +128,7 @@ describe('Directional Terminal — execution', () => {
     const pieces = [
       makePiece('s', 'source', 0, 1, { isPrePlaced: true }),
       makePiece('g', 'gear', 1, 1),
-      makePiece('t', 'terminal', 2, 1, { isPrePlaced: true, entrySide: 'left' }),
+      makePiece('t', 'terminal', 1, 2, { isPrePlaced: true, entrySide: 'top' }),
     ];
     expect(reached(executeMachine(makeState(pieces)))).toBe(true);
   });

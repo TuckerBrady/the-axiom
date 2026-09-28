@@ -484,4 +484,7 @@ export type ExecutionStep = {
   // Set only on a `terminalRejected` step (SPEC_DIRECTIONAL_TERMINAL 2.6,
   // 3.4): the Terminal-frame side the signal arrived on.
   side?: PortSide;
+  // Set only on a jammed Gear's step (SWEEP-B51 S3-3): no perpendicular side
+  // would take the signal ('noExit'), or both would ('twoExits').
+  gearJam?: 'noExit' | 'twoExits';
 };

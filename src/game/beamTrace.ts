@@ -12,9 +12,9 @@
 // This module reads only `pieces`, and MUST NOT re-implement any piece
 // type's port or exit rules itself — every routing decision comes from
 // `getDirectionalNeighbors`, which is the engine's own function. In
-// particular this file never special-cases a Gear: on today's engine a Gear
-// also exits straight ahead (FND-1), and when AXM-038 changes that, this
-// trace (and everything derived from it) follows automatically.
+// particular this file never special-cases a Gear: AXM-038 (SWEEP-B51 S3)
+// made a Gear leave through exactly one perpendicular side, and this trace
+// follows it by passing its `visited` set, exactly as executeMachine does.
 //
 // The one deliberate addition beyond a plain "visited" BFS is the Merger
 // exception: a Merger takes every inbound path (engine.ts's deferred-Merger
@@ -64,7 +64,7 @@ export function traceBeam(pieces: PlacedPiece[]): BeamTraceResult {
     const piece = pieces.find(p => p.id === currentId);
     if (!piece) continue;
 
-    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide);
+    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide, visited);
     for (const neighbor of neighbors) {
       const neighborAlreadyVisited = visited.has(neighbor.id);
       if (!neighborAlreadyVisited || neighbor.type === 'merger') {

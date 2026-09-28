@@ -1422,6 +1422,7 @@ export default function GameplayScreen({ navigation }: Props) {
         triggerHints,
         redColor: Colors.red,
         isScarImmune: (gx, gy) => isScarImmune(level, gx, gy),
+        setVoidDiagnosticLine: modals.setVoidDiagnosticLine,
       });
     }
   }, [isExecuting, engage, getPieceCenter, triggerHints, levelSpent, earnCredits]);
@@ -1986,6 +1987,7 @@ export default function GameplayScreen({ navigation }: Props) {
         setBlownCells={setBlownCells}
         failCount={failCount}
         voidQuoteIndex={voidQuoteIndex}
+        voidDiagnosticLine={modals.voidDiagnosticLine}
         getBlownCellCOGSLine={getBlownCellCOGSLine}
         lives={lives}
         livesCredits={credits}
