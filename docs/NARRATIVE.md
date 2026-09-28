@@ -1201,6 +1201,16 @@ process the signal. It recognizes it. I have been doing
 something similar for some time. I did not have a word for
 it until now."
 
+### Codex notes
+
+*COGS notes on shipped Codex entries. Slot tags: `[entry | field | source]`; `detail` is `CodexDetailView.tsx`, `screen` is `CodexScreen.tsx`. The Gear notes state the AXM-038 rule: one way in, exactly one perpendicular way out (SWEEP-B51 S13-3).*
+
+> "The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns — 90 degrees, one way. It never passes straight through and never divides. Give it exactly one way out."
+> [codex_gear | cogsNote | detail]
+
+> "The Gear is the only piece that redirects signal. Where a Conveyor carries straight, the Gear turns — 90 degrees, one way. It accepts input from any direction. It never passes straight through and never divides; give it exactly one way out. Every non-linear circuit requires at least one. Plan the bend before you need it. The signal will not wait while you reconsider."
+> [codex_gear | cogsNote | screen]
+
 ---
 
 *All content in this document is proposed. Tucker Brady has final sign-off on every line. Nothing enters the codebase without explicit approval.*
