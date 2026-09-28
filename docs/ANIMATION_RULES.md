@@ -55,3 +55,5 @@ For the running incident log including both crashes plus other engine gotchas, s
 When a third native-driver pattern surfaces (or a new animation invariant becomes load-bearing), add a new REQ-A-N here. Increment the section, do not retire previous clauses without consensus across SE + Tucker. Cross-reference from any affected level specs.
 
 2026-09-26 (AXM-036): beam head travel is linear, constant velocity (BEAM_MS_PER_CELL). Tucker-sanctioned exception to the cinematic cubic-bezier default; applies to beam travel only.
+
+2026-09-27 (SWEEP-B51 S7): BEAM_MS_PER_CELL 75 -> 50 at Tucker's request (constant pacing kept, overall speed raised). Pulse 0 keeps its 2.0 multiplier.

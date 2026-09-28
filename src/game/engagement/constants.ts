@@ -68,7 +68,7 @@ export const TAPE_PIECE_COLORS: Record<string, string> = {
 // refLen)))): every cell of travel now costs the same time, at any
 // path length. See beamData.ts (beamTravelMs) and
 // docs/ANIMATION_RULES.md "Updates".
-export const BEAM_MS_PER_CELL = 75;
+export const BEAM_MS_PER_CELL = 50;
 
 // AXM-036 P4a (F13b) — data-carrying beam shimmer. No new colour
 // values: a data segment renders in the same amber/blue/violet

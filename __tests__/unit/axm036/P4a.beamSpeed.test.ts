@@ -16,30 +16,30 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { beamTravelMs, beamHeadDistance } from '../../../src/game/engagement/beamData';
 
-describe('[P4a-2] beamTravelMs is 75 ms per cell, unclamped', () => {
-  it('4 cells (pathTotal = 4 * cellSize) = 300ms at speed 1.0', () => {
-    expect(beamTravelMs(4 * 64, 64, 1.0)).toBeCloseTo(300);
+describe('[P4a-2] beamTravelMs is 50 ms per cell, unclamped', () => {
+  it('4 cells (pathTotal = 4 * cellSize) = 200ms at speed 1.0', () => {
+    expect(beamTravelMs(4 * 64, 64, 1.0)).toBeCloseTo(200);
   });
 
-  it('20 cells = 1500ms at speed 1.0', () => {
-    expect(beamTravelMs(20 * 64, 64, 1.0)).toBeCloseTo(1500);
+  it('20 cells = 1000ms at speed 1.0', () => {
+    expect(beamTravelMs(20 * 64, 64, 1.0)).toBeCloseTo(1000);
   });
 
-  it('2 cells = 150ms at speed 1.0', () => {
-    expect(beamTravelMs(2 * 64, 64, 1.0)).toBeCloseTo(150);
+  it('2 cells = 100ms at speed 1.0', () => {
+    expect(beamTravelMs(2 * 64, 64, 1.0)).toBeCloseTo(100);
   });
 
   it('speed 2.0 doubles the duration', () => {
-    expect(beamTravelMs(4 * 64, 64, 2.0)).toBeCloseTo(600);
-    expect(beamTravelMs(20 * 64, 64, 2.0)).toBeCloseTo(3000);
+    expect(beamTravelMs(4 * 64, 64, 2.0)).toBeCloseTo(400);
+    expect(beamTravelMs(20 * 64, 64, 2.0)).toBeCloseTo(2000);
   });
 
   it('has no upper or lower clamp — a 40-cell path is not squashed to 1200ms', () => {
-    expect(beamTravelMs(40 * 64, 64, 1.0)).toBeCloseTo(3000);
+    expect(beamTravelMs(40 * 64, 64, 1.0)).toBeCloseTo(2000);
   });
 
   it('a sub-cell path is not floored to 300ms', () => {
-    expect(beamTravelMs(0.5 * 64, 64, 1.0)).toBeCloseTo(37.5);
+    expect(beamTravelMs(0.5 * 64, 64, 1.0)).toBeCloseTo(25);
   });
 });
 
@@ -48,14 +48,14 @@ describe('[P4a-2] velocity is identical for different path lengths', () => {
     const cellSize = 48;
     const lengths = [2, 4, 9, 20, 40];
     const perCell = lengths.map(cells => beamTravelMs(cells * cellSize, cellSize, 1.0) / cells);
-    perCell.forEach(v => expect(v).toBeCloseTo(75));
+    perCell.forEach(v => expect(v).toBeCloseTo(50));
   });
 
   it('holds at speed 2.0 too', () => {
     const cellSize = 48;
     const lengths = [3, 6, 15];
     const perCell = lengths.map(cells => beamTravelMs(cells * cellSize, cellSize, 2.0) / cells);
-    perCell.forEach(v => expect(v).toBeCloseTo(150));
+    perCell.forEach(v => expect(v).toBeCloseTo(100));
   });
 });
 
