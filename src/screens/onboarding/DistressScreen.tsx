@@ -189,7 +189,12 @@ export default function DistressScreen({ navigation }: Props) {
 
       {/* Top status bar */}
       <View style={s.statusBar} pointerEvents="box-none">
-        <Text style={s.statusLabel}>C.O.G.S UNIT 7 — DISTRESS SIGNAL</Text>
+        <Text
+          style={s.statusLabel}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+        >C.O.G.S UNIT 7 — DISTRESS SIGNAL</Text>
         <FlickerText text="SYSTEM CRITICAL" style={s.statusCritical} />
       </View>
       <View style={s.statusSeparator} pointerEvents="box-none" />
@@ -239,6 +244,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.sm,
     paddingHorizontal: Spacing.lg,
     paddingTop: 60,
     paddingBottom: Spacing.sm,
@@ -246,6 +252,7 @@ const s = StyleSheet.create({
     borderBottomColor: 'rgba(224,85,85,0.2)',
   },
   statusLabel: {
+    flexShrink: 1,
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
     color: '#FF3B3B',
@@ -253,6 +260,7 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
   statusCritical: {
+    flexShrink: 0,
     fontFamily: Fonts.spaceMono,
     fontSize: 10,
     color: '#FF3B3B',
