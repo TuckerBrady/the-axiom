@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import CogsAvatar from '../components/CogsAvatar';
 import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
+import { DAILY_STREAK_KEY, nextStreakDay } from '../game/dailyStreak';
 
 const DAILY_REWARD_KEY = '@axiom_last_daily_reward_date';
 
@@ -54,8 +55,6 @@ const REWARDS: RewardDay[] = [
   { day: 6, type: 'life', label: '2 Extra Lives', amount: '2', cogsLine: 'Two lives. I am not going soft. The mathematics simply worked out this way.' },
   { day: 7, type: 'combo', label: '150 CR + 1 Hint', amount: '150+1', cogsLine: 'Seven days. That is either dedication or habit. Either is acceptable.' },
 ];
-
-const DAY_NAMES = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 // ─── Reward icon ─────────────────────────────────────────────────────────────
 
@@ -108,16 +107,43 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
   const { addCredits } = useLivesStore();
   const fromReturningSession = route.params?.fromReturningSession ?? false;
 
-  // Determine streak day (1–7 cycling)
-  const dayOfYear = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), 0, 0);
-    const diff = now.getTime() - start.getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  }, []);
-
-  const streakDay = ((dayOfYear - 1) % 7) + 1; // 1–7
+  // SWEEP-B51 S11: the streak day (1-7) comes from the last collect's date
+  // and day, read on mount. Until both reads settle the screen shows day 1
+  // but neither the reward card nor COLLECT is live.
+  const [loadedStreakDay, setLoadedStreakDay] = useState<number | null>(null);
+  const streakLoaded = loadedStreakDay !== null;
+  const streakDay = loadedStreakDay ?? 1;
   const reward = REWARDS[streakDay - 1];
+
+  useEffect(() => {
+    let cancelled = false;
+    const readStreak = async () => {
+      let lastDate: string | null = null;
+      let lastDay: number | null = null;
+      try {
+        const [storedDate, storedDay] = await Promise.all([
+          AsyncStorage.getItem(DAILY_REWARD_KEY),
+          AsyncStorage.getItem(DAILY_STREAK_KEY),
+        ]);
+        lastDate = storedDate;
+        lastDay = storedDay === null ? null : Number(storedDay);
+      } catch (error) {
+        console.error('[BUILD24-DIAG] AsyncStorage failed', {
+          operation: 'getItem',
+          key: DAILY_STREAK_KEY,
+          error: (error as Error).message,
+          timestamp: Date.now(),
+        });
+      }
+      if (cancelled) return;
+      setLoadedStreakDay(nextStreakDay(lastDate, lastDay, getTodayString()));
+      console.log('[BUILD24-DIAG] DailyRewardScreen:dataLoaded', { timestamp: Date.now() });
+    };
+    readStreak();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Animations
   const screenOpacity = useSharedValue(0);
@@ -130,8 +156,6 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
       600,
       withSpring(1, { damping: 8, stiffness: 120 }),
     );
-    // No async reads on this screen — dataLoaded fires synchronously with mount
-    console.log('[BUILD24-DIAG] DailyRewardScreen:dataLoaded', { timestamp: Date.now() });
   }, []);
 
   const screenStyle = useAnimatedStyle(() => ({ opacity: screenOpacity.value }));
@@ -141,6 +165,7 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
   }));
 
   const handleCollect = async () => {
+    if (!streakLoaded) return;
     // Apply reward
     switch (reward.type) {
       case 'credits':
@@ -160,6 +185,7 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
     // so an aborted launch never silently consumes the day's reward.
     try {
       await AsyncStorage.setItem(DAILY_REWARD_KEY, getTodayString());
+      await AsyncStorage.setItem(DAILY_STREAK_KEY, String(streakDay));
     } catch (error) {
       console.error('[BUILD24-DIAG] AsyncStorage failed', {
         operation: 'setItem',
@@ -211,7 +237,7 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
                 ]}
               >
                 <Text style={[s.calendarDayLabel, isFuture && { color: Colors.dim }]}>
-                  {DAY_NAMES[i]}
+                  {dayNum}
                 </Text>
                 {isPast && (
                   <Svg width={14} height={14} viewBox="0 0 24 24">
@@ -230,7 +256,10 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
         </View>
 
         {/* Reward pod */}
-        <Animated.View style={[s.rewardPod, rewardStyle]}>
+        <Animated.View
+          style={[s.rewardPod, rewardStyle]}
+          pointerEvents={streakLoaded ? 'auto' : 'none'}
+        >
           <LinearGradient
             colors={['rgba(26,58,92,0.7)', 'rgba(10,22,40,0.95)']}
             style={StyleSheet.absoluteFill}
@@ -247,6 +276,7 @@ export default function DailyRewardScreen({ navigation, route }: Props) {
           variant="gradient"
           label="COLLECT"
           onPress={handleCollect}
+          disabled={!streakLoaded}
           style={s.collectBtn}
         />
       </View>
