@@ -1524,7 +1524,18 @@ function TutorialHUDOverlayComponent({
             <TouchableOpacity onPress={handlePrimary} activeOpacity={0.85}>
               {renderMessage()}
             </TouchableOpacity>
-          ) : renderMessage()}
+          ) : (
+            // SWEEP-B51 S9: the card is pointerEvents="auto", so a tap on it
+            // never reached the full-screen tap-anywhere Pressable. The
+            // message body now advances the same way.
+            <TouchableOpacity
+              onPress={handleTapAnywhere}
+              activeOpacity={0.85}
+              testID="tutorial-callout-body"
+            >
+              {renderMessage()}
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
 
