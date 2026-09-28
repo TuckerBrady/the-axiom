@@ -1,40 +1,33 @@
 import React from 'react';
-import Svg, { Polygon, Rect, Ellipse, Circle } from 'react-native-svg';
+import Svg, { Rect, Path, Ellipse } from 'react-native-svg';
 
 interface Props {
   size?: number;
   color?: string;
 }
 
+// AXM-042 (locked design, DESIGN_HANDOFFS/008-ship-tab-icon, option A):
+// the canon hull (AxiomHull) in side profile, nose to the right, depth
+// exaggerated about 2x so it holds at the 20px tab size. One colour at
+// full strength, no state.
 export default function ShipIcon({ size = 22, color = '#7a96b0' }: Props) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 22 22" fill="none">
-      {/* Main hull */}
-      <Polygon
-        points="2,9 8,6 18,6 20,9 20,15 2,15"
-        stroke={color}
-        strokeWidth="1.5"
-        fill="none"
-      />
-      {/* Command tower (offset right) */}
-      <Rect x="13" y="3" width="6" height="5" rx="1"
-        stroke={color} strokeWidth="1" fill="none" />
-      {/* Bridge window */}
-      <Rect x="14" y="4" width="4" height="2.5" rx="0.5"
-        fill={color} opacity={0.5} />
-      {/* Sensor wing (swept forward, port side) */}
-      <Polygon
-        points="6,6 2,3 4,3 8,6"
-        stroke={color}
-        strokeWidth="1"
-        fill="none"
-        opacity={0.8}
-      />
-      {/* Engine bell (rear) */}
-      <Ellipse cx="2" cy="12" rx="1.5" ry="3"
-        stroke={color} strokeWidth="1" fill="none" opacity={0.7} />
-      {/* AX-MOD dot */}
-      <Circle cx="11" cy="10" r="1" fill={color} opacity={0.5} />
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Drive block */}
+      <Rect x={2.4} y={8.8} width={4} height={6.4} rx={0.6}
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinejoin="round" />
+      {/* Aft hull */}
+      <Path d="M6.4 7.6 H13.8 V16.4 H6.4 Z"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinejoin="round" />
+      {/* Forward hull (shoulder step) */}
+      <Path d="M13.8 9.2 H19 V14.8 H13.8"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinejoin="round" />
+      {/* Sensor wedge nose */}
+      <Path d="M19 9.2 L23.2 12 L19 14.8"
+        stroke={color} strokeWidth={1.6} fill="none" strokeLinejoin="round" />
+      {/* Life-support pod */}
+      <Ellipse cx={10} cy={17.8} rx={2.6} ry={1}
+        stroke={color} strokeWidth={1.2} fill="none" strokeLinejoin="round" />
     </Svg>
   );
 }
