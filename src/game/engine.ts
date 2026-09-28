@@ -227,12 +227,53 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
 // Protocol piece types that enforce straight-through routing
 const STRAIGHT_THROUGH_TYPES = new Set(['configNode', 'scanner', 'transmitter']);
 
+// The two sides perpendicular to a side.
+const PERPENDICULAR_SIDES: Record<PortSide, [PortSide, PortSide]> = {
+  left: ['top', 'bottom'],
+  right: ['top', 'bottom'],
+  top: ['left', 'right'],
+  bottom: ['left', 'right'],
+};
+
+/**
+ * Gear routing (SWEEP-B51 S3, AXM-038). A Gear accepts from any side and
+ * leaves through exactly one of the two sides perpendicular to its entry side.
+ * A candidate exit is a perpendicular neighbour that accepts input on the
+ * facing side and has not already been visited on this pulse (so a Gear can
+ * run alongside the path it came from). One candidate: the beam turns into
+ * it. None: jam 'noExit'. Two: jam 'twoExits' -- a Gear never guesses and
+ * never splits. A Gear with no entry side has no candidates.
+ */
+export function gearExits(
+  piece: PlacedPiece,
+  allPieces: PlacedPiece[],
+  entrySide?: PortSide,
+  visited?: Set<string>,
+): { exits: PlacedPiece[]; jam: null | 'noExit' | 'twoExits' } {
+  if (!entrySide) return { exits: [], jam: 'noExit' };
+  const exits: PlacedPiece[] = [];
+  for (const side of PERPENDICULAR_SIDES[entrySide]) {
+    const { dx, dy } = sideOffset(side);
+    const target = allPieces.find(
+      p => p.gridX === piece.gridX + dx && p.gridY === piece.gridY + dy,
+    );
+    if (!target || visited?.has(target.id)) continue;
+    if (getInputPorts(target).includes(OPPOSITE_SIDE[side])) exits.push(target);
+  }
+  if (exits.length === 1) return { exits, jam: null };
+  return { exits: [], jam: exits.length === 0 ? 'noExit' : 'twoExits' };
+}
+
 /**
  * Returns IDs of pieces that the given piece can send signal TO (directional).
  * For protocol pieces (configNode, scanner, transmitter), enforces straight-through:
  * signal exits only from the side opposite to where it entered.
+ * A Gear emits only toward the two sides perpendicular to its entry side.
  */
 function getEmittingSides(piece: PlacedPiece, entrySide?: PortSide): PortSide[] {
+  if (piece.type === 'gear') {
+    return entrySide ? [...PERPENDICULAR_SIDES[entrySide]] : [];
+  }
   const outputSides = getOutputPorts(piece);
 
   // Straight-through enforcement: if this is a protocol piece and we know
@@ -248,7 +289,13 @@ export function getDirectionalNeighbors(
   piece: PlacedPiece,
   allPieces: PlacedPiece[],
   entrySide?: PortSide,
+  visited?: Set<string>,
 ): PlacedPiece[] {
+  // A Gear turns into its one exit, or jams (S3). `visited` is read only here.
+  if (piece.type === 'gear') {
+    const { exits, jam } = gearExits(piece, allPieces, entrySide, visited);
+    return jam === null ? exits : [];
+  }
   const neighbors: PlacedPiece[] = [];
   const outputSides = getEmittingSides(piece, entrySide);
 
@@ -311,7 +358,7 @@ const MAX_STEPS = 50;
  * upstream and never arrives, the drain-fallback flush (see executeMachine) emits
  * the OR of whatever did arrive.
  */
-function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPiece[]): number {
+export function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPiece[]): number {
   return allPieces.reduce(
     (n, p) => (p.id !== merger.id && canSendTo(p, merger) ? n + 1 : n),
     0,
@@ -454,9 +501,20 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         step.message = 'Signal passed through conveyor';
         break;
 
-      case 'gear':
-        step.message = 'Signal redirected by gear';
+      case 'gear': {
+        const { jam } = gearExits(piece, pieces, entrySide, visited);
+        if (jam === null) {
+          step.message = 'Signal redirected by gear';
+        } else {
+          // Jammed: the Gear emits to nobody, and the run ends as any dead end.
+          step.success = false;
+          step.gearJam = jam;
+          step.message = jam === 'noExit'
+            ? 'Gear jammed — no perpendicular exit'
+            : 'Gear jammed — two perpendicular exits';
+        }
         break;
+      }
 
       case 'splitter':
         step.message = 'Signal split';
@@ -646,7 +704,7 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     // Splitter does not re-derive the signal per branch, it duplicates
     // it. Do not "optimize" by mutating outboundSignalValue per
     // neighbor; that would break dataflow semantics.
-    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide);
+    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide, visited);
     for (const neighbor of neighbors) {
       if (!visited.has(neighbor.id)) {
         // Determine which side of the neighbor the signal enters from

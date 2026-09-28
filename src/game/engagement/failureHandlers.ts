@@ -1,6 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
 import type { ExecutionStep, OutputTapeValue, PlacedPiece } from './types';
 import { VOID_QUOTES } from '../voidQuotes';
+import { detectGearJam, gearJamLine } from './gearJamDiagnostic';
+import { detectTerminalWrongSide } from './terminalWrongSideDiagnostic';
 
 export interface WrongOutputParams {
   steps: ExecutionStep[];
@@ -66,6 +68,8 @@ export interface VoidFailureParams {
   redColor: string;
   // AXM-026 6.5 — see WrongOutputParams.isScarImmune.
   isScarImmune?: (gridX: number, gridY: number) => boolean;
+  // SWEEP-B51 S3-9: the VOID modal's diagnostic line (a Gear jam), or null.
+  setVoidDiagnosticLine?: (line: string | null) => void;
 }
 
 // Blows the blamed piece: always removed, and its cell scars unless the cell is
@@ -105,6 +109,7 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
     triggerHints,
     redColor,
     isScarImmune,
+    setVoidDiagnosticLine,
   } = params;
 
   for (let f = 0; f < 3; f++) {
@@ -148,6 +153,9 @@ export async function handleVoidFailure(params: VoidFailureParams): Promise<bool
   // void state — not in GameplayModals' render path, which would reroll it
   // on every elapsedSeconds tick.
   setVoidQuoteIndex?.(Math.floor(Math.random() * VOID_QUOTES.length));
+  // S3-9: a Gear jam names itself, unless a wrong-side Terminal already does.
+  const gearJam = detectGearJam(steps);
+  setVoidDiagnosticLine?.(gearJam && !detectTerminalWrongSide(steps) ? gearJamLine(gearJam) : null);
   setShowVoid(true);
   triggerHints('onVoid');
   return false;

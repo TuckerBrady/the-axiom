@@ -955,6 +955,12 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "1 pulse was required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."
 > [insufficient_pulses_route_singular | insufficientPulses | RED | N = 1]
 
+> "The Gear had nowhere to turn. It bends the signal ninety degrees, left or right of where it entered. Neither side was listening."
+> [gear_jam_no_exit | void | RED]
+
+> "The Gear was offered two exits. It takes one, and it will not guess which. Close one side."
+> [gear_jam_two_exits | void | RED]
+
 ---
 
 ## PART NINE: THE ENDING

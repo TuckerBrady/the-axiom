@@ -45,6 +45,9 @@ export interface UseGameplayModalsResult {
 
   showVoid: boolean;
   setShowVoid: React.Dispatch<React.SetStateAction<boolean>>;
+  // SWEEP-B51 S3-9: shown in place of the random VOID quote when non-null.
+  voidDiagnosticLine: string | null;
+  setVoidDiagnosticLine: React.Dispatch<React.SetStateAction<string | null>>;
 
   showResults: boolean;
   setShowResults: React.Dispatch<React.SetStateAction<boolean>>;
@@ -112,6 +115,7 @@ export function useGameplayModals(
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [showAbandonConfirm, setShowAbandonConfirm] = useState(false);
   const [showVoid, setShowVoid] = useState(false);
+  const [voidDiagnosticLine, setVoidDiagnosticLine] = useState<string | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [showCompletionCard, setShowCompletionCard] = useState(false);
   const [showWrongOutput, setShowWrongOutput] = useState(false);
@@ -163,6 +167,7 @@ export function useGameplayModals(
     showPauseModal, setShowPauseModal,
     showAbandonConfirm, setShowAbandonConfirm,
     showVoid, setShowVoid,
+    voidDiagnosticLine, setVoidDiagnosticLine,
     showResults, setShowResults,
     showCompletionCard, setShowCompletionCard,
     showWrongOutput, setShowWrongOutput,

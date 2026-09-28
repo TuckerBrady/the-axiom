@@ -365,8 +365,7 @@ COGS: "It carries signal in a straight line. It does not think.
 
 GEAR
 Metaphor: A mechanical gear at a junction. Signal bends.
-Function: Changes signal direction. Omnidirectional. The only
-  Physics piece that turns a corner.
+Function: Turns the signal 90 degrees. Accepts from any side; leaves through exactly one perpendicular side. Never straight through, never splits. The only Physics piece that turns a corner.
 Teaches: Routing. Changing direction requires a specific tool.
 CS concept: A bus junction. A signal router.
 TM correspondence: Board/physics — direction change, a physical

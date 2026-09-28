@@ -12,8 +12,9 @@
 //   - prePlacedOnly: the board as the level ships it.
 //   - conveyorRoute: shortest free-cell path Source -> Terminal, Conveyors on
 //     straights and Gears on turns (the classic routing floor solve).
-//   - gearRoute: the same path laid entirely in Gears (omnidirectional, so it
-//     also exercises every side the signal can reach the Terminal from).
+//   - gearRoute: the same path laid entirely in Gears (since SWEEP-B51 S3 a
+//     Gear leaves through exactly one perpendicular side, so straight runs of
+//     Gears jam; the snapshot records where each route now stops).
 import type {
   LevelDefinition, PlacedPiece, MachineState, OutputTapeValue, PortSide,
 } from '../../../src/game/types';
