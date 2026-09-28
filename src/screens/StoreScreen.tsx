@@ -24,6 +24,7 @@ import { BackButton } from '../components/BackButton';
 import { Button } from '../components/Button';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
 import { useLivesStore } from '../store/livesStore';
+import { useEconomyStore } from '../store/economyStore';
 import { useProgressionStore } from '../store/progressionStore';
 
 type Props = {
@@ -158,7 +159,7 @@ function PowerUpIcon({ type, size = 24 }: { type: string; size?: number }) {
 // ─── Main screen ─────────────────────────────────────────────────────────────
 
 export default function StoreScreen({ navigation }: Props) {
-  const credits = useLivesStore(s => s.credits);
+  const credits = useEconomyStore(s => s.credits);
   const spendFromLives = useLivesStore(s => s.spendCredits);
   // Axiom is the tutorial safe-zone — credits exist but purchases must not
   // deduct them. Active sector identifier comes from progressionStore;

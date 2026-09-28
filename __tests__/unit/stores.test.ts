@@ -170,7 +170,8 @@ describe('progressionStore persistence', () => {
 
 describe('livesStore', () => {
   beforeEach(() => {
-    useLivesStore.setState({ lives: 5, lastLifeLostAt: null, credits: 500 });
+    useLivesStore.setState({ lives: 5, lastLifeLostAt: null });
+    useEconomyStore.setState({ credits: 500 });
   });
 
   it('initial lives is 5', () => {
@@ -185,7 +186,8 @@ describe('livesStore', () => {
   });
 
   it('refillLives fails when insufficient credits', () => {
-    useLivesStore.setState({ lives: 1, credits: 0 });
+    useLivesStore.setState({ lives: 1 });
+    useEconomyStore.setState({ credits: 0 });
     const success = useLivesStore.getState().refillLives();
     expect(success).toBe(false);
     expect(useLivesStore.getState().lives).toBe(1);
@@ -218,20 +220,20 @@ describe('livesStore', () => {
   });
 
   it('addCredits adds to balance', () => {
-    useLivesStore.setState({ credits: 100 });
+    useEconomyStore.setState({ credits: 100 });
     useLivesStore.getState().addCredits(50);
-    expect(useLivesStore.getState().credits).toBe(150);
+    expect(useEconomyStore.getState().credits).toBe(150);
   });
 
   it('spendCredits deducts from balance', () => {
-    useLivesStore.setState({ credits: 100 });
+    useEconomyStore.setState({ credits: 100 });
     const ok = useLivesStore.getState().spendCredits(30);
     expect(ok).toBe(true);
-    expect(useLivesStore.getState().credits).toBe(70);
+    expect(useEconomyStore.getState().credits).toBe(70);
   });
 
   it('spendCredits returns false when insufficient', () => {
-    useLivesStore.setState({ credits: 10 });
+    useEconomyStore.setState({ credits: 10 });
     const ok = useLivesStore.getState().spendCredits(20);
     expect(ok).toBe(false);
   });
@@ -243,21 +245,21 @@ describe('livesStore', () => {
   });
 
   it('legacy: addCircuits adds credits', () => {
-    useLivesStore.setState({ credits: 100 });
+    useEconomyStore.setState({ credits: 100 });
     useLivesStore.getState().addCircuits(25);
-    expect(useLivesStore.getState().credits).toBe(125);
+    expect(useEconomyStore.getState().credits).toBe(125);
   });
 
   it('legacy: addCogs adds credits', () => {
-    useLivesStore.setState({ credits: 100 });
+    useEconomyStore.setState({ credits: 100 });
     useLivesStore.getState().addCogs(30);
-    expect(useLivesStore.getState().credits).toBe(130);
+    expect(useEconomyStore.getState().credits).toBe(130);
   });
 
   it('legacy: spendCogs deducts credits', () => {
-    useLivesStore.setState({ credits: 100 });
+    useEconomyStore.setState({ credits: 100 });
     expect(useLivesStore.getState().spendCogs(40)).toBe(true);
-    expect(useLivesStore.getState().credits).toBe(60);
+    expect(useEconomyStore.getState().credits).toBe(60);
   });
 });
 
