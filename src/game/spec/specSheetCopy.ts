@@ -78,8 +78,8 @@ export function shallStatementToCopy(s: ShallStatement): string {
 // they're not surfaced in the Spec Sheet until Design provides real copy.
 const SHOULD_COPY: Partial<Record<ScoringCategory, string>> = {
   pathIntegrity: 'Every placed piece SHOULD participate in the signal chain.',
-  discipline: 'The solution SHOULD reflect the discipline you trained in.',
-  signalDepth: 'The machine SHOULD make full use of the pieces you requisitioned.',
+  discipline: "The solution SHOULD reflect the Engineer's trained discipline.",
+  signalDepth: 'The machine SHOULD make full use of the requisitioned pieces.',
 };
 
 export function shouldStatementToCopy(s: ShouldStatement): string {

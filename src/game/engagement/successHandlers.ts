@@ -119,7 +119,12 @@ export async function handleSuccess(params: SuccessParams): Promise<boolean> {
       // actually earn (completion + pathIntegrity), not result.total, which
       // is dragged down by categories the sector never offers.
       ? getTutorialCOGSComment(axiomApplicableScore(result.breakdown), currentDiscipline)
-      : getCOGSScoreComment(result.breakdown, currentDiscipline, result.stars, playerPieceCount, level.optimalPieces),
+      // SWEEP-B51 S4-1: the tray is every piece it held, free plus
+      // requisitioned, not the level's optimal count.
+      : getCOGSScoreComment(
+        result.breakdown, currentDiscipline, result.stars, playerPieceCount,
+        useRequisitionStore.getState().inventory.pieces.length,
+      ),
   );
 
   const levelId = level.id;
