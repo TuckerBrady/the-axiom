@@ -2,6 +2,8 @@
 // module (no JSX, no React Native imports) so unit tests can import
 // them without pulling in react-native-svg or other native peers.
 
+import type { PortSide } from '../game/types';
+
 export const SIM_W = 326;
 export const SIM_H = 140;
 
@@ -10,6 +12,20 @@ export function getCell(col: number, row: number, cols: number, rows: number) {
   const ox = (SIM_W - cols * CELL) / 2;
   const oy = (SIM_H - rows * CELL) / 2;
   return { x: ox + col * CELL + CELL / 2, y: oy + row * CELL + CELL / 2, r: CELL };
+}
+
+// SWEEP-B51 S12 (AXM-043 / AXM-044 DR-9): the side of `from` that faces
+// `to`, for orthogonal grid neighbours. The Field Simulation uses it to put
+// a Source's port toward its first path cell and a Terminal's port toward
+// the cell its path arrives from. Grid rows grow downward, as on the board.
+export function portSideToward(
+  from: { col: number; row: number },
+  to: { col: number; row: number },
+): PortSide {
+  const dc = to.col - from.col;
+  const dr = to.row - from.row;
+  if (Math.abs(dc) >= Math.abs(dr)) return dc >= 0 ? 'right' : 'left';
+  return dr > 0 ? 'bottom' : 'top';
 }
 
 export function interpPath(

@@ -5,6 +5,7 @@ import { Colors } from '../theme/tokens';
 import { hexToRgba } from '../game/bubbleMath';
 import { damagedCellGeometry } from './gameplay/damagedCellGeometry';
 import type { PortSide } from '../game/types';
+import { EndpointPortShape } from './gameplay/EndpointSockets';
 
 // useNativeDriver: false on every Animated.timing in this file is
 // load-bearing — every animated value here interpolates into an SVG
@@ -167,6 +168,24 @@ interface Props {
   // both cases render exactly as before (P12-8).
   ringGapSides?: PortSide[];
   ringGapHalfAngleDeg?: number;
+  // SWEEP-B51 S12 (AXM-043 / AXM-044 DR-9, source/terminal only): draw an
+  // energy port on each listed side of the 40-unit icon through the shared
+  // EndpointPortShape renderer. Codex art only; the board never passes it
+  // (board ports come from EndpointSockets). Absent or empty: unchanged.
+  portSides?: PortSide[];
+}
+
+// The icon's 40-unit viewBox is the cell the Codex ports sit on.
+const ICON_PORT_CELL = 40;
+
+function iconPorts(type: 'source' | 'terminal', sides: PortSide[] | undefined, color: string) {
+  if (!sides || sides.length === 0) return null;
+  const kind = type === 'source' ? 'outlet' : 'socket';
+  return sides.map(side => (
+    <G key={`port-${side}`} testID={`endpoint-socket-${type}-${side}`}>
+      <EndpointPortShape cellSize={ICON_PORT_CELL} side={side} kind={kind} color={color} />
+    </G>
+  ));
 }
 
 /**
@@ -205,6 +224,7 @@ export const PieceIcon = React.memo(function PieceIcon({
   connectedMagnetSides,
   ringGapSides,
   ringGapHalfAngleDeg: ringGapHalfAngleDegProp,
+  portSides,
 }: Props) {
   const type = normalizeType(rawType);
   const s = size;
@@ -463,6 +483,7 @@ export const PieceIcon = React.memo(function PieceIcon({
           )}
           <Circle cx="20" cy="20" r="10" fill="#060e1a" stroke={sourceRingStroke} strokeWidth="1.2" strokeOpacity="0.5" />
           <Path d="M 17 13 L 17 27 L 27 20 Z" fill={sourceRingStroke} />
+          {iconPorts('source', portSides, sourceRingStroke)}
           {charging && (
             <>
               <AnimatedCircle cx="20" cy="20" r={chargeR1 as unknown as number} fill="none" stroke={Colors.protocol} strokeWidth="1.5" strokeOpacity={chargeOp as unknown as number} />
@@ -499,6 +520,7 @@ export const PieceIcon = React.memo(function PieceIcon({
           <Path d="M 34 6 L 31 6 M 34 6 L 34 9" stroke={Colors.green} strokeWidth="1.2" opacity="0.5" strokeLinecap="round" />
           <Path d="M 6 34 L 9 34 M 6 34 L 6 31" stroke={Colors.green} strokeWidth="1.2" opacity="0.5" strokeLinecap="round" />
           <Path d="M 34 34 L 31 34 M 34 34 L 34 31" stroke={Colors.green} strokeWidth="1.2" opacity="0.5" strokeLinecap="round" />
+          {iconPorts('terminal', portSides, terminalRingStroke)}
           {locking && (
             <>
               <AnimatedCircle cx="20" cy="20" r={lockR1 as unknown as number} fill="none" stroke="#00C48C" strokeWidth="2" strokeOpacity={lockOp as unknown as number} />

@@ -320,7 +320,12 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
           <View style={[st.iconBox, { backgroundColor: accent.bg, borderColor: accent.border }]}>
             {isStream
               ? <TapeGlyph color={streamColor} />
-              : <PieceIcon type={entry.id} size={32} color={getCodexPieceColor(entry.id)} />}
+              : <PieceIcon
+                  type={entry.id}
+                  size={32}
+                  color={getCodexPieceColor(entry.id)}
+                  portSides={entry.id === 'source' ? ['right'] : entry.id === 'terminal' ? ['left'] : undefined}
+                />}
           </View>
           <Text style={st.heroName}>{entry.name.toUpperCase()}</Text>
           <View style={[st.typeBadge, { backgroundColor: accent.bg, borderColor: accent.border }]}>
@@ -346,7 +351,12 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
             <View style={st.alsoRow}>
               {alsoCollected.map(e => (
                 <View key={e.id} style={st.alsoChip}>
-                  <PieceIcon type={e.id} size={16} color={getCodexPieceColor(e.id)} />
+                  <PieceIcon
+                    type={e.id}
+                    size={16}
+                    color={getCodexPieceColor(e.id)}
+                    portSides={e.id === 'source' ? ['right'] : e.id === 'terminal' ? ['left'] : undefined}
+                  />
                   <Text style={st.alsoChipText}>{e.name.toUpperCase()}</Text>
                 </View>
               ))}

@@ -27,7 +27,9 @@ import {
   type Phase,
   type ProtocolPhase,
   type CounterPhase,
+  portSideToward,
 } from './pieceSimulationMath';
+import type { PortSide } from '../game/types';
 
 export {
   SIM_W,
@@ -143,6 +145,7 @@ type SimPieceProps = {
   latching?: boolean;
   latchMode?: 'write' | 'read';
   connectedMagnetSides?: string[];
+  portSides?: PortSide[];
 };
 
 function SimPiece({
@@ -150,7 +153,7 @@ function SimPiece({
   charging, rolling, spinning, splitting, locking,
   scanning, gating, gateResult, transmitting, configValue,
   merging, bridging, inverting, counting, count, threshold,
-  latching, latchMode: lm, connectedMagnetSides,
+  latching, latchMode: lm, connectedMagnetSides, portSides,
 }: SimPieceProps) {
   const sz = cell.r * 0.8;
   return (
@@ -185,6 +188,7 @@ function SimPiece({
           latching={latching}
           latchMode={lm}
           connectedMagnetSides={connectedMagnetSides}
+          portSides={portSides}
         />
       </View>
     </View>
@@ -363,6 +367,7 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
             latching={p.latching}
             latchMode={p.latchMode}
             connectedMagnetSides={p.connectedMagnetSides}
+            portSides={p.portSides}
           />
         ))}
       </View>
@@ -374,7 +379,14 @@ export default function PieceSimulation({ pieceType }: PieceSimulationProps) {
 
 // ─── Physics renderer ─────────────────────────────────────────────────────
 
-type Cell = { x: number; y: number; r: number };
+// A sim cell carries its grid position too, so a Source or Terminal can
+// point its port at a neighbour with portSideToward (SWEEP-B51 S12).
+type Cell = { x: number; y: number; r: number; col: number; row: number };
+
+function gridCell(col: number, row: number, cols: number, rows: number): Cell {
+  return { ...getCell(col, row, cols, rows), col, row };
+}
+
 type PieceDef = {
   cell: Cell;
   type: string;
@@ -401,6 +413,8 @@ type PieceDef = {
   latching?: boolean;
   latchMode?: 'write' | 'read';
   connectedMagnetSides?: string[];
+  // Source and Terminal only: the sides that show an energy port.
+  portSides?: PortSide[];
 };
 
 type SimData = {
@@ -414,43 +428,43 @@ function renderPhysicsSim(type: string, t: number): SimData {
 
   switch (type) {
     case 'conveyor': {
-      const S = getCell(0, 1, 5, 3);
-      const C1 = getCell(1, 1, 5, 3);
-      const C2 = getCell(2, 1, 5, 3);
-      const C3 = getCell(3, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
+      const S = gridCell(0, 1, 5, 3);
+      const C1 = gridCell(1, 1, 5, 3);
+      const C2 = gridCell(2, 1, 5, 3);
+      const C3 = gridCell(3, 1, 5, 3);
+      const O = gridCell(4, 1, 5, 3);
       const waypoints = [S, C1, C2, C3, O];
       return renderLinearPhysics({
         phase, progress, waypoints, S, O,
         pieces: [
-          { cell: S, type: 'source', color: AMBER },
+          { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER },
           { cell: C1, type: 'conveyor' },
           { cell: C2, type: 'conveyor' },
           { cell: C3, type: 'conveyor' },
-          { cell: O, type: 'terminal', color: TERM_GREEN },
+          { cell: O, type: 'terminal', portSides: [portSideToward(O, C3)], color: TERM_GREEN },
         ],
       });
     }
     case 'gear': {
-      const S = getCell(0, 1, 5, 4);
-      const C1 = getCell(1, 1, 5, 4);
-      const G = getCell(2, 1, 5, 4);
-      const C2 = getCell(2, 2, 5, 4);
-      const O = getCell(2, 3, 5, 4);
+      const S = gridCell(0, 1, 5, 4);
+      const C1 = gridCell(1, 1, 5, 4);
+      const G = gridCell(2, 1, 5, 4);
+      const C2 = gridCell(2, 2, 5, 4);
+      const O = gridCell(2, 3, 5, 4);
       const waypoints = [S, C1, G, C2, O];
       return renderLinearPhysics({
         phase, progress, waypoints, S, O,
         pieces: [
-          { cell: S, type: 'source', color: AMBER, rotation: 0 },
+          { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, rotation: 0 },
           { cell: C1, type: 'conveyor', rotation: 0 },
           { cell: G, type: 'gear', rotation: 0 },
           { cell: C2, type: 'conveyor', rotation: 90 },
-          { cell: O, type: 'terminal', color: TERM_GREEN, rotation: 0 },
+          { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, rotation: 0 },
         ],
       });
     }
     case 'source': {
-      const S = getCell(1, 1, 3, 3);
+      const S = gridCell(1, 1, 3, 3);
       // Charge rings loop steadily; Source piece always charging.
       const r1 = S.r * 0.25 + (t * S.r * 0.6);
       const r2 = S.r * 0.25 + (((t + 0.33) % 1) * S.r * 0.6);
@@ -473,13 +487,13 @@ function renderPhysicsSim(type: string, t: number): SimData {
     case 'output':
       return renderTerminalSim(phase, progress);
     case 'splitter': {
-      const S = getCell(0, 0, 5, 3);
-      const C1 = getCell(1, 0, 5, 3);
-      const SP = getCell(2, 0, 5, 3);
-      const C2 = getCell(3, 0, 5, 3);
-      const O1 = getCell(4, 0, 5, 3);
-      const C3 = getCell(2, 1, 5, 3);
-      const O2 = getCell(2, 2, 5, 3);
+      const S = gridCell(0, 0, 5, 3);
+      const C1 = gridCell(1, 0, 5, 3);
+      const SP = gridCell(2, 0, 5, 3);
+      const C2 = gridCell(3, 0, 5, 3);
+      const O1 = gridCell(4, 0, 5, 3);
+      const C3 = gridCell(2, 1, 5, 3);
+      const O2 = gridCell(2, 2, 5, 3);
       return renderSplitterPhysics({
         phase, progress, S, C1, SP, C2, O1, C3, O2,
       });
@@ -489,13 +503,13 @@ function renderPhysicsSim(type: string, t: number): SimData {
     case 'bridge':
       return renderBridgeSim(phase, progress);
     default: {
-      const S = getCell(0, 1, 5, 3);
-      const O = getCell(4, 1, 5, 3);
+      const S = gridCell(0, 1, 5, 3);
+      const O = gridCell(4, 1, 5, 3);
       return {
         svgContent: null,
         pieces: [
-          { cell: S, type: 'source', color: AMBER },
-          { cell: O, type: 'terminal', color: TERM_GREEN },
+          { cell: S, type: 'source', portSides: [portSideToward(S, O)], color: AMBER },
+          { cell: O, type: 'terminal', portSides: [portSideToward(O, S)], color: TERM_GREEN },
         ],
       };
     }
@@ -639,7 +653,7 @@ function renderSplitterPhysics(args: {
 
   const pieces: PieceDef[] = [
     {
-      cell: S, type: 'source', color: AMBER,
+      cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER,
       charging: phase === 'charge',
     },
     {
@@ -659,7 +673,7 @@ function renderSplitterPhysics(args: {
       rolling: branchActive && reachedA >= 1,
     },
     {
-      cell: O1, type: 'terminal', color: TERM_GREEN,
+      cell: O1, type: 'terminal', portSides: [portSideToward(O1, C2)], color: TERM_GREEN,
       locking: phase === 'lock',
     },
     {
@@ -668,7 +682,7 @@ function renderSplitterPhysics(args: {
       rolling: branchActive && reachedB >= 1,
     },
     {
-      cell: O2, type: 'terminal', color: TERM_GREEN,
+      cell: O2, type: 'terminal', portSides: [portSideToward(O2, C3)], color: TERM_GREEN,
       locking: phase === 'lock',
     },
   ];
@@ -780,12 +794,12 @@ function renderSplitterPhysics(args: {
 //         Source B (0,2) → Conv B (1,2) ↗
 // Head A starts with the beam phase; Head B starts at progress 0.25.
 function renderMergerSim(phase: Phase, progress: number): SimData {
-  const SA = getCell(0, 0, 4, 3);
-  const CA = getCell(1, 0, 4, 3);
-  const SB = getCell(0, 2, 4, 3);
-  const CB = getCell(1, 2, 4, 3);
-  const M = getCell(2, 1, 4, 3);
-  const O = getCell(3, 1, 4, 3);
+  const SA = gridCell(0, 0, 4, 3);
+  const CA = gridCell(1, 0, 4, 3);
+  const SB = gridCell(0, 2, 4, 3);
+  const CB = gridCell(1, 2, 4, 3);
+  const M = gridCell(2, 1, 4, 3);
+  const O = gridCell(3, 1, 4, 3);
 
   const pathA = [SA, CA, M];
   const pathB = [SB, CB, M];
@@ -839,15 +853,15 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
   }
 
   const pieces: PieceDef[] = [
-    { cell: SA, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: SA, type: 'source', portSides: [portSideToward(SA, CA)], color: AMBER, charging: phase === 'charge' },
     { cell: CA, type: 'conveyor',
       rolling: phase === 'beam' && reachedA >= 1 && aProgress < 1 },
-    { cell: SB, type: 'source', color: AMBER,
+    { cell: SB, type: 'source', portSides: [portSideToward(SB, CB)], color: AMBER,
       charging: phase === 'beam' && progress >= HB_START && progress < HB_START + 0.1 },
     { cell: CB, type: 'conveyor',
       rolling: phase === 'beam' && reachedB >= 1 && bProgress < 1 },
     { cell: M, type: 'merger', merging: mergerActive },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, M)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   const drawTrail = (pts: { x: number; y: number }[]) => pts.length >= 2
@@ -914,13 +928,13 @@ function renderMergerSim(phase: Phase, progress: number): SimData {
 // Vertical path:   Source V (2,0) → Bridge → Terminal V (2,2)
 // Both H and V render in Codex blue. Both travel independently with slight stagger.
 function renderBridgeSim(phase: Phase, progress: number): SimData {
-  const SH = getCell(0, 1, 5, 3);
-  const CL = getCell(1, 1, 5, 3);
-  const B = getCell(2, 1, 5, 3);
-  const CR = getCell(3, 1, 5, 3);
-  const TH = getCell(4, 1, 5, 3);
-  const SV = getCell(2, 0, 5, 3);
-  const TV = getCell(2, 2, 5, 3);
+  const SH = gridCell(0, 1, 5, 3);
+  const CL = gridCell(1, 1, 5, 3);
+  const B = gridCell(2, 1, 5, 3);
+  const CR = gridCell(3, 1, 5, 3);
+  const TH = gridCell(4, 1, 5, 3);
+  const SV = gridCell(2, 0, 5, 3);
+  const TV = gridCell(2, 2, 5, 3);
 
   const pathH = [SH, CL, B, CR, TH];
   const pathV = [SV, B, TV];
@@ -958,16 +972,16 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
   }
 
   const pieces: PieceDef[] = [
-    { cell: SH, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: SH, type: 'source', portSides: [portSideToward(SH, CL)], color: AMBER, charging: phase === 'charge' },
     { cell: CL, type: 'conveyor',
       rolling: phase === 'beam' && reachedH >= 1 && hProgress < 1 },
     { cell: B, type: 'bridge', bridging: bridgeActive },
     { cell: CR, type: 'conveyor',
       rolling: phase === 'beam' && reachedH >= 3 && hProgress < 1 },
-    { cell: TH, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
-    { cell: SV, type: 'source', color: AMBER,
+    { cell: TH, type: 'terminal', portSides: [portSideToward(TH, CR)], color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: SV, type: 'source', portSides: [portSideToward(SV, B)], color: AMBER,
       charging: phase === 'beam' && progress >= HV_START && progress < HV_START + 0.1 },
-    { cell: TV, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: TV, type: 'terminal', portSides: [portSideToward(TV, B)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   return {
@@ -1034,9 +1048,9 @@ function renderBridgeSim(phase: Phase, progress: number): SimData {
 // Physics cycle, but the lock phase renders three staggered expanding
 // green rings at the Terminal — the satisfying "arrival" moment.
 function renderTerminalSim(phase: Phase, progress: number): SimData {
-  const S = getCell(0, 1, 3, 3);
-  const C = getCell(1, 1, 3, 3);
-  const O = getCell(2, 1, 3, 3);
+  const S = gridCell(0, 1, 3, 3);
+  const C = gridCell(1, 1, 3, 3);
+  const O = gridCell(2, 1, 3, 3);
 
   const waypoints = [S, C, O];
   const beamProgress = phase === 'beam' ? progress : phase === 'lock' || phase === 'pause' ? 1 : 0;
@@ -1052,10 +1066,10 @@ function renderTerminalSim(phase: Phase, progress: number): SimData {
   const trailOpacity = phase === 'pause' ? Math.max(0, 0.6 - progress * 0.6) : 0.6;
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C)], color: AMBER, charging: phase === 'charge' },
     { cell: C, type: 'conveyor',
       rolling: phase === 'beam' && reachedIdx >= 1 && reachedIdx < 2 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   return {
@@ -1209,11 +1223,11 @@ function renderConfigNodeSim(
   progress: number,
   loopCount: number,
 ): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const SC = getCell(1, 1, 5, 3);
-  const CN = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const SC = gridCell(1, 1, 5, 3);
+  const CN = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const mode = configNodeMode(loopCount);
   const trailValue = mode === 'pass' ? '1' : '0';
@@ -1265,12 +1279,12 @@ function renderConfigNodeSim(
     : null;
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, SC)], color: AMBER, charging: phase === 'charge' },
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'beam-pre' && preReached >= 1 },
     { cell: CN, type: 'configNode', color: PROTOCOL_VIOLET,
       gating, gateResult, configValue: 1 },
     { cell: C2, type: 'conveyor', rolling: mode === 'pass' && phase === 'beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: mode === 'pass' && phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: mode === 'pass' && phase === 'lock' },
   ];
 
   const tapeStrips = (
@@ -1346,11 +1360,11 @@ function renderConfigNodeSim(
 }
 
 function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const C1 = getCell(1, 1, 5, 3);
-  const SC = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const C1 = gridCell(1, 1, 5, 3);
+  const SC = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const pre = [S, C1, SC];
   const post = [SC, C2, O];
@@ -1404,11 +1418,11 @@ function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
     phase === 'beam-post' || phase === 'lock' || phase === 'pause';
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, charging: phase === 'charge' },
     { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: SC, type: 'scanner', color: PROTOCOL_VIOLET, scanning: phase === 'interact' },
     { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   const tapeStrips = (
@@ -1455,11 +1469,11 @@ function renderScannerSim(phase: ProtocolPhase, progress: number): SimData {
 }
 
 function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const C1 = getCell(1, 1, 5, 3);
-  const TX = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const C1 = gridCell(1, 1, 5, 3);
+  const TX = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const pre = [S, C1, TX];
   const post = [TX, C2, O];
@@ -1513,11 +1527,11 @@ function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
     phase === 'beam-post' || phase === 'lock' || phase === 'pause';
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, charging: phase === 'charge' },
     { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: TX, type: 'transmitter', color: PROTOCOL_VIOLET, transmitting: phase === 'interact' },
     { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   const tapeStrips = (
@@ -1567,11 +1581,11 @@ function renderTransmitterSim(phase: ProtocolPhase, progress: number): SimData {
 // Layout: Source -> Conveyor -> Inverter -> Conveyor -> Terminal.
 // Interact: incoming "1" at top, flip at piece, outgoing "0" at bottom.
 function renderInverterSim(phase: ProtocolPhase, progress: number): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const C1 = getCell(1, 1, 5, 3);
-  const I = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const C1 = gridCell(1, 1, 5, 3);
+  const I = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const pre = [S, C1, I];
   const post = [I, C2, O];
@@ -1630,11 +1644,11 @@ function renderInverterSim(phase: ProtocolPhase, progress: number): SimData {
     phase === 'beam-post' || phase === 'lock' || phase === 'pause';
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, charging: phase === 'charge' },
     { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: I, type: 'inverter', color: PROTOCOL_VIOLET, inverting: phase === 'interact' },
     { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   const tapeStrips = (
@@ -1701,11 +1715,11 @@ function renderLatchSim(
   progress: number,
   loopCount: number,
 ): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const C1 = getCell(1, 1, 5, 3);
-  const L = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const C1 = gridCell(1, 1, 5, 3);
+  const L = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const mode = latchMode(loopCount); // 'write' | 'read'
   const inputValue = mode === 'write' ? '1' : '0'; // irrelevant in read
@@ -1773,12 +1787,12 @@ function renderLatchSim(
   const modeLabel = mode === 'write' ? 'W' : 'R';
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: phase === 'charge' },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, charging: phase === 'charge' },
     { cell: C1, type: 'conveyor', rolling: phase === 'beam-pre' && preReached >= 1 },
     { cell: L, type: 'latch', color: PROTOCOL_VIOLET,
       latching: phase === 'interact', latchMode: mode },
     { cell: C2, type: 'conveyor', rolling: phase === 'beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: phase === 'lock' },
   ];
 
   const storedFilled = true; // always shows "1" once stored (write on first loop)
@@ -1863,11 +1877,11 @@ function renderLatchSim(
 function renderCounterSim(t: number): SimData {
   const { phase, progress } = computeCounterPhase(t);
 
-  const S = getCell(0, 1, 5, 3);
-  const C1 = getCell(1, 1, 5, 3);
-  const CT = getCell(2, 1, 5, 3);
-  const C2 = getCell(3, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const C1 = gridCell(1, 1, 5, 3);
+  const CT = gridCell(2, 1, 5, 3);
+  const C2 = gridCell(3, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
 
   const pre = [S, C1, CT];
   const post = [CT, C2, O];
@@ -1922,13 +1936,13 @@ function renderCounterSim(t: number): SimData {
   const isBeamPre = phase === 'p1-beam-pre' || phase === 'p2-beam-pre';
 
   const pieces: PieceDef[] = [
-    { cell: S, type: 'source', color: AMBER, charging: isCharge },
+    { cell: S, type: 'source', portSides: [portSideToward(S, C1)], color: AMBER, charging: isCharge },
     { cell: C1, type: 'conveyor', rolling: isBeamPre && preReached >= 1 },
     { cell: CT, type: 'counter', color: PROTOCOL_VIOLET,
       counting, count: countValue, threshold },
     { cell: C2, type: 'conveyor',
       rolling: phase === 'p2-beam-post' && postReached >= 1 },
-    { cell: O, type: 'terminal', color: TERM_GREEN, locking: phase === 'p2-lock' },
+    { cell: O, type: 'terminal', portSides: [portSideToward(O, C2)], color: TERM_GREEN, locking: phase === 'p2-lock' },
   ];
 
   return {
@@ -1987,13 +2001,13 @@ function renderCounterSim(t: number): SimData {
 // ─── Protocol renderer (legacy — fallback for unknown piece types) ────────
 
 function renderProtocolSim(_type: string, _t: number): SimData {
-  const S = getCell(0, 1, 5, 3);
-  const O = getCell(4, 1, 5, 3);
+  const S = gridCell(0, 1, 5, 3);
+  const O = gridCell(4, 1, 5, 3);
   return {
     svgContent: null,
     pieces: [
-      { cell: S, type: 'source', color: '#F0B429' },
-      { cell: O, type: 'terminal', color: '#00C48C' },
+      { cell: S, type: 'source', portSides: [portSideToward(S, O)], color: '#F0B429' },
+      { cell: O, type: 'terminal', portSides: [portSideToward(O, S)], color: '#00C48C' },
     ],
   };
 }
