@@ -955,6 +955,12 @@ Late in The Cradle, COGS identifies resonance between the signal pattern and the
 > "1 pulse was required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."
 > [insufficient_pulses_route_singular | insufficientPulses | RED | N = 1]
 
+> "N pulses were required. The machine delivered fewer. The configuration held some back, and the route lost the rest before the Terminal. Two faults, not one."
+> [insufficient_pulses_mixed | insufficientPulses | RED | N is the required pulse count; singular form below. SWEEP-B51 H1-10]
+
+> "1 pulse was required. The machine delivered fewer. The configuration held some back, and the route lost the rest before the Terminal. Two faults, not one."
+> [insufficient_pulses_mixed_singular | insufficientPulses | RED | N = 1]
+
 > "The Gear had nowhere to turn. It bends the signal ninety degrees, left or right of where it entered. Neither side was listening."
 > [gear_jam_no_exit | void | RED]
 

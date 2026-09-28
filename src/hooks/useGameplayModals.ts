@@ -17,7 +17,7 @@ export type PulseResultData = {
   // never reached the Terminal, P14-3) or 'route' (SWEEP-B51 S2: short of
   // the count because a pulse was lost to the route, not held by a gate).
   // Absent means 'count'.
-  reason?: 'count' | 'undelivered' | 'route';
+  reason?: 'count' | 'undelivered' | 'route' | 'mixed';
 } | null;
 
 // SE-TM-035 — topology SHALL not met. The machine produced the right output

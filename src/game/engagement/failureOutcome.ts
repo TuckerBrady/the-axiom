@@ -15,7 +15,8 @@
 import type { ExecutionStep } from '../types';
 
 export type FailureOutcome =
-  'none' | 'void' | 'wrongOutput' | 'undelivered' | 'insufficientGated' | 'insufficientRoute';
+  'none' | 'void' | 'wrongOutput' | 'undelivered' | 'insufficientGated' | 'insufficientRoute' |
+  'insufficientMixed';
 
 // Step types whose `success: false` means a gate held the signal on purpose.
 export const GATE_STEP_TYPES: ReadonlySet<string> = new Set(['configNode', 'counter', 'latch']);
@@ -47,12 +48,15 @@ export function classifyRunFailure(a: {
   // 3. Documentary rule, unchanged: every pulse delivered, tape wrong.
   if (a.hasTape && reached === n && !a.tapeMatches) return 'wrongOutput';
 
-  // 4. Short of requiredTerminalCount: gated only if every lost pulse was gated.
+  // 4. Short of requiredTerminalCount, split by what lost the pulses
+  //    (SWEEP-B51 H1-8): every lost pulse gated, none gated (the route), or
+  //    some of each. The route line may only claim what the run shows.
   if (reached < a.requiredCount) {
-    const everyLostPulseGated = a.reachedPerPulse.every(
-      (r, i) => r || a.gatedPerPulse[i] === true,
-    );
-    return everyLostPulseGated ? 'insufficientGated' : 'insufficientRoute';
+    const lost = a.reachedPerPulse.flatMap((r, i) => (r ? [] : [i]));
+    const gatedLost = lost.filter(i => a.gatedPerPulse[i] === true).length;
+    if (gatedLost === lost.length) return 'insufficientGated';
+    if (gatedLost === 0) return 'insufficientRoute';
+    return 'insufficientMixed';
   }
 
   return 'none';

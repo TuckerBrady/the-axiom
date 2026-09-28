@@ -525,6 +525,10 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                     ? (pulseResultData.required === 1
                       ? '"1 pulse was required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."'
                       : `"${pulseResultData.required} pulses were required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."`)
+                  : pulseResultData.reason === 'mixed'
+                    ? (pulseResultData.required === 1
+                      ? '"1 pulse was required. The machine delivered fewer. The configuration held some back, and the route lost the rest before the Terminal. Two faults, not one."'
+                      : `"${pulseResultData.required} pulses were required. The machine delivered fewer. The configuration held some back, and the route lost the rest before the Terminal. Two faults, not one."`)
                     : `"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
               </Text>
             </View>

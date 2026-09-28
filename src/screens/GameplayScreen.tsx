@@ -1226,7 +1226,7 @@ export default function GameplayScreen({ navigation }: Props) {
     });
     const wrongOutput = runOutcome === 'wrongOutput';
     const metPulseRequirement = runOutcome !== 'insufficientGated' && runOutcome !== 'insufficientRoute' &&
-      runOutcome !== 'undelivered' && runOutcome !== 'void';
+      runOutcome !== 'insufficientMixed' && runOutcome !== 'undelivered' && runOutcome !== 'void';
 
     // SE-TM-035: grade the executed signal path against the level's board-
     // topology SHALL (the same requirement the Spec Sheet surfaces). A machine
@@ -1286,6 +1286,7 @@ export default function GameplayScreen({ navigation }: Props) {
           required: requiredCount,
           achieved: terminalSuccessCount,
           ...(runOutcome === 'insufficientRoute' ? { reason: 'route' as const } : {}),
+          ...(runOutcome === 'insufficientMixed' ? { reason: 'mixed' as const } : {}),
         });
       }
       setShowInsufficientPulses(true);

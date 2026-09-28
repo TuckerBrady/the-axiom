@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { PieceIcon } from './PieceIcon';
 import PieceSimulation from './PieceSimulation';
 import { Colors, Fonts, FontSizes, Spacing } from '../theme/tokens';
+import type { PortSide } from '../game/types';
 
 // Map each piece id to the color the player sees during gameplay so
 // the Codex hero icon lines up with the in-game piece instead of
@@ -135,6 +136,16 @@ export const CODEX_PIECES: PieceEntry[] = [
 
 export function getCodexEntry(id: string): PieceEntry | null {
   return CODEX_PIECES.find(p => p.id === id) ?? null;
+}
+
+// SWEEP-B51 H1-5 (AXM-044 DR-9): the Codex header port side for a piece.
+// Source shows its outlet on the right, Terminal its socket on the left,
+// every other piece none. One mapping for every Codex surface; PieceIcon
+// draws the port itself.
+export function codexPortSides(id: string): PortSide[] | undefined {
+  if (id === 'source') return ['right'];
+  if (id === 'terminal') return ['left'];
+  return undefined;
 }
 
 // Canonical Codex numbering (COPY-01, Scheme A). Defined in a dependency-free
@@ -324,7 +335,7 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
                   type={entry.id}
                   size={32}
                   color={getCodexPieceColor(entry.id)}
-                  portSides={entry.id === 'source' ? ['right'] : entry.id === 'terminal' ? ['left'] : undefined}
+                  portSides={codexPortSides(entry.id)}
                 />}
           </View>
           <Text style={st.heroName}>{entry.name.toUpperCase()}</Text>
@@ -355,7 +366,7 @@ export default function CodexDetailView({ entry, onUnderstood, entryNumber = 1, 
                     type={e.id}
                     size={16}
                     color={getCodexPieceColor(e.id)}
-                    portSides={e.id === 'source' ? ['right'] : e.id === 'terminal' ? ['left'] : undefined}
+                    portSides={codexPortSides(e.id)}
                   />
                   <Text style={st.alsoChipText}>{e.name.toUpperCase()}</Text>
                 </View>
