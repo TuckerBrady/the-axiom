@@ -24,6 +24,12 @@ import type { WrongOutputData, PulseResultData, MayBonusData, SpecNotMetData } f
 import { buildSpecChecklist, type SpecCheckStatus } from '../../game/spec/specChecklist';
 import { VOID_QUOTES } from '../../game/voidQuotes';
 import { seedBlownCells, hasPlayerCraters } from '../../hooks/useGameplayFailure';
+import {
+  pulseChipRows,
+  PULSE_CHIP_SIZE,
+  PULSE_CHIP_GAP,
+  PULSE_CHIP_BLOCK_PAD,
+} from '../../game/engagement/failureOutcome';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -491,58 +497,38 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             <Text style={styles.insufficientSubtext}>
               {pulseResultData.achieved} of {pulseResultData.required} required pulses reached the terminal.
             </Text>
-            <View style={styles.pulseResultsRow}>
-              {pulseResultData.results.map((reached, i) => (
-                <View
-                  key={`pulse-${i}`}
-                  style={[
-                    styles.pulseResultCell,
-                    reached ? styles.pulseResultPass : styles.pulseResultFail,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.pulseResultText,
-                      { color: reached ? '#22C55E' : '#EF4444' },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.5}
-                  >
-                    {'P' + (i + 1)}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.pulseResultIcon,
-                      { color: reached ? '#22C55E' : '#EF4444' },
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.5}
-                  >
-                    {reached ? 'PASS' : 'BLOCKED'}
-                  </Text>
-                </View>
-              ))}
+            {/* SWEEP-B51 S2-7: chips wrap to two rows past five (pulseChipRows),
+                so eight fit the card's 280pt inner width at 360dp. */}
+            <View style={styles.pulseResultsBlock}>
+              {pulseChipRows(pulseResultData.results.length).map((rowLength, row, rows) => {
+                const offset = rows.slice(0, row).reduce((sum, len) => sum + len, 0);
+                return (
+                  <View key={`pulse-row-${row}`} style={styles.pulseResultsRow}>
+                    {pulseResultData.results.slice(offset, offset + rowLength).map((reached, j) => (
+                      <PulseChip key={`pulse-${offset + j}`} reached={reached} index={offset + j} />
+                    ))}
+                  </View>
+                );
+              })}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 }}>
               <CogsAvatar size="small" state="damaged" />
               <Text style={styles.wrongOutputCogsText}>
                 {pulseResultData.reason === 'undelivered'
                   ? 'The output tape is correct. The signal never reached the Terminal. A result that is not delivered has not been produced.'
-                  : `"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
+                  : pulseResultData.reason === 'route'
+                    ? (pulseResultData.required === 1
+                      ? '"1 pulse was required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."'
+                      : `"${pulseResultData.required} pulses were required. The machine delivered fewer. The route broke before the Terminal. The configuration was never the problem."`)
+                    : `"${pulseResultData.required} pulse${pulseResultData.required === 1 ? '' : 's'} ${pulseResultData.required === 1 ? 'was' : 'were'} required. The machine delivered fewer. The configuration was not aligned with the input."`}
               </Text>
             </View>
             <TouchableOpacity
               style={styles.wrongOutputRetryBtn}
-              onPress={() => {
-                setShowInsufficientPulses(false);
-                setPulseResultData(null);
-                handleReset();
-              }}
+              onPress={onWrongOutputRetry}
               activeOpacity={0.7}
             >
-              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+              <Text style={styles.wrongOutputRetryText}>RETRY</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -567,18 +553,10 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             </View>
             <TouchableOpacity
               style={styles.wrongOutputRetryBtn}
-              onPress={() => {
-                setShowSpecNotMet(false);
-                setSpecNotMetData(null);
-                if (lives <= 0) {
-                  setShowOutOfLives(true);
-                } else {
-                  handleReset();
-                }
-              }}
+              onPress={onWrongOutputRetry}
               activeOpacity={0.7}
             >
-              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+              <Text style={styles.wrongOutputRetryText}>RETRY</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -597,17 +575,10 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
             </View>
             <TouchableOpacity
               style={styles.wrongOutputRetryBtn}
-              onPress={() => {
-                setShowRequiredNotEngaged(false);
-                if (lives <= 0) {
-                  setShowOutOfLives(true);
-                } else {
-                  handleReset();
-                }
-              }}
+              onPress={onWrongOutputRetry}
               activeOpacity={0.7}
             >
-              <Text style={styles.wrongOutputRetryText}>TRY AGAIN</Text>
+              <Text style={styles.wrongOutputRetryText}>RETRY</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -658,7 +629,8 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                       setShowVoid(false);
                       setShowOutOfLives(true);
                     } else {
-                      loseLife();
+                      // SWEEP-B51 S2-6: Axiom never loses a life.
+                      if (!isAxiomLevel) loseLife();
                       handleReset();
                     }
                   }}
@@ -918,6 +890,43 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
         </View>
       )}
     </>
+  );
+}
+
+// ─── Pulse chip (INSUFFICIENT PULSES) ───────────────────────────────────────
+// One chip of the pulse block: P<n> over PASS/BLOCKED. Its texts keep
+// AXM-036 P10-4's single-line auto-fit.
+function PulseChip({ reached, index }: { reached: boolean; index: number }) {
+  return (
+    <View
+      style={[
+        styles.pulseResultCell,
+        reached ? styles.pulseResultPass : styles.pulseResultFail,
+      ]}
+    >
+      <Text
+        style={[
+          styles.pulseResultText,
+          { color: reached ? '#22C55E' : '#EF4444' },
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+      >
+        {'P' + (index + 1)}
+      </Text>
+      <Text
+        style={[
+          styles.pulseResultIcon,
+          { color: reached ? '#22C55E' : '#EF4444' },
+        ]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+      >
+        {reached ? 'PASS' : 'BLOCKED'}
+      </Text>
+    </View>
   );
 }
 
@@ -1344,15 +1353,20 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     letterSpacing: 1,
   },
+  // SWEEP-B51 S2-7: rows from pulseChipRows, padded block around the chips.
+  pulseResultsBlock: {
+    gap: PULSE_CHIP_GAP,
+    paddingVertical: PULSE_CHIP_BLOCK_PAD,
+    paddingHorizontal: PULSE_CHIP_BLOCK_PAD / 2,
+  },
   pulseResultsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 6,
-    marginVertical: 8,
+    gap: PULSE_CHIP_GAP,
   },
   pulseResultCell: {
-    width: 44,
-    height: 44,
+    width: PULSE_CHIP_SIZE,
+    height: PULSE_CHIP_SIZE,
     borderRadius: 4,
     borderWidth: 1,
     alignItems: 'center',

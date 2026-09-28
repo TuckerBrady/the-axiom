@@ -112,7 +112,7 @@ describe('P7 — GameplayScreen.tsx source structure', () => {
     const resetCallCount = (runEngageBody.match(/tape\.resetTape\(\)/g) ?? []).length;
     expect(resetCallCount).toBe(1);
 
-    // (2) handleReset (RESET and every TRY AGAIN)
+    // (2) handleReset (RESET and VOID TRY AGAIN)
     const handleResetBody = extractBlock('const handleReset = useCallback(() => {');
     expect(handleResetBody).toMatch(/tape\.resetTape\(\)/);
 

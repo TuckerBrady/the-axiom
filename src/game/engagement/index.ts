@@ -40,6 +40,16 @@ export {
   TRANSMITTER_BEFORE_GATE_COGS_LINES,
 } from './transmitterPlacementDiagnostic';
 export { detectTerminalWrongSide } from './terminalWrongSideDiagnostic';
+export {
+  classifyRunFailure,
+  pulseWasGated,
+  pulseChipRows,
+  GATE_STEP_TYPES,
+  PULSE_CHIP_SIZE,
+  PULSE_CHIP_GAP,
+  PULSE_CHIP_BLOCK_PAD,
+} from './failureOutcome';
+export type { FailureOutcome } from './failureOutcome';
 export type {
   EngagementContext,
   Pt,
