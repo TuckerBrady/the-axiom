@@ -302,9 +302,11 @@ function GameplayModalsImpl(props: GameplayModalsProps) {
                 ? allCats.filter(([label]) => label === 'COMPLETION' || label === 'PATH')
                 : allCats;
               return (
-                <View style={styles.scoreStrip}>
+                // SWEEP-B51 S4-3: off the Axiom, six cells wrap three to a row
+                // (each at least 90pt at 360dp), so no label has to shrink.
+                <View style={level.sector === 'axiom' ? styles.scoreStrip : [styles.scoreStrip, styles.scoreStripWrap]}>
                   {cats.map(([label, val, max]) => (
-                    <View key={label} style={styles.scoreCell}>
+                    <View key={label} style={level.sector === 'axiom' ? styles.scoreCell : styles.scoreCellThird}>
                       <Text style={[
                         styles.scoreCellVal,
                         { color: val >= max ? '#4ecb8d' : val > 0 ? '#f0b429' : 'rgba(224,85,85,0.7)' },
@@ -1081,6 +1083,15 @@ const styles = StyleSheet.create({
   },
   scoreCell: {
     flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    gap: 2,
+  },
+  scoreStripWrap: {
+    flexWrap: 'wrap',
+  },
+  scoreCellThird: {
+    width: '33.333%',
     alignItems: 'center',
     paddingVertical: 6,
     gap: 2,
