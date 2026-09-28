@@ -358,7 +358,7 @@ const MAX_STEPS = 50;
  * upstream and never arrives, the drain-fallback flush (see executeMachine) emits
  * the OR of whatever did arrive.
  */
-function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPiece[]): number {
+export function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPiece[]): number {
   return allPieces.reduce(
     (n, p) => (p.id !== merger.id && canSendTo(p, merger) ? n + 1 : n),
     0,

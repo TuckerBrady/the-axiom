@@ -16,14 +16,21 @@
 // made a Gear leave through exactly one perpendicular side, and this trace
 // follows it by passing its `visited` set, exactly as executeMachine does.
 //
-// The one deliberate addition beyond a plain "visited" BFS is the Merger
-// exception: a Merger takes every inbound path (engine.ts's deferred-Merger
-// hold, G3), so an edge into an already-visited Merger is still recorded —
-// only the FIRST arrival sets its `entry` side and enqueues it for further
-// traversal.
+// The one deliberate addition beyond a plain "visited" BFS is the Merger,
+// which mirrors engine.ts's deferred-Merger hold (G3) exactly (SWEEP-B51
+// R-3.2). A Merger is added to `visited`, and emits, only when its arrival
+// count reaches `countMergerInboundEdges` (the engine's own count, imported,
+// never re-derived), or, once the queue drains, by a flush of every held
+// Merger with at least one arrival, repeated until no work remains, as
+// executeMachine's outer loop does. So the `visited` set a Gear sees here
+// equals the one it sees in the engine at every Gear evaluation: a Merger
+// still waiting for a further inbound path stays a Gear exit candidate. A
+// Merger's `entry` is its FIRST arrival's side. An edge into a not-yet-visited
+// piece, or into a Merger, is recorded, so every inbound path into a Merger
+// keeps its edge. No other piece type is special-cased.
 
 import type { PlacedPiece, PortSide } from './types';
-import { getDirectionalNeighbors } from './engine';
+import { countMergerInboundEdges, getDirectionalNeighbors } from './engine';
 
 export interface BeamTraceEdge {
   from: string;
@@ -46,39 +53,73 @@ export function traceBeam(pieces: PlacedPiece[]): BeamTraceResult {
   const edges: BeamTraceEdge[] = [];
   const visited = new Set<string>();
 
-  const queue: { id: string; entrySide?: PortSide }[] = [];
+  const queue: { id: string; entrySide?: PortSide; flushMerger?: boolean }[] = [];
   for (const piece of pieces) {
     if (piece.type === 'source') {
       queue.push({ id: piece.id, entrySide: undefined });
     }
   }
+  // G3 mirror: each held Merger's arrival count and inbound-path target.
+  const pendingMergers = new Map<string, { arrivals: number; expectedPaths: number }>();
 
-  while (queue.length > 0) {
-    const next = queue.shift();
-    if (!next) break;
-    const { id: currentId, entrySide } = next;
-    if (visited.has(currentId)) continue;
-    visited.add(currentId);
-    entry.set(currentId, entrySide);
+  // Outer loop: drain the queue, then flush every held Merger that received at
+  // least one arrival, and repeat until no work remains (executeMachine's loop).
+  let didWork = true;
+  while (didWork) {
+    didWork = false;
 
-    const piece = pieces.find(p => p.id === currentId);
-    if (!piece) continue;
+    while (queue.length > 0) {
+      const next = queue.shift();
+      if (!next) break;
+      const { id: currentId, entrySide, flushMerger } = next;
+      if (visited.has(currentId)) continue;
 
-    const neighbors = getDirectionalNeighbors(piece, pieces, entrySide, visited);
-    for (const neighbor of neighbors) {
-      const neighborAlreadyVisited = visited.has(neighbor.id);
-      if (!neighborAlreadyVisited || neighbor.type === 'merger') {
-        edges.push({ from: piece.id, to: neighbor.id });
+      const piece = pieces.find(p => p.id === currentId);
+      if (!piece) continue;
+
+      if (piece.type === 'merger') {
+        let pending = pendingMergers.get(currentId);
+        if (!pending) {
+          pending = { arrivals: 0, expectedPaths: countMergerInboundEdges(piece, pieces) };
+          pendingMergers.set(currentId, pending);
+        }
+        if (!flushMerger) {
+          pending.arrivals += 1;
+          // The first arrival's side is the Merger's entry.
+          if (!entry.has(currentId)) entry.set(currentId, entrySide);
+        }
+        if (!flushMerger && pending.arrivals < pending.expectedPaths) {
+          continue; // hold for the remaining inbound path(s)
+        }
       }
-      if (!neighborAlreadyVisited) {
-        const dx = neighbor.gridX - piece.gridX;
-        const dy = neighbor.gridY - piece.gridY;
-        let neighborEntrySide: PortSide;
-        if (dx === 1) neighborEntrySide = 'left';
-        else if (dx === -1) neighborEntrySide = 'right';
-        else if (dy === 1) neighborEntrySide = 'top';
-        else neighborEntrySide = 'bottom';
-        queue.push({ id: neighbor.id, entrySide: neighborEntrySide });
+
+      visited.add(currentId);
+      if (!entry.has(currentId)) entry.set(currentId, entrySide);
+
+      const neighbors = getDirectionalNeighbors(piece, pieces, entrySide, visited);
+      for (const neighbor of neighbors) {
+        const neighborAlreadyVisited = visited.has(neighbor.id);
+        if (!neighborAlreadyVisited || neighbor.type === 'merger') {
+          edges.push({ from: piece.id, to: neighbor.id });
+        }
+        if (!neighborAlreadyVisited) {
+          const dx = neighbor.gridX - piece.gridX;
+          const dy = neighbor.gridY - piece.gridY;
+          let neighborEntrySide: PortSide;
+          if (dx === 1) neighborEntrySide = 'left';
+          else if (dx === -1) neighborEntrySide = 'right';
+          else if (dy === 1) neighborEntrySide = 'top';
+          else neighborEntrySide = 'bottom';
+          queue.push({ id: neighbor.id, entrySide: neighborEntrySide });
+        }
+      }
+    }
+
+    // G3 drain-fallback mirror: release every held Merger with an arrival.
+    for (const [mergerId, pending] of pendingMergers) {
+      if (!visited.has(mergerId) && pending.arrivals >= 1) {
+        queue.push({ id: mergerId, entrySide: entry.get(mergerId), flushMerger: true });
+        didWork = true;
       }
     }
   }
