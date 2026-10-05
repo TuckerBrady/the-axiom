@@ -14,6 +14,9 @@ export type PieceType =
   | 'inverter'
   | 'counter'
   | 'latch'
+  // AXM-046 DR-8/DR-9: driven-head Protocol pieces, straight-through.
+  | 'stepper'
+  | 'stamp'
   | 'obstacle';
 
 export type PieceCategory = 'physics' | 'protocol';
@@ -56,6 +59,22 @@ export type PlacedPiece = {
   // accepts from all four sides (unchanged behavior). Deliberately separate
   // from `rotation`, which never affects a Terminal's input ports.
   entrySide?: PortSide;
+  // AXM-045 DR-12/DR-13: a module seated on an endpoint. 'read' sits on the
+  // Source (TRAIL[N] = IN[N] each pulse), 'write' on the Terminal (OUT[N] =
+  // the value the Terminal accepts). Absent means no module: master behaviour.
+  // Where module ids are persisted (tray, prices, Codex) they stay 'scanner'
+  // and 'transmitter' (AXM-045 DR-14).
+  module?: 'read' | 'write';
+  // AXM-045 DR-12.7: set when the seated module executed during the run.
+  // Cleared with firedDuringRun by resetRunState.
+  moduleFiredDuringRun?: boolean;
+  // AXM-046 DR-8: STEPPER head move per firing. Set by tap; absent = 'right'.
+  direction?: 'left' | 'right';
+  // AXM-046 DR-9: STAMP value written to TRAIL[head]. Set by tap; absent = 1.
+  value?: 0 | 1;
+  // AXM-046 DR-11: Terminal only. The run repeats pulses until a beam reaches
+  // this Terminal (capped at HALT_CAP), instead of a fixed pulse count.
+  halt?: true;
 };
 
 // ─── Connections ──────────────────────────────────────────────────────────────
@@ -229,6 +248,21 @@ export type LevelDefinition = {
   // bonus on a 3-star clear. Never required for completion or 3 stars. Surfaced
   // on the Spec Sheet MAY section. Absent on Axiom levels by design.
   mayConditions?: MayCondition[];
+  // ── AXM-046 PR 1 engine flags. All optional; a level that sets none of
+  // them runs exactly as on master. ──
+  // DR-1: ordered checkpoint cells. Every scored pulse (one the Terminal
+  // accepted) must pass through each one, in list order.
+  checkpoints?: Array<{ x: number; y: number }>;
+  // DR-7: Config Nodes read TRAIL[head] from a pulse-start snapshot; STEPPER
+  // and STAMP effects queue and commit after the pulse (DR-10).
+  headMode?: 'driven';
+  // Twin scope DH-6: the pulse count for a level with no IN tape to count
+  // them (A1-7 runs 6). A halt run ignores it. Absent = the master count.
+  pulseCount?: number;
+  // DR-13: the exact set of 1-based pulses on which the Terminal accepts.
+  expectedArrivals?: number[];
+  // DR-13: the Data Trail the run must end with.
+  expectedTrail?: (0 | 1 | null)[];
 };
 
 // ─── Topology Requirements (SE-TM-035) ────────────────────────────────────────
@@ -356,7 +390,7 @@ export const PIECE_COSTS: Partial<Record<PieceType, number>> = {
   transmitter: 35,
 };
 
-const PROTOCOL_PIECES: PieceType[] = ['configNode', 'scanner', 'transmitter', 'latch'];
+const PROTOCOL_PIECES: PieceType[] = ['configNode', 'scanner', 'transmitter', 'latch', 'stepper', 'stamp'];
 const PHYSICS_PIECES: PieceType[] = ['conveyor', 'gear', 'splitter', 'merger', 'bridge'];
 
 export function getPieceCost(
@@ -487,4 +521,9 @@ export type ExecutionStep = {
   // Set only on a jammed Gear's step (SWEEP-B51 S3-3): no perpendicular side
   // would take the signal ('noExit'), or both would ('twoExits').
   gearJam?: 'noExit' | 'twoExits';
+  // AXM-046 DH-9, driven mode only. On the Source step: the head at the start
+  // of the pulse. On a STEPPER or STAMP step: the head its queued effect
+  // applies to. Replay draws the head from these, never from end-of-run state.
+  headAtPulseStart?: number;
+  headBefore?: number;
 };

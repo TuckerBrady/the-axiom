@@ -74,6 +74,8 @@ export function getInputPorts(piece: PlacedPiece): PortSide[] {
     case 'configNode':
     case 'scanner':
     case 'transmitter':
+    case 'stepper':
+    case 'stamp':
       return ALL;                             // omnidirectional input
   }
 }
@@ -112,6 +114,8 @@ export function getOutputPorts(piece: PlacedPiece): PortSide[] {
     case 'configNode':
     case 'scanner':
     case 'transmitter':
+    case 'stepper':
+    case 'stamp':
       return ALL;                             // omnidirectional output
   }
 }
@@ -224,8 +228,9 @@ export function autoConnectPhysicsPieces(pieces: PlacedPiece[]): Wire[] {
   return wires;
 }
 
-// Protocol piece types that enforce straight-through routing
-const STRAIGHT_THROUGH_TYPES = new Set(['configNode', 'scanner', 'transmitter']);
+// Protocol piece types that enforce straight-through routing.
+// AXM-046 DR-8/DR-9: STEPPER and STAMP are straight-through.
+const STRAIGHT_THROUGH_TYPES = new Set(['configNode', 'scanner', 'transmitter', 'stepper', 'stamp']);
 
 // The two sides perpendicular to a side.
 const PERPENDICULAR_SIDES: Record<PortSide, [PortSide, PortSide]> = {
@@ -373,9 +378,21 @@ export function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPi
  * dataTrail.cells[pulseIndex]. Config Node reads dataTrail.cells[pulseIndex]
  * to gate. Transmitter writes to outputTape[pulseIndex]. Trail and
  * outputTape state persist across pulses via mutation of the state object.
+ *
+ * AXM-046: `options.headMode === 'driven'` switches on the driven head
+ * (DR-7..DR-10). With no options the pulse runs exactly as on master.
  */
-export function executeMachine(state: MachineState, pulseIndex: number = 0): ExecutionStep[] {
+export type ExecuteOptions = {
+  headMode?: 'driven';
+};
+
+export function executeMachine(
+  state: MachineState,
+  pulseIndex: number = 0,
+  options: ExecuteOptions = {},
+): ExecutionStep[] {
   const { pieces, dataTrail, configuration } = state;
+  const driven = options.headMode === 'driven';
   const steps: ExecutionStep[] = [];
   let stepTime = 0;
 
@@ -427,6 +444,28 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     cells: [...dataTrail.cells],
     headPosition: dataTrail.headPosition,
   };
+
+  // AXM-045 DR-12 READ module. Part of the Source step, before any other piece
+  // executes, and whether or not the beam leaves the Source: TRAIL[N] = IN[N]
+  // (12.3). The head does not move (12.4) and the carried value stays the
+  // Source seed above (12.5). Without an IN value for this pulse there is
+  // nothing to read, so READ is a no-op (12.1 forbids offering it then).
+  const readFires = source.module === 'read' && tapeValue !== undefined;
+  if (readFires) {
+    if (pulseIndex < trail.cells.length) {
+      trail.cells[pulseIndex] = tapeValue as 0 | 1;
+    }
+    source.moduleFiredDuringRun = true;
+  }
+
+  // AXM-046 DR-7 / DR-10 (driven mode). Config Nodes read TRAIL[h0] from this
+  // pulse-start snapshot, taken after READ (READ is part of the Source step
+  // that opens the pulse). STAMP and STEPPER only queue their effects; the
+  // queue commits after the pulse drains: writes at h0 first, then moves.
+  const h0 = trail.headPosition;
+  const snapshot = [...trail.cells];
+  const queuedWrites: { pieceId: string; value: 0 | 1 }[] = [];
+  const queuedMoves: number[] = [];
 
   // Outer loop: drain the BFS queue, then flush any held Merger that received at
   // least one inbound path but never reached `expectedPaths` (a path blocked
@@ -495,6 +534,8 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
     switch (piece.type) {
       case 'source':
         step.message = 'Signal initiated';
+        // DH-9: the replay draws the head where it was on this pulse.
+        if (driven) step.headAtPulseStart = h0;
         break;
 
       case 'conveyor':
@@ -538,7 +579,12 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
           break;
         }
         let trailValue: number | null;
-        if (trail.cells.length > 0 && pulseIndex < trail.cells.length) {
+        if (driven) {
+          // DR-7: TRAIL[head] from the pulse-start snapshot. A head off the
+          // tape reads blank, and blank fails both gate values. There is no
+          // empty-trail default pass in driven mode.
+          trailValue = h0 >= 0 && h0 < snapshot.length ? snapshot[h0] : null;
+        } else if (trail.cells.length > 0 && pulseIndex < trail.cells.length) {
           trailValue = trail.cells[pulseIndex];
         } else if (trail.cells.length > 0 && trail.headPosition < trail.cells.length) {
           trailValue = trail.cells[trail.headPosition];
@@ -686,15 +732,77 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         break;
       }
 
-      case 'terminal':
+      case 'stepper': {
+        // DR-8: queue a one-cell head move. Outside driven mode there is no
+        // driven head to move, so the STEPPER only passes the beam.
+        const direction = piece.direction ?? 'right';
+        if (driven) {
+          queuedMoves.push(direction === 'left' ? -1 : 1);
+          step.headBefore = h0;
+          step.message = `Stepper queued head move ${direction}`;
+        } else {
+          step.message = 'Stepper passed the signal — no driven head';
+        }
+        break;
+      }
+
+      case 'stamp': {
+        // DR-9: queue a write of the STAMP's value to TRAIL[head]. Outside
+        // driven mode the STAMP only passes the beam.
+        const value = piece.value ?? 1;
+        if (driven) {
+          queuedWrites.push({ pieceId: piece.id, value });
+          step.headBefore = h0;
+          step.message = `Stamp queued ${value} to trail[${h0}]`;
+        } else {
+          step.message = 'Stamp passed the signal — no driven head';
+        }
+        break;
+      }
+
+      case 'terminal': {
+        // AXM-045 DR-13 WRITE module: only on an accepted pulse (13.2), OUT[N]
+        // takes the carried value after every upstream transform (13.3), at
+        // most once per pulse (13.5: the Terminal is visited once), never
+        // touching the trail (13.6). Its step comes just before the Terminal
+        // step (13.7).
+        if (piece.module === 'write' && state.outputTape !== undefined &&
+            pulseIndex < state.outputTape.length) {
+          const written = signalValue as 0 | 1;
+          state.outputTape[pulseIndex] = written;
+          piece.moduleFiredDuringRun = true;
+          steps.push({
+            pieceId: piece.id,
+            type: 'moduleWrite',
+            timestamp: step.timestamp,
+            success: true,
+            message: `WRITE module: OUT[${pulseIndex}] = ${written}`,
+          });
+          step.timestamp = stepTime++;
+        }
         step.message = 'Signal reached output — success!';
         steps.push(step);
+        // DR-10: in driven mode the pulse runs to completion after a Terminal
+        // accepts, so every branch fires. The Terminal emits nothing onward.
+        if (driven) continue;
         state.dataTrail.cells = trail.cells;
         state.dataTrail.headPosition = trail.headPosition;
         return steps;
+      }
     }
 
     steps.push(step);
+
+    // AXM-045 DR-12.6: one moduleRead step, immediately after the Source step.
+    if (readFires && piece.id === source.id) {
+      steps.push({
+        pieceId: piece.id,
+        type: 'moduleRead',
+        timestamp: stepTime++,
+        success: true,
+        message: `READ module: IN[${pulseIndex}] = ${tapeValue}, wrote to trail[${pulseIndex}]`,
+      });
+    }
 
     // Follow directional output ports to find next pieces.
     // Pass entrySide so protocol pieces enforce straight-through routing.
@@ -755,6 +863,33 @@ export function executeMachine(state: MachineState, pulseIndex: number = 0): Exe
         }
       }
     }
+  }
+
+  if (driven) {
+    // DR-10: the pulse has drained. Apply the queued writes, then the queued
+    // moves. DR-9: STAMPs queuing different values in one pulse are a fault;
+    // nothing commits and the run stops (stamp_conflict, see runLoop.ts).
+    // Identical values are legal. A write with the head off the tape has no
+    // cell to land in and is dropped. Moves sum (twin scope A7).
+    // A branch that ended without a Terminal is legal here, so no void step.
+    const conflict = queuedWrites.find(w => w.value !== queuedWrites[0].value);
+    if (conflict) {
+      steps.push({
+        pieceId: conflict.pieceId,
+        type: 'stampConflict',
+        timestamp: stepTime++,
+        success: false,
+        message: 'Stamp conflict — two STAMPs queued different values in one pulse',
+      });
+    } else {
+      if (queuedWrites.length > 0 && h0 >= 0 && h0 < trail.cells.length) {
+        trail.cells[h0] = queuedWrites[0].value;
+      }
+      trail.headPosition = h0 + queuedMoves.reduce((sum, m) => sum + m, 0);
+    }
+    state.dataTrail.cells = trail.cells;
+    state.dataTrail.headPosition = trail.headPosition;
+    return steps;
   }
 
   // Signal never reached output. A run whose record already closes on a
@@ -834,6 +969,8 @@ export function getPieceCategory(type: PlacedPiece['type']): PlacedPiece['catego
     case 'inverter':
     case 'counter':
     case 'latch':
+    case 'stepper':
+    case 'stamp':
       return 'protocol';
   }
 }
@@ -865,6 +1002,10 @@ export function resetRunState(arg: PlacedPiece[] | MachineState): void {
   const pieces = Array.isArray(arg) ? arg : arg.pieces;
   for (const p of pieces) {
     p.firedDuringRun = false;
+    // AXM-045 DR-12.7: a seated module's fired flag resets with the piece's.
+    if (p.module || p.moduleFiredDuringRun !== undefined) {
+      p.moduleFiredDuringRun = false;
+    }
     if (p.type === 'latch') {
       p.storedValue = null;
     }
@@ -892,6 +1033,25 @@ export function nextLatchMode(
     default:
       return 'write';
   }
+}
+
+/**
+ * AXM-046 DR-8: the STEPPER tap cycle, RIGHT <-> LEFT. An unset direction reads
+ * as 'right', so the first tap turns it left. Same pattern as the Config Node
+ * gate toggle and nextLatchMode.
+ */
+export function nextStepperDirection(
+  direction: PlacedPiece['direction'],
+): 'left' | 'right' {
+  return (direction ?? 'right') === 'right' ? 'left' : 'right';
+}
+
+/**
+ * AXM-046 DR-9: the STAMP tap cycle, 1 <-> 0. An unset value reads as 1 (the
+ * Config Node default), so the first tap sets it to 0.
+ */
+export function nextStampValue(value: PlacedPiece['value']): 0 | 1 {
+  return (value ?? 1) === 1 ? 0 : 1;
 }
 
 /**
@@ -954,9 +1114,11 @@ export function evaluateMinPieces(
   level: LevelDefinition,
   placedPieces: PlacedPiece[],
 ): { met: boolean; active: number; required: number } {
+  // AXM-045 DR-15: a seated module that executed counts like a placed
+  // Protocol piece, although the endpoint it sits on is pre-placed.
   const active = placedPieces.filter(
     p => !p.isPrePlaced && p.firedDuringRun === true,
-  ).length;
+  ).length + placedPieces.filter(p => !!p.module && p.moduleFiredDuringRun === true).length;
   const required = level.minPieces ?? 0;
   if (required <= 0) return { met: true, active, required: 0 };
   return { met: active >= required, active, required };

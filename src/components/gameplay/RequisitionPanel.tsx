@@ -68,6 +68,7 @@ const PIECE_LABELS: Record<PieceType, string> = {
   merger: 'Merger', bridge: 'Bridge',
   configNode: 'Config Node', scanner: 'Scanner', transmitter: 'Transmitter',
   inverter: 'Inverter', counter: 'Counter', latch: 'Latch',
+  stepper: 'Stepper', stamp: 'Stamp',
   obstacle: 'Obstacle',
 };
 
