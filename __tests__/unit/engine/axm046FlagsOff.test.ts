@@ -46,9 +46,13 @@ function stateOf(level: LevelDefinition, pieces: PlacedPiece[]): MachineState {
   };
 }
 
+// A deep copy of a built board, so two runs see identical piece ids but
+// never share mutable piece state (Latch values, fired flags).
+const cloneBoard = (pieces: PlacedPiece[]): PlacedPiece[] => JSON.parse(JSON.stringify(pieces));
+
 // The master pulse loop (puzzleVerifier.runSolution on e0d2369).
-function masterRun(level: LevelDefinition, solve: SolvePiece[]) {
-  const state = stateOf(level, freshBoard(level, solve));
+function masterRun(level: LevelDefinition, board: PlacedPiece[]) {
+  const state = stateOf(level, cloneBoard(board));
   const n = level.inputTape && level.inputTape.length > 0 ? level.inputTape.length : 1;
   const pulses = Array.from({ length: n }, (_, i) => executeMachine(state, i));
   return { pulses, outputTape: state.outputTape, trail: state.dataTrail };
@@ -81,9 +85,10 @@ describe('R1.8 flags off: every existing fixture runs identically through the ne
     for (const which of ['floor', 'alternate'] as const) {
       it(`${level.id} ${which}: steps, tapes and trail equal the master loop; requirements pass; verifies`, () => {
         const solve = FLOOR_SOLVES[level.id][which];
-        const master = masterRun(level, solve);
+        const board = freshBoard(level, solve);
+        const master = masterRun(level, board);
 
-        const state = stateOf(level, freshBoard(level, solve));
+        const state = stateOf(level, cloneBoard(board));
         const fallback = level.inputTape && level.inputTape.length > 0 ? level.inputTape.length : 1;
         const run = runMachine(level, state, fallback);
 
@@ -95,7 +100,7 @@ describe('R1.8 flags off: every existing fixture runs identically through the ne
         expect(run.fault).toBeUndefined();
         expect(evaluateRunRequirements(level, run)).toEqual({ passed: true });
 
-        const all = freshBoard(level, solve);
+        const all = cloneBoard(board);
         const result = verifyPuzzle(
           { ...level, prePlacedPieces: all.filter(p => p.isPrePlaced) },
           all.filter(p => !p.isPrePlaced),

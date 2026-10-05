@@ -3,7 +3,7 @@
 // Pierce - System Engineer/AXM-045_ENGINE_IMPACT.md section 4 (12.x, 13.x, 14.x).
 // Written red first.
 
-import type { ExecutionStep, OutputTapeValue, PlacedPiece } from '../../../src/game/types';
+import type { ExecutionStep, OutputTapeValue, PieceType, PlacedPiece } from '../../../src/game/types';
 import { BLANK } from '../../../src/game/types';
 import { executeMachine, evaluateMinPieces, resetRunState } from '../../../src/game/engine';
 import { calculateScore } from '../../../src/game/scoring';
@@ -191,12 +191,17 @@ describe('DR-14 no module seated', () => {
 });
 
 describe('DR-15 scoring', () => {
-  function scored(pieces: PlacedPiece[], steps: ExecutionStep[], purchasedTapeTypes: ('TRAIL' | 'OUT')[] = []) {
+  function scored(
+    pieces: PlacedPiece[],
+    steps: ExecutionStep[],
+    purchasedTapeTypes: ('TRAIL' | 'OUT')[] = [],
+    trayPieceTypes: PieceType[] = [],
+  ) {
     return calculateScore({
       executionSteps: steps,
       placedPieces: pieces,
       optimalPieces: 1,
-      trayPieceTypes: [],
+      trayPieceTypes,
       purchasedTapeTypes,
       discipline: 'systems',
     });
@@ -225,8 +230,11 @@ describe('DR-15 scoring', () => {
     const seated = line(['conveyor'], { source: { module: 'read' } });
     const a = stateFor(plain, [null], 0, { inputTape: [1] });
     const b = stateFor(seated, [null], 0, { inputTape: [1] });
-    const sa = scored(a.pieces, executeMachine(a, 0));
-    const sb = scored(b.pieces, executeMachine(b, 0));
+    // Both pieces come from the tray (the module under its persisted key,
+    // 'scanner'), so nothing is purchased and Discipline takes half credit.
+    const tray: PieceType[] = ['conveyor', 'scanner'];
+    const sa = scored(a.pieces, executeMachine(a, 0), [], tray);
+    const sb = scored(b.pieces, executeMachine(b, 0), [], tray);
     // Systems discipline rewards active Protocol pieces: 0 -> 1 of 4 (half
     // credit with no purchase) is round(0.25 * 10 * 0.5) = 1.
     expect(sa.breakdown.discipline).toBe(0);
