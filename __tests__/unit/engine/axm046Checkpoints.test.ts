@@ -5,7 +5,7 @@
 
 import { executeMachine } from '../../../src/game/engine';
 import { checkpointsPassed, evaluateRunRequirements, runMachine } from '../../../src/game/runLoop';
-import { fixtureLevel, piece, pre, stateFor, stateForLevel, E, S } from '../../fixtures/axm046EngineFixtures';
+import { fixtureLevel, piece, pre, stateFor, stateForLevel, E, N, S } from '../../fixtures/axm046EngineFixtures';
 
 // Source (0,0) east along row 0: cells (1,0)..(4,0), Terminal at (5,0).
 // The first two entries are the Source and Terminal; slice(2) is the route.
@@ -171,23 +171,28 @@ describe('DR-1 ruling (#100 review): only the path that reached the accepting Te
   });
 
   it('two branches into a Merger both deliver, but neither branch precedes the other', () => {
-    // Source (0,1) -> Splitter (1,1). Branch A: Gear (1,0), Conveyor (2,0),
-    // Gear (3,0), into the Merger's top. Branch B: Conveyor (2,1) into the
-    // Merger's west side. Merger (3,1) -> Conveyor (4,1) -> Terminal (5,1).
+    // Source (0,2) -> Splitter (1,2). Branch A: Conveyor (1,1) north, Gear
+    // (1,0), Conveyor (2,0) east, Gear (3,0), Conveyor (3,1) south into the
+    // Merger's top. Branch B: Conveyor (2,2) east into the Merger's west side.
+    // Merger (3,2) -> Conveyor (4,2) -> Terminal (5,2). (A Gear beside the
+    // Splitter would read as its upstream, so each branch leaves on a
+    // Conveyor.)
     const pieces = () => [
-      piece('splitter', 1, 1),
+      piece('splitter', 1, 2),
+      piece('conveyor', 1, 1, { rotation: N }),
       piece('gear', 1, 0),
       piece('conveyor', 2, 0, { rotation: E }),
       piece('gear', 3, 0),
-      piece('conveyor', 2, 1, { rotation: E }),
-      piece('merger', 3, 1),
-      piece('conveyor', 4, 1, { rotation: E }),
+      piece('conveyor', 3, 1, { rotation: S }),
+      piece('conveyor', 2, 2, { rotation: E }),
+      piece('merger', 3, 2),
+      piece('conveyor', 4, 2, { rotation: E }),
     ];
     const at = (checkpoints: { x: number; y: number }[]) => fixtureLevel({
-      prePlacedPieces: [pre('source', 0, 1), pre('terminal', 5, 1)],
+      prePlacedPieces: [pre('source', 0, 2), pre('terminal', 5, 2)],
       checkpoints,
     });
-    const parallel = at([{ x: 2, y: 0 }, { x: 2, y: 1 }]);
+    const parallel = at([{ x: 2, y: 0 }, { x: 2, y: 2 }]);
     const run = runMachine(parallel, stateForLevel(parallel, pieces()), 1);
     expect(run.reachedPerPulse).toEqual([true]);
     // Both branch cells are on the delivering path: both feed the Merger.
@@ -195,7 +200,7 @@ describe('DR-1 ruling (#100 review): only the path that reached the accepting Te
     // Parallel branches have no path order, so "1 then 2" fails.
     expect(evaluateRunRequirements(parallel, run).failure).toEqual({ kind: 'checkpoint_missed', index: 1, pulse: 1 });
     // A branch cell, then a cell after the Merger, is in path order.
-    const serial = at([{ x: 2, y: 0 }, { x: 4, y: 1 }]);
+    const serial = at([{ x: 2, y: 0 }, { x: 4, y: 2 }]);
     const run2 = runMachine(serial, stateForLevel(serial, pieces()), 1);
     expect(evaluateRunRequirements(serial, run2)).toEqual({ passed: true });
   });
