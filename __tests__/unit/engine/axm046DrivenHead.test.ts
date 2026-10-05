@@ -5,6 +5,7 @@
 // Written red first.
 
 import type { ExecutionStep, PlacedPiece } from '../../../src/game/types';
+import { BLANK } from '../../../src/game/types';
 import {
   executeMachine,
   getDefaultPorts,
@@ -272,5 +273,25 @@ describe('driven level with no driven pieces still uses fixtureLevel defaults', 
     const run = runMachine(level, stateForLevel(level, [cfg(1), piece('conveyor', 2, 0)].map((p, i) => ({ ...p, gridX: i + 1 }))), 1);
     expect(run.reachedPerPulse).toEqual([true, true, true]);
     expect(run.headPerPulse).toEqual([0, 0, 0]);
+  });
+});
+
+describe('#100 review: what still commits on a stamp_conflict pulse', () => {
+  it('READ and WRITE module writes land; STAMP writes and head moves do not; the run stops and fails', () => {
+    // READ on the Source, two conflicting STAMPs and a STEPPER, WRITE on the
+    // Terminal. Trail [null, 0], head 1, IN [1].
+    const pieces = line([stamp(0), step('right'), stamp(1), 'conveyor'], {
+      source: { module: 'read' }, terminal: { module: 'write' },
+    });
+    const level = fixtureLevel({ headMode: 'driven', inputTape: [1], pulseCount: 3 });
+    const state = stateFor(pieces, [null, 0], 1, { inputTape: [1], outputTape: [BLANK] });
+    const run = runMachine(level, state, 1);
+    expect(run.fault).toEqual({ kind: 'stamp_conflict', pulse: 1 });
+    expect(run.pulses).toHaveLength(1);
+    // READ wrote TRAIL[0]; no STAMP landed at head 1 and the head did not move.
+    expect(state.dataTrail).toEqual({ cells: [1, 0], headPosition: 1 });
+    // WRITE committed OUT[0].
+    expect(state.outputTape).toEqual([1]);
+    expect(evaluateRunRequirements(level, run).passed).toBe(false);
   });
 });

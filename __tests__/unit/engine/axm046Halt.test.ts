@@ -163,3 +163,30 @@ describe('flags off', () => {
     expect(evaluateRunRequirements(level, run)).toEqual({ passed: true });
   });
 });
+
+describe('#100 review: the pulse index is part of the machine state only while IN is still being read', () => {
+  // A driven halt board whose halt Terminal is never reached and whose
+  // machine never changes: Source -> Conveyor -> dead end.
+  const board = (inputTape: number[]) => {
+    const level = fixtureLevel({
+      prePlacedPieces: [pre('source', 0, 0), pre('terminal', 9, 7, { halt: true })],
+      headMode: 'driven',
+      inputTape,
+    });
+    return { level, state: stateForLevel(level, [piece('conveyor', 1, 0, { rotation: E })]) };
+  };
+
+  it('an empty IN tape: the unchanged state repeats at once (non_halting P1, not halt_cap)', () => {
+    const { level, state } = board([]);
+    const run = runMachine(level, state, 1);
+    expect(run.fault).toEqual({ kind: 'non_halting', pulse: 1 });
+  });
+
+  it('a run past the end of the IN tape fails non_halting one pulse after the tape ends', () => {
+    const { level, state } = board([1, 0]);
+    const run = runMachine(level, state, 2);
+    // P1 and P2 read IN[0] and IN[1]. From P3 on the state no longer depends
+    // on the pulse, and it repeats after P3.
+    expect(run.fault).toEqual({ kind: 'non_halting', pulse: 3 });
+  });
+});
