@@ -3,6 +3,14 @@ import { BLANK } from './types';
 import { executeMachine, autoConnectPhysicsPieces } from './engine';
 import { meetsDirectionObjectives, evaluateTopologyGate } from './objectives';
 import { evaluateLiveGate } from './spec/liveGate';
+import {
+  describeRunFailure,
+  evaluateRunRequirements,
+  hasHaltTerminal,
+  runMachine,
+  type MachineRun,
+  type RunVerdict,
+} from './runLoop';
 
 export type VerificationResult = {
   solvable: boolean;
@@ -30,12 +38,19 @@ export type SolutionRun = {
   // gate on this via evaluateLiveGate: a non-blank expected cell must have
   // reached the Terminal on its pulse, not merely match the output tape.
   reachedPerPulse: boolean[];
+  // AXM-046 R1.7: the whole run (per-pulse steps, head, trail, checkpoints,
+  // halt, fault) and its verdict against checkpoints, expectedArrivals and
+  // expectedTrail. The verifier is the sim of record for the A1 levels.
+  run: MachineRun;
+  verdict: RunVerdict;
 };
 
 /**
  * Run an intended solution through the engine for every pulse, mirroring
  * gameStore.executeAndScore: one MachineState reused across pulses so dataTrail
  * and outputTape mutations persist, output tape pre-filled with BLANK.
+ * AXM-046: the pulses run through runLoop.runMachine, the same loop the live
+ * game uses (pulseCount, driven head, run until halt).
  */
 export function runSolution(
   level: LevelDefinition,
@@ -64,24 +79,22 @@ export function runSolution(
     outputTape,
   };
 
-  let reached = 0;
-  const reachedPerPulse: boolean[] = [];
-  for (let i = 0; i < pulseCount; i++) {
-    const steps = executeMachine(state, i);
-    const pulseReached = steps.some(s => s.type === 'terminal' && s.success);
-    reachedPerPulse.push(pulseReached);
-    if (pulseReached) reached += 1;
-  }
+  const run = runMachine(level, state, pulseCount);
+  const reachedPerPulse = run.reachedPerPulse;
+  const reached = reachedPerPulse.filter(Boolean).length;
+  const ranPulses = run.pulses.length;
 
   const producedRealOutput =
     !!outputTape && outputTape.some(v => v !== BLANK);
 
   return {
     outputTape,
-    reachedEveryPulse: pulseCount > 0 && reached >= pulseCount,
+    reachedEveryPulse: ranPulses > 0 && reached >= ranPulses,
     reachedCount: reached,
     producedRealOutput,
     reachedPerPulse,
+    run,
+    verdict: evaluateRunRequirements(level, run),
   };
 }
 
@@ -138,8 +151,21 @@ export function verifyPuzzle(
       const wrongOutput = run.reachedEveryPulse && !tapeMatches;
       won = !wrongOutput && run.reachedCount >= (level.requiredTerminalCount ?? 1);
     }
+  } else if (level.expectedArrivals || hasHaltTerminal(allPieces)) {
+    // AXM-046: a level that names its arrival pulses (DR-13), or runs until
+    // halt (DR-11), does not need the Terminal on every pulse: dead-end
+    // pulses are legal (DR-10). The run requirements below decide it.
+    won = run.reachedCount >= 1;
   } else {
     won = run.reachedEveryPulse;
+  }
+
+  // AXM-046 R1.7: checkpoints, run faults, expectedArrivals, expectedTrail.
+  if (!run.verdict.passed && run.verdict.failure) {
+    return {
+      solvable: false,
+      failReason: `Solution does not satisfy the run requirements: ${describeRunFailure(run.verdict.failure)}`,
+    };
   }
 
   // Structural / topology SHALL must also hold (graded the same way at play).
@@ -158,7 +184,8 @@ export function verifyPuzzle(
         inputTape: level.inputTape ? [...level.inputTape] : undefined,
         outputTape: level.inputTape ? (new Array(level.inputTape.length).fill(BLANK) as OutputTapeValue[]) : undefined,
       };
-      const steps = executeMachine(state, 0);
+      const steps = executeMachine(
+        state, 0, level.headMode === 'driven' ? { headMode: 'driven' } : undefined);
       if (!meetsDirectionObjectives(level.objectives, steps)) {
         return { solvable: false, failReason: 'Solution does not satisfy direction objectives' };
       }

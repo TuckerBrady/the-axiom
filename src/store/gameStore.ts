@@ -11,7 +11,6 @@ import type {
 import { BLANK } from '../game/types';
 import {
   autoConnectPhysicsPieces,
-  executeMachine,
   calculateStars,
   getDefaultPorts,
   getPieceCategory,
@@ -20,6 +19,12 @@ import {
 } from '../game/engine';
 import { meetsDirectionObjectives } from '../game/objectives';
 import { evaluateLiveGate } from '../game/spec/liveGate';
+import {
+  evaluateRunRequirements,
+  runMachine,
+  type MachineRun,
+  type RunVerdict,
+} from '../game/runLoop';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +40,11 @@ interface GameState {
   debugMode: boolean;
   debugStepIndex: number;
   configuration: number;
+  // AXM-046 R1.5: the last engaged run (per-pulse head, trail, checkpoints,
+  // halt, fault) for the replay, and its verdict against the level's
+  // checkpoints, expectedArrivals and expectedTrail. Null before a run.
+  lastRun: MachineRun | null;
+  runVerdict: RunVerdict | null;
 
   // Actions
   setLevel: (level: LevelDefinition) => void;
@@ -143,6 +153,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   debugMode: false,
   debugStepIndex: 0,
   configuration: 0,
+  lastRun: null,
+  runVerdict: null,
 
   setLevel: (level) => {
     const pieces = level.prePlacedPieces.map(p => ({ ...p, ports: p.ports.map(port => ({ ...port })) }));
@@ -172,6 +184,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       debugMode: false,
       debugStepIndex: 0,
       configuration: 0,
+      lastRun: null,
+      runVerdict: null,
     });
   },
 
@@ -296,16 +310,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Tape-enabled levels: run one pulse per tape cell, concatenating
     // execution steps. The animation layer already detects pulse
     // boundaries by counting source-typed steps.
-    const pulseCount = inputTape ? inputTape.length : 1;
+    // AXM-046 R1.5: the pulses run through runLoop.runMachine, the loop the
+    // verifier also uses. With no new level flag it is exactly this loop;
+    // a level's pulseCount, driven head or halt Terminal change the count.
     resetRunState(stateWithConfig.pieces);
-    let allSteps: ExecutionStep[] = [];
+    const run = runMachine(currentLevel ?? {}, stateWithConfig, inputTape ? inputTape.length : 1);
+    const pulseCount = run.pulses.length;
+    const allSteps: ExecutionStep[] = run.steps;
     // Per-pulse Terminal-reached flags (P14-6), used by evaluateLiveGate below.
-    const reachedPerPulse: boolean[] = [];
-    for (let i = 0; i < pulseCount; i++) {
-      const pulseSteps = executeMachine(stateWithConfig, i);
-      allSteps = allSteps.concat(pulseSteps);
-      reachedPerPulse.push(pulseSteps.some(s => s.type === 'terminal' && s.success));
-    }
+    const reachedPerPulse: boolean[] = run.reachedPerPulse;
 
     const reachedOutputEveryPulse =
       pulseCount > 0 &&
@@ -345,6 +358,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       succeeded = meetsDirectionObjectives(currentLevel.objectives, allSteps);
     }
 
+    // AXM-046: checkpoints (DR-1), run faults (stamp_conflict, non_halting,
+    // halt_cap), expectedArrivals and expectedTrail (DR-13). Passes on every
+    // level that sets none of them.
+    const runVerdict = evaluateRunRequirements(currentLevel ?? {}, run);
+    if (!runVerdict.passed) succeeded = false;
+
     const playerPiecesUsed = machineState.pieces.filter(p => !p.isPrePlaced).length;
     const totalTrayPieces = currentLevel?.availablePieces?.length ?? 0;
     const stars = succeeded && currentLevel
@@ -354,6 +373,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       executionSteps: allSteps,
       isExecuting: true,
+      lastRun: run,
+      runVerdict,
       stars,
       machineState: {
         ...machineState,
@@ -389,6 +410,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       executionSteps: [],
       isExecuting: false,
+      lastRun: null,
+      runVerdict: null,
       stars: 0,
       debugStepIndex: 0,
       machineState: {

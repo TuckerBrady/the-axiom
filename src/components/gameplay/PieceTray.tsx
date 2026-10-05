@@ -99,6 +99,9 @@ const PIECE_LABELS: Record<PieceType, string> = {
   inverter: 'INV',
   counter: 'CNT',
   latch: 'LATCH',
+  // AXM-046 DR-8/DR-9 (names per the spec; tray art lands in PR 2).
+  stepper: 'STEP',
+  stamp: 'STAMP',
   obstacle: '',
 };
 

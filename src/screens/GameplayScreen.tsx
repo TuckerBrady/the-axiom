@@ -56,7 +56,9 @@ import { placeFromKeplerInventory, shouldMountTray } from '../game/trayPlacement
 import { trayFocusKey } from '../game/trayFocus';
 import { resolveTargetPiece } from '../game/discoveryFlight';
 import { resolveDropCell } from '../utils/dropTarget';
-import { evaluateRequiredPieces, evaluateMinPieces, nextLatchMode } from '../game/engine';
+import {
+  evaluateRequiredPieces, evaluateMinPieces, nextLatchMode, nextStampValue, nextStepperDirection,
+} from '../game/engine';
 import { getPlacementHintCells } from '../game/placementHints';
 import { buildRequiredPiecesCogsLine, buildMinPiecesCogsLine } from '../game/engagement/requiredPiecesDialogue';
 import { useGameplayFailure } from '../hooks/useGameplayFailure';
@@ -111,6 +113,9 @@ const PIECE_LABELS: Record<PieceType, string> = {
   inverter: 'INV',
   counter: 'CNT',
   latch: 'LATCH',
+  // AXM-046 DR-8/DR-9 (names per the spec; tray art lands in PR 2).
+  stepper: 'STEP',
+  stamp: 'STAMP',
   obstacle: '',
 };
 
@@ -756,6 +761,16 @@ export default function GameplayScreen({ navigation }: Props) {
       // Three-state cycle write -> read -> delay -> write (REQ-LATCH-MODE-1).
       // DELAY is the cross-pulse memory K1-9/K1-10 depend on.
       updatePiece(piece.id, { latchMode: nextLatchMode(piece.latchMode) });
+      hapticLight();
+      tutorialOnPieceTapped(piece.type);
+    } else if (piece.type === 'stepper') {
+      // AXM-046 DR-8: tap cycles RIGHT <-> LEFT (Config Node pattern).
+      updatePiece(piece.id, { direction: nextStepperDirection(piece.direction) });
+      hapticLight();
+      tutorialOnPieceTapped(piece.type);
+    } else if (piece.type === 'stamp') {
+      // AXM-046 DR-9: tap cycles 1 <-> 0 (Config Node pattern).
+      updatePiece(piece.id, { value: nextStampValue(piece.value) });
       hapticLight();
       tutorialOnPieceTapped(piece.type);
     }

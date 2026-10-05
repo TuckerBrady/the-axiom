@@ -25,8 +25,34 @@ function starsFromTotal(total: number): 0 | 1 | 2 | 3 {
 
 // ─── Active-piece helpers ────────────────────────────────────────────────────
 
+// AXM-045 DR-15: a seated READ/WRITE module scores as a placed Protocol piece.
+// It has no piece of its own (it sits on a pre-placed endpoint), so scoring
+// gives it a virtual player piece under this id. Its type is the persisted
+// module key (DR-14): 'scanner' for READ, 'transmitter' for WRITE, so the
+// tray/purchase split matches it against those tray entries.
+export const MODULE_PIECE_SUFFIX = '::module';
+
 function getActiveIds(steps: ExecutionStep[]): Set<string> {
-  return new Set(steps.filter(s => s.success).map(s => s.pieceId));
+  const ids = new Set<string>();
+  for (const s of steps) {
+    if (!s.success) continue;
+    ids.add(s.pieceId);
+    if (s.type === 'moduleRead' || s.type === 'moduleWrite') ids.add(`${s.pieceId}${MODULE_PIECE_SUFFIX}`);
+  }
+  return ids;
+}
+
+function modulePieces(placedPieces: PlacedPiece[]): PlacedPiece[] {
+  return placedPieces
+    .filter(p => !!p.module)
+    .map(p => ({
+      ...p,
+      id: `${p.id}${MODULE_PIECE_SUFFIX}`,
+      type: p.module === 'read' ? 'scanner' as const : 'transmitter' as const,
+      category: 'protocol' as const,
+      isPrePlaced: false,
+      module: undefined,
+    }));
 }
 
 // Splits playerPieces into tray-supplied (pre-assigned, "floor solve" set)
@@ -195,7 +221,8 @@ export function calculateScore(params: {
 
   // REQ-45/46: pre-placed pieces (Source, Terminal, pre-placed Resonators)
   // never count in any category's numerator or denominator.
-  const playerPieces = placedPieces.filter(p => !p.isPrePlaced);
+  // AXM-045 DR-15: seated modules join the player pieces as Protocol pieces.
+  const playerPieces = [...placedPieces.filter(p => !p.isPrePlaced), ...modulePieces(placedPieces)];
   const activeIds = getActiveIds(executionSteps);
   const activePlayerPieces = playerPieces.filter(p => activeIds.has(p.id));
 
@@ -206,16 +233,19 @@ export function calculateScore(params: {
   // actually utilized THIS run — a Scanner (or a write-mode Latch, this
   // codebase's "Capacitor") touched the Data Trail, or a Transmitter wrote
   // the output tape. Buying the tape alone earns nothing (REQ-40).
+  // AXM-045 DR-12.7 / DR-13.7: a READ module counts as trail use and a WRITE
+  // module as OUT use, exactly as the Scanner and Transmitter steps do.
   const trailUtilized = executionSteps.some(s => {
     if (!s.success) return false;
-    if (s.type === 'scanner') return true;
+    if (s.type === 'scanner' || s.type === 'moduleRead') return true;
     if (s.type === 'latch') {
       const piece = placedPieces.find(p => p.id === s.pieceId);
       return (piece?.latchMode ?? 'write') === 'write';
     }
     return false;
   });
-  const outUtilized = executionSteps.some(s => s.success && s.type === 'transmitter');
+  const outUtilized = executionSteps.some(
+    s => s.success && (s.type === 'transmitter' || s.type === 'moduleWrite'));
   const trailTapeContributes = purchasedTapeTypes.includes('TRAIL') && trailUtilized;
   const outTapeContributes = purchasedTapeTypes.includes('OUT') && outUtilized;
 
