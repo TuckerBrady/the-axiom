@@ -48,6 +48,8 @@ export type MachineRun = {
   // DR-1: per pulse, the indices of the level's checkpoints the beam passed,
   // in the order it passed them. Empty lists when the level has none.
   checkpointsPerPulse: number[][];
+  // The same, with the path-order relation evaluateRunRequirements needs.
+  checkpointPathPerPulse: { order: number[]; precedes: (a: number, b: number) => boolean }[];
   // DR-11: a halt Terminal accepted and the run stopped there.
   halted: boolean;
   fault?: RunFault;
@@ -80,43 +82,102 @@ export function resolvePulseCount(level: RunLevel, fallback: number): number {
   return level.pulseCount !== undefined ? level.pulseCount : fallback;
 }
 
+// DR-1 ruling (#100 review): the delivering path of one pulse. Walks back from
+// the first accepting Terminal through each step's `from` (recorded when
+// executeMachine runs with trackPath). Returns, for every piece on that path,
+// the set of its ancestors on the path. A Merger contributes every inbound
+// path it ORed, so the "path" can fork backwards into parallel branches.
+function deliveringAncestors(steps: ExecutionStep[]): Map<string, Set<string>> | null {
+  const terminal = steps.find(s => s.type === 'terminal' && s.success);
+  if (!terminal) return null;
+  const fromOf = new Map<string, string[]>();
+  for (const s of steps) {
+    if (s.success && s.from && !fromOf.has(s.pieceId)) fromOf.set(s.pieceId, s.from);
+  }
+  const ancestors = new Map<string, Set<string>>();
+  const visit = (id: string): Set<string> => {
+    const known = ancestors.get(id);
+    if (known) return known;
+    const set = new Set<string>();
+    ancestors.set(id, set);
+    for (const parent of fromOf.get(id) ?? []) {
+      set.add(parent);
+      for (const a of visit(parent)) set.add(a);
+    }
+    return set;
+  };
+  visit(terminal.pieceId);
+  return ancestors;
+}
+
 /**
- * DR-1: the indices of `checkpoints` the beam passed in one pulse's steps, in
- * the order it passed them. A checkpoint is passed when a piece on that cell
- * fired successfully on this pulse (any piece may sit on a checkpoint); a gate
- * that held on the cell does not pass it. A cell counts once, at its first
- * successful step.
+ * DR-1: the indices of `checkpoints` passed on one pulse, in path order.
+ *
+ * Ruling (#100 review): a checkpoint counts only when a piece on that cell is
+ * on the path that reached the accepting Terminal on this pulse (any piece may
+ * sit on a checkpoint, the Terminal included). A Splitter stub, or a gate
+ * that held, does not count. A pulse with no accepted Terminal passes none.
+ * Order is along the path: a piece comes after every piece upstream of it.
+ * Two pieces on parallel branches into a Merger have no order between them;
+ * this list sorts those by step order, but evaluateRunRequirements checks
+ * true path order and fails them (see there).
+ *
+ * `steps` must come from executeMachine with `trackPath`; runMachine does that
+ * whenever the level has checkpoints.
  */
 export function checkpointsPassed(
   steps: ExecutionStep[],
   pieces: PlacedPiece[],
   checkpoints: { x: number; y: number }[] | undefined,
 ): number[] {
-  if (!checkpoints || checkpoints.length === 0) return [];
+  return checkpointPath(steps, pieces, checkpoints).order;
+}
+
+function checkpointPath(
+  steps: ExecutionStep[],
+  pieces: PlacedPiece[],
+  checkpoints: { x: number; y: number }[] | undefined,
+): { order: number[]; precedes: (a: number, b: number) => boolean } {
+  const none = { order: [], precedes: () => false };
+  if (!checkpoints || checkpoints.length === 0) return none;
+  const ancestors = deliveringAncestors(steps);
+  if (!ancestors) return none;
   const byId = new Map(pieces.map(p => [p.id, p]));
-  const order: number[] = [];
+  const pieceAt = new Map<number, string>();
   for (const s of steps) {
-    if (!s.success) continue;
+    if (!s.success || !ancestors.has(s.pieceId)) continue;
     const p = byId.get(s.pieceId);
     if (!p) continue;
     const index = checkpoints.findIndex(c => c.x === p.gridX && c.y === p.gridY);
-    if (index >= 0 && !order.includes(index)) order.push(index);
+    if (index >= 0 && !pieceAt.has(index)) pieceAt.set(index, s.pieceId);
   }
-  return order;
+  const precedes = (a: number, b: number) => {
+    const pa = pieceAt.get(a);
+    const pb = pieceAt.get(b);
+    return !!pa && !!pb && (ancestors.get(pb)?.has(pa) ?? false);
+  };
+  return { order: Array.from(pieceAt.keys()), precedes };
 }
 
 // DR-11: the whole machine state, for loop detection. Head, trail, every
-// Latch's stored value and every Counter's count. While the run still reads
-// a pulse-indexed input (an IN tape, or the pulse-indexed trail read outside
-// driven mode) the pulse index is part of the state too, so a repeat is only
-// ever called when the future is provably the same.
-function machineStateKey(state: MachineState, pulseIndex: number, timeVariant: boolean): string {
+// Latch's stored value and every Counter's count.
+// Ruling (#100 review): the pulse index is part of the state only while the
+// next pulse still reads IN (pulseIndex < inputTape.length). An empty IN
+// tape, or a run past its end, no longer keeps a repeating loop alive until
+// halt_cap.
+// One addition, outside driven mode only: a pulse-mode Config Node reads
+// TRAIL[pulseIndex] while pulseIndex < trail length (engine.ts configNode
+// case), so the index stays in the state while that read is still indexed.
+// Dropping it there could call a machine non-halting whose next read differs.
+function machineStateKey(state: MachineState, pulseIndex: number, driven: boolean): string {
+  const readsIn = pulseIndex < (state.inputTape?.length ?? 0);
+  const readsTrailByPulse = !driven && pulseIndex < state.dataTrail.cells.length;
   return JSON.stringify([
     state.dataTrail.headPosition,
     state.dataTrail.cells,
     state.pieces.map(p =>
       p.type === 'latch' ? p.storedValue ?? null : p.type === 'counter' ? p.count ?? 0 : 0),
-    timeVariant ? pulseIndex : null,
+    readsIn || readsTrailByPulse ? pulseIndex : null,
   ]);
 }
 
@@ -139,9 +200,12 @@ export function runMachine(
   state: MachineState,
   fallbackPulseCount: number,
 ): MachineRun {
-  const options = level.headMode === 'driven' ? { headMode: 'driven' as const } : undefined;
+  const driven = level.headMode === 'driven';
+  const trackPath = (level.checkpoints?.length ?? 0) > 0;
+  const options = driven || trackPath
+    ? { ...(driven ? { headMode: 'driven' as const } : {}), ...(trackPath ? { trackPath: true } : {}) }
+    : undefined;
   const halting = hasHaltTerminal(state.pieces);
-  const timeVariant = !!level.inputTape || level.headMode !== 'driven';
   const limit = halting ? HALT_CAP : resolvePulseCount(level, fallbackPulseCount);
 
   const run: MachineRun = {
@@ -153,11 +217,12 @@ export function runMachine(
     trailPerPulse: [],
     finalTrail: state.dataTrail.cells,
     checkpointsPerPulse: [],
+    checkpointPathPerPulse: [],
     halted: false,
   };
 
   const seen = new Set<string>();
-  if (halting) seen.add(machineStateKey(state, 0, timeVariant));
+  if (halting) seen.add(machineStateKey(state, 0, driven));
 
   for (let i = 0; i < limit; i++) {
     run.headPerPulse.push(state.dataTrail.headPosition);
@@ -167,7 +232,9 @@ export function runMachine(
     const accepted = steps.filter(s => s.type === 'terminal' && s.success);
     run.reachedPerPulse.push(accepted.length > 0);
     run.trailPerPulse.push([...state.dataTrail.cells]);
-    run.checkpointsPerPulse.push(checkpointsPassed(steps, state.pieces, level.checkpoints));
+    const path = checkpointPath(steps, state.pieces, level.checkpoints);
+    run.checkpointPathPerPulse.push(path);
+    run.checkpointsPerPulse.push(path.order);
 
     if (steps.some(s => s.type === 'stampConflict')) {
       run.fault = { kind: 'stamp_conflict', pulse: i + 1 };
@@ -180,7 +247,7 @@ export function runMachine(
       run.halted = true;
       break;
     }
-    const key = machineStateKey(state, i + 1, timeVariant);
+    const key = machineStateKey(state, i + 1, driven);
     if (seen.has(key)) {
       run.fault = { kind: 'non_halting', pulse: i + 1 };
       break;
@@ -212,14 +279,13 @@ export function evaluateRunRequirements(level: RunLevel, run: MachineRun): RunVe
   if (checkpoints.length > 0) {
     for (let p = 0; p < run.pulses.length; p++) {
       if (!run.reachedPerPulse[p]) continue;
-      const passed = run.checkpointsPerPulse[p] ?? [];
-      let last = -1;
+      const { order, precedes } = run.checkpointPathPerPulse[p];
+      // Every checkpoint on the delivering path, each one strictly downstream
+      // of the one listed before it (DR-1 ruling: path order).
       for (let k = 0; k < checkpoints.length; k++) {
-        const at = passed.indexOf(k);
-        if (at < 0 || at < last) {
+        if (!order.includes(k) || (k > 0 && !precedes(k - 1, k))) {
           return { passed: false, failure: { kind: 'checkpoint_missed', index: k, pulse: p + 1 } };
         }
-        last = at;
       }
     }
   }

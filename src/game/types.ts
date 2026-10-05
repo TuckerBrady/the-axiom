@@ -526,4 +526,9 @@ export type ExecutionStep = {
   // applies to. Replay draws the head from these, never from end-of-run state.
   headAtPulseStart?: number;
   headBefore?: number;
+  // AXM-046 DR-1 (only when executeMachine is asked to trackPath): the ids of
+  // the pieces whose emission this piece processed. One sender for every
+  // piece but a Merger, which lists every inbound path it ORed; none for the
+  // Source. Lets the run loop find the path that reached the Terminal.
+  from?: string[];
 };

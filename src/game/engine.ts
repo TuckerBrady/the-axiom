@@ -384,6 +384,10 @@ export function countMergerInboundEdges(merger: PlacedPiece, allPieces: PlacedPi
  */
 export type ExecuteOptions = {
   headMode?: 'driven';
+  // AXM-046 DR-1: record each step's sender(s) in `step.from`, so checkpoints
+  // can be credited along the path that reached the Terminal. Off by default,
+  // so steps on every level without checkpoints are exactly as on master.
+  trackPath?: boolean;
 };
 
 export function executeMachine(
@@ -412,7 +416,7 @@ export function executeMachine(
   // reaches collects every inbound path's signal value here before emitting the
   // OR. Holding the Merger out of `visited` until its paths arrive is what stops
   // the visited-set from silently dropping the second converging path.
-  const pendingMergers = new Map<string, { arrivals: number[]; expectedPaths: number }>();
+  const pendingMergers = new Map<string, { arrivals: number[]; expectedPaths: number; senders: string[] }>();
   // Prompt 100 — BFS queue entries carry a `signalValue`, the bit
   // value being propagated along the path. Pieces that transform the
   // signal (Inverter flip, Latch READ override) update the outbound
@@ -438,6 +442,8 @@ export function executeMachine(
     // G3: set by the drain-fallback to force a held Merger to emit when an
     // inbound path was blocked upstream and will never arrive on its own.
     flushMerger?: boolean;
+    // AXM-046 DR-1: the piece that emitted this entry (absent for the Source).
+    fromId?: string;
   }[] = [{ id: source.id, signalValue: tapeValue ?? 0, carriesLatchValue: false }];
 
   const trail = {
@@ -476,7 +482,7 @@ export function executeMachine(
     didWork = false;
 
     while (queue.length > 0 && steps.length < MAX_STEPS) {
-    const { id: currentId, entrySide, signalValue, carriesLatchValue, flushMerger } = queue.shift()!;
+    const { id: currentId, entrySide, signalValue, carriesLatchValue, flushMerger, fromId } = queue.shift()!;
     if (visited.has(currentId)) continue;
 
     const piece = pieces.find(p => p.id === currentId);
@@ -494,11 +500,12 @@ export function executeMachine(
     if (piece.type === 'merger') {
       let pending = pendingMergers.get(currentId);
       if (!pending) {
-        pending = { arrivals: [], expectedPaths: countMergerInboundEdges(piece, pieces) };
+        pending = { arrivals: [], expectedPaths: countMergerInboundEdges(piece, pieces), senders: [] };
         pendingMergers.set(currentId, pending);
       }
       if (!flushMerger) {
         pending.arrivals.push(signalValue);
+        if (fromId) pending.senders.push(fromId);
       }
       const allPathsArrived = pending.arrivals.length >= pending.expectedPaths;
       if (!flushMerger && !allPathsArrived) {
@@ -517,6 +524,11 @@ export function executeMachine(
       timestamp: stepTime++,
       success: true,
     };
+    if (options.trackPath) {
+      step.from = piece.type === 'merger'
+        ? [...(pendingMergers.get(piece.id)?.senders ?? [])]
+        : fromId ? [fromId] : [];
+    }
 
     // Default outbound signal: passthrough. Pieces that transform the
     // signal (Inverter, Latch READ) overwrite this before the neighbor
@@ -828,6 +840,7 @@ export function executeMachine(
           entrySide: neighborEntrySide,
           signalValue: outboundSignalValue,
           carriesLatchValue: outboundCarriesLatchValue,
+          fromId: piece.id,
         });
       }
     }
@@ -867,9 +880,11 @@ export function executeMachine(
 
   if (driven) {
     // DR-10: the pulse has drained. Apply the queued writes, then the queued
-    // moves. DR-9: STAMPs queuing different values in one pulse are a fault;
-    // nothing commits and the run stops (stamp_conflict, see runLoop.ts).
-    // Identical values are legal. A write with the head off the tape has no
+    // moves. DR-9: STAMPs queuing different values in one pulse are a fault:
+    // the queued STAMP writes and head moves are dropped, and the run fails
+    // and stops (stamp_conflict, see runLoop.ts). Everything the pulse already
+    // did still stands: the READ trail write, the WRITE OUT write, Latch and
+    // Counter state. Identical values are legal. A write with the head off the tape has no
     // cell to land in and is dropped. Moves sum (twin scope A7).
     // A branch that ended without a Terminal is legal here, so no void step.
     const conflict = queuedWrites.find(w => w.value !== queuedWrites[0].value);
